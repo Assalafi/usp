@@ -1,0 +1,614 @@
+<!-- Start Content-->
+<div class="main-body">
+    <div class="page-wrapper">
+        <!-- [ Main Content ] start -->
+        <div class="row">
+            <div class="col-sm-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>{{ strtoupper($page) }}</h5>
+                    </div>
+                    <div
+                        style="padding: 10px; background-color: #f9f9f9; border-left: 4px solid #5D87FF; margin: 20px 0;">
+                        <ul>
+                            <li>
+                                Users are required to upload the academic status for the 2022/2023 session. For example,
+                                the academic status of current Part 2 students should be uploaded under their Part 1
+                                status.
+                            </li>
+                            <li>
+                                Carryovers are separate with comma even the last carryover e.g CMC101,GMC101,TMT304
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-block">
+                        <button href="#" class="btn btn-dark uploadAction" data-bs-toggle="modal"
+                            data-bs-target="#import"><i class="fas fa-upload"></i> {{ 'Import' }}</button>
+                        <a href="{{ url('uploads/STATUS TEMPLATE UNIMAID.xlsx') }}" class="btn btn-primary"
+                            download="STATUS TEMPLATE.xlsx"><i class="fas fa-download"></i> Download Template</a>
+
+                        @if (strtoupper(session('username')) == 'SP11913' || strtoupper(session('username')) == 'SU')
+                            <button href="#" class="btn btn-warning" data-bs-toggle="modal"
+                                data-bs-target="#applyResult"><i class="fas fa-file"></i>
+                                {{ 'Apply Approved Result' }}</button>
+
+                            <button href="#" class="btn btn-danger" data-bs-toggle="modal"
+                                data-bs-target="#deleteResults"><i class="fas fa-trash"></i>
+                                {{ 'Delete Results' }}</button>
+
+                            <button href="#" class="btn btn-info" data-bs-toggle="modal"
+                                data-bs-target="#promoteStudent"><i class="fas fa-user-plus"></i>
+                                {{ 'Promote Student' }}</button>
+
+                            <button href="#" class="btn btn-primary" data-bs-toggle="modal"
+                                    data-bs-target="#courseReg"><i class="fas fa-gear"></i>
+                                    {{ 'Course Registration' }}</button>
+
+                            <button href="#" class="btn btn-primary" data-bs-toggle="modal"
+                                data-bs-target="#deCourse"><i class="fas fa-gear"></i>
+                                {{ 'DE Course Registration' }}</button>
+
+                            <button href="#" class="btn btn-danger" data-bs-toggle="modal"
+                                    data-bs-target="#reRegistration"><i class="fas fa-redo"></i>
+                                    {{ 'Re-Registration' }}</button>
+
+                            <a href="/session history" class="btn btn-primary"><i class="fas fa-gear"></i>
+                                {{ 'Session History' }}</a>
+                        @endif
+                    </div>
+                    <div class="card-block">
+                        <form class="needs-validation" novalidate method="GET" action="/print-status-pdf">
+                            @csrf
+                            <div class="row gx-2">
+                                <div class="form-group col-md-2">
+                                    <label for="facultyf">Faculty <span>*</span></label>
+                                    <select class="form-control faculty" lang="f" name="faculty" id="facultyf">
+                                        <option value="">Select Option</option>
+                                        @foreach ($faculty as $roww)
+                                            <option value="{{ $roww->code }}">{{ $roww->title }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label for="departmentf">Department</label>
+                                    <select class="form-control department" lang="f" id="departmentf"
+                                        name="department">
+                                        <option value="">Select Faculty First</option>
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label for="programf">Program</label>
+                                    <select class="form-control" id="programf" lang="f" name="program">
+                                        <option value="">Select Department First</option>
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label for="session">Session</label>
+                                    <select class="form-control" id="session" name="session">
+                                        <option value="">Select Option</option>
+                                        @foreach ($session as $ses)
+                                            <option value="{{ $ses->title }}">{{ $ses->title }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-1">
+                                    <label for="level">Level</label>
+                                    <select class="form-control" id="level" name="level" required>
+                                        <option value="">Select Option</option>
+                                        @for ($i = 1; $i <= 7; $i++)
+                                            <option value="{{ $i * 100 }}">{{ $i * 100 }}</option>
+                                        @endfor
+                                    </select>
+                                </div>
+                                <input type="hidden" name="type" value="FINAL">
+                                <div class="form-group col-md-1">
+                                    <button type="submit" class="btn btn-info btn-filter"><i class="fas fa-search"></i>
+                                        {{ 'Filter' }}</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- [ Main Content ] end -->
+    </div>
+</div>
+<!-- End Content-->
+<!-- Show modal content -->
+<div id="import" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-md" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="myModalLabel">Upload</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="card">
+                <div class="card-body">
+                    <a href="#"><i class="fas fa-download"></i> Download Template</a>
+                </div>
+
+                <form class="form-group" action="upload status" method="POST" enctype="multipart/form-data">
+                    <div class="card-body">
+                        <!-- Details View Start -->
+                        @csrf
+                        <div class="form-group">
+                            <label for="faculty1">Faculty</label>
+                            <select class="form-control faculty" id="faculty1" name="faculty" lang="1"
+                                required>
+                                <option value="">Select Option</option>
+                                @foreach ($faculty as $row)
+                                    <option value="{{ $row->code }}">{{ $row->title }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="department1">Department</label>
+                            <select class="form-control department" id="department1" name="department"
+                                lang="1" required>
+                                <option value="">Select Faculty First</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="program1">Program</label>
+                            <select class="form-control" id="program1" name="program" lang="1" required>
+                                <option value="">Select Department First</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="level">Level</label>
+                            <select class="form-control" id="level" name="level">
+                                <option value="">Select Option</option>
+                                @for ($i = 1; $i <= 7; $i++)
+                                    <option value="{{ $i * 100 }}">{{ $i * 100 }}</option>
+                                @endfor
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="mode">Select Mode</label>
+                            <select class="form-control" id="mode" name="mode">
+                                <option value="">Select Option</option>
+                                <option value="regular">Regular</option>
+                                <option value="spill">Spill</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="file"></label>
+                            <input type="file" name="file" id="file" accept=".xlsx, .xls"
+                                class="form-control">
+                        </div>
+                        <!-- Details View End -->
+                        <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-success">Assign</button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+<div id="applyResult" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-md" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="myModalLabel">Apply Approved Results</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="card">
+                <div class="card-body">
+                    <form class="form-group" action="/apply-result" method="GET" enctype="multipart/form-data">
+                        <div class="card-body">
+                            <!-- Details View Start -->
+                            @csrf
+                            <div class="form-group col-md-2">
+                                <label for="facultyf">Faculty <span>*</span></label>
+                                <select class="form-control faculty" lang="ff" name="faculty" id="facultyff">
+                                    <option value="">Select Option</option>
+                                    @foreach ($faculty as $roww)
+                                        <option value="{{ $roww->code }}">{{ $roww->title }} ({{ $roww -> code }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="form-group col-md-2">
+                                <label for="departmentf">Department</label>
+                                <select class="form-control department" lang="ff" id="departmentff"
+                                    name="department">
+                                    <option value="">Select Faculty First</option>
+                                </select>
+                            </div>
+                            <!-- Details View End -->
+                            <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-success">Apply Approved Results</button>
+                        </div>
+                    </form>
+                    {{-- <a href="/apply-result" class="btn btn-warning">Apply Approved Results</a> --}}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+<div id="promoteStudent" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-md" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="myModalLabel">Promote Students</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="card">
+
+                <form class="form-group" action="/generate-status" method="GET" enctype="multipart/form-data">
+                    <div class="card-body">
+                        <!-- Details View Start -->
+                        @csrf
+                        <div class="form-group">
+                            <label for="faculty1">Faculty</label>
+                            <select class="form-control faculty" id="faculty1p" name="faculty" lang="1p"
+                                required>
+                                <option value="">Select Option</option>
+                                @foreach ($faculty as $row)
+                                    <option value="{{ $row->code }}">{{ $row->title }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="department1">Department</label>
+                            <select class="form-control department" id="department1p" name="department"
+                                lang="1p" required>
+                                <option value="">Select Faculty First</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="program1p">Program</label>
+                            <select class="form-control" id="program1p" name="program" lang="1p" required>
+                                <option value="">Select Department First</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="level">Level</label>
+                            <select class="form-control" id="level" name="level">
+                                <option value="">Select Option</option>
+                                @for ($i = 1; $i <= 7; $i++)
+                                    <option value="{{ $i * 100 }}">{{ $i * 100 }}</option>
+                                @endfor
+                            </select>
+                        </div>
+                        <!-- Details View End -->
+                        <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-success">Process</button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div id="reRegistration" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-md" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="myModalLabel">Re-Registration</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="card">
+
+                <form class="form-group" action="/re-register" method="GET" enctype="multipart/form-data">
+                    <div class="card-body">
+                        <!-- Details View Start -->
+                        @csrf
+                        <div class="form-group">
+                            <label for="faculty1">Faculty</label>
+                            <select class="form-control faculty" id="faculty1re" name="faculty" lang="1re"
+                                required>
+                                <option value="">Select Option</option>
+                                @foreach ($faculty as $row)
+                                    <option value="{{ $row->code }}">{{ $row->title }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="department1">Department</label>
+                            <select class="form-control department" id="department1re" name="department"
+                                lang="1re" required>
+                                <option value="">Select Faculty First</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="program1re">Program</label>
+                            <select class="form-control" id="program1re" name="program" lang="1re" required>
+                                <option value="">Select Department First</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="level">Level</label>
+                            <select class="form-control" id="level" name="level">
+                                <option value="">Select Option</option>
+                                @for ($i = 1; $i <= 7; $i++)
+                                    <option value="{{ $i * 100 }}">{{ $i * 100 }}</option>
+                            <label for="session">Session</label>
+                                <option value="2029/2030">2029/2030</option>
+                                <option value="2030/2031">2030/2031</option>
+                            </select>
+                        </div>
+                        <!-- Details View End -->
+                        <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-success">Re-Register</button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div id="deleteResults" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="deleteResultsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteResultsLabel">Delete Results</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <strong>Warning!</strong> This action will permanently delete the selected results. This cannot be undone.
+                </div>
+                
+                <div class="mb-3">
+                    <label for="resultCodes" class="form-label">Enter Result Codes (one per line or comma-separated)</label>
+                    <textarea class="form-control" id="resultCodes" rows="5" placeholder="Enter result codes to delete, separated by commas or new lines"></textarea>
+                </div>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="confirmDelete" required>
+                    <label class="form-check-label" for="confirmDelete">
+                        I understand that this action cannot be undone and I have verified the result codes
+                    </label>
+                </div>
+                
+                <div id="deleteProgress" style="display: none;">
+                    <div class="progress mb-3">
+                        <div id="deleteProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div id="deleteStatus" class="text-muted">Processing: 0/0 (0%)</div>
+                    <div id="deleteDetails" class="small text-muted"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="processDeleteBtn" class="btn btn-danger">
+                    <i class="fas fa-trash me-1"></i> Delete Results
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="courseReg" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-md" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="myModalLabel">Course Registration</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="card">
+
+                <form class="form-group" action="/register-courses" method="GET"
+                    enctype="multipart/form-data">
+                    <div class="card-body">
+                        <!-- Details View Start -->
+                        @csrf
+                        <div class="form-group">
+                            <label for="faculty1">Faculty</label>
+                            <select class="form-control faculty" id="" name="faculty" required>
+                                <option value="">Select Option</option>
+                                @foreach ($faculty as $row)
+                                    <option value="{{ $row->code }}">{{ $row->title }} ({{ $row -> code }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="session">Session</label>
+                            <select class="form-control" id="session" name="session" required>
+                                <option value="">Select Option</option>
+                                <option value="2023/2024">2023/2024</option>
+                                <option value="2024/2025">2024/2025</option>
+                            </select>
+                        </div>
+                        <!-- Details View End -->
+                        <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-success">Process</button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div id="deCourse" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-md" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="myModalLabel">DE Course Registration</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"><span
+                        aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="card">
+
+                <form class="form-group" action="/register-courses-new-student" method="GET"
+                    enctype="multipart/form-data">
+                    <div class="card-body">
+                        <!-- Details View Start -->
+                        @csrf
+                        <div class="form-group">
+                            <label for="session">Session</label>
+                            <select class="form-control" id="session" name="session" required>
+                                <option value="">Select Option</option>
+                                <option value="2023/2024">2023/2024</option>
+                                <option value="2024/2025">2024/2025</option>
+                            </select>
+                        </div>
+                        <!-- Details View End -->
+                        <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-success">Process</button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Handle delete results form submission
+    $('#processDeleteBtn').click(function() {
+        if (!$('#confirmDelete').is(':checked')) {
+            alert('Please confirm that you understand this action cannot be undone.');
+            return false;
+        }
+
+        const resultCodesText = $('#resultCodes').val().trim();
+        if (!resultCodesText) {
+            alert('Please enter at least one result code.');
+            return false;
+        }
+
+        // Parse result codes (support both comma-separated and newline-separated)
+        let resultCodes = resultCodesText.split(/[\n,]+/).map(code => code.trim()).filter(Boolean);
+        
+        if (resultCodes.length === 0) {
+            alert('No valid result codes found.');
+            return false;
+        }
+
+        // Show progress UI
+        $('#deleteProgress').show();
+        $('#processDeleteBtn').prop('disabled', true);
+        
+        // Initialize progress
+        const total = resultCodes.length;
+        let processed = 0;
+        let successCount = 0;
+        let failedCount = 0;
+        let failedCodes = [];
+        
+        // Process deletion in batches to avoid timeout
+        const batchSize = 5;
+        let currentIndex = 0;
+        
+        function processBatch() {
+            const batch = resultCodes.slice(currentIndex, currentIndex + batchSize);
+            if (batch.length === 0) {
+                // All batches processed
+                let resultMessage = `Processed ${processed} results (${successCount} deleted, ${failedCount} failed).`;
+                if (failedCount > 0) {
+                    resultMessage += ' Failed codes: ' + failedCodes.join(', ');
+                }
+                $('#deleteDetails').html('<div class="alert ' + (failedCount > 0 ? 'alert-warning' : 'alert-success') + '">' + resultMessage + '</div>');
+                $('#processDeleteBtn').prop('disabled', false);
+                return;
+            }
+            
+            // Process current batch
+            const batchPromises = batch.map(code => {
+                return $.ajax({
+                    url: '/delete-result',
+                    type: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        code: code
+                    },
+                    dataType: 'json'
+                });
+            });
+            
+            // Wait for all requests in batch to complete
+            $.when.apply($, batchPromises).then(function() {
+                // Process each response in the batch
+                for (let i = 0; i < arguments.length; i++) {
+                    processed++;
+                    const response = arguments[i][0]; // For single request
+                    
+                    if (response && response.success) {
+                        successCount++;
+                    } else {
+                        failedCount++;
+                        failedCodes.push(batch[i]);
+                    }
+                    
+                    // Update progress
+                    const progress = Math.floor((processed / total) * 100);
+                    $('#deleteProgressBar').css('width', progress + '%').attr('aria-valuenow', progress);
+                    $('#deleteStatus').text(`Processing: ${processed}/${total} (${progress}%)`);
+                    
+                    if (response && response.message) {
+                        $('#deleteDetails').append(`<div>${batch[i]}: ${response.message}</div>`);
+                    } else if (response && response.error) {
+                        $('#deleteDetails').append(`<div class="text-danger">${batch[i]}: ${response.error}</div>`);
+                    }
+                    
+                    // Auto-scroll to bottom of details
+                    const detailsDiv = document.getElementById('deleteDetails');
+                    detailsDiv.scrollTop = detailsDiv.scrollHeight;
+                }
+                
+                // Process next batch
+                currentIndex += batchSize;
+                processBatch();
+            }).fail(function(xhr, status, error) {
+                // Handle batch failure
+                for (let i = 0; i < batch.length; i++) {
+                    processed++;
+                    failedCount++;
+                    failedCodes.push(batch[i]);
+                    
+                    const progress = Math.floor((processed / total) * 100);
+                    $('#deleteProgressBar').css('width', progress + '%').attr('aria-valuenow', progress);
+                    $('#deleteStatus').text(`Processing: ${processed}/${total} (${progress}%)`);
+                    
+                    let errorMsg = 'Unknown error';
+                    if (xhr.responseJSON && xhr.responseJSON.error) {
+                        errorMsg = xhr.responseJSON.error;
+                    } else if (xhr.statusText) {
+                        errorMsg = xhr.statusText;
+                    }
+                    
+                    $('#deleteDetails').append(`<div class="text-danger">${batch[i]}: ${errorMsg}</div>`);
+                }
+                
+                // Continue with next batch even if one fails
+                currentIndex += batchSize;
+                processBatch();
+            });
+        }
+        
+        // Start processing batches
+        processBatch();
+    });
+    
+    // Clear form when modal is closed
+    $('#deleteResults').on('hidden.bs.modal', function () {
+        $('#resultCodes').val('');
+        $('#confirmDelete').prop('checked', false);
+        $('#deleteProgress').hide();
+        $('#deleteProgressBar').css('width', '0%').attr('aria-valuenow', 0);
+        $('#deleteStatus').text('Processing: 0/0 (0%)');
+        $('#deleteDetails').empty();
+        $('#processDeleteBtn').prop('disabled', false);
+    });
+});
+</script>
+
+<!-- End of status.blade.php -->

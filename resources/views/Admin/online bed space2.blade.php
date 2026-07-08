@@ -1,0 +1,130 @@
+
+<div class="main-body">
+    <div class="page-wrapper">
+        <!-- [ Main Content ] start -->
+        <div class="row">
+            <div class="col-sm-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Flag Online Bed Space</h5>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-auto">
+                            <div class="card-block">
+                                <form action="#" method="POST">
+                                    @csrf
+                                    <div class="row gx-2">
+                                        <input type="hidden" id="type" value="0">
+                                        <input type="hidden" id="page" value="ajax/admin/online bed space">
+                                        <div class="form-group col-md-6">
+                                            <select class="form-control" id="filterHall" required>
+                                                <option value="">SELECT HALL</option>
+                                                @foreach ($hall as $hall)
+                                                    <option value="{{ $hall -> hall }}">{{ $hall -> hall }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="form-group col-md-6">
+                                            <select class="form-control" id="filterCategory" required>
+                                                <option value="">SELECT CATEGORY</option>
+                                                <option value="CONVENTIONAL">CONVENTIONAL</option>
+                                                <option value="NONCONVENTIONAL">NON-CONVENTIONAL</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>  
+                </div>
+            </div>
+
+            <div class="col-sm-12" id="mainbody">
+                <div class="card">
+                    <div class="card-block">
+                        <!-- [ Data table ] start -->
+                        <div class="table-responsive">
+                            <table id="export-table" class="display table nowrap table-striped table-hover" style="width:100%">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Hall</th>
+                                        <th>Block</th>
+                                        <th>Room</th>
+                                        <th>Bed</th>
+                                        <th>Occupant</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="getFilter">
+                                    @php
+                                        $sn = 1;
+                                    @endphp
+                                  @foreach( $data as $row )
+                                    <tr>
+                                        <td>
+                                            {{ $sn++ }}
+                                        </td>
+                                        <td>
+                                            {{ $row->hall }}
+                                        </td>
+                                        <td>
+                                            {{ $row->block }}
+                                        </td>
+                                        <td>
+                                            {{ $row->room }}
+                                        </td>
+                                        <td>
+                                            {{ $row->bed }}
+                                        </td>
+                                        <td>
+                                            @if ($row->status == 1)
+                                                {{ $row->occupant }}
+                                            @elseif($row->status == 0)
+                                                @if ($row->flag == 1)
+                                                    Flag
+                                                @else
+                                                    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#showModal{{ $row->id }}">
+                                                        <i class="fas fa-plus"></i> Assign
+                                                    </button>
+                                                @endif
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    <!-- Show modal content -->
+                                    <div id="showModal{{ $row->id }}" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+                                        <div class="modal-dialog modal-sm" role="document">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="myModalLabel">Warning Flag</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                                                </div>
+                                                <form action="flag" method="POST">
+                                                    <div class="card-body">
+                                                        <!-- Details View Start -->
+                                                        @csrf
+                                                        <input type="hidden" name="id" id="id" value="{{ $row->id }}">
+                                                        <!-- Details View End -->
+                                                    <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
+                                                    <button type="submit" class="btn btn-success">Flag</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                  @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- [ Data table ] end -->
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-12" style="display: none;" id="wait">
+                <div class="spinner-grow" role="status">
+                  <span class="visually-hidden"></span>
+                </div>
+            </div>
+        </div>
+        <!-- [ Main Content ] end -->
+    </div>
+</div>
