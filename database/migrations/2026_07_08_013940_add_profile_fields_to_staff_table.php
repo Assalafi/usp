@@ -15,33 +15,79 @@ class AddProfileFieldsToStaffTable extends Migration
     {
         Schema::table('staff', function (Blueprint $table) {
             // Education & Experience (JSON)
-            $table->json('institutions')->nullable();
-            $table->json('experiences')->nullable();
-            $table->json('publications')->nullable();
-            $table->json('honours')->nullable();
-            $table->json('memberships')->nullable();
-            $table->text('extra_curricular')->nullable();
+            if (!Schema::hasColumn('staff', 'institutions')) {
+                $table->json('institutions')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'experiences')) {
+                $table->json('experiences')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'publications')) {
+                $table->json('publications')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'honours')) {
+                $table->json('honours')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'memberships')) {
+                $table->json('memberships')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'extra_curricular')) {
+                $table->text('extra_curricular')->nullable();
+            }
 
             // Next of Kin extra
-            $table->string('kin_relationship')->nullable();
+            if (!Schema::hasColumn('staff', 'kin_relationship')) {
+                $table->string('kin_relationship')->nullable();
+            }
 
             // Document uploads
-            $table->string('doc_photo')->nullable();
-            $table->string('doc_birth_certificate')->nullable();
-            $table->string('doc_primary_cert')->nullable();
-            $table->string('doc_ssce')->nullable();
-            $table->string('doc_diploma')->nullable();
-            $table->string('doc_degree')->nullable();
-            $table->string('doc_masters')->nullable();
-            $table->string('doc_phd')->nullable();
-            $table->string('doc_indigine')->nullable();
-            $table->string('doc_workshop')->nullable();
-            $table->string('doc_nysc')->nullable();
-            $table->string('doc_appointment_letter')->nullable();
-            $table->string('doc_confirmation')->nullable();
-            $table->string('doc_professional_body')->nullable();
-            $table->string('doc_other')->nullable();
-            $table->string('doc_other_name')->nullable();
+            if (!Schema::hasColumn('staff', 'doc_photo')) {
+                $table->string('doc_photo')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'doc_birth_certificate')) {
+                $table->string('doc_birth_certificate')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'doc_primary_cert')) {
+                $table->string('doc_primary_cert')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'doc_ssce')) {
+                $table->string('doc_ssce')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'doc_diploma')) {
+                $table->string('doc_diploma')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'doc_degree')) {
+                $table->string('doc_degree')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'doc_masters')) {
+                $table->string('doc_masters')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'doc_phd')) {
+                $table->string('doc_phd')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'doc_indigine')) {
+                $table->string('doc_indigine')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'doc_workshop')) {
+                $table->string('doc_workshop')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'doc_nysc')) {
+                $table->string('doc_nysc')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'doc_appointment_letter')) {
+                $table->string('doc_appointment_letter')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'doc_confirmation')) {
+                $table->string('doc_confirmation')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'doc_professional_body')) {
+                $table->string('doc_professional_body')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'doc_other')) {
+                $table->string('doc_other')->nullable();
+            }
+            if (!Schema::hasColumn('staff', 'doc_other_name')) {
+                $table->string('doc_other_name')->nullable();
+            }
         });
     }
 
