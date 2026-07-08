@@ -145,6 +145,32 @@ class ProgramController extends Controller
         return $add;
     }
 
+    public function departmentAjaxPublic(Request $req)
+    {
+        if(!session()->has('log')){return redirect('/');}
+        $data = DB::table('department')->select('code','title')->where(['faculty' => $req -> faculty, 'status' => '1'])->orderBy('title', 'asc')->get();
+
+        $add = '<option value="">Select Department</option>';
+        foreach ($data as $roww) {
+            $add .= '<option value="'.$roww -> code.'">'.$roww -> title.'</option>';
+        }
+
+        return $add;
+    }
+
+    public function programAjaxPublic(Request $req)
+    {
+        if(!session()->has('log')){return redirect('/');}
+        $data = DB::table('program')->select('code','title')->where(['faculty' => $req -> faculty, 'department' => $req -> dept, 'status' => '1'])->orderBy('title', 'asc')->get();
+
+        $add = '<option value="">Select Program</option>';
+        foreach ($data as $row) {
+            $add .= '<option value="'.$row -> code.'">'.$row -> title.'</option>';
+        }
+
+        return $add;
+    }
+
 
     public function courseAjax(Request $req)
     {

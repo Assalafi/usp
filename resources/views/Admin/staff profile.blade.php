@@ -1,598 +1,989 @@
 @php
     use Illuminate\Support\Facades\DB;
+    $activeTab = request('tab', 'personal');
+    $editMode = request('mode', 'view') === 'edit';
 @endphp
 
 <style>
     :root {
         --primary: #4361ee;
         --primary-dark: #3a56d4;
-        --secondary: #7209b7;
         --accent: #06d6a0;
-        --light: #f8f9fa;
         --dark: #2c3e50;
         --gray: #6c757d;
         --light-gray: #e9ecef;
-        --card-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        --card-shadow: 0 4px 20px rgba(0,0,0,0.08);
         --transition: all 0.3s ease;
     }
-    
-    .staff-profile-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 20px;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
-        min-height: 100vh;
+
+    .sp-container * { box-sizing: border-box; }
+    .sp-container { max-width: 1200px; margin: 0 auto; padding: 20px; overflow-x: hidden; }
+
+    .sp-header {
+        background: linear-gradient(135deg, var(--primary), #7209b7);
+        color: white; border-radius: 16px; padding: 25px 30px;
+        margin-bottom: 25px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
     }
-    
-    .back-button {
-        background: linear-gradient(to right, var(--primary), var(--secondary));
-        color: white;
-        border-radius: 30px;
-        padding: 12px 30px;
-        font-weight: 600;
-        box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
-        border: none;
-        margin-bottom: 30px;
-        transition: var(--transition);
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 16px;
-        cursor: pointer;
+    .sp-header img { width: 90px; height: 90px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.4); object-fit: cover; }
+    .sp-header .placeholder { width: 90px; height: 90px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 36px; border: 3px solid rgba(255,255,255,0.3); }
+    .sp-header-info h4 { margin: 0 0 4px; font-weight: 700; }
+    .sp-header-info span { opacity: 0.85; font-size: 14px; margin-right: 10px; }
+    .sp-header-actions { margin-left: auto; }
+    .sp-edit-toggle {
+        background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5);
+        color: white; padding: 10px 22px; border-radius: 30px; font-weight: 600;
+        font-size: 14px; cursor: pointer; transition: var(--transition); text-decoration: none;
     }
-    
-    .back-button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 25px rgba(67, 97, 238, 0.4);
+    .sp-edit-toggle:hover { background: rgba(255,255,255,0.3); color: white; text-decoration: none; }
+    .sp-edit-toggle.editing { background: #dc3545; border-color: #dc3545; }
+
+    .sp-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 20px; background: white; border-radius: 12px; padding: 6px; box-shadow: var(--card-shadow); }
+    .sp-tab { padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; color: var(--gray); border: none; background: none; transition: var(--transition); }
+    .sp-tab:hover { background: #f0f4ff; color: var(--primary); }
+    .sp-tab.active { background: var(--primary); color: white; }
+
+    .sp-panel { display: none; background: white; border-radius: 14px; padding: 30px; box-shadow: var(--card-shadow); }
+    .sp-panel.active { display: block; }
+
+    .sp-section-title { font-size: 18px; font-weight: 700; color: var(--primary); margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--light-gray); display: flex; align-items: center; gap: 8px; }
+
+    /* View Mode */
+    .sp-view-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .sp-view-item { padding: 12px 16px; background: #f8fafc; border-radius: 10px; border-left: 3px solid var(--primary); }
+    .sp-view-item .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray); font-weight: 600; margin-bottom: 3px; }
+    .sp-view-item .value { font-size: 15px; color: var(--dark); font-weight: 500; word-break: break-word; }
+    .sp-view-item .value.empty { color: #adb5bd; font-style: italic; }
+
+    /* Edit Mode */
+    .sp-form-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 16px; }
+    .sp-form-group { margin-bottom: 16px; }
+    .sp-form-group label { display: block; font-weight: 600; font-size: 13px; color: var(--dark); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .sp-form-group input, .sp-form-group select, .sp-form-group textarea {
+        width: 100%; padding: 10px 14px; border: 2px solid var(--light-gray); border-radius: 10px;
+        font-size: 14px; transition: var(--transition); background: #fafbfc;
     }
-    
-    .profile-header {
-        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-        color: white;
-        border-radius: 18px;
-        padding: 30px;
-        margin-bottom: 30px;
-        box-shadow: var(--card-shadow);
-        position: relative;
-        overflow: hidden;
+    .sp-form-group input:focus, .sp-form-group select:focus, .sp-form-group textarea:focus {
+        border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(67,97,238,0.1); background: white;
     }
-    
-    .profile-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
-        z-index: 0;
+    .sp-form-group input[readonly] { background: #f0f0f0; cursor: not-allowed; }
+
+    .sp-save-btn {
+        background: linear-gradient(to right, var(--primary), var(--primary-dark));
+        color: white; border: none; border-radius: 10px; padding: 12px 28px;
+        font-size: 15px; font-weight: 600; cursor: pointer; transition: var(--transition);
+        display: inline-flex; align-items: center; gap: 8px; margin-top: 10px;
     }
-    
-    .profile-header h1 {
-        font-size: 28px;
-        font-weight: 700;
-        margin-bottom: 5px;
-        position: relative;
-        z-index: 1;
-    }
-    
-    .profile-header .subtitle {
-        font-size: 16px;
-        opacity: 0.9;
-        position: relative;
-        z-index: 1;
-    }
-    
-    .profile-picture-section {
-        position: relative;
-        z-index: 1;
-    }
-    
-    .profile-picture {
-        width: 120px;
-        height: 120px;
-        border-radius: 50%;
-        border: 4px solid rgba(255,255,255,0.3);
-        object-fit: cover;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-        transition: var(--transition);
-    }
-    
-    .profile-picture:hover {
-        transform: scale(1.05);
-    }
-    
-    .profile-picture-placeholder {
-        width: 120px;
-        height: 120px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 4px solid rgba(255,255,255,0.3);
-        font-size: 40px;
-        color: white;
-    }
-    
-    .staff-profile-card {
-        background: white;
-        border-radius: 18px;
-        box-shadow: var(--card-shadow);
-        overflow: hidden;
-        margin-bottom: 30px;
-    }
-    
-    .info-section {
-        padding: 25px;
-        border-bottom: 1px solid var(--light-gray);
-    }
-    
-    .info-section:last-child {
-        border-bottom: none;
-    }
-    
-    .section-header {
-        font-size: 20px;
-        font-weight: 700;
-        color: var(--primary);
-        margin-bottom: 20px;
-        padding-bottom: 12px;
-        border-bottom: 3px solid var(--light-gray);
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .info-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 20px;
-    }
-    
-    .info-item {
-        padding: 15px;
-        border-radius: 12px;
-        background: rgba(67, 97, 238, 0.03);
-        transition: var(--transition);
-    }
-    
-    .info-item:hover {
-        background: rgba(67, 97, 238, 0.08);
-        transform: translateY(-3px);
-    }
-    
-    .info-label {
-        font-weight: 600;
-        color: var(--gray);
-        font-size: 13px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 5px;
-        display: block;
-    }
-    
-    .info-value {
-        color: var(--dark);
-        font-size: 16px;
-        font-weight: 500;
-    }
-    
-    .form-section {
-        background: white;
-        border-radius: 18px;
-        box-shadow: var(--card-shadow);
-        overflow: hidden;
-    }
-    
-    .form-header {
-        background: linear-gradient(to right, #f8f9fa, #edf2f9);
-        padding: 20px 25px;
-        font-size: 20px;
-        font-weight: 700;
-        color: var(--primary);
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        border-bottom: 3px solid var(--primary);
-    }
-    
-    .form-content {
-        padding: 30px;
-    }
-    
-    .modern-form-group {
-        margin-bottom: 20px;
-    }
-    
-    .modern-form-label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 600;
-        color: var(--dark);
-    }
-    
-    .modern-form-control {
-        width: 100%;
-        padding: 12px 15px;
-        border: 2px solid var(--light-gray);
-        border-radius: 12px;
-        font-size: 16px;
-        transition: var(--transition);
-        background: white;
-    }
-    
-    .modern-form-control:focus {
-        border-color: var(--primary);
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
-    }
-    
-    .update-button {
-        background: linear-gradient(to right, var(--accent), #04b48d);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        padding: 14px 30px;
-        font-size: 16px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: var(--transition);
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        box-shadow: 0 4px 15px rgba(4, 180, 141, 0.3);
-    }
-    
-    .update-button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 25px rgba(4, 180, 141, 0.4);
-    }
-    
-    /* Responsive Design */
+    .sp-save-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(67,97,238,0.3); }
+
+    .sp-doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+    .sp-doc-item { border: 2px dashed var(--light-gray); border-radius: 12px; padding: 16px; text-align: center; transition: var(--transition); }
+    .sp-doc-item:hover { border-color: var(--primary); background: #f8faff; }
+    .sp-doc-item label.doc-label { font-weight: 600; font-size: 13px; color: var(--dark); margin-bottom: 10px; display: block; }
+    .sp-doc-item input[type="file"] { font-size: 12px; max-width: 100%; }
+    .sp-doc-item .doc-status { font-size: 11px; margin-top: 6px; }
+    .sp-doc-item .doc-status.uploaded { color: #28a745; }
+    .sp-doc-item .doc-status.pending { color: var(--gray); }
+    .sp-doc-hint { font-size: 11px; color: var(--gray); margin-top: 4px; }
+
+    .sp-experience-entry { border: 1px solid var(--light-gray); border-radius: 10px; padding: 16px; margin-bottom: 12px; position: relative; }
+    .sp-add-btn { background: none; border: 2px dashed var(--primary); color: var(--primary); border-radius: 8px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 13px; }
+    .sp-add-btn:hover { background: #f0f4ff; }
+    .sp-remove-btn { position: absolute; top: 8px; right: 8px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; font-size: 12px; cursor: pointer; }
+
+    .sp-doc-view-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+    .sp-doc-view-item { padding: 12px; border-radius: 10px; border: 1px solid var(--light-gray); text-align: center; }
+    .sp-doc-view-item .doc-name { font-size: 12px; font-weight: 600; color: var(--dark); margin-bottom: 4px; }
+    .sp-doc-view-item .doc-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; display: inline-block; }
+    .sp-doc-view-item .doc-badge.yes { background: #d4edda; color: #155724; }
+    .sp-doc-view-item .doc-badge.no { background: #f8d7da; color: #721c24; }
+
+    /* Tablet */
     @media (max-width: 992px) {
-        .profile-header {
-            text-align: center;
-        }
-        
-        .profile-picture-section {
-            margin-top: 20px;
-            justify-content: center;
-        }
-        
-        .d-flex {
-            flex-direction: column;
-        }
+        .sp-view-grid { grid-template-columns: repeat(2, 1fr); }
+        .sp-form-row { grid-template-columns: repeat(2, 1fr); }
+        .sp-doc-grid { grid-template-columns: repeat(2, 1fr); }
+        .sp-doc-view-grid { grid-template-columns: repeat(2, 1fr); }
     }
-    
+
+    /* Mobile */
     @media (max-width: 768px) {
-        .info-grid {
-            grid-template-columns: 1fr;
+        .sp-container { padding: 10px; }
+
+        .sp-header {
+            flex-direction: column; text-align: center;
+            padding: 18px 15px; border-radius: 12px; gap: 12px;
         }
-        
-        .form-content {
-            padding: 20px;
+        .sp-header img { width: 70px; height: 70px; }
+        .sp-header .placeholder { width: 70px; height: 70px; font-size: 28px; }
+        .sp-header-info h4 { font-size: 16px; }
+        .sp-header-info span { font-size: 12px; display: block; line-height: 1.6; }
+        .sp-header-actions { margin-left: 0; margin-top: 6px; width: 100%; text-align: center; }
+        .sp-edit-toggle { display: block; text-align: center; padding: 8px 16px; font-size: 13px; }
+
+        .sp-tabs {
+            overflow-x: auto; flex-wrap: nowrap; gap: 2px;
+            padding: 4px; margin-bottom: 14px; border-radius: 10px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
         }
+        .sp-tabs::-webkit-scrollbar { display: none; }
+        .sp-tab {
+            padding: 8px 12px; font-size: 12px; white-space: nowrap; flex-shrink: 0;
+        }
+        .sp-tab i { display: none; }
+
+        .sp-panel { padding: 16px; border-radius: 10px; }
+
+        .sp-section-title { font-size: 15px; margin-bottom: 14px; padding-bottom: 8px; }
+
+        .sp-view-grid { grid-template-columns: 1fr; gap: 8px; }
+        .sp-view-item { padding: 10px 12px; }
+        .sp-view-item .label { font-size: 10px; }
+        .sp-view-item .value { font-size: 14px; }
+
+        .sp-form-row { grid-template-columns: 1fr; gap: 10px; }
+        .sp-form-group { margin-bottom: 10px; }
+        .sp-form-group label { font-size: 12px; margin-bottom: 4px; }
+        .sp-form-group input, .sp-form-group select, .sp-form-group textarea {
+            padding: 8px 10px; font-size: 13px; border-radius: 8px;
+        }
+
+        .sp-save-btn { width: 100%; justify-content: center; padding: 12px 20px; font-size: 14px; border-radius: 8px; }
+
+        .sp-doc-grid { grid-template-columns: 1fr; gap: 10px; }
+        .sp-doc-item { padding: 12px; }
+        .sp-doc-item label.doc-label { font-size: 12px; margin-bottom: 6px; }
+
+        .sp-doc-view-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+        .sp-doc-view-item { padding: 10px; }
+        .sp-doc-view-item .doc-name { font-size: 11px; }
+
+        .sp-experience-entry { padding: 12px; margin-bottom: 10px; }
+        .sp-experience-entry .sp-form-row { grid-template-columns: 1fr; }
+        .sp-add-btn { width: 100%; text-align: center; padding: 10px; font-size: 12px; }
+        .sp-remove-btn { width: 22px; height: 22px; font-size: 11px; top: 6px; right: 6px; }
+        input[type="file"] { max-width: 100%; font-size: 12px; }
     }
-    
-    /* Animations */
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .animated {
-        animation: fadeIn 0.6s ease-out forwards;
+
+    /* Small phones */
+    @media (max-width: 420px) {
+        .sp-container { padding: 6px; }
+        .sp-header { padding: 14px 12px; }
+        .sp-header img { width: 60px; height: 60px; }
+        .sp-header .placeholder { width: 60px; height: 60px; font-size: 24px; }
+        .sp-header-info h4 { font-size: 15px; }
+        .sp-header-info span { font-size: 11px; }
+        .sp-panel { padding: 12px; }
+        .sp-doc-view-grid { grid-template-columns: 1fr; }
+        .sp-tab { padding: 7px 10px; font-size: 11px; }
     }
 </style>
 
 @foreach ($data as $row)
-    <div class="staff-profile-container">
-        <div class="container-fluid">
-            
-            <!-- Profile Header -->
-            <div class="row">
-                <div class="col-12">
-                    <div class="profile-header animated">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap">
-                            <div>
-                                <h4>{{ $row->name }}</h4>
-                            </div>
-                            <div class="profile-picture-section d-flex">
-                                @if($row->picture && $row->picture != '')
-                                    <img src="{{ asset('storage/picture/' . $row->picture) }}" alt="Profile Picture" class="profile-picture">
-                                @else
-                                    <div class="profile-picture-placeholder">
-                                        <i class="fas fa-user"></i>
-                                    </div>
-                                @endif
-                                <div class="ms-3 d-flex flex-column justify-content-center">
-                                    <div class="mt-2">
-                                        <span class="text-white">ID: {{ $row->username }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="staff-profile-card animated">
-                        <div class="info-grid">
-                            <!-- Personal Information -->
-                            <div class="info-section">
-                                <div class="section-header">
-                                    <i class="fas fa-user"></i> Personal Information
-                                </div>
-                                <div class="info-grid">
-                                    <div class="info-item">
-                                        <span class="info-label">Staff ID</span>
-                                        <span class="info-value">{{ $row->username }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Full Name</span>
-                                        <span class="info-value">{{ $row->name }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Gender</span>
-                                        <span class="info-value">{{ $row->gender }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Marital Status</span>
-                                        <span class="info-value">{{ $row->marital_status }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Phone</span>
-                                        <span class="info-value">{{ $row->phone }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Email</span>
-                                        <span class="info-value">{{ $row->email }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Date of Birth</span>
-                                        <span class="info-value">{{ $row->date_of_birth == '1970-01-01' ? 'Not Provided' : $row->date_of_birth }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Address</span>
-                                        <span class="info-value">{{ $row->address }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">State</span>
-                                        <span class="info-value">{{ $row->state }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">LGA</span>
-                                        <span class="info-value">{{ $row->lga }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Service Record -->
-                            <div class="info-section">
-                                <div class="section-header">
-                                    <i class="fas fa-briefcase"></i> Service Record
-                                </div>
-                                <div class="info-grid">
-                                    <div class="info-item">
-                                        <span class="info-label">Department</span>
-                                        <span class="info-value">{{ $row->unit }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Current Rank</span>
-                                        <span class="info-value">{{ $row->current_rank }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Staff Category</span>
-                                        <span class="info-value">{{ $row->staff_category }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Status</span>
-                                        <span class="info-value badge bg-info">{{ $row->employee_status }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Grade</span>
-                                        <span class="info-value">{{ $row->grade }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Step</span>
-                                        <span class="info-value">{{ $row->step }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">First Appointment</span>
-                                        <span class="info-value">{{ $row->rank_of_first_appointment }} on {{ $row->date_of_first_appointment == '1970-01-01' ? 'Not Provided' : $row->date_of_first_appointment }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Date of Assumption</span>
-                                        <span class="info-value">{{ $row->date_of_asumption == '1970-01-01' ? 'Not Provided' : $row->date_of_asumption }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Last Promotion</span>
-                                        <span class="info-value">{{ $row->date_of_last_promotion == '1970-01-01' ? 'Not Provided' : $row->date_of_last_promotion }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Next of Kin Information -->
-                            <div class="info-section">
-                                <div class="section-header">
-                                    <i class="fas fa-users"></i> Next of Kin
-                                </div>
-                                <div class="info-grid">
-                                    <div class="info-item">
-                                        <span class="info-label">Name</span>
-                                        <span class="info-value">{{ $row->kin_name ?: 'Not Provided' }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Phone</span>
-                                        <span class="info-value">{{ $row->kin_phone ?: 'Not Provided' }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Address</span>
-                                        <span class="info-value">{{ $row->kin_address ?: 'Not Provided' }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Bank Details -->
-                            <div class="info-section">
-                                <div class="section-header">
-                                    <i class="fas fa-university"></i> Bank Details
-                                </div>
-                                <div class="info-grid">
-                                    <div class="info-item">
-                                        <span class="info-label">Bank</span>
-                                        <span class="info-value">{{ $row->bank_name ?: 'Not Provided' }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Account Number</span>
-                                        <span class="info-value">{{ $row->account_number ?: 'Not Provided' }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Account Name</span>
-                                        <span class="info-value">{{ $row->name ?: 'Not Provided' }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">BVN</span>
-                                        <span class="info-value">{{ $row->bvn ?: 'Not Provided' }}</span>
-                                    </div>
-                                    <div class="info-item">
-                                        <span class="info-label">Pension Admin</span>
-                                        <span class="info-value">{{ $row->pension_administrator ?: 'Not Provided' }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+@php
+    $facultyTitle = DB::table('faculty')->where('code', $row->faculty)->value('title') ?? $row->faculty;
+    $deptTitle = DB::table('department')->where('code', $row->department)->value('title') ?? $row->department;
+    $programTitle = DB::table('program')->where('code', $row->program)->value('title') ?? $row->program;
+    $unitName = (isset($row->unit_id) && $row->unit_id) ? DB::table('units')->where('id', $row->unit_id)->value('name') : (isset($row->unit) ? $row->unit : '');
+    $designationName = (isset($row->designation_id) && $row->designation_id) ? DB::table('designations')->where('id', $row->designation_id)->value('name') : (isset($row->current_rank) ? $row->current_rank : '');
+    $gradeName = (isset($row->grade_id) && $row->grade_id) ? DB::table('grades')->where('id', $row->grade_id)->value('name') : (isset($row->grade) ? $row->grade : '');
+    $stepName = (isset($row->step_id) && $row->step_id) ? DB::table('steps')->where('id', $row->step_id)->value('name') : (isset($row->step) ? $row->step : '');
+@endphp
+<div class="sp-container">
+    <!-- Header -->
+    <div class="sp-header">
+        @if($row->picture && $row->picture != '')
+            <img src="{{ asset('storage/picture/' . $row->picture) }}" alt="Photo">
+        @else
+            <div class="placeholder"><i class="fas fa-user"></i></div>
+        @endif
+        <div class="sp-header-info">
+            <h4>{{ $row->name }}</h4>
+            <span><i class="fas fa-id-badge"></i> {{ $row->username }}</span>
+            <span><i class="fas fa-building"></i> {{ $unitName }}</span>
+            <span><i class="fas fa-star"></i> {{ $row->current_rank }}</span>
+        </div>
+        <div class="sp-header-actions">
+            @if($editMode)
+                <a href="/staff-profile?tab={{ $activeTab }}&mode=view" class="sp-edit-toggle editing"><i class="fas fa-times"></i> Cancel Editing</a>
+            @else
+                <a href="/staff-profile?tab={{ $activeTab }}&mode=edit" class="sp-edit-toggle"><i class="fas fa-edit"></i> Edit Profile</a>
+            @endif
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="sp-tabs">
+        <button class="sp-tab {{ $activeTab == 'personal' ? 'active' : '' }}" onclick="switchTab('personal')"><i class="fas fa-user"></i> Personal Info</button>
+        <button class="sp-tab {{ $activeTab == 'service' ? 'active' : '' }}" onclick="switchTab('service')"><i class="fas fa-briefcase"></i> Service Record</button>
+        <button class="sp-tab {{ $activeTab == 'nextofkin' ? 'active' : '' }}" onclick="switchTab('nextofkin')"><i class="fas fa-users"></i> Next of Kin & Bank</button>
+        <button class="sp-tab {{ $activeTab == 'education' ? 'active' : '' }}" onclick="switchTab('education')"><i class="fas fa-graduation-cap"></i> Education & Experience</button>
+        <button class="sp-tab {{ $activeTab == 'documents' ? 'active' : '' }}" onclick="switchTab('documents')"><i class="fas fa-file-alt"></i> Documents</button>
+    </div>
+
+    {{-- ==================== TAB 1: PERSONAL INFO ==================== --}}
+    <div class="sp-panel {{ $activeTab == 'personal' ? 'active' : '' }}" id="panel-personal">
+    @if(!$editMode)
+        <div class="sp-section-title"><i class="fas fa-user"></i> Personal Details</div>
+        <div class="sp-view-grid">
+            <div class="sp-view-item"><div class="label">Staff ID</div><div class="value">{{ $row->username }}</div></div>
+            <div class="sp-view-item"><div class="label">Full Name</div><div class="value">{{ $row->name }}</div></div>
+            <div class="sp-view-item"><div class="label">Gender</div><div class="value">{{ $row->gender ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Marital Status</div><div class="value">{{ $row->marital_status ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Date of Birth</div><div class="value">{{ ($row->date_of_birth && $row->date_of_birth != '1970-01-01') ? $row->date_of_birth : 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Phone</div><div class="value">{{ $row->phone ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Email</div><div class="value">{{ $row->email ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">State of Origin</div><div class="value">{{ $row->state ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">LGA</div><div class="value">{{ $row->lga ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Nationality</div><div class="value">{{ $row->nationality ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">NIN</div><div class="value">{{ $row->nin ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Address</div><div class="value">{{ $row->address ?: 'Not set' }}</div></div>
+        </div>
+    @else
+        <form action="/staff-profile-update" method="POST" enctype="multipart/form-data">
+            @csrf
+            <input type="hidden" name="tab" value="personal">
+
+            <div class="sp-section-title"><i class="fas fa-camera"></i> Profile Picture</div>
+            <div class="sp-form-row">
+                <div class="sp-form-group">
+                    <label>Upload Photo</label>
+                    <input type="file" name="picture" accept="image/jpeg,image/png,image/jpg">
+                    <div class="sp-doc-hint">JPG, PNG - Max 300KB</div>
+                </div>
+                <div class="sp-form-group">
+                    <label>Current Photo</label>
+                    @if($row->picture && $row->picture != '')
+                        <div><img src="{{ asset('storage/picture/' . $row->picture) }}" width="80" height="80" style="border-radius:8px; object-fit:cover;"> <small class="text-success d-block mt-1"><i class="fas fa-check-circle"></i> Uploaded</small></div>
+                    @else
+                        <div class="text-muted"><i class="fas fa-image"></i> No photo</div>
+                    @endif
                 </div>
             </div>
 
-            <!-- Update Form Section -->
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="form-section animated">
-                        <div class="form-header">
-                            <i class="fas fa-edit"></i> Update Your Information
+            <div class="sp-section-title"><i class="fas fa-user"></i> Personal Details</div>
+            <div class="sp-form-row">
+                <div class="sp-form-group">
+                    <label>Staff ID</label>
+                    <input type="text" value="{{ $row->username }}" readonly>
+                </div>
+                <div class="sp-form-group">
+                    <label>Full Name</label>
+                    <input type="text" name="name" value="{{ $row->name }}" required>
+                </div>
+                <div class="sp-form-group">
+                    <label>Gender</label>
+                    <select name="gender">
+                        <option value="{{ $row->gender }}" selected>{{ $row->gender ?: 'Select' }}</option>
+                        <option value="MALE">MALE</option>
+                        <option value="FEMALE">FEMALE</option>
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>Marital Status</label>
+                    <select name="marital_status">
+                        <option value="{{ $row->marital_status }}" selected>{{ $row->marital_status ?: 'Select' }}</option>
+                        <option value="SINGLE">SINGLE</option>
+                        <option value="MARRIED">MARRIED</option>
+                        <option value="DIVORCED">DIVORCED</option>
+                        <option value="WIDOWED">WIDOWED</option>
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>Date of Birth</label>
+                    <input type="date" name="date_of_birth" value="{{ $row->date_of_birth }}">
+                </div>
+                <div class="sp-form-group">
+                    <label>Phone Number</label>
+                    <input type="tel" name="phone" value="{{ $row->phone }}" required>
+                </div>
+                <div class="sp-form-group">
+                    <label>Email Address</label>
+                    <input type="email" name="email" value="{{ $row->email }}">
+                </div>
+                <div class="sp-form-group">
+                    <label>State of Origin</label>
+                    <select name="state" id="sp-state">
+                        <option value="">Select</option>
+                        <option value="Abia" {{ strcasecmp($row->state ?? '', 'Abia') == 0 ? 'selected' : '' }}>Abia</option>
+                        <option value="Adamawa" {{ strcasecmp($row->state ?? '', 'Adamawa') == 0 ? 'selected' : '' }}>Adamawa</option>
+                        <option value="Akwa Ibom" {{ strcasecmp($row->state ?? '', 'Akwa Ibom') == 0 ? 'selected' : '' }}>Akwa Ibom</option>
+                        <option value="Anambra" {{ strcasecmp($row->state ?? '', 'Anambra') == 0 ? 'selected' : '' }}>Anambra</option>
+                        <option value="Bauchi" {{ strcasecmp($row->state ?? '', 'Bauchi') == 0 ? 'selected' : '' }}>Bauchi</option>
+                        <option value="Bayelsa" {{ strcasecmp($row->state ?? '', 'Bayelsa') == 0 ? 'selected' : '' }}>Bayelsa</option>
+                        <option value="Benue" {{ strcasecmp($row->state ?? '', 'Benue') == 0 ? 'selected' : '' }}>Benue</option>
+                        <option value="Borno" {{ strcasecmp($row->state ?? '', 'Borno') == 0 ? 'selected' : '' }}>Borno</option>
+                        <option value="Cross River" {{ strcasecmp($row->state ?? '', 'Cross River') == 0 ? 'selected' : '' }}>Cross River</option>
+                        <option value="Delta" {{ strcasecmp($row->state ?? '', 'Delta') == 0 ? 'selected' : '' }}>Delta</option>
+                        <option value="Ebonyi" {{ strcasecmp($row->state ?? '', 'Ebonyi') == 0 ? 'selected' : '' }}>Ebonyi</option>
+                        <option value="Edo" {{ strcasecmp($row->state ?? '', 'Edo') == 0 ? 'selected' : '' }}>Edo</option>
+                        <option value="Ekiti" {{ strcasecmp($row->state ?? '', 'Ekiti') == 0 ? 'selected' : '' }}>Ekiti</option>
+                        <option value="Enugu" {{ strcasecmp($row->state ?? '', 'Enugu') == 0 ? 'selected' : '' }}>Enugu</option>
+                        <option value="FCT" {{ strcasecmp($row->state ?? '', 'FCT') == 0 ? 'selected' : '' }}>FCT</option>
+                        <option value="Gombe" {{ strcasecmp($row->state ?? '', 'Gombe') == 0 ? 'selected' : '' }}>Gombe</option>
+                        <option value="Imo" {{ strcasecmp($row->state ?? '', 'Imo') == 0 ? 'selected' : '' }}>Imo</option>
+                        <option value="Jigawa" {{ strcasecmp($row->state ?? '', 'Jigawa') == 0 ? 'selected' : '' }}>Jigawa</option>
+                        <option value="Kaduna" {{ strcasecmp($row->state ?? '', 'Kaduna') == 0 ? 'selected' : '' }}>Kaduna</option>
+                        <option value="Kano" {{ strcasecmp($row->state ?? '', 'Kano') == 0 ? 'selected' : '' }}>Kano</option>
+                        <option value="Katsina" {{ strcasecmp($row->state ?? '', 'Katsina') == 0 ? 'selected' : '' }}>Katsina</option>
+                        <option value="Kebbi" {{ strcasecmp($row->state ?? '', 'Kebbi') == 0 ? 'selected' : '' }}>Kebbi</option>
+                        <option value="Kogi" {{ strcasecmp($row->state ?? '', 'Kogi') == 0 ? 'selected' : '' }}>Kogi</option>
+                        <option value="Kwara" {{ strcasecmp($row->state ?? '', 'Kwara') == 0 ? 'selected' : '' }}>Kwara</option>
+                        <option value="Lagos" {{ strcasecmp($row->state ?? '', 'Lagos') == 0 ? 'selected' : '' }}>Lagos</option>
+                        <option value="Nasarawa" {{ strcasecmp($row->state ?? '', 'Nasarawa') == 0 ? 'selected' : '' }}>Nasarawa</option>
+                        <option value="Niger" {{ strcasecmp($row->state ?? '', 'Niger') == 0 ? 'selected' : '' }}>Niger</option>
+                        <option value="Ogun" {{ strcasecmp($row->state ?? '', 'Ogun') == 0 ? 'selected' : '' }}>Ogun</option>
+                        <option value="Ondo" {{ strcasecmp($row->state ?? '', 'Ondo') == 0 ? 'selected' : '' }}>Ondo</option>
+                        <option value="Osun" {{ strcasecmp($row->state ?? '', 'Osun') == 0 ? 'selected' : '' }}>Osun</option>
+                        <option value="Oyo" {{ strcasecmp($row->state ?? '', 'Oyo') == 0 ? 'selected' : '' }}>Oyo</option>
+                        <option value="Plateau" {{ strcasecmp($row->state ?? '', 'Plateau') == 0 ? 'selected' : '' }}>Plateau</option>
+                        <option value="Rivers" {{ strcasecmp($row->state ?? '', 'Rivers') == 0 ? 'selected' : '' }}>Rivers</option>
+                        <option value="Sokoto" {{ strcasecmp($row->state ?? '', 'Sokoto') == 0 ? 'selected' : '' }}>Sokoto</option>
+                        <option value="Taraba" {{ strcasecmp($row->state ?? '', 'Taraba') == 0 ? 'selected' : '' }}>Taraba</option>
+                        <option value="Yobe" {{ strcasecmp($row->state ?? '', 'Yobe') == 0 ? 'selected' : '' }}>Yobe</option>
+                        <option value="Zamfara" {{ strcasecmp($row->state ?? '', 'Zamfara') == 0 ? 'selected' : '' }}>Zamfara</option>
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>LGA of Origin</label>
+                    <select name="lga" id="sp-lga">
+                        <option value="">Select State First</option>
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>Nationality</label>
+                    <select name="nationality" id="sp-nationality">
+                        <option value="">Select</option>
+                        <option value="Nigerian" {{ (isset($row->nationality) && strcasecmp($row->nationality,'Nigerian')==0) ? 'selected' : '' }}>Nigerian</option>
+                        <option value="Other" {{ (isset($row->nationality) && strcasecmp($row->nationality,'Nigerian')!=0 && $row->nationality) ? 'selected' : '' }}>Other</option>
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>NIN <small class="text-muted">(required if Nigerian)</small></label>
+                    <input type="text" name="nin" id="sp-nin" value="{{ $row->nin }}" placeholder="e.g. 12345678901">
+                </div>
+                <div class="sp-form-group" style="grid-column: 1/-1;">
+                    <label>Home Address</label>
+                    <textarea name="address" rows="2">{{ $row->address }}</textarea>
+                </div>
+            </div>
+            <button type="submit" class="sp-save-btn"><i class="fas fa-save"></i> Save Personal Info</button>
+        </form>
+    @endif
+    </div>
+
+    {{-- ==================== TAB 2: SERVICE RECORD ==================== --}}
+    <div class="sp-panel {{ $activeTab == 'service' ? 'active' : '' }}" id="panel-service">
+    @if(!$editMode)
+        <div class="sp-section-title"><i class="fas fa-briefcase"></i> Service Record</div>
+        <div class="sp-view-grid">
+            <div class="sp-view-item"><div class="label">Faculty</div><div class="value">{{ $facultyTitle ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Department</div><div class="value">{{ $deptTitle ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Unit</div><div class="value">{{ $unitName ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Designation/Rank</div><div class="value">{{ $designationName ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Staff Category</div><div class="value">{{ $row->staff_category ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Employee Status</div><div class="value">{{ $row->employee_status ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Grade</div><div class="value">{{ $gradeName ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Step</div><div class="value">{{ $stepName ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Date of First Appointment</div><div class="value">{{ ($row->date_of_first_appointment && $row->date_of_first_appointment != '1970-01-01') ? $row->date_of_first_appointment : 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Rank on First Appointment</div><div class="value">{{ $row->rank_of_first_appointment ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Date of Assumption</div><div class="value">{{ ($row->date_of_asumption && $row->date_of_asumption != '1970-01-01') ? $row->date_of_asumption : 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Date of Last Promotion</div><div class="value">{{ ($row->date_of_last_promotion && $row->date_of_last_promotion != '1970-01-01') ? $row->date_of_last_promotion : 'Not set' }}</div></div>
+        </div>
+    @else
+        <form action="/staff-profile-update" method="POST">
+            @csrf
+            <input type="hidden" name="tab" value="service">
+
+            <div class="sp-section-title"><i class="fas fa-briefcase"></i> Service Record</div>
+            <div class="sp-form-row">
+                <div class="sp-form-group">
+                    <label>Faculty</label>
+                    <select name="faculty" class="faculty" id="facultysp1" lang="sp1">
+                        <option value="{{ $row->faculty }}">{{ $facultyTitle ?: 'Select Faculty' }}</option>
+                        @foreach ($faculty as $fac)
+                            <option value="{{ $fac->code }}">{{ $fac->title }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>Department</label>
+                    <select name="department" class="department" id="departmentsp1" lang="sp1">
+                        <option value="{{ $row->department }}">{{ $deptTitle ?: 'Select Faculty First' }}</option>
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>Program</label>
+                    <select name="program" class="program" id="programsp1" lang="sp1">
+                        <option value="{{ $row->program ?? '' }}">{{ $programTitle ?: 'Select Department First' }}</option>
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>Department/Unit</label>
+                    <select name="unit_id">
+                        <option value="">Select</option>
+                        @foreach ($unit as $u)
+                            <option value="{{ $u->id }}" {{ (isset($row->unit_id) && $row->unit_id == $u->id) || (isset($row->unit) && $row->unit == $u->name) ? 'selected' : '' }}>{{ $u->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>Designation/Rank</label>
+                    <select name="designation_id">
+                        <option value="">Select</option>
+                        @foreach ($designation as $d)
+                            <option value="{{ $d->id }}" {{ (isset($row->designation_id) && $row->designation_id == $d->id) || (isset($row->current_rank) && $row->current_rank == $d->name) ? 'selected' : '' }}>{{ $d->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>Staff Category</label>
+                    <select name="staff_category">
+                        <option value="{{ $row->staff_category }}">{{ $row->staff_category ?: 'Select' }}</option>
+                        <option value="TEACHING STAFF">TEACHING STAFF</option>
+                        <option value="NON TEACHING STAFF">NON TEACHING STAFF</option>
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>Employee Status</label>
+                    <select name="employee_status">
+                        <option value="{{ $row->employee_status }}">{{ $row->employee_status ?: 'Select' }}</option>
+                        <option value="PERMANENT">PERMANENT</option>
+                        <option value="CONTRACT">CONTRACT</option>
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>Grade</label>
+                    <select name="grade_id">
+                        <option value="">Select</option>
+                        @foreach ($grade as $g)
+                            <option value="{{ $g->id }}" {{ $row->grade_id == $g->id || $row->grade == $g->name ? 'selected' : '' }}>{{ $g->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>Step</label>
+                    <select name="step_id">
+                        <option value="">Select</option>
+                        @foreach ($step as $s)
+                            <option value="{{ $s->id }}" {{ $row->step_id == $s->id || $row->step == $s->name ? 'selected' : '' }}>{{ $s->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>Date of First Appointment</label>
+                    <input type="date" name="date_of_first_appointment" value="{{ $row->date_of_first_appointment }}">
+                </div>
+                <div class="sp-form-group">
+                    <label>Rank on First Appointment</label>
+                    <select name="rank_of_first_appointment_id">
+                        <option value="">Select</option>
+                        @foreach ($designation as $d)
+                            <option value="{{ $d->id }}" {{ (isset($row->rank_of_first_appointment) && $row->rank_of_first_appointment == $d->name) ? 'selected' : '' }}>{{ $d->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>Date of Assumption</label>
+                    <input type="date" name="date_of_asumption" value="{{ $row->date_of_asumption }}">
+                </div>
+                <div class="sp-form-group">
+                    <label>Date of Last Promotion</label>
+                    <input type="date" name="date_of_last_promotion" value="{{ $row->date_of_last_promotion }}">
+                </div>
+            </div>
+            <button type="submit" class="sp-save-btn"><i class="fas fa-save"></i> Save Service Record</button>
+        </form>
+    @endif
+    </div>
+
+    {{-- ==================== TAB 3: NEXT OF KIN & BANK ==================== --}}
+    <div class="sp-panel {{ $activeTab == 'nextofkin' ? 'active' : '' }}" id="panel-nextofkin">
+    @if(!$editMode)
+        <div class="sp-section-title"><i class="fas fa-users"></i> Next of Kin</div>
+        <div class="sp-view-grid">
+            <div class="sp-view-item"><div class="label">Full Name</div><div class="value">{{ $row->kin_name ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Phone</div><div class="value">{{ $row->kin_phone ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Relationship</div><div class="value">{{ $row->kin_relationship ?? 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Address</div><div class="value">{{ $row->kin_address ?: 'Not set' }}</div></div>
+        </div>
+        <div class="sp-section-title"><i class="fas fa-university"></i> Bank Details</div>
+        <div class="sp-view-grid">
+            <div class="sp-view-item"><div class="label">Bank Name</div><div class="value">{{ $row->bank_name ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Account Number</div><div class="value">{{ $row->account_number ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">BVN</div><div class="value">{{ $row->bvn ?? 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Pension Administrator</div><div class="value">{{ $row->pension_administrator ?? 'Not set' }}</div></div>
+        </div>
+    @else
+        <form action="/staff-profile-update" method="POST">
+            @csrf
+            <input type="hidden" name="tab" value="nextofkin">
+
+            <div class="sp-section-title"><i class="fas fa-users"></i> Next of Kin</div>
+            <div class="sp-form-row">
+                <div class="sp-form-group">
+                    <label>Full Name</label>
+                    <input type="text" name="kin_name" value="{{ $row->kin_name }}">
+                </div>
+                <div class="sp-form-group">
+                    <label>Phone Number</label>
+                    <input type="tel" name="kin_phone" value="{{ $row->kin_phone }}">
+                </div>
+                <div class="sp-form-group">
+                    <label>Relationship</label>
+                    <input type="text" name="kin_relationship" value="{{ $row->kin_relationship ?? '' }}">
+                </div>
+                <div class="sp-form-group" style="grid-column: 1/-1;">
+                    <label>Address</label>
+                    <textarea name="kin_address" rows="2">{{ $row->kin_address }}</textarea>
+                </div>
+            </div>
+
+            <div class="sp-section-title"><i class="fas fa-university"></i> Bank Details</div>
+            <div class="sp-form-row">
+                <div class="sp-form-group">
+                    <label>Bank Name</label>
+                    <input type="text" name="bank_name" value="{{ $row->bank_name }}">
+                </div>
+                <div class="sp-form-group">
+                    <label>Account Number</label>
+                    <input type="text" name="account_number" value="{{ $row->account_number }}">
+                </div>
+                <div class="sp-form-group">
+                    <label>BVN</label>
+                    <input type="text" name="bvn" value="{{ $row->bvn ?? '' }}">
+                </div>
+                <div class="sp-form-group">
+                    <label>Pension Administrator</label>
+                    <input type="text" name="pension_administrator" value="{{ $row->pension_administrator ?? '' }}">
+                </div>
+            </div>
+            <button type="submit" class="sp-save-btn"><i class="fas fa-save"></i> Save Next of Kin & Bank</button>
+        </form>
+    @endif
+    </div>
+
+    {{-- ==================== TAB 4: EDUCATION & EXPERIENCE ==================== --}}
+    <div class="sp-panel {{ $activeTab == 'education' ? 'active' : '' }}" id="panel-education">
+    @php
+        $institutions = json_decode($row->institutions ?? '[]', true) ?: [];
+        $experiences = json_decode($row->experiences ?? '[]', true) ?: [];
+        $publications = json_decode($row->publications ?? '[]', true) ?: [];
+        $honours = json_decode($row->honours ?? '[]', true) ?: [];
+        $memberships = json_decode($row->memberships ?? '[]', true) ?: [];
+    @endphp
+    @if(!$editMode)
+        <div class="sp-section-title"><i class="fas fa-graduation-cap"></i> Education & Qualifications</div>
+        @if(!empty($institutions))
+            @foreach($institutions as $inst)
+                @if(!empty($inst['name']))
+                <div class="sp-view-grid">
+                    <div class="sp-view-item"><div class="label">Institution</div><div class="value">{{ $inst['name'] ?? '' }}</div></div>
+                    <div class="sp-view-item"><div class="label">Degree</div><div class="value">{{ $inst['degree'] ?? '' }}</div></div>
+                    <div class="sp-view-item"><div class="label">Field</div><div class="value">{{ $inst['field'] ?? '' }}</div></div>
+                    <div class="sp-view-item"><div class="label">Year</div><div class="value">{{ $inst['year'] ?? '' }}</div></div>
+                </div>
+                @endif
+            @endforeach
+        @else
+            <p class="text-muted">No education records added yet.</p>
+        @endif
+
+        <div class="sp-section-title"><i class="fas fa-briefcase"></i> Work Experience</div>
+        @if(!empty($experiences))
+            @foreach($experiences as $exp)
+                @if(!empty($exp['place']))
+                <div class="sp-view-grid">
+                    <div class="sp-view-item"><div class="label">Place</div><div class="value">{{ $exp['place'] ?? '' }}</div></div>
+                    <div class="sp-view-item"><div class="label">Period</div><div class="value">{{ $exp['date'] ?? '' }}</div></div>
+                    <div class="sp-view-item"><div class="label">Position</div><div class="value">{{ $exp['position'] ?? '' }}</div></div>
+                </div>
+                @endif
+            @endforeach
+        @else
+            <p class="text-muted">No work experience added yet.</p>
+        @endif
+
+        <div class="sp-section-title"><i class="fas fa-book"></i> Publications</div>
+        @if(!empty($publications) && $publications != [''])
+            <ul>@foreach($publications as $pub)@if(!empty($pub))<li>{{ $pub }}</li>@endif @endforeach</ul>
+        @else
+            <p class="text-muted">No publications added yet.</p>
+        @endif
+
+        <div class="sp-section-title"><i class="fas fa-award"></i> Honours/Distinctions</div>
+        @if(!empty($honours) && $honours != [''])
+            <ul>@foreach($honours as $hon)@if(!empty($hon))<li>{{ $hon }}</li>@endif @endforeach</ul>
+        @else
+            <p class="text-muted">No honours added yet.</p>
+        @endif
+
+        <div class="sp-section-title"><i class="fas fa-certificate"></i> Professional Memberships</div>
+        @if(!empty($memberships) && $memberships != [''])
+            <ul>@foreach($memberships as $mem)@if(!empty($mem))<li>{{ $mem }}</li>@endif @endforeach</ul>
+        @else
+            <p class="text-muted">No memberships added yet.</p>
+        @endif
+
+        <div class="sp-section-title"><i class="fas fa-running"></i> Extra-curricular Activities</div>
+        <p>{{ $row->extra_curricular ?: 'None added yet.' }}</p>
+    @else
+        <form action="/staff-profile-update" method="POST">
+            @csrf
+            <input type="hidden" name="tab" value="education">
+
+            <div class="sp-section-title"><i class="fas fa-graduation-cap"></i> Education & Qualifications</div>
+            <div id="education-entries">
+                @php if (empty($institutions)) $institutions = [['name' => '', 'degree' => '', 'field' => '', 'year' => '']]; @endphp
+                @foreach($institutions as $idx => $inst)
+                <div class="sp-experience-entry" data-index="{{ $idx }}">
+                    @if($idx > 0)<button type="button" class="sp-remove-btn" onclick="this.parentElement.remove()">&times;</button>@endif
+                    <div class="sp-form-row">
+                        <div class="sp-form-group"><label>Institution Name</label><input type="text" name="institutions[{{ $idx }}][name]" value="{{ $inst['name'] ?? '' }}" placeholder="e.g. University of Maiduguri"></div>
+                        <div class="sp-form-group"><label>Degree/Certificate</label>
+                            <select name="institutions[{{ $idx }}][degree]">
+                                <option value="{{ $inst['degree'] ?? '' }}">{{ $inst['degree'] ?? 'Select' }}</option>
+                                <option value="PhD">PhD</option><option value="Masters">Masters</option><option value="Bachelors">Bachelors</option>
+                                <option value="HND">HND</option><option value="ND">ND</option><option value="NCE">NCE</option>
+                                <option value="Diploma">Diploma</option><option value="SSCE">SSCE</option><option value="Primary">Primary</option><option value="Other">Other</option>
+                            </select>
                         </div>
-                        <div class="form-content">
-                            <form action="/update staff" method="POST" enctype="multipart/form-data">
-                                @csrf
-                                <input type="hidden" name="id" value="{{ $row->id }}">
-                                
-                                <!-- Profile Picture Section - First -->
-                                <div class="row mb-5">
-                                    <div class="col-12">
-                                        <h5 class="section-header mb-4">
-                                            <i class="fas fa-camera"></i> Profile Picture
-                                        </h5>
-                                        
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <div class="modern-form-group">
-                                                    <label for="picture" class="modern-form-label">Upload New Profile Picture</label>
-                                                    <input type="file" name="picture" id="picture" class="modern-form-control" accept="image/*">
-                                                    <small class="text-muted">Accepted formats: JPG, PNG, GIF (Max: 2MB)</small>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="modern-form-group">
-                                                    <label class="modern-form-label">Current Photo</label>
-                                                    <div class="d-flex align-items-center">
-                                                        @if($row->picture && $row->picture != '')
-                                                            <img src="{{ asset('storage/picture/' . $row->picture) }}" width="100" height="100" class="rounded-circle me-3" style="border: 3px solid #4361ee; object-fit: cover;">
-                                                            <div>
-                                                                <span class="text-muted d-block">{{ $row->picture }}</span>
-                                                                <small class="text-success"><i class="fas fa-check-circle"></i> Photo uploaded</small>
-                                                            </div>
-                                                        @else
-                                                            <div class="text-center" style="padding: 20px; border: 2px dashed #ccc; border-radius: 12px; min-width: 200px;">
-                                                                <i class="fas fa-camera text-muted" style="font-size: 24px;"></i>
-                                                                <div class="text-muted mt-2">No profile photo uploaded</div>
-                                                            </div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Personal Information Section -->
-                                <div class="row">
-                                    <div class="col-lg-6 col-md-12">
-                                        <h5 class="section-header mb-4">
-                                            <i class="fas fa-user"></i> Personal Information
-                                        </h5>
-                                        
-                                        <div class="modern-form-group">
-                                            <label for="marital_status" class="modern-form-label">Marital Status</label>
-                                            <select name="marital_status" id="marital_status" class="modern-form-control">
-                                                <option value="{{ $row->marital_status }}">{{ $row->marital_status }}</option>
-                                                <option value="Single">Single</option>
-                                                <option value="Married">Married</option>
-                                                <option value="Divorced">Divorced</option>
-                                                <option value="Widowed">Widowed</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <div class="modern-form-group">
-                                            <label for="phone" class="modern-form-label">Phone Number</label>
-                                            <input type="tel" name="phone" id="phone" value="{{ $row->phone }}" class="modern-form-control" required>
-                                        </div>
-                                        
-                                        <div class="modern-form-group">
-                                            <label for="email" class="modern-form-label">Email Address</label>
-                                            <input type="email" name="email" id="email" value="{{ $row->email }}" class="modern-form-control" required>
-                                        </div>
-                                        
-                                        <div class="modern-form-group">
-                                            <label for="address" class="modern-form-label">Home Address</label>
-                                            <textarea name="address" id="address" class="modern-form-control" rows="3" required>{{ $row->address }}</textarea>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="col-lg-6 col-md-12">
-                                        <h5 class="section-header mb-4">
-                                            <i class="fas fa-users"></i> Next of Kin Information
-                                        </h5>
-                                        
-                                        <div class="modern-form-group">
-                                            <label for="kin_name" class="modern-form-label">Full Name</label>
-                                            <input type="text" name="kin_name" id="kin_name" value="{{ $row->kin_name }}" class="modern-form-control" required>
-                                        </div>
-                                        
-                                        <div class="modern-form-group">
-                                            <label for="kin_phone" class="modern-form-label">Phone Number</label>
-                                            <input type="tel" name="kin_phone" id="kin_phone" value="{{ $row->kin_phone }}" class="modern-form-control" required>
-                                        </div>
-                                        
-                                        <div class="modern-form-group">
-                                            <label for="kin_address" class="modern-form-label">Home Address</label>
-                                            <textarea name="kin_address" id="kin_address" class="modern-form-control" rows="3" required>{{ $row->kin_address }}</textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="mt-4">
-                                    <button type="submit" class="update-button">
-                                        <i class="fas fa-save"></i> Update Profile
-                                    </button>
-                                </div>
-                            </form>
+                        <div class="sp-form-group"><label>Field of Study</label><input type="text" name="institutions[{{ $idx }}][field]" value="{{ $inst['field'] ?? '' }}" placeholder="e.g. Computer Science"></div>
+                        <div class="sp-form-group"><label>Graduation Year</label><input type="text" name="institutions[{{ $idx }}][year]" value="{{ $inst['year'] ?? '' }}" placeholder="YYYY"></div>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+            <button type="button" class="sp-add-btn mb-3" onclick="addEducation()"><i class="fas fa-plus"></i> Add Another Institution</button>
+
+            <div class="sp-section-title"><i class="fas fa-briefcase"></i> Work Experience</div>
+            <div id="experience-entries">
+                @php if (empty($experiences)) $experiences = [['place' => '', 'date' => '', 'position' => '']]; @endphp
+                @foreach($experiences as $idx => $exp)
+                <div class="sp-experience-entry" data-index="{{ $idx }}">
+                    @if($idx > 0)<button type="button" class="sp-remove-btn" onclick="this.parentElement.remove()">&times;</button>@endif
+                    <div class="sp-form-row">
+                        <div class="sp-form-group"><label>Place (Institution/Company)</label><input type="text" name="experiences[{{ $idx }}][place]" value="{{ $exp['place'] ?? '' }}" placeholder="Organization name"></div>
+                        <div class="sp-form-group"><label>Date (Period)</label><input type="text" name="experiences[{{ $idx }}][date]" value="{{ $exp['date'] ?? '' }}" placeholder="e.g. 2018-2022"></div>
+                        <div class="sp-form-group"><label>Position</label><input type="text" name="experiences[{{ $idx }}][position]" value="{{ $exp['position'] ?? '' }}" placeholder="Position held"></div>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+            <button type="button" class="sp-add-btn mb-3" onclick="addExperience()"><i class="fas fa-plus"></i> Add Another Experience</button>
+
+            <div class="sp-section-title"><i class="fas fa-book"></i> Publications</div>
+            <div id="publications-entries">
+                @php if (empty($publications)) $publications = ['']; @endphp
+                @foreach($publications as $idx => $pub)
+                <div class="sp-experience-entry" data-index="{{ $idx }}">
+                    @if($idx > 0)<button type="button" class="sp-remove-btn" onclick="this.parentElement.remove()">&times;</button>@endif
+                    <div class="sp-form-group"><label>Publication {{ $idx + 1 }}</label><input type="text" name="publications[]" value="{{ $pub }}" placeholder="Enter publication details"></div>
+                </div>
+                @endforeach
+            </div>
+            <button type="button" class="sp-add-btn mb-3" onclick="addPublication()"><i class="fas fa-plus"></i> Add Publication</button>
+
+            <div class="sp-section-title"><i class="fas fa-award"></i> Honours/Distinctions</div>
+            <div id="honours-entries">
+                @php if (empty($honours)) $honours = ['']; @endphp
+                @foreach($honours as $idx => $hon)
+                <div class="sp-experience-entry" data-index="{{ $idx }}">
+                    @if($idx > 0)<button type="button" class="sp-remove-btn" onclick="this.parentElement.remove()">&times;</button>@endif
+                    <div class="sp-form-group"><label>Honour/Distinction {{ $idx + 1 }}</label><input type="text" name="honours[]" value="{{ $hon }}" placeholder="Enter honour or distinction"></div>
+                </div>
+                @endforeach
+            </div>
+            <button type="button" class="sp-add-btn mb-3" onclick="addHonour()"><i class="fas fa-plus"></i> Add Honour</button>
+
+            <div class="sp-section-title"><i class="fas fa-certificate"></i> Professional Memberships</div>
+            <div id="memberships-entries">
+                @php if (empty($memberships)) $memberships = ['']; @endphp
+                @foreach($memberships as $idx => $mem)
+                <div class="sp-experience-entry" data-index="{{ $idx }}">
+                    @if($idx > 0)<button type="button" class="sp-remove-btn" onclick="this.parentElement.remove()">&times;</button>@endif
+                    <div class="sp-form-group"><label>Membership {{ $idx + 1 }}</label><input type="text" name="memberships[]" value="{{ $mem }}" placeholder="Enter membership details"></div>
+                </div>
+                @endforeach
+            </div>
+            <button type="button" class="sp-add-btn mb-3" onclick="addMembership()"><i class="fas fa-plus"></i> Add Membership</button>
+
+            <div class="sp-section-title"><i class="fas fa-running"></i> Extra-curricular Activities</div>
+            <div class="sp-form-group">
+                <textarea name="extra_curricular" rows="3" placeholder="List extra-curricular activities">{{ $row->extra_curricular ?? '' }}</textarea>
+            </div>
+
+            <button type="submit" class="sp-save-btn"><i class="fas fa-save"></i> Save Education & Experience</button>
+        </form>
+    @endif
+    </div>
+
+    {{-- ==================== TAB 5: DOCUMENTS ==================== --}}
+    <div class="sp-panel {{ $activeTab == 'documents' ? 'active' : '' }}" id="panel-documents">
+    @php
+        $documents = [
+            'doc_photo' => 'Photo',
+            'doc_birth_certificate' => 'Birth Certificate/Declaration of Age',
+            'doc_primary_cert' => 'Primary School Certificate',
+            'doc_ssce' => 'SSCE/GCE',
+            'doc_diploma' => 'Diploma',
+            'doc_degree' => 'Degree',
+            'doc_masters' => 'Masters',
+            'doc_phd' => 'PhD',
+            'doc_indigine' => 'Indigine',
+            'doc_workshop' => 'Workshop Cert',
+            'doc_nysc' => 'NYSC/Exception',
+            'doc_appointment_letter' => 'Appointment Letter',
+            'doc_confirmation' => 'Letter of Confirmation',
+            'doc_professional_body' => 'Certificate of Professional Body Membership',
+        ];
+        $docOthers = json_decode($row->doc_others ?? '[]', true) ?: [];
+    @endphp
+    @if(!$editMode)
+        <div class="sp-section-title"><i class="fas fa-file-alt"></i> Uploaded Documents</div>
+        <div class="sp-doc-view-grid">
+            @foreach($documents as $field => $label)
+            <div class="sp-doc-view-item">
+                <div class="doc-name">{{ $label }}</div>
+                @if(!empty($row->$field))
+                    <span class="doc-badge yes"><i class="fas fa-check"></i> Uploaded</span>
+                    <a href="{{ asset('storage/staff_documents/' . $row->$field) }}" target="_blank" style="display:block; font-size:11px; margin-top:4px; color:var(--primary);"><i class="fas fa-eye"></i> View</a>
+                @else
+                    <span class="doc-badge no"><i class="fas fa-times"></i> Missing</span>
+                @endif
+            </div>
+            @endforeach
+        </div>
+
+        @if(!empty($docOthers))
+        <div class="sp-section-title" style="margin-top:20px;"><i class="fas fa-paperclip"></i> Other Documents</div>
+        <div class="sp-doc-view-grid">
+            @foreach($docOthers as $other)
+            <div class="sp-doc-view-item">
+                <div class="doc-name">{{ $other['name'] ?? 'Unnamed' }}</div>
+                <span class="doc-badge yes"><i class="fas fa-check"></i> Uploaded</span>
+                <a href="{{ asset('storage/staff_documents/' . $other['file']) }}" target="_blank" style="display:block; font-size:11px; margin-top:4px; color:var(--primary);"><i class="fas fa-eye"></i> View</a>
+            </div>
+            @endforeach
+        </div>
+        @endif
+    @else
+        <form action="/staff-profile-documents" method="POST" enctype="multipart/form-data">
+            @csrf
+
+            <div class="sp-section-title"><i class="fas fa-file-upload"></i> Upload Documents</div>
+            <p class="text-muted mb-3" style="font-size:13px;"><i class="fas fa-info-circle"></i> Max file size: <strong>300KB</strong> per file. Allowed: PDF, JPG, PNG</p>
+
+            <div class="sp-doc-grid">
+                @foreach($documents as $field => $label)
+                <div class="sp-doc-item">
+                    <label class="doc-label">{{ $label }}</label>
+                    @if(!empty($row->$field))
+                        <div class="doc-status uploaded"><i class="fas fa-check-circle"></i> Uploaded
+                            <a href="{{ asset('storage/staff_documents/' . $row->$field) }}" target="_blank" style="font-size:11px; color:var(--primary); margin-left:5px;"><i class="fas fa-eye"></i> View</a>
+                        </div>
+                    @else
+                        <div class="doc-status pending"><i class="fas fa-clock"></i> Not uploaded</div>
+                    @endif
+                    <input type="file" name="{{ $field }}" accept=".pdf,.jpg,.jpeg,.png" style="margin-top:6px;">
+                    <div class="sp-doc-hint">PDF, JPG, PNG - Max 300KB</div>
+                </div>
+                @endforeach
+            </div>
+
+            {{-- Previously uploaded other documents --}}
+            @if(!empty($docOthers))
+            <div class="sp-section-title" style="margin-top:20px;"><i class="fas fa-paperclip"></i> Previously Uploaded Other Documents</div>
+            <div class="sp-doc-view-grid" style="margin-bottom:16px;">
+                @foreach($docOthers as $idx => $other)
+                <div class="sp-doc-view-item" style="position:relative;">
+                    <div class="doc-name">{{ $other['name'] ?? 'Unnamed' }}</div>
+                    <a href="{{ asset('storage/staff_documents/' . $other['file']) }}" target="_blank" style="font-size:11px; color:var(--primary);"><i class="fas fa-eye"></i> View</a>
+                    <form action="/staff-profile-delete-doc" method="POST" style="display:inline; margin-left:6px;" onsubmit="return confirm('Delete this document?')">
+                        @csrf
+                        <input type="hidden" name="index" value="{{ $idx }}">
+                        <button type="submit" style="background:none; border:none; color:#dc3545; font-size:11px; cursor:pointer;"><i class="fas fa-trash"></i> Remove</button>
+                    </form>
+                </div>
+                @endforeach
+            </div>
+            @endif
+
+            {{-- Add new other documents --}}
+            <div class="sp-section-title" style="margin-top:20px;"><i class="fas fa-plus-circle"></i> Add Other Documents</div>
+            <div id="other-docs-container">
+                <div class="sp-experience-entry">
+                    <div class="sp-form-row">
+                        <div class="sp-form-group">
+                            <label>Document Name</label>
+                            <input type="text" name="other_doc_names[]" placeholder="e.g. Staff ID Card">
+                        </div>
+                        <div class="sp-form-group">
+                            <label>File</label>
+                            <input type="file" name="other_doc_files[]" accept=".pdf,.jpg,.jpeg,.png">
+                            <div class="sp-doc-hint">PDF, JPG, PNG - Max 300KB</div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+            <button type="button" class="sp-add-btn mb-3" onclick="addOtherDoc()"><i class="fas fa-plus"></i> Add Another Document</button>
+
+            <div style="margin-top:16px;">
+                <button type="submit" class="sp-save-btn"><i class="fas fa-upload"></i> Upload Documents</button>
+            </div>
+        </form>
+    @endif
     </div>
+</div>
 @endforeach
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Add animation to elements
-        const elements = document.querySelectorAll('.animated');
-        elements.forEach(el => {
-            el.style.opacity = '0';
-            el.style.animation = 'fadeIn 0.6s ease-out forwards';
-        });
+function switchTab(tab) {
+    document.querySelectorAll('.sp-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.sp-panel').forEach(p => p.classList.remove('active'));
+    event.target.closest('.sp-tab').classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+    var mode = '{{ $editMode ? "edit" : "view" }}';
+    history.replaceState(null, '', '/staff-profile?tab=' + tab + '&mode=' + mode);
+}
+
+function addEducation() {
+    const container = document.getElementById('education-entries');
+    const idx = container.children.length;
+    container.insertAdjacentHTML('beforeend', `
+        <div class="sp-experience-entry">
+            <button type="button" class="sp-remove-btn" onclick="this.parentElement.remove()">&times;</button>
+            <div class="sp-form-row">
+                <div class="sp-form-group"><label>Institution Name</label><input type="text" name="institutions[${idx}][name]" placeholder="e.g. University of Maiduguri"></div>
+                <div class="sp-form-group"><label>Degree/Certificate</label><select name="institutions[${idx}][degree]"><option value="">Select</option><option value="PhD">PhD</option><option value="Masters">Masters</option><option value="Bachelors">Bachelors</option><option value="HND">HND</option><option value="ND">ND</option><option value="NCE">NCE</option><option value="Diploma">Diploma</option><option value="SSCE">SSCE</option><option value="Primary">Primary</option><option value="Other">Other</option></select></div>
+                <div class="sp-form-group"><label>Field of Study</label><input type="text" name="institutions[${idx}][field]" placeholder="e.g. Computer Science"></div>
+                <div class="sp-form-group"><label>Graduation Year</label><input type="text" name="institutions[${idx}][year]" placeholder="YYYY"></div>
+            </div>
+        </div>
+    `);
+}
+
+function addExperience() {
+    const container = document.getElementById('experience-entries');
+    const idx = container.children.length;
+    container.insertAdjacentHTML('beforeend', `
+        <div class="sp-experience-entry">
+            <button type="button" class="sp-remove-btn" onclick="this.parentElement.remove()">&times;</button>
+            <div class="sp-form-row">
+                <div class="sp-form-group"><label>Place</label><input type="text" name="experiences[${idx}][place]" placeholder="Organization name"></div>
+                <div class="sp-form-group"><label>Date</label><input type="text" name="experiences[${idx}][date]" placeholder="e.g. 2018-2022"></div>
+                <div class="sp-form-group"><label>Position</label><input type="text" name="experiences[${idx}][position]" placeholder="Position held"></div>
+            </div>
+        </div>
+    `);
+}
+
+function addPublication() {
+    const container = document.getElementById('publications-entries');
+    const idx = container.children.length;
+    container.insertAdjacentHTML('beforeend', `
+        <div class="sp-experience-entry">
+            <button type="button" class="sp-remove-btn" onclick="this.parentElement.remove()">&times;</button>
+            <div class="sp-form-group"><label>Publication ${idx + 1}</label><input type="text" name="publications[]" placeholder="Enter publication details"></div>
+        </div>
+    `);
+}
+
+function addHonour() {
+    const container = document.getElementById('honours-entries');
+    const idx = container.children.length;
+    container.insertAdjacentHTML('beforeend', `
+        <div class="sp-experience-entry">
+            <button type="button" class="sp-remove-btn" onclick="this.parentElement.remove()">&times;</button>
+            <div class="sp-form-group"><label>Honour/Distinction ${idx + 1}</label><input type="text" name="honours[]" placeholder="Enter honour or distinction"></div>
+        </div>
+    `);
+}
+
+function addMembership() {
+    const container = document.getElementById('memberships-entries');
+    const idx = container.children.length;
+    container.insertAdjacentHTML('beforeend', `
+        <div class="sp-experience-entry">
+            <button type="button" class="sp-remove-btn" onclick="this.parentElement.remove()">&times;</button>
+            <div class="sp-form-group"><label>Membership ${idx + 1}</label><input type="text" name="memberships[]" placeholder="Enter membership details"></div>
+        </div>
+    `);
+}
+
+function addOtherDoc() {
+    const container = document.getElementById('other-docs-container');
+    container.insertAdjacentHTML('beforeend', `
+        <div class="sp-experience-entry">
+            <button type="button" class="sp-remove-btn" onclick="this.parentElement.remove()">&times;</button>
+            <div class="sp-form-row">
+                <div class="sp-form-group">
+                    <label>Document Name</label>
+                    <input type="text" name="other_doc_names[]" placeholder="e.g. Professional Certificate">
+                </div>
+                <div class="sp-form-group">
+                    <label>File</label>
+                    <input type="file" name="other_doc_files[]" accept=".pdf,.jpg,.jpeg,.png">
+                    <div class="sp-doc-hint">PDF, JPG, PNG - Max 300KB</div>
+                </div>
+            </div>
+        </div>
+    `);
+}
+
+// Staff profile cascading dropdowns (public, no rolls check)
+$(document).on('change', '#facultysp1', function() {
+    let _url = '/department ajax public';
+    var faculty = this.value;
+    var _token = $('input[name="_token"]').val();
+    $.ajax({
+        type: 'POST',
+        url: _url,
+        data: { faculty: faculty, _token: _token },
+        success: function(data) {
+            $("#departmentsp1").html(data);
+        }
     });
+});
+
+$(document).on('change', '#departmentsp1', function() {
+    let _url = '/program ajax public';
+    var dept = this.value;
+    var faculty = $('#facultysp1').val();
+    var _token = $('input[name="_token"]').val();
+    $.ajax({
+        type: 'POST',
+        url: _url,
+        data: { faculty: faculty, dept: dept, _token: _token },
+        success: function(data) {
+            $("#programsp1").html(data);
+        }
+    });
+});
+
+// Nationality/NIN conditional requirement (staff profile personal tab)
+function spSyncNinRequired() {
+    var nat = $('#sp-nationality').val();
+    var nin = $('#sp-nin');
+    if (nat && nat.toLowerCase() === 'nigerian') {
+        nin.attr('required', true);
+    } else {
+        nin.removeAttr('required');
+    }
+}
+$(document).on('change', '#sp-nationality', function(){ spSyncNinRequired(); });
+$(function(){ spSyncNinRequired(); });
+$('#sp-nationality').trigger('change');
+
+@include('includes.nigeria-states-lgas')
+
+// State → LGA cascading for staff profile
+bindStateLGA('#sp-state', '#sp-lga');
+
+// Set initial state and LGA values on page load for edit mode
+$(function() {
+    var currentState = "{{ $row->state ?? '' }}";
+    var currentLga = "{{ $row->lga ?? '' }}";
+    initStateLGAEdit('#sp-state', '#sp-lga', currentState, currentLga);
+});
 </script>

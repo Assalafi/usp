@@ -6,7 +6,7 @@
     <div class="main-body">
         <div class="page-wrapper">
             <!-- [ Main Content ] start -->
-            <form class="form-group" action="/update staff" method="POST" enctype="multipart/form-data">
+            <form class="form-group" action="/update staff" method="POST" enctype="multipart/form-data" id="staff-record-update-form" onsubmit="return validateStaffNin(this);">
                 <div class="">
                     <!-- Details View Start -->
                     @csrf
@@ -100,13 +100,64 @@
                                     </div>
                                     <div class="form-group">
                                         <label for="state" class="form-label">State of Origin</label>
-                                        <input type="text" name="state" id="state" class="form-control"
-                                            value="{{ $row->state }}" required>
+                                        <select name="state" id="state-update" class="form-control" required>
+                                            <option value="">Select</option>
+                                            <option value="Abia" {{ strcasecmp($row->state ?? '', 'Abia') == 0 ? 'selected' : '' }}>Abia</option>
+                                            <option value="Adamawa" {{ strcasecmp($row->state ?? '', 'Adamawa') == 0 ? 'selected' : '' }}>Adamawa</option>
+                                            <option value="Akwa Ibom" {{ strcasecmp($row->state ?? '', 'Akwa Ibom') == 0 ? 'selected' : '' }}>Akwa Ibom</option>
+                                            <option value="Anambra" {{ strcasecmp($row->state ?? '', 'Anambra') == 0 ? 'selected' : '' }}>Anambra</option>
+                                            <option value="Bauchi" {{ strcasecmp($row->state ?? '', 'Bauchi') == 0 ? 'selected' : '' }}>Bauchi</option>
+                                            <option value="Bayelsa" {{ strcasecmp($row->state ?? '', 'Bayelsa') == 0 ? 'selected' : '' }}>Bayelsa</option>
+                                            <option value="Benue" {{ strcasecmp($row->state ?? '', 'Benue') == 0 ? 'selected' : '' }}>Benue</option>
+                                            <option value="Borno" {{ strcasecmp($row->state ?? '', 'Borno') == 0 ? 'selected' : '' }}>Borno</option>
+                                            <option value="Cross River" {{ strcasecmp($row->state ?? '', 'Cross River') == 0 ? 'selected' : '' }}>Cross River</option>
+                                            <option value="Delta" {{ strcasecmp($row->state ?? '', 'Delta') == 0 ? 'selected' : '' }}>Delta</option>
+                                            <option value="Ebonyi" {{ strcasecmp($row->state ?? '', 'Ebonyi') == 0 ? 'selected' : '' }}>Ebonyi</option>
+                                            <option value="Edo" {{ strcasecmp($row->state ?? '', 'Edo') == 0 ? 'selected' : '' }}>Edo</option>
+                                            <option value="Ekiti" {{ strcasecmp($row->state ?? '', 'Ekiti') == 0 ? 'selected' : '' }}>Ekiti</option>
+                                            <option value="Enugu" {{ strcasecmp($row->state ?? '', 'Enugu') == 0 ? 'selected' : '' }}>Enugu</option>
+                                            <option value="FCT" {{ strcasecmp($row->state ?? '', 'FCT') == 0 ? 'selected' : '' }}>FCT</option>
+                                            <option value="Gombe" {{ strcasecmp($row->state ?? '', 'Gombe') == 0 ? 'selected' : '' }}>Gombe</option>
+                                            <option value="Imo" {{ strcasecmp($row->state ?? '', 'Imo') == 0 ? 'selected' : '' }}>Imo</option>
+                                            <option value="Jigawa" {{ strcasecmp($row->state ?? '', 'Jigawa') == 0 ? 'selected' : '' }}>Jigawa</option>
+                                            <option value="Kaduna" {{ strcasecmp($row->state ?? '', 'Kaduna') == 0 ? 'selected' : '' }}>Kaduna</option>
+                                            <option value="Kano" {{ strcasecmp($row->state ?? '', 'Kano') == 0 ? 'selected' : '' }}>Kano</option>
+                                            <option value="Katsina" {{ strcasecmp($row->state ?? '', 'Katsina') == 0 ? 'selected' : '' }}>Katsina</option>
+                                            <option value="Kebbi" {{ strcasecmp($row->state ?? '', 'Kebbi') == 0 ? 'selected' : '' }}>Kebbi</option>
+                                            <option value="Kogi" {{ strcasecmp($row->state ?? '', 'Kogi') == 0 ? 'selected' : '' }}>Kogi</option>
+                                            <option value="Kwara" {{ strcasecmp($row->state ?? '', 'Kwara') == 0 ? 'selected' : '' }}>Kwara</option>
+                                            <option value="Lagos" {{ strcasecmp($row->state ?? '', 'Lagos') == 0 ? 'selected' : '' }}>Lagos</option>
+                                            <option value="Nasarawa" {{ strcasecmp($row->state ?? '', 'Nasarawa') == 0 ? 'selected' : '' }}>Nasarawa</option>
+                                            <option value="Niger" {{ strcasecmp($row->state ?? '', 'Niger') == 0 ? 'selected' : '' }}>Niger</option>
+                                            <option value="Ogun" {{ strcasecmp($row->state ?? '', 'Ogun') == 0 ? 'selected' : '' }}>Ogun</option>
+                                            <option value="Ondo" {{ strcasecmp($row->state ?? '', 'Ondo') == 0 ? 'selected' : '' }}>Ondo</option>
+                                            <option value="Osun" {{ strcasecmp($row->state ?? '', 'Osun') == 0 ? 'selected' : '' }}>Osun</option>
+                                            <option value="Oyo" {{ strcasecmp($row->state ?? '', 'Oyo') == 0 ? 'selected' : '' }}>Oyo</option>
+                                            <option value="Plateau" {{ strcasecmp($row->state ?? '', 'Plateau') == 0 ? 'selected' : '' }}>Plateau</option>
+                                            <option value="Rivers" {{ strcasecmp($row->state ?? '', 'Rivers') == 0 ? 'selected' : '' }}>Rivers</option>
+                                            <option value="Sokoto" {{ strcasecmp($row->state ?? '', 'Sokoto') == 0 ? 'selected' : '' }}>Sokoto</option>
+                                            <option value="Taraba" {{ strcasecmp($row->state ?? '', 'Taraba') == 0 ? 'selected' : '' }}>Taraba</option>
+                                            <option value="Yobe" {{ strcasecmp($row->state ?? '', 'Yobe') == 0 ? 'selected' : '' }}>Yobe</option>
+                                            <option value="Zamfara" {{ strcasecmp($row->state ?? '', 'Zamfara') == 0 ? 'selected' : '' }}>Zamfara</option>
+                                        </select>
                                     </div>
                                     <div class="form-group">
                                         <label for="lga" class="form-label">LGA of Origin</label>
-                                        <input type="text" name="lga" id="lga" class="form-control"
-                                            value="{{ $row->lga }}" required>
+                                        <select name="lga" id="lga-update" class="form-control" required>
+                                            <option value="">Select State First</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="nationality" class="form-label">Nationality</label>
+                                        <select name="nationality" id="nationality" class="form-control">
+                                            <option value="{{ $row->nationality }}">{{ $row->nationality ?: 'Select' }}</option>
+                                            <option value="Nigerian">Nigerian</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="nin" class="form-label">NIN <small class="text-muted">(required if Nigerian)</small></label>
+                                        <input type="text" name="nin" id="nin" value="{{ $row->nin }}" class="form-control">
                                     </div>
                                 </div>
                             </div>
@@ -141,20 +192,20 @@
                                     </div>
                                     <div class="form-group">
                                         <label for="unit" class="form-label">Department/Unit</label>
-                                        <select name="unit" id="unit" class="form-control">
-                                            <option value="{{ $row->unit }}">{{ $row->unit }}</option>
+                                        <select name="unit_id" id="unit" class="form-control">
+                                            <option value="{{ $row->unit_id ?? '' }}">{{ isset($row->unit) ? $row->unit : '' }}</option>
                                             @foreach ($unit as $roww)
-                                                <option value="{{ $roww->unit }}">{{ $roww->unit }}</option>
+                                                <option value="{{ $roww->id }}">{{ $roww->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
                                     <div class="form-group">
                                         <label for="current_rank" class="form-label">Designation/Rank</label>
-                                        <select name="current_rank" id="current_rank" class="form-control">
-                                            <option value="{{ $row->current_rank }}">{{ $row->current_rank }}
+                                        <select name="designation_id" id="current_rank" class="form-control">
+                                            <option value="{{ $row->designation_id ?? '' }}">{{ isset($row->current_rank) ? $row->current_rank : '' }}
                                             </option>
                                             @foreach ($designation as $roww)
-                                                <option value="{{ $roww->current_rank }}">{{ $roww->current_rank }}
+                                                <option value="{{ $roww->id }}">{{ $roww->name }}
                                                 </option>
                                             @endforeach
                                         </select>
@@ -199,20 +250,20 @@
                                     </div>
                                     <div class="form-group">
                                         <label for="grade" class="form-label">Grade</label>
-                                        <select name="grade" id="grade" class="form-control">
-                                            <option value="{{ $row->grade }}">{{ $row->grade }}</option>
+                                        <select name="grade_id" id="grade" class="form-control">
+                                            <option value="{{ $row->grade_id ?? '' }}">{{ isset($row->grade) ? $row->grade : '' }}</option>
                                             @foreach ($grade as $roww)
-                                                <option value="{{ $roww->grade }}">{{ $roww->grade }}
+                                                <option value="{{ $roww->id }}">{{ $roww->name }}
                                                 </option>
                                             @endforeach
                                         </select>
                                     </div>
                                     <div class="form-group">
                                         <label for="step" class="form-label">Step</label>
-                                        <select name="step" id="step" class="form-control">
-                                            <option value="{{ $row->step }}">{{ $row->step }}</option>
+                                        <select name="step_id" id="step" class="form-control">
+                                            <option value="{{ $row->step_id ?? '' }}">{{ isset($row->step) ? $row->step : '' }}</option>
                                             @foreach ($step as $roww)
-                                                <option value="{{ $roww->step }}">{{ $roww->step }}
+                                                <option value="{{ $roww->id }}">{{ $roww->name }}
                                                 </option>
                                             @endforeach
                                         </select>
@@ -228,10 +279,12 @@
                                     <div class="form-group">
                                         <label for="rank_of_first_appointment" class="form-label">Rank on First
                                             Appointment</label>
-                                        <input type="text" name="rank_of_first_appointment"
-                                            id="rank_of_first_appointment"
-                                            value="{{ $row->rank_of_first_appointment }}" class="form-control"
-                                            required>
+                                        <select name="rank_of_first_appointment_id" id="rank_of_first_appointment" class="form-control">
+                                            <option value="{{ $row->rank_of_first_appointment }}">{{ $row->rank_of_first_appointment ?: 'Select' }}</option>
+                                            @foreach ($designation as $roww)
+                                                <option value="{{ $roww->id }}">{{ $roww->name }}</option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                     <div class="form-group">
                                         <label for="date_of_asumption" class="form-label">Date of Assumption</label>
@@ -323,3 +376,45 @@
         </div>
     </div>
 @endforeach
+<script>
+/* NIN required validation for staff record update (admin) */
+function validateStaffNin(form) {
+    try {
+        var nat = (form.querySelector('#nationality') || {}).value || '';
+        var nin = (form.querySelector('#nin') || {}).value || '';
+        if (nat.toString().toLowerCase() === 'nigerian' && !nin.trim()) {
+            alert('NIN is required for Nigerian staff.');
+            return false;
+        }
+    } catch(e){}
+    return true;
+}
+(function initNinRequired(){
+    var sel = document.getElementById('nationality');
+    var inp = document.getElementById('nin');
+    if (!sel || !inp) return;
+    function sync(){
+        if ((sel.value || '').toString().toLowerCase() === 'nigerian') {
+            inp.setAttribute('required', 'required');
+        } else {
+            inp.removeAttribute('required');
+        }
+    }
+    sel.addEventListener('change', sync);
+    sync();
+})();
+
+@include('includes.nigeria-states-lgas')
+
+// State → LGA cascading for staff record update
+bindStateLGA('#state-update', '#lga-update');
+
+// Set initial state and LGA values on page load for edit mode
+$(function() {
+    var currentState = "{{ $row->state ?? '' }}";
+    var currentLga = "{{ $row->lga ?? '' }}";
+    initStateLGAEdit('#state-update', '#lga-update', currentState, currentLga);
+});
+
+</script>
+

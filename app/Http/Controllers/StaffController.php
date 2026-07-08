@@ -6,12 +6,13 @@ use App\Imports\DegreeImport;
 use App\Imports\StaffImport;
 use App\Models\Staff;
 use App\Models\User;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
+use Dompdf\Dompdf;
+use Dompdf\Options;
+use setasign\Fpdi\Fpdi;
 
 class StaffController extends Controller
 {
@@ -42,17 +43,33 @@ class StaffController extends Controller
             $filteredData = array_filter($data);
             $query = DB::table($this->table);
             foreach ($filteredData as $key => $value) {
-                $query->where($key, $value);
+                // Map old field names to new field names for filtering
+                if ($key === 'unit_id' && $value) {
+                    $query->where('unit_id', $value);
+                } elseif ($key === 'designation_id' && $value) {
+                    $query->where('designation_id', $value);
+                } elseif ($key === 'grade_id' && $value) {
+                    $query->where('grade_id', $value);
+                } elseif ($key === 'step_id' && $value) {
+                    $query->where('step_id', $value);
+                } elseif ($value) {
+                    $query->where($key, $value);
+                }
             }
-            $data['data'] = $query->get();
+            $data['data'] = $query->paginate(500);
         } else {
-            $data['data'] = DB::table($this->table)->whereIn('designation', ['UNIVERSITY LIBRARIAN'])->orWhere('designation', 'LIKE', '%PROFESSOR%')->orWhere('designation', 'LIKE', '%LECTURER%')->get();
+            $data['data'] = DB::table($this->table)->select('*')
+                ->where('current_rank', 'LIKE', '%LIBRARIAN%')
+                ->orWhere('current_rank', 'LIKE', '%PROFESSOR%')
+                ->orWhere('current_rank', 'LIKE', '%LECTURER%')
+                ->paginate(500);
         }
         $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
-        $data['designation'] = DB::table($this->table)->where('current_rank', '!=', '')->select('current_rank')->distinct()->orderBy('current_rank', 'ASC')->get('current_rank');
-        $data['unit'] = DB::table($this->table)->where('unit', '!=', '')->select('unit')->distinct()->orderBy('unit', 'ASC')->get('unit');
-        $data['grade'] = DB::table($this->table)->where('grade', '!=', '')->select('grade')->distinct()->orderBy('grade', 'ASC')->get('grade');
-        $data['step'] = DB::table($this->table)->where('step', '!=', '')->select('step')->distinct()->orderBy('step', 'ASC')->get('step');
+        $data['designation'] = DB::table('designations')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
+        $data['unit'] = DB::table('units')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
+        $data['grade'] = DB::table('grades')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
+        $data['step'] = DB::table('steps')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
+        $data['appointment'] = DB::table($this->table)->whereNotNull('appointment')->select('appointment')->distinct()->orderBy('appointment', 'ASC')->get();
         $data['fees_type'] = DB::table('fees_type')->where(['status' => '1'])->select('title')->orderBy('title', 'ASC')->get();
         $data['session'] = DB::table('session')->where(['status' => '1'])->select('title')->orderBy('title', 'ASC')->get();
         $data['page'] = $this->page;
@@ -65,8 +82,23 @@ class StaffController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
+
+        $nationality = $req->input('nationality');
+        $nin = $req->input('nin');
+        if (strcasecmp($nationality, 'Nigerian') === 0 && empty($nin)) {
+            return redirect()->back()->withInput()->with('error', 'NIN is required for Nigerian staff.');
+        }
+
         $datas = $req->all();
         unset($datas['_token']);
+
+        // Handle reference data IDs and populate name fields
+        if (isset($req->rank_of_first_appointment_id) && $req->rank_of_first_appointment_id) {
+            $rankFirst = DB::table('designations')->where('id', $req->rank_of_first_appointment_id)->value('name');
+            $datas['rank_of_first_appointment_id'] = $req->rank_of_first_appointment_id;
+            $datas['rank_of_first_appointment'] = $rankFirst;
+        }
+
         $datas = array_map('strtoupper', $datas);
         $id = $datas['username'];
         $name = $datas['name'];
@@ -91,11 +123,46 @@ class StaffController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
+
+        $nationality = $req->input('nationality');
+        $nin = $req->input('nin');
+        if (strcasecmp($nationality, 'Nigerian') === 0 && empty($nin)) {
+            return redirect()->back()->withInput()->with('error', 'NIN is required for Nigerian staff.');
+        }
+
         $datas = $req->all();
         $id = $datas['id'];
         $user_id = DB::table('staff')->where('id', $id)->value('user_id');
         unset($datas['id']);
         unset($datas['_token']);
+
+        // Handle reference data IDs and populate name fields
+        if (isset($req->unit_id) && $req->unit_id) {
+            $unit = DB::table('units')->where('id', $req->unit_id)->value('name');
+            $datas['unit_id'] = $req->unit_id;
+            $datas['unit'] = $unit;
+        }
+        if (isset($req->designation_id) && $req->designation_id) {
+            $designation = DB::table('designations')->where('id', $req->designation_id)->value('name');
+            $datas['designation_id'] = $req->designation_id;
+            $datas['current_rank'] = $designation;
+        }
+        if (isset($req->rank_of_first_appointment_id) && $req->rank_of_first_appointment_id) {
+            $rankFirst = DB::table('designations')->where('id', $req->rank_of_first_appointment_id)->value('name');
+            $datas['rank_of_first_appointment_id'] = $req->rank_of_first_appointment_id;
+            $datas['rank_of_first_appointment'] = $rankFirst;
+        }
+        if (isset($req->grade_id) && $req->grade_id) {
+            $grade = DB::table('grades')->where('id', $req->grade_id)->value('name');
+            $datas['grade_id'] = $req->grade_id;
+            $datas['grade'] = $grade;
+        }
+        if (isset($req->step_id) && $req->step_id) {
+            $step = DB::table('steps')->where('id', $req->step_id)->value('name');
+            $datas['step_id'] = $req->step_id;
+            $datas['step'] = $step;
+        }
+
         $datas = array_map('strtoupper', $datas);
         DB::table($this->table)->where('user_id', $user_id)->update($datas);
 
@@ -150,6 +217,186 @@ class StaffController extends Controller
         return redirect()->back()->with('error', 'File not found or other error occurred.');
     }
 
+    public function profileUpdate(Request $req)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        $username = session('username');
+        $staff = DB::table('staff')->where('username', $username)->first();
+        if (!$staff) {
+            return redirect()->back()->with('error', 'Staff record not found');
+        }
+
+        $nationality = $req->input('nationality');
+        $nin = $req->input('nin');
+        if (strcasecmp($nationality, 'Nigerian') === 0 && empty($nin)) {
+            $tab = $req->input('tab', 'personal');
+            return redirect('/staff-profile?tab=' . $tab . '&mode=edit')->withInput()->with('error', 'NIN is required for Nigerian staff.');
+        }
+
+        // JSON fields that should be stored as JSON
+        $jsonFields = ['institutions', 'experiences', 'publications', 'honours', 'memberships'];
+
+        $datas = $req->except(['_token', 'picture', 'tab']);
+
+        // Process fields
+        $processed = [];
+        foreach ($datas as $key => $value) {
+            if (in_array($key, $jsonFields)) {
+                // Store as JSON
+                $processed[$key] = json_encode(is_array($value) ? $value : []);
+            } elseif (is_string($value)) {
+                $processed[$key] = strtoupper($value);
+            } else {
+                $processed[$key] = $value;
+            }
+        }
+
+        // Handle reference data IDs and populate name fields
+        if (isset($req->unit_id) && $req->unit_id) {
+            $unit = DB::table('units')->where('id', $req->unit_id)->value('name');
+            $processed['unit_id'] = $req->unit_id;
+            $processed['unit'] = $unit;
+        }
+        if (isset($req->designation_id) && $req->designation_id) {
+            $designation = DB::table('designations')->where('id', $req->designation_id)->value('name');
+            $processed['designation_id'] = $req->designation_id;
+            $processed['current_rank'] = $designation;
+        }
+        if (isset($req->rank_of_first_appointment_id) && $req->rank_of_first_appointment_id) {
+            $rankFirst = DB::table('designations')->where('id', $req->rank_of_first_appointment_id)->value('name');
+            $processed['rank_of_first_appointment_id'] = $req->rank_of_first_appointment_id;
+            $processed['rank_of_first_appointment'] = $rankFirst;
+        }
+        if (isset($req->grade_id) && $req->grade_id) {
+            $grade = DB::table('grades')->where('id', $req->grade_id)->value('name');
+            $processed['grade_id'] = $req->grade_id;
+            $processed['grade'] = $grade;
+        }
+        if (isset($req->step_id) && $req->step_id) {
+            $step = DB::table('steps')->where('id', $req->step_id)->value('name');
+            $processed['step_id'] = $req->step_id;
+            $processed['step'] = $step;
+        }
+
+        if (!empty($processed)) {
+            DB::table('staff')->where('username', $username)->update($processed);
+        }
+
+        if ($req->file('picture')) {
+            $dot = $req->file('picture')->getClientOriginalExtension();
+            $req->file('picture')->storeAs('picture', $staff->user_id . '.' . $dot, 'public');
+            Staff::where(['username' => $username])->update([
+                'picture' => $staff->user_id . '.' . $dot
+            ]);
+        }
+
+        $tab = $req->input('tab', 'personal');
+        return redirect('/staff-profile?tab=' . $tab . '&mode=edit')->with('success', 'Profile Updated Successfully!');
+    }
+
+    public function uploadDocuments(Request $req)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        $username = session('username');
+        $staff = DB::table('staff')->where('username', $username)->first();
+        if (!$staff) {
+            return redirect()->back()->with('error', 'Staff record not found');
+        }
+
+        $documentFields = [
+            'doc_photo', 'doc_birth_certificate', 'doc_primary_cert', 'doc_ssce',
+            'doc_diploma', 'doc_degree', 'doc_masters', 'doc_phd', 'doc_indigine',
+            'doc_workshop', 'doc_nysc', 'doc_appointment_letter', 'doc_confirmation',
+            'doc_professional_body'
+        ];
+
+        $updates = [];
+        foreach ($documentFields as $field) {
+            if ($req->hasFile($field)) {
+                $file = $req->file($field);
+                if ($file->getSize() > 307200) {
+                    return redirect('/staff-profile?tab=documents&mode=edit')->with('error', ucfirst(str_replace('doc_', '', $field)) . ' exceeds 300KB limit');
+                }
+                $ext = $file->getClientOriginalExtension();
+                $allowed = ['pdf', 'jpg', 'jpeg', 'png'];
+                if (!in_array(strtolower($ext), $allowed)) {
+                    return redirect('/staff-profile?tab=documents&mode=edit')->with('error', ucfirst(str_replace('doc_', '', $field)) . ' must be PDF or image');
+                }
+                $filename = $username . '_' . $field . '.' . $ext;
+                $file->storeAs('staff_documents', $filename, 'public');
+                $updates[$field] = $filename;
+            }
+        }
+
+        // Handle multiple "other" documents
+        $existingOthers = json_decode($staff->doc_others ?? '[]', true) ?: [];
+        $otherNames = $req->input('other_doc_names', []);
+        $otherFiles = $req->file('other_doc_files', []);
+
+        if (!empty($otherNames)) {
+            foreach ($otherNames as $idx => $name) {
+                if (empty($name)) continue;
+
+                if (isset($otherFiles[$idx])) {
+                    $file = $otherFiles[$idx];
+                    if ($file->getSize() > 307200) {
+                        return redirect('/staff-profile?tab=documents&mode=edit')->with('error', '"' . $name . '" exceeds 300KB limit');
+                    }
+                    $ext = $file->getClientOriginalExtension();
+                    $allowed = ['pdf', 'jpg', 'jpeg', 'png'];
+                    if (!in_array(strtolower($ext), $allowed)) {
+                        return redirect('/staff-profile?tab=documents&mode=edit')->with('error', '"' . $name . '" must be PDF or image');
+                    }
+                    $filename = $username . '_other_' . $idx . '_' . time() . '.' . $ext;
+                    $file->storeAs('staff_documents', $filename, 'public');
+                    $existingOthers[] = ['name' => strtoupper($name), 'file' => $filename];
+                }
+            }
+        }
+
+        $updates['doc_others'] = json_encode($existingOthers);
+
+        if (!empty($updates)) {
+            DB::table('staff')->where('username', $username)->update($updates);
+        }
+
+        return redirect('/staff-profile?tab=documents&mode=edit')->with('success', 'Documents Uploaded Successfully!');
+    }
+
+    public function deleteOtherDoc(Request $req)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        $username = session('username');
+        $staff = DB::table('staff')->where('username', $username)->first();
+        if (!$staff) {
+            return redirect()->back()->with('error', 'Staff record not found');
+        }
+
+        $index = $req->input('index');
+        $others = json_decode($staff->doc_others ?? '[]', true) ?: [];
+
+        if (isset($others[$index])) {
+            // Delete file from storage
+            $filePath = storage_path('app/public/staff_documents/' . $others[$index]['file']);
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+            array_splice($others, $index, 1);
+            DB::table('staff')->where('username', $username)->update(['doc_others' => json_encode($others)]);
+        }
+
+        return redirect('/staff-profile?tab=documents&mode=edit')->with('success', 'Document removed successfully!');
+    }
+
     public function uploadDegree(Request $request)
     {
         if (!session()->has('log')) {
@@ -174,5 +421,472 @@ class StaffController extends Controller
         }
 
         return redirect()->back()->with('error', 'File not found or other error occurred.');
+    }
+
+    /**
+     * Download staff CV as PDF, merging any uploaded PDF documents (like recruitment).
+     */
+    public function downloadCV($id)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        try {
+            $row = DB::table('staff')->where('id', $id)->first();
+            if (!$row) {
+                return back()->with('error', 'Staff record not found');
+            }
+
+            // Prepare lookup names (same logic as staff record view)
+            $unitName = (isset($row->unit_id) && $row->unit_id) ? DB::table('units')->where('id', $row->unit_id)->value('name') : ($row->unit ?? '');
+            $designationName = (isset($row->designation_id) && $row->designation_id) ? DB::table('designations')->where('id', $row->designation_id)->value('name') : ($row->current_rank ?? '');
+            $gradeName = (isset($row->grade_id) && $row->grade_id) ? DB::table('grades')->where('id', $row->grade_id)->value('name') : ($row->grade ?? '');
+            $stepName = (isset($row->step_id) && $row->step_id) ? DB::table('steps')->where('id', $row->step_id)->value('name') : ($row->step ?? '');
+
+            // Decode JSON fields
+            $institutions = json_decode($row->institutions ?? '[]', true) ?: [];
+            $experiences  = json_decode($row->experiences  ?? '[]', true) ?: [];
+            $publications = json_decode($row->publications ?? '[]', true) ?: [];
+            $honours      = json_decode($row->honours      ?? '[]', true) ?: [];
+            $memberships  = json_decode($row->memberships  ?? '[]', true) ?: [];
+            $docOthers    = json_decode($row->doc_others   ?? '[]', true) ?: [];
+
+            $documentsMap = [
+                'doc_photo' => 'Photo',
+                'doc_birth_certificate' => 'Birth Certificate/Declaration of Age',
+                'doc_primary_cert' => 'Primary School Certificate',
+                'doc_ssce' => 'SSCE/GCE',
+                'doc_diploma' => 'Diploma',
+                'doc_degree' => 'Degree',
+                'doc_masters' => 'Masters',
+                'doc_phd' => 'PhD',
+                'doc_indigine' => 'Indigene',
+                'doc_workshop' => 'Workshop Cert',
+                'doc_nysc' => 'NYSC/Exception',
+                'doc_appointment_letter' => 'Appointment Letter',
+                'doc_confirmation' => 'Letter of Confirmation',
+                'doc_professional_body' => 'Certificate of Professional Body Membership',
+            ];
+
+            // Temp dir for files
+            $tempDir = storage_path('app/temp/documents');
+            if (!is_dir($tempDir)) {
+                @mkdir($tempDir, 0755, true);
+            }
+            $tempFiles = [];
+
+            // Collect docs: images for embedding, PDFs for merge
+            $downloadedDocs = [];
+            $photoDataUri = null;
+
+            foreach ($documentsMap as $field => $label) {
+                $filename = $row->$field ?? null;
+                if (empty($filename)) {
+                    // fallback photo from main picture column
+                    if ($field === 'doc_photo' && !empty($row->picture)) {
+                        $filename = $row->picture;
+                        $basePath = storage_path('app/public/picture/' . $filename);
+                    } else {
+                        continue;
+                    }
+                } else {
+                    $basePath = storage_path('app/public/staff_documents/' . $filename);
+                }
+
+                if (!file_exists($basePath)) continue;
+
+                $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                $content = @file_get_contents($basePath);
+                if ($content === false) continue;
+
+                if (in_array($ext, ['jpg','jpeg','png','gif','bmp'])) {
+                    $mimeMap = ['jpg'=>'jpeg','jpeg'=>'jpeg','png'=>'png','gif'=>'gif','bmp'=>'bmp'];
+                    $mime = $mimeMap[$ext] ?? $ext;
+                    $b64 = base64_encode($content);
+                    $dataUri = 'data:image/' . $mime . ';base64,' . $b64;
+
+                    if ($field === 'doc_photo') {
+                        $photoDataUri = $dataUri;
+                    }
+
+                    $tmpFile = $tempDir . '/' . uniqid('doc_') . '.' . $ext;
+                    file_put_contents($tmpFile, $content);
+                    $tempFiles[] = $tmpFile;
+
+                    $downloadedDocs[] = [
+                        'label' => $label,
+                        'ext' => $ext,
+                        'path' => $tmpFile,
+                        'content' => $content,
+                        'is_image' => true,
+                    ];
+                } elseif ($ext === 'pdf') {
+                    $tmpFile = $tempDir . '/' . uniqid('doc_') . '.pdf';
+                    file_put_contents($tmpFile, $content);
+                    $tempFiles[] = $tmpFile;
+
+                    $downloadedDocs[] = [
+                        'label' => $label,
+                        'ext' => 'pdf',
+                        'path' => $tmpFile,
+                        'content' => $content,
+                        'is_image' => false,
+                    ];
+                }
+            }
+
+            // Other documents
+            foreach ($docOthers as $other) {
+                if (empty($other['file'])) continue;
+                $filename = $other['file'];
+                $basePath = storage_path('app/public/staff_documents/' . $filename);
+                if (!file_exists($basePath)) continue;
+
+                $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                $content = @file_get_contents($basePath);
+                if ($content === false) continue;
+
+                $label = $other['name'] ?? 'Other Document';
+
+                if (in_array($ext, ['jpg','jpeg','png','gif','bmp'])) {
+                    $mimeMap = ['jpg'=>'jpeg','jpeg'=>'jpeg','png'=>'png','gif'=>'gif','bmp'=>'bmp'];
+                    $mime = $mimeMap[$ext] ?? $ext;
+                    $b64 = base64_encode($content);
+                    $dataUri = 'data:image/' . $mime . ';base64,' . $b64;
+
+                    $tmpFile = $tempDir . '/' . uniqid('doc_') . '.' . $ext;
+                    file_put_contents($tmpFile, $content);
+                    $tempFiles[] = $tmpFile;
+
+                    $downloadedDocs[] = [
+                        'label' => $label,
+                        'ext' => $ext,
+                        'path' => $tmpFile,
+                        'content' => $content,
+                        'is_image' => true,
+                    ];
+                } elseif ($ext === 'pdf') {
+                    $tmpFile = $tempDir . '/' . uniqid('doc_') . '.pdf';
+                    file_put_contents($tmpFile, $content);
+                    $tempFiles[] = $tmpFile;
+
+                    $downloadedDocs[] = [
+                        'label' => $label,
+                        'ext' => 'pdf',
+                        'path' => $tmpFile,
+                        'content' => $content,
+                        'is_image' => false,
+                    ];
+                }
+            }
+
+            // Fallback: if still no photoDataUri but main picture exists, embed it
+            if (empty($photoDataUri) && !empty($row->picture)) {
+                $picPath = storage_path('app/public/picture/' . $row->picture);
+                if (file_exists($picPath)) {
+                    $ext = strtolower(pathinfo($row->picture, PATHINFO_EXTENSION));
+                    $content = @file_get_contents($picPath);
+                    if ($content !== false) {
+                        $mimeMap = ['jpg'=>'jpeg','jpeg'=>'jpeg','png'=>'png','gif'=>'gif','bmp'=>'bmp'];
+                        $mime = $mimeMap[$ext] ?? $ext;
+                        $b64 = base64_encode($content);
+                        $photoDataUri = 'data:image/' . $mime . ';base64,' . $b64;
+                    }
+                }
+            }
+
+            // Render CV HTML
+            $options = new Options();
+            $options->set('chroot', public_path());
+            $options->set('tempDir', sys_get_temp_dir());
+            $options->set('isRemoteEnabled', true);
+            $options->set('defaultFont', 'DejaVu Sans');
+
+            $html = view('Admin.staff-cv', [
+                'row' => $row,
+                'unitName' => $unitName,
+                'designationName' => $designationName,
+                'gradeName' => $gradeName,
+                'stepName' => $stepName,
+                'institutions' => $institutions,
+                'experiences' => $experiences,
+                'publications' => $publications,
+                'honours' => $honours,
+                'memberships' => $memberships,
+                'docOthers' => $docOthers,
+                'photoDataUri' => $photoDataUri,
+            ])->render();
+
+            // Embed image docs at end (before </body>)
+            $imageDocsHtml = [];
+            foreach ($downloadedDocs as $ddoc) {
+                if (!empty($ddoc['is_image'])) {
+                    $mimeMap = ['jpg'=>'jpeg','jpeg'=>'jpeg','png'=>'png','gif'=>'gif','bmp'=>'bmp'];
+                    $mime = $mimeMap[$ddoc['ext']] ?? $ddoc['ext'];
+                    $b64 = base64_encode($ddoc['content']);
+                    $imageDocsHtml[] = '<div style="text-align:center;page-break-after:always;"><img src="data:image/' . $mime . ';base64,' . $b64 . '" style="max-width:100%;max-height:750px;" /></div>';
+                }
+            }
+
+            if (!empty($imageDocsHtml)) {
+                $html = str_replace('class="footer"', 'class="footer" style="page-break-after:always;"', $html);
+                $lastIdx = count($imageDocsHtml) - 1;
+                $imageDocsHtml[$lastIdx] = str_replace('page-break-after:always;', '', $imageDocsHtml[$lastIdx]);
+                $html = str_replace('</body>', implode('', $imageDocsHtml) . '</body>', $html);
+            }
+
+            // Generate CV PDF
+            $dompdf = new Dompdf($options);
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+            $cvPdfContent = $dompdf->output();
+
+            $cvTmpFile = $tempDir . '/' . uniqid('cv_') . '.pdf';
+            file_put_contents($cvTmpFile, $cvPdfContent);
+            $tempFiles[] = $cvTmpFile;
+
+            // PDFs to merge
+            $pdfDocsToMerge = [];
+            foreach ($downloadedDocs as $ddoc) {
+                if ($ddoc['ext'] === 'pdf') {
+                    $pdfDocsToMerge[] = $ddoc;
+                }
+            }
+
+            if (!empty($pdfDocsToMerge)) {
+                $fpdi = new Fpdi();
+
+                // Import CV pages
+                $cvPageCount = $fpdi->setSourceFile($cvTmpFile);
+                for ($p = 1; $p <= $cvPageCount; $p++) {
+                    $tpl = $fpdi->importPage($p);
+                    $size = $fpdi->getTemplateSize($tpl);
+                    $fpdi->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                    $fpdi->useTemplate($tpl);
+                }
+
+                // Import each PDF document
+                foreach ($pdfDocsToMerge as $pdfDoc) {
+                    try {
+                        $docPageCount = $fpdi->setSourceFile($pdfDoc['path']);
+                        for ($p = 1; $p <= $docPageCount; $p++) {
+                            $tpl = $fpdi->importPage($p);
+                            $size = $fpdi->getTemplateSize($tpl);
+                            $fpdi->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                            $fpdi->useTemplate($tpl);
+                        }
+                    } catch (\Exception $e) {
+                        \Log::warning('Failed to merge staff PDF document: ' . $pdfDoc['label'] . ' - ' . $e->getMessage());
+                    }
+                }
+
+                $mergedContent = $fpdi->Output('S');
+
+                foreach ($tempFiles as $f) { @unlink($f); }
+
+                $cleanName = preg_replace('/[^A-Za-z0-9\-]/', '_', $row->name ?? 'Staff');
+                $pdfName = 'CV_' . $cleanName . '_' . ($row->username ?? 'ID') . '_' . date('Y-m-d_H-i-s') . '.pdf';
+
+                return response($mergedContent, 200, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'inline; filename="' . $pdfName . '"',
+                    'Content-Length' => strlen($mergedContent),
+                ]);
+            }
+
+            // No PDFs — just the CV
+            foreach ($tempFiles as $f) { @unlink($f); }
+
+            $cleanName = preg_replace('/[^A-Za-z0-9\-]/', '_', $row->name ?? 'Staff');
+            $pdfName = 'CV_' . $cleanName . '_' . ($row->username ?? 'ID') . '_' . date('Y-m-d_H-i-s') . '.pdf';
+
+            return $dompdf->stream($pdfName, ['Attachment' => true]);
+
+        } catch (\Exception $e) {
+            \Log::error('Staff CV Generation Error: ' . $e->getMessage());
+            return back()->with('error', 'CV generation failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Export staff to PDF
+     */
+    public function exportPdf(Request $request)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        // Get filtered staff
+        $staff = $this->getFilteredStaff($request);
+
+        // Prepare data for export
+        $exportData = [];
+        $serialNumber = 1;
+
+        foreach ($staff as $row) {
+            $exportData[] = [
+                'sno' => $serialNumber++,
+                'sp_no' => $row->username ?? 'N/A',
+                'name' => $row->name ?? 'N/A',
+                'nin' => $row->nin ?? 'N/A',
+                'dob' => !empty($row->date_of_birth) && $row->date_of_birth != '1970-01-01' ? date('d/m/Y', strtotime($row->date_of_birth)) : 'N/A',
+                'state' => $row->state ?? 'N/A',
+                'lga' => $row->lga ?? 'N/A',
+                'gender' => $row->gender ?? 'N/A',
+                'date_of_appointment' => !empty($row->date_of_first_appointment) && $row->date_of_first_appointment != '1970-01-01' ? date('d/m/Y', strtotime($row->date_of_first_appointment)) : 'N/A',
+                'date_of_confirmation' => !empty($row->date_of_comfirmation) && $row->date_of_comfirmation != '1970-01-01' ? date('d/m/Y', strtotime($row->date_of_comfirmation)) : 'N/A',
+                'current_rank' => $row->current_rank ?? $row->designation ?? 'N/A',
+                'dept_unit' => $row->unit ?? ($row->department ?? 'N/A'),
+                'phone' => $row->phone ?? 'N/A',
+                'email' => $row->email ?? 'N/A',
+            ];
+        }
+
+        try {
+            // Generate PDF using project's FPDF system
+            $pdfContent = view('Admin.staff-pdf-fpdf', [
+                'staff' => $exportData,
+                'filters' => $request->all()
+            ])->render();
+
+            // Evaluate the PDF content (it will output the PDF directly)
+            eval('?>' . $pdfContent);
+            exit;
+
+        } catch (\Exception $e) {
+            \Log::error('Staff PDF Generation Error: ' . $e->getMessage());
+            return back()->with('error', 'PDF generation failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Export staff to Excel (CSV format)
+     */
+    public function exportExcel(Request $request)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        // Get filtered staff
+        $staff = $this->getFilteredStaff($request);
+
+        // Prepare data for export
+        $exportData = [];
+        $serialNumber = 1;
+
+        foreach ($staff as $row) {
+            $exportData[] = [
+                'S/NO' => $serialNumber++,
+                'SP. NO' => $row->username ?? 'N/A',
+                'NAME' => $row->name ?? 'N/A',
+                'NIN' => $row->nin ?? 'N/A',
+                'DOB' => !empty($row->date_of_birth) && $row->date_of_birth != '1970-01-01' ? date('d/m/Y', strtotime($row->date_of_birth)) : 'N/A',
+                'STATE OF ORIGIN' => $row->state ?? 'N/A',
+                'LGA' => $row->lga ?? 'N/A',
+                'GENDER' => $row->gender ?? 'N/A',
+                'DATE OF APPT.' => !empty($row->date_of_first_appointment) && $row->date_of_first_appointment != '1970-01-01' ? date('d/m/Y', strtotime($row->date_of_first_appointment)) : 'N/A',
+                'DATE OF CONFIRMATION' => !empty($row->date_of_comfirmation) && $row->date_of_comfirmation != '1970-01-01' ? date('d/m/Y', strtotime($row->date_of_comfirmation)) : 'N/A',
+                'CURRENT RANK' => $row->current_rank ?? $row->designation ?? 'N/A',
+                'DEPT/UNIT' => $row->unit ?? ($row->department ?? 'N/A'),
+                'PHONE NUMBER' => $row->phone ?? 'N/A',
+                'E-MAIL' => $row->email ?? 'N/A',
+            ];
+        }
+
+        // Generate filename with timestamp
+        $filename = 'staff_' . date('Y-m-d_H-i-s') . '.csv';
+
+        // Create CSV file
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() use ($exportData) {
+            $file = fopen('php://output', 'w');
+
+            // Add BOM for UTF-8
+            fwrite($file, "\xEF\xBB\xBF");
+
+            // Header row
+            if (!empty($exportData)) {
+                fputcsv($file, array_keys($exportData[0]));
+            }
+
+            // Data rows
+            foreach ($exportData as $row) {
+                fputcsv($file, $row);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Get filtered staff based on request parameters
+     */
+    private function getFilteredStaff(Request $request)
+    {
+        $query = DB::table('staff');
+
+        // Apply filters
+        if ($request->filled('state')) {
+            $query->where('state', $request->input('state'));
+        }
+        if ($request->filled('lga')) {
+            $query->where('lga', 'like', '%' . $request->input('lga') . '%');
+        }
+        if ($request->filled('gender')) {
+            $query->where('gender', $request->input('gender'));
+        }
+        if ($request->filled('faculty')) {
+            $query->where('faculty', $request->input('faculty'));
+        }
+        if ($request->filled('department')) {
+            $query->where('department', $request->input('department'));
+        }
+        if ($request->filled('program')) {
+            $query->where('program', $request->input('program'));
+        }
+        if ($request->filled('unit_id')) {
+            $query->where('unit_id', $request->input('unit_id'));
+        }
+        if ($request->filled('designation_id')) {
+            $query->where('designation_id', $request->input('designation_id'));
+        }
+        if ($request->filled('grade_id')) {
+            $query->where('grade_id', $request->input('grade_id'));
+        }
+        if ($request->filled('step_id')) {
+            $query->where('step_id', $request->input('step_id'));
+        }
+
+        return $query->get();
+    }
+
+    public function getDepartments($facultyCode)
+    {
+        $departments = DB::table('department')
+            ->select('code', 'title')
+            ->where(['faculty' => $facultyCode, 'status' => '1'])
+            ->orderBy('title', 'asc')
+            ->get();
+        return response()->json($departments);
+    }
+
+    public function getPrograms($deptCode)
+    {
+        $programs = DB::table('program')
+            ->select('code', 'title')
+            ->where(['department' => $deptCode, 'status' => '1'])
+            ->orderBy('title', 'asc')
+            ->get();
+        return response()->json($programs);
     }
 }

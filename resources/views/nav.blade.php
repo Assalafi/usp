@@ -207,7 +207,7 @@
                     <li class=""><a href="/registration" class="">New Registration</a></li>
                 </ul>
             </li>
-            <li class="nav-item pcoded-hasmenu @if ($page == 'faculty' || $page == 'department' || $page == 'program' || $page == 'session' || $page == 'semester') pcoded-trigger active @endif ">
+            <li class="nav-item pcoded-hasmenu @if ($page == 'faculty' || $page == 'department' || $page == 'program' || $page == 'session' || $page == 'semester' || $page == 'unit' || $page == 'designation' || $page == 'grade' || $page == 'step') pcoded-trigger active @endif ">
                 <a href="#!" class="nav-link">
                     <span class="pcoded-micon"><i class="fas fa-address-card"></i></span>
                     <span class="pcoded-mtext">Academics</span>
@@ -219,6 +219,14 @@
                             class="">Deparment</a></li>
                     <li class="@if ($page == 'program') active @endif"><a href="/program"
                             class="">Program</a></li>
+                    <li class="@if ($page == 'unit') active @endif"><a href="/reference-data/unit"
+                            class="">Unit</a></li>
+                    <li class="@if ($page == 'designation') active @endif"><a href="/reference-data/designation"
+                            class="">Designation</a></li>
+                    <li class="@if ($page == 'grade') active @endif"><a href="/reference-data/grade"
+                            class="">Grade</a></li>
+                    <li class="@if ($page == 'step') active @endif"><a href="/reference-data/step"
+                            class="">Step</a></li>
                     <li class="@if ($page == 'semester') active @endif"><a href="/semester"
                             class="">Semester</a></li>
                     <li class="@if ($page == 'session') active @endif"><a href="/session"

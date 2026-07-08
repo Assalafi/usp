@@ -32,6 +32,7 @@
                         {{-- for degree import --}}
                         <button href="#" class="btn btn-dark uploadAction" data-bs-toggle="modal"
                             data-bs-target="#importDegree"><i class="fas fa-upload"></i> {{ 'Import Degree' }}</button>
+                        <button href="#" class="btn btn-success" onclick="$('#exportModal').modal('show')"><i class="fas fa-download"></i> {{ 'Export' }}</button>
                         <button href="#" class="btn btn-danger deleteAction" style="float: right;"
                             data-bs-toggle="modal" data-bs-target="#reset"><i class="fas fa-reset"></i>
                             {{ 'Reset' }}</button>
@@ -78,19 +79,19 @@
                                 </div>
                                 <div class="form-group col-md-2 departmentAction">
                                     <label for="unit">Department/Unit</label>
-                                    <select class="form-control" lang="f" name="unit" id="unit">
+                                    <select class="form-control" lang="f" name="unit_id" id="unit">
                                         <option value="">Select Option</option>
                                         @foreach ($unit as $roww)
-                                            <option value="{{ $roww->unit }}">{{ $roww->unit }}</option>
+                                            <option value="{{ $roww->id }}">{{ $roww->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div class="form-group col-md-2 levelAction">
                                     <label for="current_rank">Designation</label>
-                                    <select class="form-control" lang="f" name="current_rank" id="current_rank">
+                                    <select class="form-control" lang="f" name="designation_id" id="current_rank">
                                         <option value="">Select Option</option>
                                         @foreach ($designation as $roww)
-                                            <option value="{{ $roww->current_rank }}">{{ $roww->current_rank }}
+                                            <option value="{{ $roww->id }}">{{ $roww->name }}
                                             </option>
                                         @endforeach
                                     </select>
@@ -105,16 +106,41 @@
                                 </div>
                                 <div class="form-group col-md-2">
                                     <label for="state" class="form-label">State of Origin</label>
-                                    <input type="text" name="state" id="state" class="form-control">
+                                    <select name="state" id="state-filter" class="form-control">
+                                        <option value="">All</option>
+                                        <option value="Abia">Abia</option><option value="Adamawa">Adamawa</option><option value="Akwa Ibom">Akwa Ibom</option><option value="Anambra">Anambra</option>
+                                        <option value="Bauchi">Bauchi</option><option value="Bayelsa">Bayelsa</option><option value="Benue">Benue</option><option value="Borno">Borno</option>
+                                        <option value="Cross River">Cross River</option><option value="Delta">Delta</option><option value="Ebonyi">Ebonyi</option><option value="Edo">Edo</option>
+                                        <option value="Ekiti">Ekiti</option><option value="Enugu">Enugu</option><option value="FCT">FCT</option><option value="Gombe">Gombe</option>
+                                        <option value="Imo">Imo</option><option value="Jigawa">Jigawa</option><option value="Kaduna">Kaduna</option><option value="Kano">Kano</option>
+                                        <option value="Katsina">Katsina</option><option value="Kebbi">Kebbi</option><option value="Kogi">Kogi</option><option value="Kwara">Kwara</option>
+                                        <option value="Lagos">Lagos</option><option value="Nasarawa">Nasarawa</option><option value="Niger">Niger</option><option value="Ogun">Ogun</option>
+                                        <option value="Ondo">Ondo</option><option value="Osun">Osun</option><option value="Oyo">Oyo</option><option value="Plateau">Plateau</option>
+                                        <option value="Rivers">Rivers</option><option value="Sokoto">Sokoto</option><option value="Taraba">Taraba</option><option value="Yobe">Yobe</option>
+                                        <option value="Zamfara">Zamfara</option>
+                                    </select>
                                 </div>
                                 <div class="form-group col-md-2">
                                     <label for="lga" class="form-label">LGA of Origin</label>
-                                    <input type="text" name="lga" id="lga" class="form-control">
+                                    <select name="lga" id="lga-filter" class="form-control">
+                                        <option value="">All</option>
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label for="appointment" class="form-label">Appointment</label>
+                                    <select name="appointment" id="appointment" class="form-control">
+                                        <option value="">Select Option</option>
+                                        @foreach ($appointment as $roww)
+                                            <option value="{{ $roww->appointment }}">{{ $roww->appointment }}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
 
                                 <div class="form-group col-md-2">
                                     <button type="submit" class="btn btn-info btn-filter"><i class="fas fa-search"></i>
                                         {{ 'Filter' }}</button>
+                                    <button type="button" class="btn btn-warning btn-clear" onclick="window.location.href='/staff'"><i class="fas fa-times"></i>
+                                        {{ 'Clear' }}</button>
                                 </div>
                             </div>
                         </form>
@@ -144,13 +170,27 @@
                                     @php
                                         $sn = 1;
                                     @endphp
-                                    @foreach ($data as $row)
+                                    @foreach ($data->items() as $row)
+                                    @php
+                                        $unitName = '';
+                                        if (!empty($row->unit_id)) {
+                                            $unitName = DB::table('units')->where('id', $row->unit_id)->value('name') ?? '';
+                                        } elseif (!empty($row->unit)) {
+                                            $unitName = $row->unit;
+                                        }
+                                        $designationName = '';
+                                        if (!empty($row->designation_id)) {
+                                            $designationName = DB::table('designations')->where('id', $row->designation_id)->value('name') ?? '';
+                                        } elseif (!empty($row->current_rank)) {
+                                            $designationName = $row->current_rank;
+                                        }
+                                    @endphp
                                         <tr>
                                             <td>{{ $sn++ }}</td>
                                             <td>{{ $row->username }}</td>
                                             <td>{{ $row->name }}</td>
-                                            <td>{{ $row->unit }}</td>
-                                            <td>{{ $row->current_rank }}</td>
+                                            <td>{{ $unitName }}</td>
+                                            <td>{{ $designationName }}</td>
                                             <td>{{ $row->phone }}</td>
                                             <td>{{ $row->degree ? 'Yes' : 'No' }}</td>
                                             <td>
@@ -240,6 +280,23 @@
                             </table>
                         </div>
                         <!-- [ Data table ] end -->
+
+                        <!-- Pagination and Results Info -->
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <span class="text-muted">
+                                        Showing {{ $data->firstItem() ?? 0 }} to {{ $data->lastItem() ?? 0 }}
+                                        of {{ $data->total() ?? 0 }} results
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex justify-content-end">
+                                    {{ $data->appends(request()->query())->links('pagination::bootstrap-4') }}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -441,13 +498,37 @@
                                         </div>
                                         <div class="form-group">
                                             <label for="state" class="form-label">State of Origin</label>
-                                            <input type="text" name="state" id="state" class="form-control"
-                                                required>
+                                            <select name="state" id="state-create" class="form-control" required>
+                                                <option value="">Select</option>
+                                                <option value="Abia">Abia</option><option value="Adamawa">Adamawa</option><option value="Akwa Ibom">Akwa Ibom</option><option value="Anambra">Anambra</option>
+                                                <option value="Bauchi">Bauchi</option><option value="Bayelsa">Bayelsa</option><option value="Benue">Benue</option><option value="Borno">Borno</option>
+                                                <option value="Cross River">Cross River</option><option value="Delta">Delta</option><option value="Ebonyi">Ebonyi</option><option value="Edo">Edo</option>
+                                                <option value="Ekiti">Ekiti</option><option value="Enugu">Enugu</option><option value="FCT">FCT</option><option value="Gombe">Gombe</option>
+                                                <option value="Imo">Imo</option><option value="Jigawa">Jigawa</option><option value="Kaduna">Kaduna</option><option value="Kano">Kano</option>
+                                                <option value="Katsina">Katsina</option><option value="Kebbi">Kebbi</option><option value="Kogi">Kogi</option><option value="Kwara">Kwara</option>
+                                                <option value="Lagos">Lagos</option><option value="Nasarawa">Nasarawa</option><option value="Niger">Niger</option><option value="Ogun">Ogun</option>
+                                                <option value="Ondo">Ondo</option><option value="Osun">Osun</option><option value="Oyo">Oyo</option><option value="Plateau">Plateau</option>
+                                                <option value="Rivers">Rivers</option><option value="Sokoto">Sokoto</option><option value="Taraba">Taraba</option><option value="Yobe">Yobe</option>
+                                                <option value="Zamfara">Zamfara</option>
+                                            </select>
                                         </div>
                                         <div class="form-group">
                                             <label for="lga" class="form-label">LGA of Origin</label>
-                                            <input type="text" name="lga" id="lga" class="form-control"
-                                                required>
+                                            <select name="lga" id="lga-create" class="form-control" required>
+                                                <option value="">Select State First</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="nationality" class="form-label">Nationality</label>
+                                            <select name="nationality" id="nationality-create" class="form-control">
+                                                <option value="">Select</option>
+                                                <option value="Nigerian">Nigerian</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="nin" class="form-label">NIN <small class="text-muted">(required if Nigerian)</small></label>
+                                            <input type="text" name="nin" id="nin-create" class="form-control" placeholder="e.g. 12345678901">
                                         </div>
                                     </div>
                                 </div>
@@ -483,20 +564,20 @@
                                         </div>
                                         <div class="form-group">
                                             <label for="unit" class="form-label">Department/Unit</label>
-                                            <select name="unit" id="unit" class="form-control">
+                                            <select name="unit_id" id="unit" class="form-control">
                                                 <option value="">Select Option</option>
                                                 @foreach ($unit as $roww)
-                                                    <option value="{{ $roww->unit }}">{{ $roww->unit }}</option>
+                                                    <option value="{{ $roww->id }}">{{ $roww->name }}</option>
                                                 @endforeach
                                             </select>
                                         </div>
                                         <div class="form-group">
                                             <label for="current_rank" class="form-label">Designation/Rank</label>
-                                            <select name="current_rank" id="current_rank" class="form-control">
+                                            <select name="designation_id" id="current_rank" class="form-control">
                                                 <option value="">Select Option</option>
                                                 @foreach ($designation as $roww)
-                                                    <option value="{{ $roww->current_rank }}">
-                                                        {{ $roww->current_rank }}
+                                                    <option value="{{ $roww->id }}">
+                                                        {{ $roww->name }}
                                                     </option>
                                                 @endforeach
                                             </select>
@@ -519,20 +600,20 @@
                                         </div>
                                         <div class="form-group">
                                             <label for="grade" class="form-label">Grade</label>
-                                            <select name="grade" id="grade" class="form-control">
+                                            <select name="grade_id" id="grade" class="form-control">
                                                 <option value="">Select Option</option>
                                                 @foreach ($grade as $roww)
-                                                    <option value="{{ $roww->grade }}">{{ $roww->grade }}
+                                                    <option value="{{ $roww->id }}">{{ $roww->name }}
                                                     </option>
                                                 @endforeach
                                             </select>
                                         </div>
                                         <div class="form-group">
                                             <label for="step" class="form-label">Step</label>
-                                            <select name="step" id="step" class="form-control">
+                                            <select name="step_id" id="step" class="form-control">
                                                 <option value="">Select Option</option>
                                                 @foreach ($step as $roww)
-                                                    <option value="{{ $roww->step }}">{{ $roww->step }}
+                                                    <option value="{{ $roww->id }}">{{ $roww->name }}
                                                     </option>
                                                 @endforeach
                                             </select>
@@ -546,8 +627,12 @@
                                         <div class="form-group">
                                             <label for="rank_of_first_appointment" class="form-label">Rank on First
                                                 Appointment</label>
-                                            <input type="text" name="rank_of_first_appointment"
-                                                id="rank_of_first_appointment" class="form-control" required>
+                                            <select name="rank_of_first_appointment_id" id="rank_of_first_appointment" class="form-control">
+                                                <option value="">Select Option</option>
+                                                @foreach ($designation as $roww)
+                                                    <option value="{{ $roww->id }}">{{ $roww->name }}</option>
+                                                @endforeach
+                                            </select>
                                         </div>
                                         <div class="form-group">
                                             <label for="date_of_asumption" class="form-label">Date of
@@ -630,3 +715,238 @@
         </div>
     </div>
 </div>
+
+{{-- ── Export Modal ── --}}
+<div class="modal fade" id="exportModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-download"></i> Export Staff</h5>
+                <button type="button" class="close" data-dismiss="modal" onclick="$('#exportModal').modal('hide')"><span>&times;</span></button>
+            </div>
+            <form id="exportForm" method="POST">
+                @csrf
+                <input type="hidden" name="export_format" id="exportFormat" value="pdf">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>State of Origin</label>
+                                <select class="form-control form-control-sm" name="state" id="export-state">
+                                    <option value="">All</option>
+                                    <option value="Abia">Abia</option><option value="Adamawa">Adamawa</option><option value="Akwa Ibom">Akwa Ibom</option><option value="Anambra">Anambra</option>
+                                    <option value="Bauchi">Bauchi</option><option value="Bayelsa">Bayelsa</option><option value="Benue">Benue</option><option value="Borno">Borno</option>
+                                    <option value="Cross River">Cross River</option><option value="Delta">Delta</option><option value="Ebonyi">Ebonyi</option><option value="Edo">Edo</option>
+                                    <option value="Ekiti">Ekiti</option><option value="Enugu">Enugu</option><option value="FCT">FCT</option><option value="Gombe">Gombe</option>
+                                    <option value="Imo">Imo</option><option value="Jigawa">Jigawa</option><option value="Kaduna">Kaduna</option><option value="Kano">Kano</option>
+                                    <option value="Katsina">Katsina</option><option value="Kebbi">Kebbi</option><option value="Kogi">Kogi</option><option value="Kwara">Kwara</option>
+                                    <option value="Lagos">Lagos</option><option value="Nasarawa">Nasarawa</option><option value="Niger">Niger</option><option value="Ogun">Ogun</option>
+                                    <option value="Ondo">Ondo</option><option value="Osun">Osun</option><option value="Oyo">Oyo</option><option value="Plateau">Plateau</option>
+                                    <option value="Rivers">Rivers</option><option value="Sokoto">Sokoto</option><option value="Taraba">Taraba</option><option value="Yobe">Yobe</option>
+                                    <option value="Zamfara">Zamfara</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>LGA</label>
+                                <select class="form-control form-control-sm" name="lga" id="export-lga">
+                                    <option value="">All</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Gender</label>
+                                <select class="form-control form-control-sm" name="gender">
+                                    <option value="">All</option>
+                                    <option value="MALE">Male</option>
+                                    <option value="FEMALE">Female</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Faculty</label>
+                                <select class="form-control form-control-sm faculty" name="faculty" id="exportFaculty">
+                                    <option value="">All</option>
+                                    @foreach ($faculty as $row)
+                                        <option value="{{ $row->code }}">{{ $row->title }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Department</label>
+                                <select class="form-control form-control-sm department" name="department" id="exportDepartment">
+                                    <option value="">All</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Program</label>
+                                <select class="form-control form-control-sm program" name="program" id="exportProgram">
+                                    <option value="">All</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Unit</label>
+                                <select class="form-control form-control-sm" name="unit_id">
+                                    <option value="">All</option>
+                                    @foreach ($unit as $roww)
+                                        <option value="{{ $roww->id }}">{{ $roww->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Current Rank</label>
+                                <select class="form-control form-control-sm" name="designation_id">
+                                    <option value="">All</option>
+                                    @foreach ($designation as $roww)
+                                        <option value="{{ $roww->id }}">{{ $roww->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Grade</label>
+                                <select class="form-control form-control-sm" name="grade_id">
+                                    <option value="">All</option>
+                                    @foreach ($grade as $roww)
+                                        <option value="{{ $roww->id }}">{{ $roww->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Step</label>
+                                <select class="form-control form-control-sm" name="step_id">
+                                    <option value="">All</option>
+                                    @foreach ($step as $roww)
+                                        <option value="{{ $roww->id }}">{{ $roww->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="form-group">
+                                <label>Export Format</label>
+                                <div class="btn-group btn-group-toggle" data-toggle="buttons">
+                                    <label class="btn btn-outline-primary btn-sm active">
+                                        <input type="radio" name="export_format" value="pdf" checked onchange="document.getElementById('exportFormat').value='pdf'"> PDF
+                                    </label>
+                                    <label class="btn btn-outline-primary btn-sm">
+                                        <input type="radio" name="export_format" value="excel" onchange="document.getElementById('exportFormat').value='excel'"> CSV
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" onclick="$('#exportModal').modal('hide')">Cancel</button>
+                    <button type="submit" class="btn btn-success btn-sm" id="exportBtn"><i class="fas fa-download"></i> Export</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Conditional NIN required for Create Staff modal
+(function(){
+    function syncCreateNin() {
+        var natSel = document.getElementById('nationality-create');
+        var ninInp = document.getElementById('nin-create');
+        if (!natSel || !ninInp) return;
+        var isNigerian = (natSel.value || '').toString().toLowerCase() === 'nigerian';
+        if (isNigerian) {
+            ninInp.setAttribute('required', 'required');
+        } else {
+            ninInp.removeAttribute('required');
+        }
+    }
+    document.addEventListener('change', function(e){
+        if (e.target && e.target.id === 'nationality-create') syncCreateNin();
+    });
+    var form = document.querySelector('#createStudent form');
+    if (form) {
+        form.addEventListener('submit', function(){
+            syncCreateNin();
+        });
+    }
+    // initial
+    setTimeout(syncCreateNin, 0);
+})();
+
+@include('includes.nigeria-states-lgas')
+
+// State → LGA cascading for Create Staff modal
+bindStateLGA('#state-create', '#lga-create');
+
+// State → LGA cascading for filter section
+bindStateLGA('#state-filter', '#lga-filter');
+
+// State → LGA cascading for export modal
+bindStateLGA('#export-state', '#export-lga');
+
+// Export modal cascading dropdowns
+$(document).ready(function() {
+    // Faculty change - load departments
+    $('#exportFaculty').on('change', function() {
+        var facultyCode = $(this).val();
+        var deptSelect = $('#exportDepartment');
+        var progSelect = $('#exportProgram');
+
+        deptSelect.empty().append('<option value="">All</option>');
+        progSelect.empty().append('<option value="">All</option>');
+
+        if (facultyCode) {
+            $.get('/get-departments/' + facultyCode, function(data) {
+                $.each(data, function(key, value) {
+                    deptSelect.append('<option value="' + value.code + '">' + value.title + '</option>');
+                });
+            });
+        }
+    });
+
+    // Department change - load programs
+    $('#exportDepartment').on('change', function() {
+        var deptCode = $(this).val();
+        var progSelect = $('#exportProgram');
+
+        progSelect.empty().append('<option value="">All</option>');
+
+        if (deptCode) {
+            $.get('/get-programs/' + deptCode, function(data) {
+                $.each(data, function(key, value) {
+                    progSelect.append('<option value="' + value.code + '">' + value.title + '</option>');
+                });
+            });
+        }
+    });
+
+    // Export form submission
+    $('#exportForm').on('submit', function(e) {
+        e.preventDefault();
+        var format = $('#exportFormat').val();
+        var action = format === 'excel' ? '/staff/export/excel' : '/staff/export/pdf';
+        $(this).attr('action', action);
+        this.submit();
+    });
+});
+</script>

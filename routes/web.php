@@ -8,6 +8,7 @@ use App\Http\Controllers\CourseAllocationController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseStructureController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\ReferenceDataController;
 use App\Http\Controllers\ElectionVotingController;
 use App\Http\Controllers\ExamTimebleController;
 use App\Http\Controllers\FacultyController;
@@ -909,24 +910,47 @@ Route::get('staff-record/{id}', function ($id) {
     $data['page'] = 'staff record';
     return view('main', $data);
 });
+Route::get('staff-record/download-cv/{id}', [StaffController::class, 'downloadCV']);
 Route::get('staff-profile', function () {
     if (!session()->has('log')) {
         return redirect('/');
     }
-    $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
     $data['data'] = DB::table('staff')->where('username', session('username'))->get();
+    $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
+    $data['unit'] = DB::table('units')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
+    $data['designation'] = DB::table('designations')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
+    $data['grade'] = DB::table('grades')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
+    $data['step'] = DB::table('steps')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
     $data['page'] = 'staff profile';
     return view('main', $data);
 });
+Route::post('/staff-profile-update', [StaffController::class, 'profileUpdate']);
+Route::post('/staff-profile-documents', [StaffController::class, 'uploadDocuments']);
+Route::post('/staff-profile-delete-doc', [StaffController::class, 'deleteOtherDoc']);
+Route::post('/staff/export/pdf', [StaffController::class, 'exportPdf'])->name('staff.export.pdf')->middleware('role');
+Route::post('/staff/export/excel', [StaffController::class, 'exportExcel'])->name('staff.export.excel')->middleware('role');
+Route::get('/get-departments/{faculty}', [StaffController::class, 'getDepartments'])->middleware('role');
+Route::get('/get-programs/{department}', [StaffController::class, 'getPrograms'])->middleware('role');
+
+// Reference Data CRUD (Unit, Designation, Grade, Step)
+Route::get('/reference-data/{type}', [ReferenceDataController::class, 'index']);
+Route::get('/reference-data/{type}/create', [ReferenceDataController::class, 'create']);
+Route::post('/reference-data/{type}/store', [ReferenceDataController::class, 'store']);
+Route::get('/reference-data/{type}/{id}/edit', [ReferenceDataController::class, 'edit']);
+Route::post('/reference-data/{type}/{id}/update', [ReferenceDataController::class, 'update']);
+Route::get('/reference-data/{type}/{id}/delete', [ReferenceDataController::class, 'delete']);
+Route::get('/reference-data/{type}/bulk-upload', [ReferenceDataController::class, 'bulkUpload']);
+Route::post('/reference-data/{type}/process-bulk-upload', [ReferenceDataController::class, 'processBulkUpload']);
+Route::get('/reference-data/{type}/download-template', [ReferenceDataController::class, 'downloadTemplate']);
 Route::get('staff-record-update/{id}', function ($id) {
     if (!session()->has('log')) {
         return redirect('/');
     }
     $data['data'] = DB::table('staff')->where('id', $id)->get();
-    $data['designation'] = DB::table('staff')->where('current_rank', '!=', '')->select('current_rank')->distinct()->orderBy('current_rank', 'ASC')->get('current_rank');
-    $data['unit'] = DB::table('staff')->where('unit', '!=', '')->select('unit')->distinct()->orderBy('unit', 'ASC')->get('unit');
-    $data['grade'] = DB::table('staff')->where('grade', '!=', '')->select('grade')->distinct()->orderBy('grade', 'ASC')->get('grade');
-    $data['step'] = DB::table('staff')->where('step', '!=', '')->select('step')->distinct()->orderBy('step', 'ASC')->get('step');
+    $data['designation'] = DB::table('designations')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
+    $data['unit'] = DB::table('units')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
+    $data['grade'] = DB::table('grades')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
+    $data['step'] = DB::table('steps')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
     $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
     $data['page'] = 'staff record update';
     return view('main', $data);
@@ -1279,6 +1303,8 @@ Route::post('/register-my-courses', [StudentCourseRegistrationController::class,
 Route::post('/delete-my-course', [StudentCourseRegistrationController::class, 'deleteMyCourse']);
 
 Route::post('department ajax', [ProgramController::class, 'departmentAjax']);
+Route::post('department ajax public', [ProgramController::class, 'departmentAjaxPublic']);
+Route::post('program ajax public', [ProgramController::class, 'programAjaxPublic']);
 Route::post('program ajax', [ProgramController::class, 'programAjax']);
 Route::post('course ajax', [ProgramController::class, 'courseAjax']);
 Route::get('allocation-programs', [ProgramController::class, 'allocationPrograms']);

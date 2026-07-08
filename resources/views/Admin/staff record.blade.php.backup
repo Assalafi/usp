@@ -1,0 +1,449 @@
+@php
+    use Illuminate\Support\Facades\DB;
+@endphp
+<div class="pcoded-content">
+    <div class="page-header">
+        <div class="page-block">
+            <div class="row align-items-center">
+                <div class="col-md-12">
+                    <div class="page-header-title">
+                        <h5 class="m-b-10">Staff Details</h5>
+                    </div>
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="/dashboard"><i class="feather icon-home"></i></a></li>
+                        <li class="breadcrumb-item"><a href="javascript:void(0)">Staff Management</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url('/staff') }}">Staff</a></li>
+                        <li class="breadcrumb-item active">Staff Details</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-body">
+        <div class="page-wrapper">
+            <div class="row">
+                <div class="col-sm-12">
+                    @foreach ($data as $row)
+                    @php
+                        $unitName = isset($row->unit_id) && $row->unit_id ? DB::table('units')->where('id', $row->unit_id)->value('name') : (isset($row->unit) ? $row->unit : '');
+                        $designationName = isset($row->designation_id) && $row->designation_id ? DB::table('designations')->where('id', $row->designation_id)->value('name') : (isset($row->current_rank) ? $row->current_rank : '');
+                        $gradeName = isset($row->grade_id) && $row->grade_id ? DB::table('grades')->where('id', $row->grade_id)->value('name') : (isset($row->grade) ? $row->grade : '');
+                        $stepName = isset($row->step_id) && $row->step_id ? DB::table('steps')->where('id', $row->step_id)->value('name') : (isset($row->step) ? $row->step : '');
+                    @endphp
+                    <div class="col-md-3 text-center">
+                        @if($row->picture && file_exists(public_path('storage/picture/' . $row->picture)))
+                            <img src="{{ asset('storage/picture/' . $row->picture) }}" alt="{{ $row->name }}"
+                                 class="profile-avatar rounded-circle img-fluid">
+                        @else
+                            <div class="profile-avatar rounded-circle bg-white d-flex align-items-center justify-content-center mx-auto">
+                                <i class="fas fa-user fa-4x text-muted"></i>
+                            </div>
+                        @endif
+                    </div>
+                    <div class="col-md-6">
+                        <h1 class="mb-3">{{ $row->name }}</h1>
+                        <h4 class="mb-3 opacity-85">{{ $row->current_rank }}</h4>
+                        <div class="d-flex flex-wrap gap-3 mb-3">
+                            <p class="mb-2"><i class="fas fa-id-card me-2"></i> SP/JP: {{ $row->username }}</p>
+                            <p class="mb-2"><i class="fas fa-building me-2"></i> {{ isset($row->unit_id) && $row->unit_id ? DB::table('units')->where('id', $row->unit_id)->value('name') : (isset($row->unit) ? $row->unit : '') }}</p>
+                            <p class="mb-0"><i class="fas fa-envelope me-2"></i> {{ $row->email }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="status-badge mb-4">
+                            <i class="fas fa-check-circle"></i>
+                            Active Staff
+                        </div>
+                        <div class="d-flex justify-content-center gap-4">
+                            <div>
+                                <p class="mb-1"><strong>Grade:</strong></p>
+                                <p class="fs-5 fw-bold">{{ $row->grade }}</p>
+                            </div>
+                            <div>
+                                <p class="mb-1"><strong>Step:</strong></p>
+                                <p class="fs-5 fw-bold">{{ $row->step }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Personal Information -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card info-card animated-section card-delay-1">
+                        <div class="card-header card-header-custom">
+                            <h5 class="section-title">
+                                <i class="fas fa-user"></i>
+                                Personal Information
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-venus-mars"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Gender</div>
+                                    <div class="info-value">{{ $row->gender }}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-heart"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Marital Status</div>
+                                    <div class="info-value">{{ $row->marital_status }}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-phone"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Phone Number</div>
+                                    <div class="info-value">{{ $row->phone }}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-birthday-cake"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Date of Birth</div>
+                                    <div class="info-value">{{ $row->date_of_birth == '1970-01-01' ? 'Not Specified' : date('F j, Y', strtotime($row->date_of_birth)) }}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Location</div>
+                                    <div class="info-value">{{ $row->lga }}, {{ $row->state }}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-home"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Home Address</div>
+                                    <div class="info-value">{{ $row->address }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Service Record -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card info-card animated-section card-delay-2">
+                        <div class="card-header card-header-custom">
+                            <h5 class="section-title">
+                                <i class="fas fa-briefcase"></i>
+                                Service Record
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-building"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Department/Unit</div>
+                                    <div class="info-value">{{ isset($row->unit_id) && $row->unit_id ? DB::table('units')->where('id', $row->unit_id)->value('name') : (isset($row->unit) ? $row->unit : '') }}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-user-tie"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Current Designation</div>
+                                    <div class="info-value">{{ $row->current_rank }}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-tags"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Staff Category</div>
+                                    <div class="info-value">{{ $row->staff_category }} ({{ $row->employee_status }})</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Grade & Step</div>
+                                    <div class="info-value">Grade {{ $row->grade }}, Step {{ $row->step }}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-calendar-check"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">First Appointment</div>
+                                    <div class="info-value">
+                                        {{ $row->rank_of_first_appointment }}
+                                        @if($row->date_of_first_appointment != '1970-01-01')
+                                            <br><small class="text-muted">{{ date('F j, Y', strtotime($row->date_of_first_appointment)) }}</small>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Date of Assumption</div>
+                                    <div class="info-value">{{ $row->date_of_asumption == '1970-01-01' ? 'Not Specified' : date('F j, Y', strtotime($row->date_of_asumption)) }}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-arrow-up"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Last Promotion</div>
+                                    <div class="info-value">{{ $row->date_of_last_promotion == '1970-01-01' ? 'Not Specified' : date('F j, Y', strtotime($row->date_of_last_promotion)) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Academic Information -->
+                <div class="col-lg-4 mb-4">
+                    <div class="card info-card animated-section card-delay-3">
+                        <div class="card-header card-header-custom">
+                            <h5 class="section-title">
+                                <i class="fas fa-graduation-cap"></i>
+                                Academic Information
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-school"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Primary School Certificate</div>
+                                    <div class="info-value">
+                                        Available
+                                        <span class="info-badge">Complete</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-certificate"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Secondary School Certificate</div>
+                                    <div class="info-value">
+                                        Available
+                                        <span class="info-badge">Complete</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-medal"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Degree Certificate</div>
+                                    <div class="info-value">
+                                        {{ $row->degree ? 'Available' : 'Not Available' }}
+                                        @if($row->degree)
+                                            <span class="info-badge">Verified</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Next of Kin Information -->
+                <div class="col-lg-4 mb-4">
+                    <div class="card info-card animated-section card-delay-4">
+                        <div class="card-header card-header-custom">
+                            <h5 class="section-title">
+                                <i class="fas fa-users"></i>
+                                Next of Kin
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Full Name</div>
+                                    <div class="info-value">{{ $row->kin_name ?: 'Not Specified' }}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-phone"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Phone Number</div>
+                                    <div class="info-value">{{ $row->kin_phone ?: 'Not Specified' }}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Address</div>
+                                    <div class="info-value">{{ $row->kin_address ?: 'Not Specified' }}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-heart"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Relationship</div>
+                                    <div class="info-value">Not Specified</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bank Details -->
+                <div class="col-lg-4 mb-4">
+                    <div class="card info-card animated-section card-delay-5">
+                        <div class="card-header card-header-custom">
+                            <h5 class="section-title">
+                                <i class="fas fa-university"></i>
+                                Financial Details
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-building-columns"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Bank Name</div>
+                                    <div class="info-value">{{ $row->bank_name ?: 'Not Specified' }}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-credit-card"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">Account Number</div>
+                                    <div class="info-value">{{ $row->account_number ?: 'Not Specified' }}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-shield-alt"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">PFA Name</div>
+                                    <div class="info-value">Not Specified</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-key"></i>
+                                </div>
+                                <div>
+                                    <div class="info-label">PFA PIN</div>
+                                    <div class="info-value">Not Specified</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Medical Information -->
+            <div class="row">
+                <div class="col-lg-12 mb-4">
+                    <div class="card info-card animated-section">
+                        <div class="card-header card-header-custom">
+                            <h5 class="section-title">
+                                <i class="fas fa-heartbeat"></i>
+                                Medical Information
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="fas fa-tint"></i>
+                                        </div>
+                                        <div>
+                                            <div class="info-label">Blood Group</div>
+                                            <div class="info-value">Not Specified</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="fas fa-dna"></i>
+                                        </div>
+                                        <div>
+                                            <div class="info-label">Genotype</div>
+                                            <div class="info-value">Not Specified</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="fas fa-allergies"></i>
+                                        </div>
+                                        <div>
+                                            <div class="info-label">Allergies</div>
+                                            <div class="info-value">Not Specified</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+            <!-- [ Main Content ] end -->
+        </div>
+    </div>
+@endforeach
+
+<script>
+    // Simple animation trigger
+    document.addEventListener('DOMContentLoaded', function() {
+        const animatedElements = document.querySelectorAll('.animated-section');
+
+        animatedElements.forEach(el => {
+            el.style.opacity = '0';
+        });
+
+        setTimeout(() => {
+            animatedElements.forEach(el => {
+                el.style.animationPlayState = 'running';
+            });
+        }, 300);
+    });
+</script>
