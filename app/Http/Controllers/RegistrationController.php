@@ -1387,6 +1387,8 @@ class RegistrationController extends Controller
                 ]
             );
         } else {
+            $f = DB::table('faculty')->where('code', $request->faculty)->value('no');
+            $d = DB::table('department')->where('code', $request->department)->value('no');
             Student::updateOrCreate(
                 ['user_id' => strtoupper($request->id)],
                 [
@@ -1406,6 +1408,7 @@ class RegistrationController extends Controller
                     'faculty' => strtoupper($request->faculty),
                     'department' => strtoupper($request->department),
                     'program' => strtoupper($request->program),
+                    'id_format' => '/' . $f . '/' . $d . '/',
                     'issue_date' => $request->issue_date,
                     'expire_date' => $request->expire_date,
                 ]
