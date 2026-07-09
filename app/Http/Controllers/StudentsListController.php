@@ -7,8 +7,10 @@ use Illuminate\Support\Facades\DB;
 
 class StudentsListController extends Controller
 {
-    //
-    //
+    protected $page;
+    protected $table;
+    protected $title;
+
     public function __construct(Request $req)
     {
         // Module Data
@@ -34,10 +36,10 @@ class StudentsListController extends Controller
             foreach ($filteredData as $key => $value) {
                 $query->where($key, $value);
             }
-            $data['data'] = $query->get();
+            $data['data'] = $query->orderBy('fullname', 'ASC')->paginate(500)->withQueryString();
         }else{
 
-            $data['data'] = DB::table('students')->where(['level_of_entry' => '900'])->get();
+            $data['data'] = DB::table('students')->where(['level_of_entry' => '900'])->orderBy('fullname', 'ASC')->paginate(500)->withQueryString();
         }
             $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
             $data['fees_type'] = DB::table('fees_type')->where(['status' => '1'])->select('title')->orderBy('title', 'ASC')->get();

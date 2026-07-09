@@ -151,7 +151,7 @@
                                 </thead>
                                 <tbody>
                                     @php
-                                        $sn = 1;
+                                        $sn = $data->firstItem() ?? 1;
                                     @endphp
                                     @foreach ($data as $row)
                                         <tr>
@@ -585,6 +585,23 @@
                             </table>
                         </div>
                         <!-- [ Data table ] end -->
+
+                        <!-- Pagination and Results Info -->
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <span class="text-muted">
+                                        Showing {{ $data->firstItem() ?? 0 }} to {{ $data->lastItem() ?? 0 }}
+                                        of {{ $data->total() ?? 0 }} results
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex justify-content-end">
+                                    {{ $data->links('pagination::bootstrap-4') }}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
