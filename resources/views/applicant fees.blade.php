@@ -656,7 +656,6 @@
                                         console.log('Checking for RmPaymentEngine, attempt:', attempts + 1);
                                         if (typeof RmPaymentEngine !== 'undefined') {
                                             // Script loaded, proceed with payment
-                                            console.log('RmPaymentEngine found, initializing payment...');
                                             initiatePayment();
                                             return;
                                         }
@@ -678,9 +677,6 @@
                                     }
 
                                     function initiatePayment() {
-                                        console.log('=== Payment Initialization Debug ===');
-                                        console.log('RRR Value:', rrrValue);
-                                        console.log('RmPaymentEngine object:', RmPaymentEngine);
 
                                         try {
                                             // Flag to track payment success
@@ -760,18 +756,6 @@
                                         }
                                     } // End of initiatePayment function
 
-                                    // Debug function to check payment setup
-                                    function debugPayment() {
-                                        console.log('=== Payment Debug Info ===');
-                                        console.log('RRR:', '{{ $inv->rrr ?? 'NOT_SET' }}');
-                                        console.log('API Key:', '{{ env('REMITA_API_KEY') ?? 'NOT_SET' }}');
-                                        console.log('Remita Engine Available:', typeof RmPaymentEngine !== 'undefined');
-                                        console.log('Invoice Data:', {
-                                            amount: '{{ $inv->amount ?? 'N/A' }}',
-                                            email: '{{ $inv->email ?? 'N/A' }}',
-                                            phone: '{{ $inv->phone ?? 'N/A' }}'
-                                        });
-                                    }
 
                                     // Function to show status messages on the page
                                     function showStatusMessage(message, type) {

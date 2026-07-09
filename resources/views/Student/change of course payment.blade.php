@@ -412,7 +412,7 @@ $(document).ready(function() {
     function makePayment(rrr, amount, merchantId) {
         try {
             var paymentEngine = RmPaymentEngine.init({
-                key: "QzAwMDAyNzEyNTl8MTEwNjE4NjF8OWZjOWYwNmMyZDk3MDRhYWM3YThiOThlNTNjZTE3ZjYxOTY5NDdmZWE1YzU3NDc0ZjE2ZDZjNTg1YWYxNWY3NWM4ZjMzNzZhNjNhZWZlOWQwNmJhNTFkMjIxYTRiMjYzZDkzNGQ3NTUxNDIxYWNlOGY4ZWEyODY3ZjlhNGUwYTY=",
+                key: "{{ env('REMITA_PUBLIC_KEY') }}",
                 processRrr: true,
                 transactionId: Math.floor(Math.random() * 1101233),
                 extendedData: { customFields: [{ name: "rrr", value: rrr }] },
