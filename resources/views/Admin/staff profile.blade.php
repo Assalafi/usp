@@ -511,8 +511,8 @@
         <div class="sp-view-grid">
             <div class="sp-view-item"><div class="label">Bank Name</div><div class="value">{{ $row->bank_name ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Account Number</div><div class="value">{{ $row->account_number ?: 'Not set' }}</div></div>
-            <div class="sp-view-item"><div class="label">BVN</div><div class="value">{{ $row->bvn ?? 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Pension Administrator</div><div class="value">{{ $row->pension_administrator ?? 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Pension Number</div><div class="value">{{ $row->pension_number ?? 'Not set' }}</div></div>
         </div>
     @else
         <form action="/staff-profile-update" method="POST">
@@ -550,12 +550,12 @@
                     <input type="text" name="account_number" value="{{ $row->account_number }}">
                 </div>
                 <div class="sp-form-group">
-                    <label>BVN</label>
-                    <input type="text" name="bvn" value="{{ $row->bvn ?? '' }}">
-                </div>
-                <div class="sp-form-group">
                     <label>Pension Administrator</label>
                     <input type="text" name="pension_administrator" value="{{ $row->pension_administrator ?? '' }}">
+                </div>
+                <div class="sp-form-group">
+                    <label>Pension Number</label>
+                    <input type="text" name="pension_number" value="{{ $row->pension_number ?? '' }}">
                 </div>
             </div>
             <button type="submit" class="sp-save-btn"><i class="fas fa-save"></i> Save Next of Kin & Bank</button>

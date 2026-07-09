@@ -229,13 +229,13 @@
 @endif
 
 {{-- ==================== FINANCIAL DETAILS ==================== --}}
-@if(!empty($row->bank_name) || !empty($row->account_number) || !empty($row->pension_administrator) || !empty($row->bvn))
+@if(!empty($row->bank_name) || !empty($row->account_number) || !empty($row->pension_administrator) || !empty($row->pension_number))
 <h2>Financial Details</h2>
 <table class="info-table">
     <tr><td class="label">Bank Name:</td><td class="value">{{ $row->bank_name ?? 'N/A' }}</td></tr>
     <tr><td class="label">Account Number:</td><td class="value">{{ $row->account_number ?? 'N/A' }}</td></tr>
     <tr><td class="label">Pension Administrator:</td><td class="value">{{ $row->pension_administrator ?? 'N/A' }}</td></tr>
-    <tr><td class="label">BVN:</td><td class="value">{{ $row->bvn ?? 'N/A' }}</td></tr>
+    <tr><td class="label">Pension Number:</td><td class="value">{{ $row->pension_number ?? 'N/A' }}</td></tr>
 </table>
 @endif
 
