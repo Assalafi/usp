@@ -942,6 +942,7 @@ Route::get('/reference-data/{type}/{id}/delete', [ReferenceDataController::class
 Route::get('/reference-data/{type}/bulk-upload', [ReferenceDataController::class, 'bulkUpload']);
 Route::post('/reference-data/{type}/process-bulk-upload', [ReferenceDataController::class, 'processBulkUpload']);
 Route::get('/reference-data/{type}/download-template', [ReferenceDataController::class, 'downloadTemplate']);
+Route::post('/update-staff', [StaffController::class, 'update']);
 Route::get('staff-record-update/{id}', function ($id) {
     if (!session()->has('log')) {
         return redirect('/');

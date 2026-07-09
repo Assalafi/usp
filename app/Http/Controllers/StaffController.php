@@ -163,8 +163,21 @@ class StaffController extends Controller
             $datas['step'] = $step;
         }
 
-        $datas = array_map('strtoupper', $datas);
-        DB::table($this->table)->where('user_id', $user_id)->update($datas);
+        // Date fields that should NOT be uppercased
+        $dateFields = ['date_of_birth', 'date_of_first_appointment', 'date_of_asumption', 'date_of_last_promotion', 'date_of_comfirmation'];
+
+        foreach ($datas as $key => $value) {
+            if (is_string($value) && !in_array($key, $dateFields)) {
+                $datas[$key] = strtoupper($value);
+            }
+        }
+
+        // Remove uploaded file from data array to avoid strtoupper errors
+        if (isset($datas['picture'])) {
+            unset($datas['picture']);
+        }
+
+        DB::table('staff')->where('user_id', $user_id)->update($datas);
 
         if ($req->file('picture')) {
             $dot = $req->file('picture')->getClientOriginalExtension();
@@ -239,6 +252,9 @@ class StaffController extends Controller
         // JSON fields that should be stored as JSON
         $jsonFields = ['institutions', 'experiences', 'publications', 'honours', 'memberships'];
 
+        // Date fields that should NOT be uppercased
+        $dateFields = ['date_of_birth', 'date_of_first_appointment', 'date_of_asumption', 'date_of_last_promotion', 'date_of_comfirmation'];
+
         $datas = $req->except(['_token', 'picture', 'tab']);
 
         // Process fields
@@ -248,7 +264,8 @@ class StaffController extends Controller
                 // Store as JSON
                 $processed[$key] = json_encode(is_array($value) ? $value : []);
             } elseif (is_string($value)) {
-                $processed[$key] = strtoupper($value);
+                // Keep date fields in original format; uppercase text fields
+                $processed[$key] = in_array($key, $dateFields) ? $value : strtoupper($value);
             } else {
                 $processed[$key] = $value;
             }

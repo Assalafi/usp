@@ -6,7 +6,7 @@
     <div class="main-body">
         <div class="page-wrapper">
             <!-- [ Main Content ] start -->
-            <form class="form-group" action="/update staff" method="POST" enctype="multipart/form-data" id="staff-record-update-form" onsubmit="return validateStaffNin(this);">
+            <form class="form-group" action="/update-staff" method="POST" enctype="multipart/form-data" id="staff-record-update-form" onsubmit="return validateStaffNin(this);">
                 <div class="">
                     <!-- Details View Start -->
                     @csrf
