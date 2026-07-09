@@ -154,6 +154,12 @@
                                         $sn = $data->firstItem() ?? 1;
                                     @endphp
                                     @foreach ($data as $row)
+                                        @php
+                                            $facultyRow = $faculty->firstWhere('code', $row->faculty);
+                                            $facultyTitle = $facultyRow ? $facultyRow->title : 'N/A';
+                                            $departmentTitle = DB::table('department')->where('code', $row->department)->value('title') ?? 'N/A';
+                                            $programTitle = DB::table('program')->where('code', $row->program)->value('title') ?? 'N/A';
+                                        @endphp
                                         <tr>
                                             <td>{{ $sn++ }}</td>
                                             <td>
@@ -167,10 +173,10 @@
                                                 </a>
                                             </td>
                                             <td>{{ $row->fullname }}</td>
-                                            <td>{{ DB::table('faculty')->where('code', $row->faculty)->value('title') }}
+                                            <td>{{ $facultyTitle }}
                                             </td>
                                             {{-- <td>{{ $row -> department }}</td> --}}
-                                            <td>{{ DB::table('program')->where('code', $row->program)->value('title') }}
+                                            <td>{{ $programTitle }}
                                             </td>
                                             <td>{{ $row->level }}</td>
                                             <td>
@@ -353,6 +359,33 @@
                                                                     <input type="text" class="form-control" id="lga_origin"
                                                                         name="lga_origin" placeholder="LGA of Origin"
                                                                         value="{{ $row->lga_origin }}" required>
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="facultyp{{ $row->id }}">Faculty</label>
+                                                                    <select class="form-control faculty" id="facultyp{{ $row->id }}" name="faculty" lang="p{{ $row->id }}" required>
+                                                                        <option value="">Select Faculty</option>
+                                                                        @foreach ($faculty as $fac)
+                                                                            <option value="{{ $fac->code }}" {{ $fac->code == $row->faculty ? 'selected' : '' }}>{{ $fac->code }}: {{ $fac->title }}</option>
+                                                                        @endforeach
+                                                                    </select>
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="departmentp{{ $row->id }}">Department</label>
+                                                                    <select class="form-control department" id="departmentp{{ $row->id }}" name="department" lang="p{{ $row->id }}" required>
+                                                                        <option value="">Select Department</option>
+                                                                        @if ($row->department)
+                                                                            <option value="{{ $row->department }}" selected>{{ $row->department }}: {{ $departmentTitle }}</option>
+                                                                        @endif
+                                                                    </select>
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="programp{{ $row->id }}">Program</label>
+                                                                    <select class="form-control program" id="programp{{ $row->id }}" name="program" lang="p{{ $row->id }}" required>
+                                                                        <option value="">Select Program</option>
+                                                                        @if ($row->program)
+                                                                            <option value="{{ $row->program }}" selected>{{ $row->program }}: {{ $programTitle }}</option>
+                                                                        @endif
+                                                                    </select>
                                                                 </div>
                                                                 <div class="form-group">
                                                                     <input type="date" class="form-control" id="issue_date"

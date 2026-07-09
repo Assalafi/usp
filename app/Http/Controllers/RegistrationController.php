@@ -1403,6 +1403,9 @@ class RegistrationController extends Controller
                     'level' => strtoupper($request->level),
                     'level_of_entry' => strtoupper($request->level_of_entry),
                     'fullname' => strtoupper($request->first_name . ' ' . $request->surname . ' ' . $request->middle_name),
+                    'faculty' => strtoupper($request->faculty),
+                    'department' => strtoupper($request->department),
+                    'program' => strtoupper($request->program),
                     'issue_date' => $request->issue_date,
                     'expire_date' => $request->expire_date,
                 ]
@@ -1416,6 +1419,8 @@ class RegistrationController extends Controller
                 [
                     'gender' => strtoupper($gender),
                     'level' => strtoupper($request->level),
+                    'faculty' => strtoupper($request->faculty),
+                    'program' => strtoupper($request->program),
                 ]
             );
 
