@@ -1342,7 +1342,7 @@ class RegistrationController extends Controller
                 'program' => strtoupper($request->program),
                 'department' => strtoupper($request->department),
                 'faculty' => strtoupper($request->faculty),
-                'id_format' => '/' . $f . '/' . $d . '/',
+                'id_format' => '/' . str_pad($f, 2, '0', STR_PAD_LEFT) . '/' . str_pad($d, 2, '0', STR_PAD_LEFT) . '/',
                 'gender' => strtoupper($request->gender),
                 'session_of_entry' => $session,
                 'mode_of_entry' => strtoupper($request->mode_of_entry),
@@ -1408,7 +1408,7 @@ class RegistrationController extends Controller
                     'faculty' => strtoupper($request->faculty),
                     'department' => strtoupper($request->department),
                     'program' => strtoupper($request->program),
-                    'id_format' => '/' . $f . '/' . $d . '/',
+                    'id_format' => '/' . str_pad($f, 2, '0', STR_PAD_LEFT) . '/' . str_pad($d, 2, '0', STR_PAD_LEFT) . '/',
                     'issue_date' => $request->issue_date,
                     'expire_date' => $request->expire_date,
                 ]
