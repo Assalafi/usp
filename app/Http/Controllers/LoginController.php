@@ -338,7 +338,8 @@ class LoginController extends Controller
         $p2 = $req->p2;
 
         if ($p1 == $p2) {
-            User::where('id', session('id'))->update([
+            $userId = $req->id ?? session('id');
+            User::where('id', $userId)->update([
                 'password' => Hash::make($req->p1),
             ]);
             return redirect()->back()->with('success', 'Password Updated');
