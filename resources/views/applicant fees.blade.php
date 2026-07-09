@@ -606,8 +606,6 @@
                                     payBtn.innerHTML =
                                         '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
 
-                                    console.log('Initiating payment with RRR:', rrrValue);
-                                    console.log('API Key:', '{{ env('REMITA_API_KEY') ?? 'NOT_SET' }}');
 
                                     // Start the retry mechanism
                                     waitForRemita();
