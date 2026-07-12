@@ -382,7 +382,7 @@
             <div class="sp-view-item"><div class="label">Unit</div><div class="value">{{ $unitName ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Designation/Rank</div><div class="value">{{ $designationName ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Staff Category</div><div class="value">{{ $row->staff_category ?: 'Not set' }}</div></div>
-            <div class="sp-view-item"><div class="label">Employee Status</div><div class="value">{{ $row->employee_status ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Employment Status</div><div class="value">{{ $row->employee_status ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Grade</div><div class="value">{{ $gradeName ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Step</div><div class="value">{{ $stepName ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Date of First Appointment</div><div class="value">{{ ($row->date_of_first_appointment && $row->date_of_first_appointment != '1970-01-01') ? $row->date_of_first_appointment : 'Not set' }}</div></div>
@@ -511,8 +511,8 @@
         <div class="sp-view-grid">
             <div class="sp-view-item"><div class="label">Bank Name</div><div class="value">{{ $row->bank_name ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Account Number</div><div class="value">{{ $row->account_number ?: 'Not set' }}</div></div>
-            <div class="sp-view-item"><div class="label">Pension Administrator</div><div class="value">{{ $row->pension_administrator ?? 'Not set' }}</div></div>
-            <div class="sp-view-item"><div class="label">Pension Number</div><div class="value">{{ $row->pension_number ?? 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Pension Name</div><div class="value">{{ $row->pension_administrator ?? 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Pension PIN Number</div><div class="value">{{ $row->pension_number ?? 'Not set' }}</div></div>
         </div>
     @else
         <form action="/staff-profile-update" method="POST">
@@ -550,11 +550,11 @@
                     <input type="text" name="account_number" value="{{ $row->account_number }}">
                 </div>
                 <div class="sp-form-group">
-                    <label>Pension Administrator</label>
+                    <label>Pension Name</label>
                     <input type="text" name="pension_administrator" value="{{ $row->pension_administrator ?? '' }}">
                 </div>
                 <div class="sp-form-group">
-                    <label>Pension Number</label>
+                    <label>Pension PIN Number</label>
                     <input type="text" name="pension_number" value="{{ $row->pension_number ?? '' }}">
                 </div>
             </div>
@@ -768,7 +768,7 @@
         </div>
         @endif
     @else
-        <form action="/staff-profile-documents" method="POST" enctype="multipart/form-data">
+        <form action="/staff-profile-documents" method="POST" enctype="multipart/form-data" onsubmit="return checkRequiredDocs(this)">
             @csrf
 
             <div class="sp-section-title"><i class="fas fa-file-upload"></i> Upload Documents</div>
@@ -777,7 +777,7 @@
             <div class="sp-doc-grid">
                 @foreach($documents as $field => $label)
                 <div class="sp-doc-item">
-                    <label class="doc-label">{{ $label }}</label>
+                    <label class="doc-label">{{ $label }} @if(in_array($field, ['doc_photo', 'doc_birth_certificate', 'doc_primary_cert', 'doc_ssce', 'doc_indigine', 'doc_appointment_letter', 'doc_confirmation']))<span class="text-danger">*</span>@endif</label>
                     @if(!empty($row->$field))
                         <div class="doc-status uploaded"><i class="fas fa-check-circle"></i> Uploaded
                             <a href="{{ asset('storage/staff_documents/' . $row->$field) }}" target="_blank" style="font-size:11px; color:var(--primary); margin-left:5px;"><i class="fas fa-eye"></i> View</a>
@@ -829,13 +829,15 @@
             <button type="button" class="sp-add-btn mb-3" onclick="addOtherDoc()"><i class="fas fa-plus"></i> Add Another Document</button>
 
             <div style="margin-top:16px;">
-                <button type="submit" class="sp-save-btn"><i class="fas fa-upload"></i> Upload Documents</button>
+                <button type="button" class="sp-save-btn" onclick="handleDocUpload()"><i class="fas fa-upload"></i> Upload Documents</button>
             </div>
         </form>
     @endif
     </div>
 </div>
 @endforeach
+
+<script src="{{ url('assets/js/plugins/sweetalert.min.js') }}"></script>
 
 <script>
 function switchTab(tab) {
@@ -845,6 +847,58 @@ function switchTab(tab) {
     document.getElementById('panel-' + tab).classList.add('active');
     var mode = '{{ $editMode ? "edit" : "view" }}';
     history.replaceState(null, '', '/staff-profile?tab=' + tab + '&mode=' + mode);
+}
+
+function checkRequiredDocs(form) {
+    const requiredDocs = {
+        'doc_photo': 'Photo',
+        'doc_birth_certificate': 'Birth Certificate/Declaration of Age',
+        'doc_primary_cert': 'Primary School Certificate',
+        'doc_ssce': 'SSCE/GCE',
+        'doc_indigine': 'Indigine',
+        'doc_appointment_letter': 'Appointment Letter',
+        'doc_confirmation': 'Letter of Confirmation'
+    };
+
+    const uploadedDocs = [
+        @if(!empty($row->doc_photo))'doc_photo',@endif
+        @if(!empty($row->doc_birth_certificate))'doc_birth_certificate',@endif
+        @if(!empty($row->doc_primary_cert))'doc_primary_cert',@endif
+        @if(!empty($row->doc_ssce))'doc_ssce',@endif
+        @if(!empty($row->doc_indigine))'doc_indigine',@endif
+        @if(!empty($row->doc_appointment_letter))'doc_appointment_letter',@endif
+        @if(!empty($row->doc_confirmation))'doc_confirmation',@endif
+    ];
+
+    const missingDocs = [];
+
+    for (const field in requiredDocs) {
+        if (!uploadedDocs.includes(field)) {
+            const fileInput = form.querySelector(`input[name="${field}"]`);
+            if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                missingDocs.push(requiredDocs[field]);
+            }
+        }
+    }
+
+    if (missingDocs.length > 0) {
+        const message = 'The following required documents are missing:\n\n' + missingDocs.map(doc => '• ' + doc).join('\n');
+        swal('Missing Required Documents', message, 'warning');
+        return false;
+    }
+
+    return true;
+}
+
+function handleDocUpload() {
+    const form = document.querySelector('form[action="/staff-profile-documents"]');
+    if (!form) {
+        return;
+    }
+
+    if (checkRequiredDocs(form)) {
+        form.submit();
+    }
 }
 
 function addEducation() {
@@ -985,5 +1039,11 @@ $(function() {
     var currentState = "{{ $row->state ?? '' }}";
     var currentLga = "{{ $row->lga ?? '' }}";
     initStateLGAEdit('#sp-state', '#sp-lga', currentState, currentLga);
+});
+
+// Bind form submit event for document upload
+$(document).on('submit', 'form[action="/staff-profile-documents"]', function(e) {
+    console.log('Form submit event triggered');
+    return checkRequiredDocs(this);
 });
 </script>

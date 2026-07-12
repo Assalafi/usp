@@ -240,7 +240,7 @@
                                         </select>
                                     </div>
                                     <div class="form-group">
-                                        <label for="employee_status" class="form-label">Employee Status</label>
+                                        <label for="employee_status" class="form-label">Employment Status</label>
                                         <select name="employee_status" id="employee_status" class="form-control">
                                             <option value="{{ $row->employee_status }}">
                                                 {{ $row->employee_status }}</option>

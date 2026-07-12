@@ -66,11 +66,11 @@
                     $medicalPrograms = ['MBBS', 'DBS'];
                     return in_array($programCode, $medicalPrograms);
                 };
-                
+
                 $isNewProgramMedical = $isMedicalOrDentalProgram($application->new_program);
                 $isCurrentProgramMedical = $isMedicalOrDentalProgram($application->current_program);
                 @endphp
-                
+
                 <!-- Application Information -->
                 <div class="card">
                     <div class="card-header bg-primary text-white">
@@ -161,7 +161,7 @@
                     $newFaculty = DB::table('faculty')->where('code', $application->new_faculty)->first();
                     $currentFaculty = DB::table('faculty')->where('code', $application->current_faculty)->first();
                     $showProvost = $isNewProgramMedical || $isCurrentProgramMedical || ($newFaculty && $newFaculty->college == 1) || ($currentFaculty && $currentFaculty->college == 1);
-                    
+
                     // Step status helpers
                     $hodDone = $application->new_hod_willing != 'Pending';
                     $deanDone = $application->new_dean_recommendation != 'Pending';

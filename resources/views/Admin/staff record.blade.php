@@ -181,7 +181,7 @@
                                                 <tr><td class="font-weight-bold text-muted" style="width:40%">Department/Unit</td><td>{{ $unitName ?: 'N/A' }}</td></tr>
                                                 <tr><td class="font-weight-bold text-muted">Current Designation</td><td>{{ $designationName ?: 'N/A' }}</td></tr>
                                                 <tr><td class="font-weight-bold text-muted">Staff Category</td><td>{{ $row->staff_category ?? 'N/A' }}</td></tr>
-                                                <tr><td class="font-weight-bold text-muted">Employee Status</td><td>{{ $row->employee_status ?? 'N/A' }}</td></tr>
+                                                <tr><td class="font-weight-bold text-muted">Employment Status</td><td>{{ $row->employee_status ?? 'N/A' }}</td></tr>
                                                 <tr><td class="font-weight-bold text-muted">Grade</td><td>{{ $gradeName ?: $row->grade ?: 'N/A' }}</td></tr>
                                                 <tr><td class="font-weight-bold text-muted">Step</td><td>{{ $stepName ?: $row->step ?: 'N/A' }}</td></tr>
                                             </table>
@@ -354,8 +354,8 @@
                                         </div>
                                         <div class="col-md-6">
                                             <table class="table table-sm table-borderless mb-0">
-                                                <tr><td class="font-weight-bold text-muted" style="width:40%">Pension Administrator</td><td>{{ $row->pension_administrator ?: 'N/A' }}</td></tr>
-                                                <tr><td class="font-weight-bold text-muted">Pension Number</td><td>{{ $row->pension_number ?: 'N/A' }}</td></tr>
+                                                <tr><td class="font-weight-bold text-muted" style="width:40%">Pension Name</td><td>{{ $row->pension_administrator ?: 'N/A' }}</td></tr>
+                                                <tr><td class="font-weight-bold text-muted">Pension PIN Number</td><td>{{ $row->pension_number ?: 'N/A' }}</td></tr>
                                             </table>
                                         </div>
                                     </div>

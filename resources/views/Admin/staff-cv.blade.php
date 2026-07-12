@@ -111,7 +111,7 @@
 <h2>Service Record</h2>
 <table class="info-table">
     <tr><td class="label">Staff Category:</td><td class="value">{{ $row->staff_category ?? 'N/A' }}</td></tr>
-    <tr><td class="label">Employee Status:</td><td class="value">{{ $row->employee_status ?? 'N/A' }}</td></tr>
+    <tr><td class="label">Employment Status:</td><td class="value">{{ $row->employee_status ?? 'N/A' }}</td></tr>
     <tr><td class="label">Grade:</td><td class="value">{{ $gradeName ?? $row->grade ?? 'N/A' }}</td></tr>
     <tr><td class="label">Step:</td><td class="value">{{ $stepName ?? $row->step ?? 'N/A' }}</td></tr>
     <tr><td class="label">Rank on First Appointment:</td><td class="value">{{ $row->rank_of_first_appointment ?? 'N/A' }}</td></tr>
@@ -234,8 +234,8 @@
 <table class="info-table">
     <tr><td class="label">Bank Name:</td><td class="value">{{ $row->bank_name ?? 'N/A' }}</td></tr>
     <tr><td class="label">Account Number:</td><td class="value">{{ $row->account_number ?? 'N/A' }}</td></tr>
-    <tr><td class="label">Pension Administrator:</td><td class="value">{{ $row->pension_administrator ?? 'N/A' }}</td></tr>
-    <tr><td class="label">Pension Number:</td><td class="value">{{ $row->pension_number ?? 'N/A' }}</td></tr>
+    <tr><td class="label">Pension Name:</td><td class="value">{{ $row->pension_administrator ?? 'N/A' }}</td></tr>
+    <tr><td class="label">Pension PIN Number:</td><td class="value">{{ $row->pension_number ?? 'N/A' }}</td></tr>
 </table>
 @endif
 
