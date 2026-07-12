@@ -346,16 +346,31 @@
                                                                     </select>
                                                                 </div>
                                                                 <div class="form-group">
+                                                                    <label for="mode_of_entry">Mode of Entry</label>
+                                                                    <select class="form-control" id="mode_of_entry"
+                                                                        name="mode_of_entry" required>
+                                                                        <option value="{{ $row->mode_of_entry }}">
+                                                                            Selected: {{ $row->mode_of_entry }}
+                                                                        </option>
+                                                                        <option value="UTME">UTME</option>
+                                                                        <option value="DE">DE</option>
+                                                                        <option value="TRANSFER">TRANSFER</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="country">Country</label>
                                                                     <input type="text" class="form-control" id="country"
                                                                         name="country" placeholder="Country"
                                                                         value="{{ $row->country }}" required>
                                                                 </div>
                                                                 <div class="form-group">
+                                                                    <label for="state_origin">State of Origin</label>
                                                                     <input type="text" class="form-control" id="state_origin"
                                                                         name="state_origin" placeholder="State of Origin"
                                                                         value="{{ $row->state_origin }}" required>
                                                                 </div>
                                                                 <div class="form-group">
+                                                                    <label for="lga_origin">LGA of Origin</label>
                                                                     <input type="text" class="form-control" id="lga_origin"
                                                                         name="lga_origin" placeholder="LGA of Origin"
                                                                         value="{{ $row->lga_origin }}" required>
@@ -388,11 +403,13 @@
                                                                     </select>
                                                                 </div>
                                                                 <div class="form-group">
+                                                                    <label for="issue_date">ID Card Issue Date</label>
                                                                     <input type="date" class="form-control" id="issue_date"
                                                                         name="issue_date" placeholder="ID Card Issue Date"
                                                                         value="{{ $row->issue_date }}">
                                                                 </div>
                                                                 <div class="form-group">
+                                                                    <label for="expire_date">ID Card Expire Date</label>
                                                                     <input type="date" class="form-control" id="expire_date"
                                                                         name="expire_date" placeholder="ID Card Expire Date"
                                                                         value="{{ $row->expire_date }}">

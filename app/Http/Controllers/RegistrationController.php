@@ -1404,6 +1404,7 @@ class RegistrationController extends Controller
                     'contact_phone' => strtoupper($request->contact_phone),
                     'level' => strtoupper($request->level),
                     'level_of_entry' => strtoupper($request->level_of_entry),
+                    'mode_of_entry' => strtoupper($request->mode_of_entry),
                     'fullname' => strtoupper($request->first_name . ' ' . $request->surname . ' ' . $request->middle_name),
                     'faculty' => strtoupper($request->faculty),
                     'department' => strtoupper($request->department),
