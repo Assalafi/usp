@@ -1,6 +1,7 @@
 @php
     $fullName = $row->name ?? 'Staff';
     $username = $row->username ?? 'N/A';
+    $promotions = json_decode($row->promotions ?? '[]', true) ?: [];
 @endphp
 <!DOCTYPE html>
 <html>
@@ -118,9 +119,20 @@
     <tr><td class="label">Date of First Appointment:</td><td class="value">{{ ($row->date_of_first_appointment && $row->date_of_first_appointment != '1970-01-01') ? $row->date_of_first_appointment : 'N/A' }}</td></tr>
     <tr><td class="label">Date of Assumption:</td><td class="value">{{ ($row->date_of_asumption && $row->date_of_asumption != '1970-01-01') ? $row->date_of_asumption : 'N/A' }}</td></tr>
     <tr><td class="label">Date of Confirmation:</td><td class="value">{{ ($row->date_of_comfirmation && $row->date_of_comfirmation != '1970-01-01') ? $row->date_of_comfirmation : 'N/A' }}</td></tr>
-    <tr><td class="label">Date of Last Promotion:</td><td class="value">{{ ($row->date_of_last_promotion && $row->date_of_last_promotion != '1970-01-01') ? $row->date_of_last_promotion : 'N/A' }}</td></tr>
     <tr><td class="label">Years of Experience:</td><td class="value">{{ $row->year_of_experiance ?? 'N/A' }}</td></tr>
 </table>
+
+@if(!empty($promotions))
+<h2>Promotions</h2>
+@foreach($promotions as $promo)
+<table class="info-table">
+    <tr><td class="label">{{ $promo['promotion'] ?? '' }} Promotion - Date:</td><td class="value">{{ $promo['date'] ?? 'N/A' }}</td></tr>
+    <tr><td class="label">Designation:</td><td class="value">{{ $promo['designation'] ?? 'N/A' }}</td></tr>
+    <tr><td class="label">Grade:</td><td class="value">{{ $promo['grade'] ?? 'N/A' }}</td></tr>
+    <tr><td class="label">Step:</td><td class="value">{{ $promo['step'] ?? 'N/A' }}</td></tr>
+</table>
+@endforeach
+@endif
 
 {{-- ==================== ACADEMIC INFORMATION ==================== --}}
 <h2>Academic Information</h2>

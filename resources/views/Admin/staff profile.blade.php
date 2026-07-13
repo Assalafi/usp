@@ -188,6 +188,7 @@
     $designationName = (isset($row->designation_id) && $row->designation_id) ? DB::table('designations')->where('id', $row->designation_id)->value('name') : (isset($row->current_rank) ? $row->current_rank : '');
     $gradeName = (isset($row->grade_id) && $row->grade_id) ? DB::table('grades')->where('id', $row->grade_id)->value('name') : (isset($row->grade) ? $row->grade : '');
     $stepName = (isset($row->step_id) && $row->step_id) ? DB::table('steps')->where('id', $row->step_id)->value('name') : (isset($row->step) ? $row->step : '');
+    $promotions = json_decode($row->promotions ?? '[]', true) ?: [];
 @endphp
 <div class="sp-container">
     <!-- Header -->
@@ -388,8 +389,24 @@
             <div class="sp-view-item"><div class="label">Date of First Appointment</div><div class="value">{{ ($row->date_of_first_appointment && $row->date_of_first_appointment != '1970-01-01') ? $row->date_of_first_appointment : 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Rank on First Appointment</div><div class="value">{{ $row->rank_of_first_appointment ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Date of Assumption</div><div class="value">{{ ($row->date_of_asumption && $row->date_of_asumption != '1970-01-01') ? $row->date_of_asumption : 'Not set' }}</div></div>
-            <div class="sp-view-item"><div class="label">Date of Last Promotion</div><div class="value">{{ ($row->date_of_last_promotion && $row->date_of_last_promotion != '1970-01-01') ? $row->date_of_last_promotion : 'Not set' }}</div></div>
         </div>
+
+        @if(!empty($promotions))
+        <div class="sp-section-title" style="margin-top:25px;"><i class="fas fa-award"></i> Promotions</div>
+        <div class="sp-view-grid">
+            @foreach($promotions as $promo)
+                <div class="sp-view-item" style="width:100%; background:#f8f9fa; padding:12px; border-radius:8px; margin-bottom:8px;">
+                    <div class="label" style="font-weight:700; color:var(--primary);">{{ $promo['promotion'] ?? '' }} Promotion</div>
+                    <div class="value" style="margin-top:4px;">
+                        <div><strong>Date:</strong> {{ $promo['date'] ?? 'N/A' }}</div>
+                        <div><strong>Designation:</strong> {{ $promo['designation'] ?? 'N/A' }}</div>
+                        <div><strong>Grade:</strong> {{ $promo['grade'] ?? 'N/A' }}</div>
+                        <div><strong>Step:</strong> {{ $promo['step'] ?? 'N/A' }}</div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+        @endif
     @else
         <form action="/staff-profile-update" method="POST">
             @csrf
@@ -487,11 +504,63 @@
                     <label>Date of Assumption</label>
                     <input type="date" name="date_of_asumption" value="{{ $row->date_of_asumption }}">
                 </div>
-                <div class="sp-form-group">
-                    <label>Date of Last Promotion</label>
-                    <input type="date" name="date_of_last_promotion" value="{{ $row->date_of_last_promotion }}">
-                </div>
             </div>
+
+            <div class="sp-section-title" style="margin-top:25px;"><i class="fas fa-award"></i> Promotions</div>
+            <div id="promotions-entries">
+                @php if (empty($promotions)) $promotions = [[]]; @endphp
+                @foreach($promotions as $idx => $promo)
+                <div class="sp-experience-entry" data-index="{{ $idx }}">
+                    @if($idx > 0)<button type="button" class="sp-remove-btn" onclick="this.parentElement.remove()">&times;</button>@endif
+                    <div class="sp-form-row">
+                        <div class="sp-form-group">
+                            <label>Promotion</label>
+                            <select name="promotions[{{ $idx }}][promotion]">
+                                <option value="{{ $promo['promotion'] ?? '' }}">{{ $promo['promotion'] ?? 'Select' }}</option>
+                                @for($i = 1; $i <= 15; $i++)
+                                    @php
+                                        $ordinals = [1 => 'First', 2 => 'Second', 3 => 'Third', 4 => 'Fourth', 5 => 'Fifth', 6 => 'Sixth', 7 => 'Seventh', 8 => 'Eighth', 9 => 'Ninth', 10 => 'Tenth', 11 => 'Eleventh', 12 => 'Twelfth', 13 => 'Thirteenth', 14 => 'Fourteenth', 15 => 'Fifteenth'];
+                                    @endphp
+                                    <option value="{{ $ordinals[$i] }}">{{ $ordinals[$i] }}</option>
+                                @endfor
+                            </select>
+                        </div>
+                        <div class="sp-form-group">
+                            <label>Date</label>
+                            <input type="date" name="promotions[{{ $idx }}][date]" value="{{ $promo['date'] ?? '' }}">
+                        </div>
+                        <div class="sp-form-group">
+                            <label>Designation/Rank</label>
+                            <select name="promotions[{{ $idx }}][designation]">
+                                <option value="{{ $promo['designation'] ?? '' }}">{{ $promo['designation'] ?? 'Select' }}</option>
+                                @foreach ($designation as $des)
+                                    <option value="{{ $des->name }}">{{ $des->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="sp-form-group">
+                            <label>Grade/Level</label>
+                            <select name="promotions[{{ $idx }}][grade]">
+                                <option value="{{ $promo['grade'] ?? '' }}">{{ $promo['grade'] ?? 'Select' }}</option>
+                                @foreach ($grade as $gr)
+                                    <option value="{{ $gr->name }}">{{ $gr->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="sp-form-group">
+                            <label>Step</label>
+                            <select name="promotions[{{ $idx }}][step]">
+                                <option value="{{ $promo['step'] ?? '' }}">{{ $promo['step'] ?? 'Select' }}</option>
+                                @foreach ($step as $st)
+                                    <option value="{{ $st->name }}">{{ $st->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+            <button type="button" class="sp-add-btn mb-3" onclick="addPromotion()"><i class="fas fa-plus"></i> Add Promotion</button>
             <button type="submit" class="sp-save-btn"><i class="fas fa-save"></i> Save Service Record</button>
         </form>
     @endif
@@ -840,6 +909,11 @@
 <script src="{{ url('assets/js/plugins/sweetalert.min.js') }}"></script>
 
 <script>
+// Designation options for JavaScript
+const designationOptions = @json($designation?->pluck('name', 'name')->toArray() ?? []);
+const gradeOptions = @json($grade?->pluck('name', 'name')->toArray() ?? []);
+const stepOptions = @json($step?->pluck('name', 'name')->toArray() ?? []);
+
 function switchTab(tab) {
     document.querySelectorAll('.sp-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.sp-panel').forEach(p => p.classList.remove('active'));
@@ -899,6 +973,41 @@ function handleDocUpload() {
     if (checkRequiredDocs(form)) {
         form.submit();
     }
+}
+
+function addPromotion() {
+    const container = document.getElementById('promotions-entries');
+    const idx = container.children.length;
+    const ordinals = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth', 'Eleventh', 'Twelfth', 'Thirteenth', 'Fourteenth', 'Fifteenth'];
+    let promotionOptions = ordinals.map(o => `<option value="${o}">${o}</option>`).join('');
+
+    let designationSelectOptions = '<option value="">Select</option>';
+    for (const key in designationOptions) {
+        designationSelectOptions += `<option value="${key}">${key}</option>`;
+    }
+
+    let gradeSelectOptions = '<option value="">Select</option>';
+    for (const key in gradeOptions) {
+        gradeSelectOptions += `<option value="${key}">${key}</option>`;
+    }
+
+    let stepSelectOptions = '<option value="">Select</option>';
+    for (const key in stepOptions) {
+        stepSelectOptions += `<option value="${key}">${key}</option>`;
+    }
+
+    container.insertAdjacentHTML('beforeend', `
+        <div class="sp-experience-entry">
+            <button type="button" class="sp-remove-btn" onclick="this.parentElement.remove()">&times;</button>
+            <div class="sp-form-row">
+                <div class="sp-form-group"><label>Promotion</label><select name="promotions[${idx}][promotion]"><option value="">Select</option>${promotionOptions}</select></div>
+                <div class="sp-form-group"><label>Date</label><input type="date" name="promotions[${idx}][date]"></div>
+                <div class="sp-form-group"><label>Designation/Rank</label><select name="promotions[${idx}][designation]">${designationSelectOptions}</select></div>
+                <div class="sp-form-group"><label>Grade/Level</label><select name="promotions[${idx}][grade]">${gradeSelectOptions}</select></div>
+                <div class="sp-form-group"><label>Step</label><select name="promotions[${idx}][step]">${stepSelectOptions}</select></div>
+            </div>
+        </div>
+    `);
 }
 
 function addEducation() {

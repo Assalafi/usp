@@ -56,6 +56,7 @@
                             if (!is_array($memberships)) $memberships = [];
                         }
                         $docOthers = json_decode($row->doc_others ?? '[]', true) ?: [];
+                        $promotions = json_decode($row->promotions ?? '[]', true) ?: [];
                         $documents = [
                             'doc_photo' => 'Photo',
                             'doc_birth_certificate' => 'Birth Certificate/Declaration of Age',
@@ -192,12 +193,31 @@
                                                 <tr><td class="font-weight-bold text-muted">Date of First Appointment</td><td>{{ $row->date_of_first_appointment == '1970-01-01' ? 'N/A' : date('F j, Y', strtotime($row->date_of_first_appointment)) }}</td></tr>
                                                 <tr><td class="font-weight-bold text-muted">Date of Assumption</td><td>{{ $row->date_of_asumption == '1970-01-01' ? 'N/A' : date('F j, Y', strtotime($row->date_of_asumption)) }}</td></tr>
                                                 <tr><td class="font-weight-bold text-muted">Date of Confirmation</td><td>{{ $row->date_of_comfirmation == '1970-01-01' ? 'N/A' : date('F j, Y', strtotime($row->date_of_comfirmation)) }}</td></tr>
-                                                <tr><td class="font-weight-bold text-muted">Date of Last Promotion</td><td>{{ $row->date_of_last_promotion == '1970-01-01' ? 'N/A' : date('F j, Y', strtotime($row->date_of_last_promotion)) }}</td></tr>
-                                                <tr><td class="font-weight-bold text-muted">Year of Experience</td><td>{{ $row->year_of_experiance ?? 'N/A' }}</td></tr>
                                             </table>
                                         </div>
                                     </div>
                                 </div>
+
+                                @if(!empty($promotions))
+                                <div class="card" style="margin-top:15px;">
+                                    <div class="card-header py-2">
+                                        <h6 class="m-0 font-weight-bold"><i class="fas fa-award mr-2"></i>Promotions</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        @foreach($promotions as $promo)
+                                            <div style="background:#f8f9fa; padding:10px; border-radius:6px; margin-bottom:8px;">
+                                                <strong>{{ $promo['promotion'] ?? '' }} Promotion</strong>
+                                                <table class="table table-sm table-borderless mb-0 mt-2">
+                                                    <tr><td class="font-weight-bold text-muted" style="width:30%">Date</td><td>{{ $promo['date'] ?? 'N/A' }}</td></tr>
+                                                    <tr><td class="font-weight-bold text-muted">Designation</td><td>{{ $promo['designation'] ?? 'N/A' }}</td></tr>
+                                                    <tr><td class="font-weight-bold text-muted">Grade</td><td>{{ $promo['grade'] ?? 'N/A' }}</td></tr>
+                                                    <tr><td class="font-weight-bold text-muted">Step</td><td>{{ $promo['step'] ?? 'N/A' }}</td></tr>
+                                                </table>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                @endif
                             </div>
                         </div>
 

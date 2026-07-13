@@ -906,6 +906,10 @@ Route::get('staff-record/{id}', function ($id) {
     }
 
     $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
+    $data['unit'] = DB::table('units')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
+    $data['designation'] = DB::table('designations')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
+    $data['grade'] = DB::table('grades')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
+    $data['step'] = DB::table('steps')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
     $data['data'] = DB::table('staff')->where('id', $id)->get();
     $data['page'] = 'staff record';
     return view('main', $data);

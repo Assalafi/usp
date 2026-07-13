@@ -250,7 +250,7 @@ class StaffController extends Controller
         }
 
         // JSON fields that should be stored as JSON
-        $jsonFields = ['institutions', 'experiences', 'publications', 'honours', 'memberships'];
+        $jsonFields = ['institutions', 'experiences', 'publications', 'honours', 'memberships', 'promotions'];
 
         // Date fields that should NOT be uppercased
         $dateFields = ['date_of_birth', 'date_of_first_appointment', 'date_of_asumption', 'date_of_last_promotion', 'date_of_comfirmation'];
