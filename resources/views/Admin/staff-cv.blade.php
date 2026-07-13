@@ -113,12 +113,13 @@
 <table class="info-table">
     <tr><td class="label">Staff Category:</td><td class="value">{{ $row->staff_category ?? 'N/A' }}</td></tr>
     <tr><td class="label">Employment Status:</td><td class="value">{{ $row->employee_status ?? 'N/A' }}</td></tr>
-    <tr><td class="label">Grade:</td><td class="value">{{ $gradeName ?? $row->grade ?? 'N/A' }}</td></tr>
+    <tr><td class="label">Grade/Level:</td><td class="value">{{ $gradeName ?? $row->grade ?? 'N/A' }}</td></tr>
     <tr><td class="label">Step:</td><td class="value">{{ $stepName ?? $row->step ?? 'N/A' }}</td></tr>
     <tr><td class="label">Rank on First Appointment:</td><td class="value">{{ $row->rank_of_first_appointment ?? 'N/A' }}</td></tr>
     <tr><td class="label">Date of First Appointment:</td><td class="value">{{ ($row->date_of_first_appointment && $row->date_of_first_appointment != '1970-01-01') ? $row->date_of_first_appointment : 'N/A' }}</td></tr>
     <tr><td class="label">Date of Assumption:</td><td class="value">{{ ($row->date_of_asumption && $row->date_of_asumption != '1970-01-01') ? $row->date_of_asumption : 'N/A' }}</td></tr>
     <tr><td class="label">Date of Confirmation:</td><td class="value">{{ ($row->date_of_comfirmation && $row->date_of_comfirmation != '1970-01-01') ? $row->date_of_comfirmation : 'N/A' }}</td></tr>
+    <tr><td class="label">Current Qualification working with the University:</td><td class="value">{{ $row->current_qualification ?? 'N/A' }}</td></tr>
     <tr><td class="label">Years of Experience:</td><td class="value">{{ $row->year_of_experiance ?? 'N/A' }}</td></tr>
 </table>
 

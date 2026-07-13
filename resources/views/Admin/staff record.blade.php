@@ -183,7 +183,7 @@
                                                 <tr><td class="font-weight-bold text-muted">Current Designation</td><td>{{ $designationName ?: 'N/A' }}</td></tr>
                                                 <tr><td class="font-weight-bold text-muted">Staff Category</td><td>{{ $row->staff_category ?? 'N/A' }}</td></tr>
                                                 <tr><td class="font-weight-bold text-muted">Employment Status</td><td>{{ $row->employee_status ?? 'N/A' }}</td></tr>
-                                                <tr><td class="font-weight-bold text-muted">Grade</td><td>{{ $gradeName ?: $row->grade ?: 'N/A' }}</td></tr>
+                                                <tr><td class="font-weight-bold text-muted">Grade/Level</td><td>{{ $gradeName ?: $row->grade ?: 'N/A' }}</td></tr>
                                                 <tr><td class="font-weight-bold text-muted">Step</td><td>{{ $stepName ?: $row->step ?: 'N/A' }}</td></tr>
                                             </table>
                                         </div>
@@ -193,6 +193,7 @@
                                                 <tr><td class="font-weight-bold text-muted">Date of First Appointment</td><td>{{ $row->date_of_first_appointment == '1970-01-01' ? 'N/A' : date('F j, Y', strtotime($row->date_of_first_appointment)) }}</td></tr>
                                                 <tr><td class="font-weight-bold text-muted">Date of Assumption</td><td>{{ $row->date_of_asumption == '1970-01-01' ? 'N/A' : date('F j, Y', strtotime($row->date_of_asumption)) }}</td></tr>
                                                 <tr><td class="font-weight-bold text-muted">Date of Confirmation</td><td>{{ $row->date_of_comfirmation == '1970-01-01' ? 'N/A' : date('F j, Y', strtotime($row->date_of_comfirmation)) }}</td></tr>
+                                                <tr><td class="font-weight-bold text-muted">Current Qualification working with the University</td><td>{{ $row->current_qualification ?? 'N/A' }}</td></tr>
                                             </table>
                                         </div>
                                     </div>

@@ -384,11 +384,12 @@
             <div class="sp-view-item"><div class="label">Designation/Rank</div><div class="value">{{ $designationName ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Staff Category</div><div class="value">{{ $row->staff_category ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Employment Status</div><div class="value">{{ $row->employee_status ?: 'Not set' }}</div></div>
-            <div class="sp-view-item"><div class="label">Grade</div><div class="value">{{ $gradeName ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Grade/Level</div><div class="value">{{ $gradeName ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Step</div><div class="value">{{ $stepName ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Date of First Appointment</div><div class="value">{{ ($row->date_of_first_appointment && $row->date_of_first_appointment != '1970-01-01') ? $row->date_of_first_appointment : 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Rank on First Appointment</div><div class="value">{{ $row->rank_of_first_appointment ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Date of Assumption</div><div class="value">{{ ($row->date_of_asumption && $row->date_of_asumption != '1970-01-01') ? $row->date_of_asumption : 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Current Qualification working with the University</div><div class="value">{{ $row->current_qualification ?: 'Not set' }}</div></div>
         </div>
 
         @if(!empty($promotions))
@@ -470,7 +471,7 @@
                     </select>
                 </div>
                 <div class="sp-form-group">
-                    <label>Grade</label>
+                    <label>Grade/Level</label>
                     <select name="grade_id">
                         <option value="">Select</option>
                         @foreach ($grade as $g)
@@ -503,6 +504,18 @@
                 <div class="sp-form-group">
                     <label>Date of Assumption</label>
                     <input type="date" name="date_of_asumption" value="{{ $row->date_of_asumption }}">
+                </div>
+                <div class="sp-form-group">
+                    <label>Current Qualification working with the University</label>
+                    <select name="current_qualification">
+                        <option value="">Select</option>
+                        <option value="SSCE/GCE" {{ $row->current_qualification == 'SSCE/GCE' ? 'selected' : '' }}>SSCE/GCE</option>
+                        <option value="Trade Test" {{ $row->current_qualification == 'Trade Test' ? 'selected' : '' }}>Trade Test</option>
+                        <option value="Diploma" {{ $row->current_qualification == 'Diploma' ? 'selected' : '' }}>Diploma</option>
+                        <option value="Degree" {{ $row->current_qualification == 'Degree' ? 'selected' : '' }}>Degree</option>
+                        <option value="Masters" {{ $row->current_qualification == 'Masters' ? 'selected' : '' }}>Masters</option>
+                        <option value="PhD" {{ $row->current_qualification == 'PhD' ? 'selected' : '' }}>PhD</option>
+                    </select>
                 </div>
             </div>
 

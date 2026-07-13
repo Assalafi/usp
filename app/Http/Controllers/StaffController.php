@@ -255,6 +255,9 @@ class StaffController extends Controller
         // Date fields that should NOT be uppercased
         $dateFields = ['date_of_birth', 'date_of_first_appointment', 'date_of_asumption', 'date_of_last_promotion', 'date_of_comfirmation'];
 
+        // Fields that should keep original case (not uppercased)
+        $caseSensitiveFields = ['current_qualification'];
+
         $datas = $req->except(['_token', 'picture', 'tab']);
 
         // Process fields
@@ -264,8 +267,8 @@ class StaffController extends Controller
                 // Store as JSON
                 $processed[$key] = json_encode(is_array($value) ? $value : []);
             } elseif (is_string($value)) {
-                // Keep date fields in original format; uppercase text fields
-                $processed[$key] = in_array($key, $dateFields) ? $value : strtoupper($value);
+                // Keep date fields and case-sensitive fields in original format; uppercase text fields
+                $processed[$key] = in_array($key, $dateFields) || in_array($key, $caseSensitiveFields) ? $value : strtoupper($value);
             } else {
                 $processed[$key] = $value;
             }
