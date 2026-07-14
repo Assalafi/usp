@@ -2,13 +2,13 @@
 
 namespace App\Imports;
 
-use App\Models\Admitted;
+//use App\Models\Admitted;
 use App\Models\Invoice;
-use App\Models\Student;
-use App\Models\User;
+//use App\Models\Student;
+//use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
+//use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 
@@ -21,6 +21,7 @@ class PaymentImport implements ToCollection
     private $session;
     private $sponsor;
     private $service;
+    private $schoolFeesSession;
 
     public function __construct($upload_type, $session, $sponsor, $service)
     {
@@ -28,6 +29,7 @@ class PaymentImport implements ToCollection
         $this->session = $session;
         $this->sponsor = $sponsor;
         $this->service = $service;
+        $this->schoolFeesSession = \App\Http\Controllers\SystemSettingsController::getSchoolFeesSession();
 
     }
 
@@ -95,7 +97,7 @@ class PaymentImport implements ToCollection
                         $hostel_amount = DB::table('hostel')->where('occupant', $row[0])->update([
                             'hostel_payment' => '1'
                         ]);
-                        
+
                     }else if($this->service == 'school fees'){
                         $description = 'UNIVERSITY OF MAIDUGURI-1000127 FEES';
                         $serviceTypeId = '365039916';
@@ -107,7 +109,7 @@ class PaymentImport implements ToCollection
                                 continue;
                             }
                             $amount = 0;
-                            if ($studentSession == '2024/2025') {
+                            if ($studentSession == $this->schoolFeesSession) {
                                 $amount = DB::table('school_fees')->where(['faculty' => $faculty, 'department' => $department, 'program' => $program, 'level' => $level, 'type' => 'NEW'])->orderBy('amount', 'desc')->limit(1)->value('amount');
                             } else {
                                 $amount = DB::table('school_fees')->where(['faculty' => $faculty, 'department' => $department, 'program' => $program, 'level' => $level, 'type' => 'RETURNING'])->orderBy('amount', 'desc')->limit(1)->value('amount');
@@ -136,7 +138,7 @@ class PaymentImport implements ToCollection
                         session()->put('studentImportMsg', 'Service Error');
                         return;
                     }
-                    
+
 
                     $username = $row[0];
 
