@@ -389,7 +389,7 @@
             <div class="sp-view-item"><div class="label">Date of First Appointment</div><div class="value">{{ ($row->date_of_first_appointment && $row->date_of_first_appointment != '1970-01-01') ? $row->date_of_first_appointment : 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Rank on First Appointment</div><div class="value">{{ $row->rank_of_first_appointment ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Date of Assumption</div><div class="value">{{ ($row->date_of_asumption && $row->date_of_asumption != '1970-01-01') ? $row->date_of_asumption : 'Not set' }}</div></div>
-            <div class="sp-view-item"><div class="label">Current Qualification working with the University</div><div class="value">{{ $row->current_qualification ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Current Qualification recognized by the university</div><div class="value">{{ $row->current_qualification ?: 'Not set' }}</div></div>
         </div>
 
         @if(!empty($promotions))
@@ -506,7 +506,7 @@
                     <input type="date" name="date_of_asumption" value="{{ $row->date_of_asumption }}">
                 </div>
                 <div class="sp-form-group">
-                    <label>Current Qualification working with the University</label>
+                    <label>Current Qualification recognized by the university</label>
                     <select name="current_qualification">
                         <option value="">Select</option>
                         <option value="SSCE/GCE" {{ $row->current_qualification == 'SSCE/GCE' ? 'selected' : '' }}>SSCE/GCE</option>
@@ -532,7 +532,7 @@
                                 <option value="{{ $promo['promotion'] ?? '' }}">{{ $promo['promotion'] ?? 'Select' }}</option>
                                 @for($i = 1; $i <= 15; $i++)
                                     @php
-                                        $ordinals = [1 => 'First', 2 => 'Second', 3 => 'Third', 4 => 'Fourth', 5 => 'Fifth', 6 => 'Sixth', 7 => 'Seventh', 8 => 'Eighth', 9 => 'Ninth', 10 => 'Tenth', 11 => 'Eleventh', 12 => 'Twelfth', 13 => 'Thirteenth', 14 => 'Fourteenth', 15 => 'Fifteenth'];
+                                        $ordinals = [1 => '1st', 2 => '2nd', 3 => '3rd', 4 => '4th', 5 => '5th', 6 => '6th', 7 => '7th', 8 => '8th', 9 => '9th', 10 => '10th', 11 => '11th', 12 => '12th', 13 => '13th', 14 => '14th', 15 => '15th'];
                                     @endphp
                                     <option value="{{ $ordinals[$i] }}">{{ $ordinals[$i] }}</option>
                                 @endfor
@@ -991,7 +991,7 @@ function handleDocUpload() {
 function addPromotion() {
     const container = document.getElementById('promotions-entries');
     const idx = container.children.length;
-    const ordinals = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth', 'Eleventh', 'Twelfth', 'Thirteenth', 'Fourteenth', 'Fifteenth'];
+    const ordinals = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th', '13th', '14th', '15th'];
     let promotionOptions = ordinals.map(o => `<option value="${o}">${o}</option>`).join('');
 
     let designationSelectOptions = '<option value="">Select</option>';
