@@ -164,10 +164,10 @@ class StaffController extends Controller
         }
 
         // Date fields that should NOT be uppercased
-        $dateFields = ['date_of_birth', 'date_of_first_appointment', 'date_of_asumption', 'date_of_last_promotion', 'date_of_comfirmation'];
+        $dateFields = ['date_of_birth', 'date_of_first_appointment', 'date_of_asumption', 'date_of_last_promotion', 'date_of_comfirmation', 'leave_start_date', 'leave_end_date'];
 
         // Fields that should keep original case (not uppercased)
-        $caseSensitiveFields = ['current_qualification'];
+        $caseSensitiveFields = ['current_qualification', 'staff_status', 'leave_institution'];
 
         foreach ($datas as $key => $value) {
             if (is_string($value) && !in_array($key, $dateFields) && !in_array($key, $caseSensitiveFields)) {
@@ -256,10 +256,10 @@ class StaffController extends Controller
         $jsonFields = ['institutions', 'experiences', 'publications', 'honours', 'memberships', 'promotions'];
 
         // Date fields that should NOT be uppercased
-        $dateFields = ['date_of_birth', 'date_of_first_appointment', 'date_of_asumption', 'date_of_last_promotion', 'date_of_comfirmation'];
+        $dateFields = ['date_of_birth', 'date_of_first_appointment', 'date_of_asumption', 'date_of_last_promotion', 'date_of_comfirmation', 'leave_start_date', 'leave_end_date'];
 
         // Fields that should keep original case (not uppercased)
-        $caseSensitiveFields = ['current_qualification'];
+        $caseSensitiveFields = ['current_qualification', 'staff_status', 'leave_institution'];
 
         $datas = $req->except(['_token', 'picture', 'tab']);
 

@@ -120,6 +120,12 @@
     <tr><td class="label">Date of Assumption:</td><td class="value">{{ ($row->date_of_asumption && $row->date_of_asumption != '1970-01-01') ? $row->date_of_asumption : 'N/A' }}</td></tr>
     <tr><td class="label">Date of Confirmation:</td><td class="value">{{ ($row->date_of_comfirmation && $row->date_of_comfirmation != '1970-01-01') ? $row->date_of_comfirmation : 'N/A' }}</td></tr>
     <tr><td class="label">Current Qualification recognized by the university:</td><td class="value">{{ $row->current_qualification ?? 'N/A' }}</td></tr>
+    <tr><td class="label">Staff Status:</td><td class="value">{{ $row->staff_status ?? 'Active' }}</td></tr>
+    @if($row->staff_status && $row->staff_status != 'Active')
+        <tr><td class="label">Institution/Organization:</td><td class="value">{{ $row->leave_institution ?? 'N/A' }}</td></tr>
+        <tr><td class="label">Leave Start Date:</td><td class="value">{{ ($row->leave_start_date && $row->leave_start_date != '1970-01-01') ? $row->leave_start_date : 'N/A' }}</td></tr>
+        <tr><td class="label">Leave End Date:</td><td class="value">{{ ($row->leave_end_date && $row->leave_end_date != '1970-01-01') ? $row->leave_end_date : 'N/A' }}</td></tr>
+    @endif
     <tr><td class="label">Years of Experience:</td><td class="value">{{ $row->year_of_experiance ?? 'N/A' }}</td></tr>
 </table>
 

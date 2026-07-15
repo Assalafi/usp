@@ -194,6 +194,12 @@
                                                 <tr><td class="font-weight-bold text-muted">Date of Assumption</td><td>{{ $row->date_of_asumption == '1970-01-01' ? 'N/A' : date('F j, Y', strtotime($row->date_of_asumption)) }}</td></tr>
                                                 <tr><td class="font-weight-bold text-muted">Date of Confirmation</td><td>{{ $row->date_of_comfirmation == '1970-01-01' ? 'N/A' : date('F j, Y', strtotime($row->date_of_comfirmation)) }}</td></tr>
                                                 <tr><td class="font-weight-bold text-muted">Current Qualification recognized by the university</td><td>{{ $row->current_qualification ?? 'N/A' }}</td></tr>
+                                                <tr><td class="font-weight-bold text-muted">Staff Status</td><td>{{ $row->staff_status ?? 'Active' }}</td></tr>
+                                                @if($row->staff_status && $row->staff_status != 'Active')
+                                                    <tr><td class="font-weight-bold text-muted">Institution/Organization</td><td>{{ $row->leave_institution ?? 'N/A' }}</td></tr>
+                                                    <tr><td class="font-weight-bold text-muted">Leave Start Date</td><td>{{ ($row->leave_start_date && $row->leave_start_date != '1970-01-01') ? $row->leave_start_date : 'N/A' }}</td></tr>
+                                                    <tr><td class="font-weight-bold text-muted">Leave End Date</td><td>{{ ($row->leave_end_date && $row->leave_end_date != '1970-01-01') ? $row->leave_end_date : 'N/A' }}</td></tr>
+                                                @endif
                                             </table>
                                         </div>
                                     </div>

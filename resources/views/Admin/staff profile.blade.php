@@ -390,6 +390,12 @@
             <div class="sp-view-item"><div class="label">Rank on First Appointment</div><div class="value">{{ $row->rank_of_first_appointment ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Date of Assumption</div><div class="value">{{ ($row->date_of_asumption && $row->date_of_asumption != '1970-01-01') ? $row->date_of_asumption : 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Current Qualification recognized by the university</div><div class="value">{{ $row->current_qualification ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Staff Status</div><div class="value">{{ $row->staff_status ?: 'Active' }}</div></div>
+            @if($row->staff_status && $row->staff_status != 'Active')
+                <div class="sp-view-item"><div class="label">Institution/Organization</div><div class="value">{{ $row->leave_institution ?: 'Not set' }}</div></div>
+                <div class="sp-view-item"><div class="label">Leave Start Date</div><div class="value">{{ ($row->leave_start_date && $row->leave_start_date != '1970-01-01') ? $row->leave_start_date : 'Not set' }}</div></div>
+                <div class="sp-view-item"><div class="label">Leave End Date</div><div class="value">{{ ($row->leave_end_date && $row->leave_end_date != '1970-01-01') ? $row->leave_end_date : 'Not set' }}</div></div>
+            @endif
         </div>
 
         @if(!empty($promotions))
@@ -516,6 +522,29 @@
                         <option value="Masters" {{ $row->current_qualification == 'Masters' ? 'selected' : '' }}>Masters</option>
                         <option value="PhD" {{ $row->current_qualification == 'PhD' ? 'selected' : '' }}>PhD</option>
                     </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>Staff Status</label>
+                    <select name="staff_status" id="staff_status" onchange="toggleLeaveFields()">
+                        <option value="Active" {{ ($row->staff_status == 'Active' || !$row->staff_status) ? 'selected' : '' }}>Active</option>
+                        <option value="Leave without pay" {{ $row->staff_status == 'Leave without pay' ? 'selected' : '' }}>Leave without pay</option>
+                        <option value="Sabbatical Leave" {{ $row->staff_status == 'Sabbatical Leave' ? 'selected' : '' }}>Sabbatical Leave</option>
+                        <option value="Study Leave" {{ $row->staff_status == 'Study Leave' ? 'selected' : '' }}>Study Leave</option>
+                    </select>
+                </div>
+                <div id="leave_fields" style="display: none;">
+                    <div class="sp-form-group">
+                        <label>Institution/Organization</label>
+                        <input type="text" name="leave_institution" value="{{ $row->leave_institution ?? '' }}">
+                    </div>
+                    <div class="sp-form-group">
+                        <label>Leave Start Date</label>
+                        <input type="date" name="leave_start_date" value="{{ $row->leave_start_date ?? '' }}">
+                    </div>
+                    <div class="sp-form-group">
+                        <label>Leave End Date</label>
+                        <input type="date" name="leave_end_date" value="{{ $row->leave_end_date ?? '' }}">
+                    </div>
                 </div>
             </div>
 
@@ -987,6 +1016,25 @@ function handleDocUpload() {
         form.submit();
     }
 }
+
+function toggleLeaveFields() {
+    const staffStatus = document.getElementById('staff_status');
+    const leaveFields = document.getElementById('leave_fields');
+
+    if (staffStatus && leaveFields) {
+        const status = staffStatus.value;
+        if (status !== 'Active') {
+            leaveFields.style.display = 'block';
+        } else {
+            leaveFields.style.display = 'none';
+        }
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleLeaveFields();
+});
 
 function addPromotion() {
     const container = document.getElementById('promotions-entries');

@@ -304,6 +304,29 @@
                                         </select>
                                     </div>
                                     <div class="form-group">
+                                        <label for="staff_status" class="form-label">Staff Status</label>
+                                        <select name="staff_status" id="staff_status" class="form-control" onchange="toggleLeaveFields()">
+                                            <option value="Active" {{ ($row->staff_status == 'Active' || !$row->staff_status) ? 'selected' : '' }}>Active</option>
+                                            <option value="Leave without pay" {{ $row->staff_status == 'Leave without pay' ? 'selected' : '' }}>Leave without pay</option>
+                                            <option value="Sabbatical Leave" {{ $row->staff_status == 'Sabbatical Leave' ? 'selected' : '' }}>Sabbatical Leave</option>
+                                            <option value="Study Leave" {{ $row->staff_status == 'Study Leave' ? 'selected' : '' }}>Study Leave</option>
+                                        </select>
+                                    </div>
+                                    <div id="leave_fields" style="display: none;">
+                                        <div class="form-group">
+                                            <label for="leave_institution" class="form-label">Institution/Organization</label>
+                                            <input type="text" name="leave_institution" id="leave_institution" value="{{ $row->leave_institution ?? '' }}" class="form-control">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="leave_start_date" class="form-label">Leave Start Date</label>
+                                            <input type="date" name="leave_start_date" id="leave_start_date" value="{{ $row->leave_start_date ?? '' }}" class="form-control">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="leave_end_date" class="form-label">Leave End Date</label>
+                                            <input type="date" name="leave_end_date" id="leave_end_date" value="{{ $row->leave_end_date ?? '' }}" class="form-control">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
                                         <label for="date_of_last_promotion" class="form-label">Date of Last
                                             Promotion</label>
                                         <input type="date" name="date_of_last_promotion"
@@ -426,7 +449,22 @@ $(function() {
     var currentState = "{{ $row->state ?? '' }}";
     var currentLga = "{{ $row->lga ?? '' }}";
     initStateLGAEdit('#state-update', '#lga-update', currentState, currentLga);
+    toggleLeaveFields();
 });
+
+function toggleLeaveFields() {
+    const staffStatus = document.getElementById('staff_status');
+    const leaveFields = document.getElementById('leave_fields');
+
+    if (staffStatus && leaveFields) {
+        const status = staffStatus.value;
+        if (status !== 'Active') {
+            leaveFields.style.display = 'block';
+        } else {
+            leaveFields.style.display = 'none';
+        }
+    }
+}
 
 </script>
 
