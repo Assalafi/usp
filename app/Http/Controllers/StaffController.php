@@ -147,10 +147,10 @@ class StaffController extends Controller
             $datas['designation_id'] = $req->designation_id;
             $datas['current_rank'] = $designation;
         }
-        if (isset($req->rank_of_first_appointment_id) && $req->rank_of_first_appointment_id) {
-            $rankFirst = DB::table('designations')->where('id', $req->rank_of_first_appointment_id)->value('name');
-            $datas['rank_of_first_appointment_id'] = $req->rank_of_first_appointment_id;
-            $datas['rank_of_first_appointment'] = $rankFirst;
+        // rank_of_first_appointment is now a string field, not an ID
+        // No need to look up ID, just use the string value directly
+        if (isset($req->rank_of_first_appointment)) {
+            $datas['rank_of_first_appointment'] = $req->rank_of_first_appointment;
         }
         if (isset($req->grade_id) && $req->grade_id) {
             $grade = DB::table('grades')->where('id', $req->grade_id)->value('name');
@@ -166,8 +166,11 @@ class StaffController extends Controller
         // Date fields that should NOT be uppercased
         $dateFields = ['date_of_birth', 'date_of_first_appointment', 'date_of_asumption', 'date_of_last_promotion', 'date_of_comfirmation'];
 
+        // Fields that should keep original case (not uppercased)
+        $caseSensitiveFields = ['current_qualification'];
+
         foreach ($datas as $key => $value) {
-            if (is_string($value) && !in_array($key, $dateFields)) {
+            if (is_string($value) && !in_array($key, $dateFields) && !in_array($key, $caseSensitiveFields)) {
                 $datas[$key] = strtoupper($value);
             }
         }

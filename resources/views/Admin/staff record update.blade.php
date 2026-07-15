@@ -249,7 +249,7 @@
                                         </select>
                                     </div>
                                     <div class="form-group">
-                                        <label for="grade" class="form-label">Grade</label>
+                                        <label for="grade" class="form-label">Grade/Level</label>
                                         <select name="grade_id" id="grade" class="form-control">
                                             <option value="{{ $row->grade_id ?? '' }}">{{ isset($row->grade) ? $row->grade : '' }}</option>
                                             @foreach ($grade as $roww)
@@ -279,10 +279,10 @@
                                     <div class="form-group">
                                         <label for="rank_of_first_appointment" class="form-label">Rank on First
                                             Appointment</label>
-                                        <select name="rank_of_first_appointment_id" id="rank_of_first_appointment" class="form-control">
+                                        <select name="rank_of_first_appointment" id="rank_of_first_appointment" class="form-control">
                                             <option value="{{ $row->rank_of_first_appointment }}">{{ $row->rank_of_first_appointment ?: 'Select' }}</option>
                                             @foreach ($designation as $roww)
-                                                <option value="{{ $roww->id }}">{{ $roww->name }}</option>
+                                                <option value="{{ $roww->name }}">{{ $roww->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -290,6 +290,18 @@
                                         <label for="date_of_asumption" class="form-label">Date of Assumption</label>
                                         <input type="date" name="date_of_asumption" id="date_of_asumption"
                                             value="{{ $row->date_of_asumption }}" class="form-control">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="current_qualification" class="form-label">Current Qualification recognized by the university</label>
+                                        <select name="current_qualification" id="current_qualification" class="form-control">
+                                            <option value="">{{ $row->current_qualification ?: 'Select' }}</option>
+                                            <option value="SSCE/GCE" {{ $row->current_qualification == 'SSCE/GCE' ? 'selected' : '' }}>SSCE/GCE</option>
+                                            <option value="Trade Test" {{ $row->current_qualification == 'Trade Test' ? 'selected' : '' }}>Trade Test</option>
+                                            <option value="Diploma" {{ $row->current_qualification == 'Diploma' ? 'selected' : '' }}>Diploma</option>
+                                            <option value="Degree" {{ $row->current_qualification == 'Degree' ? 'selected' : '' }}>Degree</option>
+                                            <option value="Masters" {{ $row->current_qualification == 'Masters' ? 'selected' : '' }}>Masters</option>
+                                            <option value="PhD" {{ $row->current_qualification == 'PhD' ? 'selected' : '' }}>PhD</option>
+                                        </select>
                                     </div>
                                     <div class="form-group">
                                         <label for="date_of_last_promotion" class="form-label">Date of Last
