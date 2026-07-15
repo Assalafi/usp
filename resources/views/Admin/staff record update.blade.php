@@ -279,10 +279,10 @@
                                     <div class="form-group">
                                         <label for="rank_of_first_appointment" class="form-label">Rank on First
                                             Appointment</label>
-                                        <select name="rank_of_first_appointment" id="rank_of_first_appointment" class="form-control">
-                                            <option value="{{ $row->rank_of_first_appointment }}">{{ $row->rank_of_first_appointment ?: 'Select' }}</option>
+                                        <select name="rank_of_first_appointment_id" id="rank_of_first_appointment" class="form-control">
+                                            <option value="{{ $row->rank_of_first_appointment_id ?? '' }}">{{ isset($row->rank_of_first_appointment) ? $row->rank_of_first_appointment : 'Select' }}</option>
                                             @foreach ($designation as $roww)
-                                                <option value="{{ $roww->name }}">{{ $roww->name }}</option>
+                                                <option value="{{ $roww->id }}">{{ $roww->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
