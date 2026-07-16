@@ -317,7 +317,7 @@
             </div>
             <div class="card">
                 <div class="card-body">
-                    <a href="#"><i class="fas fa-download"></i> Download Template</a>
+                    <a href="/staff/download-template"><i class="fas fa-download"></i> Download Template</a>
                 </div>
 
                 <form class="form-group" action="upload {{ $page }}" method="POST"

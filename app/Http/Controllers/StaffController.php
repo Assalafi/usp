@@ -251,6 +251,31 @@ class StaffController extends Controller
         return redirect()->back()->with('error', 'File not found or other error occurred.');
     }
 
+    public function downloadStaffTemplate()
+    {
+        $headers = [
+            'Staff ID', 'Name', 'Phone', 'TI No'
+        ];
+
+        $callback = function () use ($headers) {
+            $file = fopen('php://output', 'w');
+            // BOM for UTF-8
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fputcsv($file, $headers);
+            // Sample row
+            fputcsv($file, [
+                'USP/0001', 'JOHN DOE', '08012345678', 'TI12345'
+            ]);
+            fclose($file);
+        };
+
+        $filename = 'staff_upload_template.csv';
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
+
     public function profileUpdate(Request $req)
     {
         if (!session()->has('log')) {
