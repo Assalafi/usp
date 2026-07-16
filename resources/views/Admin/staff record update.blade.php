@@ -54,12 +54,12 @@
                                     <div class="form-group">
                                         <label for="username" class="form-label">SP/JP</label>
                                         <input type="text" name="username" id="username"
-                                            value="{{ $row->username }}" class="form-control" required readonly>
+                                            value="{{ $row->username }}" class="form-control" readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="name" class="form-label">Fullname</label>
                                         <input type="text" name="name" id="name" value="{{ $row->name }}"
-                                            class="form-control" required>
+                                            class="form-control">
                                     </div>
                                     <div class="form-group">
                                         <label for="gender" class="form-label">Gender</label>
@@ -81,26 +81,26 @@
                                     <div class="form-group">
                                         <label for="phone" class="form-label">Phone Number</label>
                                         <input type="number" name="phone" id="phone" value="{{ $row->phone }}"
-                                            class="form-control" required>
+                                            class="form-control">
                                     </div>
                                     <div class="form-group">
                                         <label for="email" class="form-label">Email</label>
                                         <input type="email" name="email" id="email" value="{{ $row->email }}"
-                                            class="form-control" required>
+                                            class="form-control">
                                     </div>
                                     <div class="form-group">
                                         <label for="address" class="form-label">Home Address</label>
                                         <input type="text" name="address" id="address" value="{{ $row->address }}"
-                                            class="form-control" required>
+                                            class="form-control">
                                     </div>
                                     <div class="form-group">
                                         <label for="date_of_birth" class="form-label">Date of Birth</label>
                                         <input type="date" name="date_of_birth" id="date_of_birth"
-                                            value="{{ $row->date_of_birth }}" class="form-control" required>
+                                            value="{{ $row->date_of_birth }}" class="form-control">
                                     </div>
                                     <div class="form-group">
                                         <label for="state" class="form-label">State of Origin</label>
-                                        <select name="state" id="state-update" class="form-control" required>
+                                        <select name="state" id="state-update" class="form-control">
                                             <option value="">Select</option>
                                             <option value="Abia" {{ strcasecmp($row->state ?? '', 'Abia') == 0 ? 'selected' : '' }}>Abia</option>
                                             <option value="Adamawa" {{ strcasecmp($row->state ?? '', 'Adamawa') == 0 ? 'selected' : '' }}>Adamawa</option>
@@ -143,7 +143,7 @@
                                     </div>
                                     <div class="form-group">
                                         <label for="lga" class="form-label">LGA of Origin</label>
-                                        <select name="lga" id="lga-update" class="form-control" required>
+                                        <select name="lga" id="lga-update" class="form-control">
                                             <option value="">Select State First</option>
                                         </select>
                                     </div>
@@ -181,7 +181,7 @@
                                     <div class="form-group">
                                         <label for="facultyff">Faculty</label>
                                         <select class="form-control faculty" id="facultyff" name="faculty"
-                                            lang="ff" required>
+                                            lang="ff">
                                             <option value="{{ $row->faculty }}">Select Option</option>
                                             @foreach ($faculty as $rows)
                                                 <option value="{{ $rows->code }}">{{ $rows->title }}</option>
@@ -191,14 +191,14 @@
                                     <div class="form-group">
                                         <label for="departmentff">Department</label>
                                         <select class="form-control department" id="departmentff" name="department"
-                                            lang="ff" required>
+                                            lang="ff">
                                             <option value="{{ $row->department }}">Select Faculty First</option>
                                         </select>
                                     </div>
                                     <div class="form-group">
                                         <label for="programff">Program</label>
                                         <select class="form-control" id="programff" name="program" lang="ff"
-                                            required>
+                                            >
                                             <option value="{{ $row->program }}">Select Department First</option>
                                         </select>
                                     </div>
@@ -285,8 +285,7 @@
                                             Appointment</label>
                                         <input type="date" name="date_of_first_appointment"
                                             id="date_of_first_appointment"
-                                            value="{{ $row->date_of_first_appointment }}" class="form-control"
-                                            required>
+                                            value="{{ $row->date_of_first_appointment }}" class="form-control">
                                     </div>
                                     <div class="form-group">
                                         <label for="rank_of_first_appointment" class="form-label">Rank on First
@@ -343,7 +342,7 @@
                                             Promotion</label>
                                         <input type="date" name="date_of_last_promotion"
                                             id="date_of_last_promotion" value="{{ $row->date_of_last_promotion }}"
-                                            class="form-control" required>
+                                            class="form-control">
                                     </div>
                                     <div class="form-group">
                                         <label for="degree" class="form-label">Degree</label>
@@ -364,17 +363,17 @@
                                     <div class="form-group">
                                         <label for="kin_name" class="form-label">Name</label>
                                         <input type="text" name="kin_name" id="kin_name"
-                                            value="{{ $row->kin_name }}" class="form-control" required>
+                                            value="{{ $row->kin_name }}" class="form-control">
                                     </div>
                                     <div class="form-group">
                                         <label for="kin_phone" class="form-label">Phone</label>
                                         <input type="number" name="kin_phone" id="kin_phone"
-                                            value="{{ $row->kin_phone }}" class="form-control" required>
+                                            value="{{ $row->kin_phone }}" class="form-control">
                                     </div>
                                     <div class="form-group">
                                         <label for="kin_address" class="form-label">Home Address</label>
                                         <input type="text" name="kin_address" id="kin_address"
-                                            value="{{ $row->kin_address }}" class="form-control" required>
+                                            value="{{ $row->kin_address }}" class="form-control">
                                     </div>
                                 </div>
                             </div>
@@ -386,12 +385,12 @@
                                     <div class="form-group">
                                         <label for="bank_name" class="form-label">Bank Name</label>
                                         <input type="text" name="bank_name" id="bank_name"
-                                            value="{{ $row->bank_name }}" class="form-control" required>
+                                            value="{{ $row->bank_name }}" class="form-control">
                                     </div>
                                     <div class="form-group">
                                         <label for="account_number" class="form-label">Account Number</label>
                                         <input type="number" name="account_number" id="account_number"
-                                            value="{{ $row->account_number }}" class="form-control" required>
+                                            value="{{ $row->account_number }}" class="form-control">
                                     </div>
                                 </div>
                             </div>

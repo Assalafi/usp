@@ -134,12 +134,6 @@ class StaffController extends Controller
             return redirect('/');
         }
 
-        $nationality = $req->input('nationality');
-        $nin = $req->input('nin');
-        if (strcasecmp($nationality, 'Nigerian') === 0 && empty($nin)) {
-            return redirect()->back()->withInput()->with('error', 'NIN is required for Nigerian staff.');
-        }
-
         $datas = $req->all();
         $id = $datas['id'];
         $user_id = DB::table('staff')->where('id', $id)->value('user_id');
