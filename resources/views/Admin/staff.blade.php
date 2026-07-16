@@ -351,6 +351,23 @@
                             </select>
                         </div>
                         <div class="form-group">
+                            <label for="unit1">Department/Unit</label>
+                            <select class="form-control" id="unit1" name="unit_id">
+                                <option value="">Select</option>
+                                @foreach ($unit as $roww)
+                                    <option value="{{ $roww->id }}">{{ $roww->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="staff_category">Staff Category</label>
+                            <select class="form-control" id="staff_category" name="staff_category">
+                                <option value="">Select</option>
+                                <option value="TEACHING STAFF">TEACHING STAFF</option>
+                                <option value="NON TEACHING STAFF">NON TEACHING STAFF</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label for="file"></label>
                             <input type="file" name="file" id="file" accept=".xlsx, .xls"
                                 class="form-control" required>

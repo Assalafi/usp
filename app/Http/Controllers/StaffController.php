@@ -98,19 +98,34 @@ class StaffController extends Controller
             $datas['rank_of_first_appointment_id'] = $req->rank_of_first_appointment_id;
             $datas['rank_of_first_appointment'] = $rankFirst;
         }
+        if (isset($req->unit_id) && $req->unit_id) {
+            $unit = DB::table('units')->where('id', $req->unit_id)->value('name');
+            $datas['unit_id'] = $req->unit_id;
+            $datas['unit'] = $unit;
+        }
 
         $datas = array_map('strtoupper', $datas);
         $id = $datas['username'];
         $name = $datas['name'];
-        User::updateOrCreate(
-            ['username' => $id],
-            [
+        $existingUser = User::where('username', $id)->first();
+
+        if ($existingUser) {
+            // Update existing user without changing password
+            User::where('username', $id)->update([
+                'accType' => 'Staff',
+                'name' => strtoupper($name),
+                'status' => '1'
+            ]);
+        } else {
+            // Create new user with username as password
+            User::create([
+                'username' => $id,
                 'password' => Hash::make($id),
                 'accType' => 'Staff',
                 'name' => strtoupper($name),
                 'status' => '1'
-            ]
-        );
+            ]);
+        }
         $id = DB::table('users')->where('username', $id)->value('id');
         $datas['user_id'] = $id;
         // DB::table($this->table)->insert();
