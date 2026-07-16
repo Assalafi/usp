@@ -329,7 +329,7 @@
                         <div class="form-group">
                             <label for="faculty1">Faculty</label>
                             <select class="form-control faculty" id="faculty1" name="faculty" lang="1"
-                                required>
+                                >
                                 <option value="">Select Option</option>
                                 @foreach ($faculty as $row)
                                     <option value="{{ $row->code }}">{{ $row->title }}</option>
@@ -369,7 +369,7 @@
                         </div>
                         <div class="form-group">
                             <label for="file"></label>
-                            <input type="file" name="file" id="file" accept=".xlsx, .xls"
+                            <input type="file" name="file" id="file" accept=".xlsx,.xls,.csv"
                                 class="form-control" required>
                         </div>
                         <!-- Details View End -->
@@ -408,7 +408,7 @@
                         </div>
                         <div class="form-group">
                             <label for="file"></label>
-                            <input type="file" name="file" id="file" accept=".xlsx, .xls"
+                            <input type="file" name="file" id="file" accept=".xlsx,.xls,.csv"
                                 class="form-control" required>
                         </div>
                         <!-- Details View End -->
@@ -505,74 +505,12 @@
                                                 required>
                                         </div>
                                         <div class="form-group">
-                                            <label for="gender" class="form-label">Gender</label>
-                                            <select name="gender" id="gender" class="form-control">
-                                                <option value="">Select Option</option>
-                                                <option value="Male">Male</option>
-                                                <option value="Female">Female</option>
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="marital_status" class="form-label">Marital Status</label>
-                                            <select name="marital_status" id="marital_status" class="form-control">
-                                                <option value="">Select Option</option>
-                                                <option value="Single">Single</option>
-                                                <option value="Married">Married</option>
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
                                             <label for="phone" class="form-label">Phone Number</label>
-                                            <input type="number" name="phone" id="phone" class="form-control"
-                                                required>
+                                            <input type="text" name="phone" id="phone" class="form-control">
                                         </div>
                                         <div class="form-group">
-                                            <label for="email" class="form-label">Email</label>
-                                            <input type="email" name="email" id="email" class="form-control"
-                                                required>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="address" class="form-label">Home Address</label>
-                                            <input type="text" name="address" id="address" class="form-control"
-                                                required>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="date_of_birth" class="form-label">Date of Birth</label>
-                                            <input type="date" name="date_of_birth" id="date_of_birth"
-                                                class="form-control" required>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="state" class="form-label">State of Origin</label>
-                                            <select name="state" id="state-create" class="form-control" required>
-                                                <option value="">Select</option>
-                                                <option value="Abia">Abia</option><option value="Adamawa">Adamawa</option><option value="Akwa Ibom">Akwa Ibom</option><option value="Anambra">Anambra</option>
-                                                <option value="Bauchi">Bauchi</option><option value="Bayelsa">Bayelsa</option><option value="Benue">Benue</option><option value="Borno">Borno</option>
-                                                <option value="Cross River">Cross River</option><option value="Delta">Delta</option><option value="Ebonyi">Ebonyi</option><option value="Edo">Edo</option>
-                                                <option value="Ekiti">Ekiti</option><option value="Enugu">Enugu</option><option value="FCT">FCT</option><option value="Gombe">Gombe</option>
-                                                <option value="Imo">Imo</option><option value="Jigawa">Jigawa</option><option value="Kaduna">Kaduna</option><option value="Kano">Kano</option>
-                                                <option value="Katsina">Katsina</option><option value="Kebbi">Kebbi</option><option value="Kogi">Kogi</option><option value="Kwara">Kwara</option>
-                                                <option value="Lagos">Lagos</option><option value="Nasarawa">Nasarawa</option><option value="Niger">Niger</option><option value="Ogun">Ogun</option>
-                                                <option value="Ondo">Ondo</option><option value="Osun">Osun</option><option value="Oyo">Oyo</option><option value="Plateau">Plateau</option>
-                                                <option value="Rivers">Rivers</option><option value="Sokoto">Sokoto</option><option value="Taraba">Taraba</option><option value="Yobe">Yobe</option>
-                                                <option value="Zamfara">Zamfara</option>
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="lga" class="form-label">LGA of Origin</label>
-                                            <select name="lga" id="lga-create" class="form-control" required>
-                                                <option value="">Select State First</option>
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="nationality" class="form-label">Nationality</label>
-                                            <select name="nationality" id="nationality-create" class="form-control">
-                                                <option value="">Select</option>
-                                                <option value="Nigerian">Nigerian</option>
-                                                <option value="Other">Other</option>
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="nin" class="form-label">NIN <small class="text-muted">(required if Nigerian)</small></label>
-                                            <input type="text" name="nin" id="nin-create" class="form-control" placeholder="e.g. 12345678901">
+                                            <label for="ti_no" class="form-label">TI No.</label>
+                                            <input type="text" name="ti_no" id="ti_no" class="form-control" placeholder="e.g. TI12345">
                                         </div>
                                     </div>
                                 </div>
@@ -580,12 +518,12 @@
                             <div class="col-md-6">
                                 <div class="card">
                                     <div class="card-block">
-                                        <h4 class="text-center">Academic Information</h4>
+                                        <h4 class="text-center">Assignment</h4>
                                         <div class="form-group">
                                             <label for="faculty1">Faculty</label>
                                             <select class="form-control faculty" id="facultya" name="faculty"
                                                 lang="a">
-                                                <option value="faculty">Select Option</option>
+                                                <option value="">Select Option</option>
                                                 @foreach ($faculty as $row)
                                                     <option value="{{ $row->code }}">{{ $row->title }}</option>
                                                 @endforeach
@@ -596,14 +534,14 @@
                                             <label for="departmenta">Department</label>
                                             <select class="form-control department" id="departmenta"
                                                 name="department" lang="a">
-                                                <option value="department">Select Faculty First</option>
+                                                <option value="">Select Faculty First</option>
                                             </select>
                                         </div>
                                         <div class="form-group">
                                             <label for="program1">Program</label>
                                             <select class="form-control" id="programa" name="program"
                                                 lang="a">
-                                                <option value="program">Select Department First</option>
+                                                <option value="">Select Department First</option>
                                             </select>
                                         </div>
                                         <div class="form-group">
@@ -616,17 +554,6 @@
                                             </select>
                                         </div>
                                         <div class="form-group">
-                                            <label for="current_rank" class="form-label">Designation/Rank</label>
-                                            <select name="designation_id" id="current_rank" class="form-control">
-                                                <option value="">Select Option</option>
-                                                @foreach ($designation as $roww)
-                                                    <option value="{{ $roww->id }}">
-                                                        {{ $roww->name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
                                             <label for="staff_category" class="form-label">Staff Category</label>
                                             <select name="staff_category" id="staff_category" class="form-control">
                                                 <option value="">Select Option</option>
@@ -634,120 +561,14 @@
                                                 <option value="NON TEACHING STAFF">NON TEACHING STAFF</option>
                                             </select>
                                         </div>
-                                        <div class="form-group">
-                                            <label for="employee_status" class="form-label">Employment Status</label>
-                                            <select name="employee_status" id="employee_status" class="form-control">
-                                                <option value="">Select Option</option>
-                                                <option value="PERMANENT">PERMANENT</option>
-                                                <option value="CONTRACT">CONTRACT</option>
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="grade" class="form-label">Grade</label>
-                                            <select name="grade_id" id="grade" class="form-control">
-                                                <option value="">Select Option</option>
-                                                @foreach ($grade as $roww)
-                                                    <option value="{{ $roww->id }}">{{ $roww->name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="step" class="form-label">Step</label>
-                                            <select name="step_id" id="step" class="form-control">
-                                                <option value="">Select Option</option>
-                                                @foreach ($step as $roww)
-                                                    <option value="{{ $roww->id }}">{{ $roww->name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="date_of_first_appointment" class="form-label">Date of First
-                                                Appointment</label>
-                                            <input type="date" name="date_of_first_appointment"
-                                                id="date_of_first_appointment" class="form-control" required>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="rank_of_first_appointment" class="form-label">Rank on First
-                                                Appointment</label>
-                                            <select name="rank_of_first_appointment_id" id="rank_of_first_appointment" class="form-control">
-                                                <option value="">Select Option</option>
-                                                @foreach ($designation as $roww)
-                                                    <option value="{{ $roww->id }}">{{ $roww->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="date_of_asumption" class="form-label">Date of
-                                                Assumption</label>
-                                            <input type="date" name="date_of_asumption" id="date_of_asumption"
-                                                class="form-control">
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="date_of_last_promotion" class="form-label">Date of Last
-                                                Promotion</label>
-                                            <input type="date" name="date_of_last_promotion"
-                                                id="date_of_last_promotion" class="form-control" required>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-12">
                                 <div class="card">
-                                    <div class="card-block">
-                                        <h4 class="text-center">Next of Kin Information</h4>
-                                        <div class="form-group">
-                                            <label for="kin_name" class="form-label">Name</label>
-                                            <input type="text" name="kin_name" id="kin_name"
-                                                class="form-control" required>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="kin_phone" class="form-label">Phone</label>
-                                            <input type="number" name="kin_phone" id="kin_phone"
-                                                class="form-control" required>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="kin_address" class="form-label">Home Address</label>
-                                            <input type="text" name="kin_address" id="kin_address"
-                                                class="form-control" required>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="card">
-                                    <div class="card-block">
-                                        <h4 class="text-center">Bank Details</h4>
-                                        <div class="form-group">
-                                            <label for="bank_name" class="form-label">Bank Name</label>
-                                            <input type="text" name="bank_name" id="bank_name"
-                                                class="form-control" required>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="account_number" class="form-label">Account Number</label>
-                                            <input type="number" name="account_number" id="account_number"
-                                                class="form-control" required>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="card">
-                                    <div class="card-block">
-                                        <h4 class="text-center">Action</h4>
-                                        <div class="form-group">
-                                            <label for="" class="form-label">.</label>
-                                            <br>
-                                            <button style="width: 100%" type="submit"
-                                                class="btn btn-success">Create</button>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="" class="form-label">.</label>
-                                            <br>
-                                            <button style="width: 100%" type="button" class="btn btn-info"
-                                                data-bs-dismiss="modal">Close</button>
-                                        </div>
+                                    <div class="card-block text-end">
+                                        <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
+                                        <button type="submit" class="btn btn-success">Create</button>
                                     </div>
                                 </div>
                             </div>

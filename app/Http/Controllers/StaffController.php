@@ -84,25 +84,22 @@ class StaffController extends Controller
             return redirect('/');
         }
 
-        $nationality = $req->input('nationality');
-        $nin = $req->input('nin');
-        if (strcasecmp($nationality, 'Nigerian') === 0 && empty($nin)) {
-            return redirect()->back()->withInput()->with('error', 'NIN is required for Nigerian staff.');
-        }
-
         $datas = $req->all();
         unset($datas['_token']);
 
-        // Handle reference data IDs and populate name fields
-        if (isset($req->rank_of_first_appointment_id) && $req->rank_of_first_appointment_id) {
-            $rankFirst = DB::table('designations')->where('id', $req->rank_of_first_appointment_id)->value('name');
-            $datas['rank_of_first_appointment_id'] = $req->rank_of_first_appointment_id;
-            $datas['rank_of_first_appointment'] = $rankFirst;
-        }
+        // Handle unit_id → unit name lookup
         if (isset($req->unit_id) && $req->unit_id) {
             $unit = DB::table('units')->where('id', $req->unit_id)->value('name');
             $datas['unit_id'] = $req->unit_id;
             $datas['unit'] = $unit;
+        }
+
+        // Normalize TI No.
+        if (!empty($datas['ti_no'])) {
+            $ti_no = strtoupper(trim($datas['ti_no']));
+            $ti_no = preg_replace('/[^A-Z0-9]/', '', $ti_no);
+            $ti_no = preg_replace('/^TI/', '', $ti_no);
+            $datas['ti_no'] = 'TI' . $ti_no;
         }
 
         $datas = array_map('strtoupper', $datas);
@@ -111,14 +108,12 @@ class StaffController extends Controller
         $existingUser = User::where('username', $id)->first();
 
         if ($existingUser) {
-            // Update existing user without changing password
             User::where('username', $id)->update([
                 'accType' => 'Staff',
                 'name' => strtoupper($name),
                 'status' => '1'
             ]);
         } else {
-            // Create new user with username as password
             User::create([
                 'username' => $id,
                 'password' => Hash::make($id),
@@ -129,7 +124,6 @@ class StaffController extends Controller
         }
         $id = DB::table('users')->where('username', $id)->value('id');
         $datas['user_id'] = $id;
-        // DB::table($this->table)->insert();
         Staff::updateOrCreate(['user_id' => $id], $datas);
         return redirect()->back()->with('success', 'Record Created!!!');
     }
@@ -227,7 +221,7 @@ class StaffController extends Controller
             return redirect('/');
         }
         $request->validate([
-            'file' => 'required|file|mimes:xlsx,xls',
+            'file' => 'required|file|mimes:xlsx,xls,csv,txt',
         ]);
 
         if ($request->hasFile('file')) {
