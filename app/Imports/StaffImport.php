@@ -55,6 +55,17 @@ class StaffImport implements ToCollection
                 // Use selected staff_category or fall back to Excel file value
                 $staff_category = $this->staff_category ? $this->staff_category : strtoupper($row[19]);
 
+                // Normalize TI No. format to always be TI12345
+                $ti_no = isset($row[21]) ? strtoupper(trim($row[21])) : null;
+                if ($ti_no) {
+                    // Remove any non-alphanumeric characters
+                    $ti_no = preg_replace('/[^A-Z0-9]/', '', $ti_no);
+                    // Remove any existing "TI" prefix to get the numeric part
+                    $ti_no = preg_replace('/^TI/', '', $ti_no);
+                    // Add "TI" prefix
+                    $ti_no = 'TI' . $ti_no;
+                }
+
                 if ($id > 0) {
                     Staff::updateOrCreate(
                         ['username' => $sp],
@@ -81,6 +92,7 @@ class StaffImport implements ToCollection
                             'phone' => strtoupper($row[18]),
                             'staff_category' => $staff_category,
                             'remark' => strtoupper($row[20]),
+                            'ti_no' => $ti_no,
                             'faculty' => $this -> faculty,
                             'department' => $this -> department,
                             'program' => $this -> program,
@@ -139,6 +151,7 @@ class StaffImport implements ToCollection
                         'phone' => strtoupper($row[18]),
                         'staff_category' => $staff_category,
                         'remark' => strtoupper($row[20]),
+                        'ti_no' => $ti_no,
                         'faculty' => $this -> faculty,
                         'department' => $this -> department,
                         'program' => $this -> program,

@@ -159,6 +159,18 @@
                                         <label for="nin" class="form-label">NIN <small class="text-muted">(required if Nigerian)</small></label>
                                         <input type="text" name="nin" id="nin" value="{{ $row->nin }}" class="form-control">
                                     </div>
+                                    <div class="form-group">
+                                        <label for="physically_challenged" class="form-label">Physically Challenged</label>
+                                        <select name="physically_challenged" id="physically-challenged-update" class="form-control">
+                                            <option value="{{ $row->physically_challenged }}">{{ $row->physically_challenged ?: 'Select' }}</option>
+                                            <option value="Yes">Yes</option>
+                                            <option value="No">No</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" id="physical-challenge-type-group-update" style="display: none;">
+                                        <label for="physical_challenge_type" class="form-label">Physical Challenge Type</label>
+                                        <input type="text" name="physical_challenge_type" id="physical-challenge-type-update" value="{{ $row->physical_challenge_type }}" class="form-control" placeholder="Specify type">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -465,6 +477,24 @@ function toggleLeaveFields() {
         }
     }
 }
+
+// Physically Challenged conditional field
+function togglePhysicalChallengeType() {
+    const physicallyChallenged = document.getElementById('physically-challenged-update');
+    const typeGroup = document.getElementById('physical-challenge-type-group-update');
+
+    if (physicallyChallenged && typeGroup) {
+        const value = physicallyChallenged.value;
+        if (value === 'Yes') {
+            typeGroup.style.display = 'block';
+        } else {
+            typeGroup.style.display = 'none';
+        }
+    }
+}
+
+$(document).on('change', '#physically-challenged-update', function(){ togglePhysicalChallengeType(); });
+$(function(){ togglePhysicalChallengeType(); });
 
 </script>
 

@@ -13,6 +13,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use setasign\Fpdi\Fpdi;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StaffController extends Controller
 {
@@ -182,7 +183,7 @@ class StaffController extends Controller
         $dateFields = ['date_of_birth', 'date_of_first_appointment', 'date_of_asumption', 'date_of_last_promotion', 'date_of_comfirmation', 'leave_start_date', 'leave_end_date'];
 
         // Fields that should keep original case (not uppercased)
-        $caseSensitiveFields = ['current_qualification', 'staff_status', 'leave_institution'];
+        $caseSensitiveFields = ['current_qualification', 'staff_status', 'leave_institution', 'physically_challenged', 'physical_challenge_type'];
 
         foreach ($datas as $key => $value) {
             if (is_string($value) && !in_array($key, $dateFields) && !in_array($key, $caseSensitiveFields)) {
@@ -276,7 +277,7 @@ class StaffController extends Controller
         $dateFields = ['date_of_birth', 'date_of_first_appointment', 'date_of_asumption', 'date_of_last_promotion', 'date_of_comfirmation', 'leave_start_date', 'leave_end_date'];
 
         // Fields that should keep original case (not uppercased)
-        $caseSensitiveFields = ['current_qualification', 'staff_status', 'leave_institution'];
+        $caseSensitiveFields = ['current_qualification', 'staff_status', 'leave_institution', 'physically_challenged', 'physical_challenge_type'];
 
         $datas = $req->except(['_token', 'picture', 'tab']);
 
@@ -332,6 +333,9 @@ class StaffController extends Controller
                 'picture' => $staff->user_id . '.' . $dot
             ]);
         }
+
+        // Recalculate profile completion
+        $this->recalculateProfileCompletion($username);
 
         $tab = $req->input('tab', 'personal');
         return redirect('/staff-profile?tab=' . $tab . '&mode=edit')->with('success', 'Profile Updated Successfully!');
@@ -406,6 +410,9 @@ class StaffController extends Controller
             DB::table('staff')->where('username', $username)->update($updates);
         }
 
+        // Recalculate profile completion
+        $this->recalculateProfileCompletion($username);
+
         return redirect('/staff-profile?tab=documents&mode=edit')->with('success', 'Documents Uploaded Successfully!');
     }
 
@@ -435,6 +442,104 @@ class StaffController extends Controller
         }
 
         return redirect('/staff-profile?tab=documents&mode=edit')->with('success', 'Document removed successfully!');
+    }
+
+    public function submitProfile(Request $req)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        $username = session('username');
+        $row = DB::table('staff')->where('username', $username)->first();
+        if (!$row) {
+            return redirect()->back()->with('error', 'Staff record not found');
+        }
+
+        // Validate all required fields
+        $missingFields = [];
+
+        // Personal Info
+        $personalFields = [
+            'name' => 'Full Name', 'gender' => 'Gender', 'marital_status' => 'Marital Status',
+            'date_of_birth' => 'Date of Birth', 'phone' => 'Phone', 'email' => 'Email',
+            'state' => 'State of Origin', 'lga' => 'LGA', 'nationality' => 'Nationality',
+            'nin' => 'NIN', 'address' => 'Home Address', 'physically_challenged' => 'Physically Challenged',
+        ];
+        foreach ($personalFields as $field => $label) {
+            if ($field == 'date_of_birth') {
+                if (empty($row->$field) || $row->$field == '1970-01-01') $missingFields[] = "Personal Info: $label";
+            } else {
+                if (empty($row->$field)) $missingFields[] = "Personal Info: $label";
+            }
+        }
+        if ($row->physically_challenged == 'Yes' && empty($row->physical_challenge_type)) {
+            $missingFields[] = "Personal Info: Physical Challenge Type";
+        }
+
+        // Service Record
+        $serviceFields = [
+            'designation_id' => 'Designation/Rank', 'staff_category' => 'Staff Category',
+            'employee_status' => 'Employment Status', 'grade_id' => 'Grade/Level', 'step_id' => 'Step',
+            'date_of_first_appointment' => 'Date of First Appointment',
+            'rank_of_first_appointment' => 'Rank on First Appointment',
+            'date_of_asumption' => 'Date of Assumption',
+            'current_qualification' => 'Current Qualification', 'staff_status' => 'Staff Status',
+        ];
+        foreach ($serviceFields as $field => $label) {
+            if (in_array($field, ['date_of_first_appointment', 'date_of_asumption'])) {
+                if (empty($row->$field) || $row->$field == '1970-01-01') $missingFields[] = "Service Record: $label";
+            } else {
+                if (empty($row->$field)) $missingFields[] = "Service Record: $label";
+            }
+        }
+
+        // Next of Kin & Bank
+        $kinBankFields = [
+            'kin_name' => 'Next of Kin Name', 'kin_phone' => 'Next of Kin Phone',
+            'kin_relationship' => 'Next of Kin Relationship', 'kin_address' => 'Next of Kin Address',
+            'bank_name' => 'Bank Name', 'account_number' => 'Account Number',
+            'pension_administrator' => 'Pension Name', 'pension_number' => 'Pension PIN Number',
+        ];
+        foreach ($kinBankFields as $field => $label) {
+            if (empty($row->$field)) $missingFields[] = "Next of Kin & Bank: $label";
+        }
+
+        // Education (at least one record)
+        $institutions = json_decode($row->institutions ?? '[]', true) ?: [];
+        $hasEducation = false;
+        foreach ($institutions as $inst) {
+            if (!empty($inst['name'])) { $hasEducation = true; break; }
+        }
+        if (!$hasEducation) $missingFields[] = "Education: At least one Education & Qualification record";
+
+        // Documents
+        $requiredDocs = [
+            'doc_photo' => 'Photo', 'doc_birth_certificate' => 'Birth Certificate',
+            'doc_primary_cert' => 'Primary School Certificate', 'doc_ssce' => 'SSCE/GCE',
+            'doc_indigine' => 'Indigine', 'doc_appointment_letter' => 'Appointment Letter',
+            'doc_confirmation' => 'Letter of Confirmation',
+        ];
+        foreach ($requiredDocs as $field => $label) {
+            if (empty($row->$field)) $missingFields[] = "Documents: $label";
+        }
+
+        if (!empty($missingFields)) {
+            return redirect('/staff-profile?tab=submit')->with('error', 'Profile is incomplete. Please fill all required fields before submitting.');
+        }
+
+        // Calculate completion percentage
+        $totalRequired = count($personalFields) + count($serviceFields) + count($kinBankFields) + 1 + count($requiredDocs);
+        $completionPercent = 100;
+
+        // Update profile status
+        DB::table('staff')->where('username', $username)->update([
+            'profile_status' => 'submitted',
+            'profile_submitted_at' => now(),
+            'profile_completion' => $completionPercent,
+        ]);
+
+        return redirect('/staff-profile?tab=submit')->with('success', 'Profile submitted successfully! All information has been recorded.');
     }
 
     public function uploadDegree(Request $request)
@@ -928,5 +1033,187 @@ class StaffController extends Controller
             ->orderBy('title', 'asc')
             ->get();
         return response()->json($programs);
+    }
+
+    public function showResetPasswordProgress()
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+        return view('main', ['page' => 'staff.reset_password_progress']);
+    }
+
+    public function resetPasswordStream(Request $request)
+    {
+        $password_method = $request->input('password_method', 'random');
+        $filters = $request->except(['password_method', 'generate_pdf', '_token']);
+
+        $response = new StreamedResponse(function () use ($password_method, $filters) {
+            set_time_limit(0);
+
+            $sendMessage = function (string $event, array $data): void {
+                echo "event: {$event}\n";
+                echo 'data: ' . json_encode($data) . "\n\n";
+                if (ob_get_level() > 0) {
+                    ob_flush();
+                }
+                flush();
+            };
+
+            try {
+                $query = DB::table('staff');
+                foreach ($filters as $key => $value) {
+                    $query->where($key, $value);
+                }
+
+                $totalCount = $query->count();
+                $processedCount = 0;
+                $successCount = 0;
+                $failCount = 0;
+
+                $sendMessage('status', [
+                    'message' => "Found {$totalCount} staff records to process...",
+                ]);
+
+                if ($totalCount === 0) {
+                    $sendMessage('finished', ['message' => 'No staff members matched the criteria. Nothing to do.']);
+                    return;
+                }
+
+                $query->orderBy('id')->chunk(20, function ($staffMembers) use ($sendMessage, &$processedCount, &$successCount, &$failCount, $totalCount, $password_method) {
+                    foreach ($staffMembers as $staff) {
+                        DB::beginTransaction();
+                        try {
+                            $password = '';
+                            switch ($password_method) {
+                                case 'phone':
+                                    $password = $staff->phone ?? '';
+                                    if (empty($password)) {
+                                        $password = $staff->username ?? '';
+                                    }
+                                    break;
+                                case 'ti_no':
+                                    $password = $staff->ti_no ?? '';
+                                    if (empty($password)) {
+                                        $password = $staff->username ?? '';
+                                    }
+                                    break;
+                                case 'account_no':
+                                    $password = $staff->account_number ?? '';
+                                    if (empty($password)) {
+                                        $password = $staff->username ?? '';
+                                    }
+                                    break;
+                                case 'username':
+                                    $password = $staff->username ?? '';
+                                    break;
+                                case 'random':
+                                default:
+                                    $password = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+                                    break;
+                            }
+
+                            if (!empty($password)) {
+                                $user_id = $staff->user_id;
+                                DB::table('users')->where('id', $user_id)->update([
+                                    'password' => Hash::make($password)
+                                ]);
+
+                                $successCount++;
+                                $sendMessage('progress', [
+                                    'message' => "✅ Password reset for {$staff->username}.",
+                                    'progress' => round((++$processedCount / $totalCount) * 100),
+                                ]);
+                            } else {
+                                $failCount++;
+                                $sendMessage('progress', [
+                                    'message' => "❌ Failed to generate password for {$staff->username}.",
+                                    'progress' => round((++$processedCount / $totalCount) * 100),
+                                ]);
+                            }
+                            DB::commit();
+                        } catch (\Throwable $e) {
+                            DB::rollBack();
+                            $failCount++;
+                            $sendMessage('progress', [
+                                'message' => "❌ Error processing staff '{$staff->username}': " . $e->getMessage() . '. Continuing...',
+                                'progress' => round((++$processedCount / $totalCount) * 100),
+                            ]);
+                        }
+                    }
+                });
+
+                $sendMessage('finished', [
+                    'message' => "✅ Process completed! Success: {$successCount}, Failed: {$failCount}."
+                ]);
+            } catch (\Throwable $e) {
+                $sendMessage('finished', ['message' => '❌ A critical error occurred: ' . $e->getMessage()]);
+            }
+        });
+
+        $response->headers->set('Content-Type', 'text/event-stream');
+        $response->headers->set('Cache-Control', 'no-cache');
+        $response->headers->set('Connection', 'keep-alive');
+        $response->headers->set('X-Accel-Buffering', 'no');
+
+        return $response;
+    }
+
+    private function recalculateProfileCompletion($username)
+    {
+        $row = DB::table('staff')->where('username', $username)->first();
+        if (!$row) return;
+
+        $totalRequired = 0;
+        $filledRequired = 0;
+
+        // Personal Info
+        $personalFields = ['name', 'gender', 'marital_status', 'date_of_birth', 'phone', 'email', 'state', 'lga', 'nationality', 'nin', 'address', 'physically_challenged'];
+        foreach ($personalFields as $field) {
+            $totalRequired++;
+            if ($field == 'date_of_birth') {
+                if (!empty($row->$field) && $row->$field != '1970-01-01') $filledRequired++;
+            } else {
+                if (!empty($row->$field)) $filledRequired++;
+            }
+        }
+
+        // Service Record
+        $serviceFields = ['designation_id', 'staff_category', 'employee_status', 'grade_id', 'step_id', 'date_of_first_appointment', 'rank_of_first_appointment', 'date_of_asumption', 'current_qualification', 'staff_status'];
+        foreach ($serviceFields as $field) {
+            $totalRequired++;
+            if (in_array($field, ['date_of_first_appointment', 'date_of_asumption'])) {
+                if (!empty($row->$field) && $row->$field != '1970-01-01') $filledRequired++;
+            } else {
+                if (!empty($row->$field)) $filledRequired++;
+            }
+        }
+
+        // Next of Kin & Bank
+        $kinBankFields = ['kin_name', 'kin_phone', 'kin_relationship', 'kin_address', 'bank_name', 'account_number', 'pension_administrator', 'pension_number'];
+        foreach ($kinBankFields as $field) {
+            $totalRequired++;
+            if (!empty($row->$field)) $filledRequired++;
+        }
+
+        // Education (at least one record)
+        $totalRequired++;
+        $institutions = json_decode($row->institutions ?? '[]', true) ?: [];
+        foreach ($institutions as $inst) {
+            if (!empty($inst['name'])) { $filledRequired++; break; }
+        }
+
+        // Documents
+        $requiredDocs = ['doc_photo', 'doc_birth_certificate', 'doc_primary_cert', 'doc_ssce', 'doc_indigine', 'doc_appointment_letter', 'doc_confirmation'];
+        foreach ($requiredDocs as $field) {
+            $totalRequired++;
+            if (!empty($row->$field)) $filledRequired++;
+        }
+
+        $completionPercent = $totalRequired > 0 ? round(($filledRequired / $totalRequired) * 100) : 0;
+
+        DB::table('staff')->where('username', $username)->update([
+            'profile_completion' => $completionPercent,
+        ]);
     }
 }

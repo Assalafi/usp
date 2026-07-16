@@ -220,6 +220,7 @@
         <button class="sp-tab {{ $activeTab == 'nextofkin' ? 'active' : '' }}" onclick="switchTab('nextofkin')"><i class="fas fa-users"></i> Next of Kin & Bank</button>
         <button class="sp-tab {{ $activeTab == 'education' ? 'active' : '' }}" onclick="switchTab('education')"><i class="fas fa-graduation-cap"></i> Education & Experience</button>
         <button class="sp-tab {{ $activeTab == 'documents' ? 'active' : '' }}" onclick="switchTab('documents')"><i class="fas fa-file-alt"></i> Documents</button>
+        <button class="sp-tab {{ $activeTab == 'submit' ? 'active' : '' }}" onclick="switchTab('submit')"><i class="fas fa-paper-plane"></i> Submit</button>
     </div>
 
     {{-- ==================== TAB 1: PERSONAL INFO ==================== --}}
@@ -239,6 +240,10 @@
             <div class="sp-view-item"><div class="label">Nationality</div><div class="value">{{ $row->nationality ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">NIN</div><div class="value">{{ $row->nin ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Address</div><div class="value">{{ $row->address ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Physically Challenged</div><div class="value">{{ $row->physically_challenged ?: 'Not set' }}</div></div>
+            @if($row->physically_challenged == 'Yes')
+                <div class="sp-view-item"><div class="label">Physical Challenge Type</div><div class="value">{{ $row->physical_challenge_type ?: 'Not specified' }}</div></div>
+            @endif
         </div>
     @else
         <form action="/staff-profile-update" method="POST" enctype="multipart/form-data">
@@ -366,6 +371,18 @@
                 <div class="sp-form-group" style="grid-column: 1/-1;">
                     <label>Home Address</label>
                     <textarea name="address" rows="2">{{ $row->address }}</textarea>
+                </div>
+                <div class="sp-form-group">
+                    <label>Physically Challenged</label>
+                    <select name="physically_challenged" id="sp-physically-challenged">
+                        <option value="{{ $row->physically_challenged }}">{{ $row->physically_challenged ?: 'Select' }}</option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                    </select>
+                </div>
+                <div class="sp-form-group" id="sp-physical-challenge-type-group" style="display: none;">
+                    <label>Physical Challenge Type</label>
+                    <input type="text" name="physical_challenge_type" id="sp-physical-challenge-type" value="{{ $row->physical_challenge_type }}" placeholder="Specify type">
                 </div>
             </div>
             <button type="submit" class="sp-save-btn"><i class="fas fa-save"></i> Save Personal Info</button>
@@ -945,6 +962,222 @@
         </form>
     @endif
     </div>
+
+    {{-- ==================== TAB 6: SUBMIT ==================== --}}
+    <div class="sp-panel {{ $activeTab == 'submit' ? 'active' : '' }}" id="panel-submit">
+    @php
+        // Calculate profile completion
+        $missingFields = [];
+        $totalRequired = 0;
+        $filledRequired = 0;
+
+        // Personal Info required fields
+        $personalFields = [
+            'name' => 'Full Name',
+            'gender' => 'Gender',
+            'marital_status' => 'Marital Status',
+            'date_of_birth' => 'Date of Birth',
+            'phone' => 'Phone',
+            'email' => 'Email',
+            'state' => 'State of Origin',
+            'lga' => 'LGA',
+            'nationality' => 'Nationality',
+            'nin' => 'NIN',
+            'address' => 'Home Address',
+            'physically_challenged' => 'Physically Challenged',
+        ];
+        $personalMissing = [];
+        foreach ($personalFields as $field => $label) {
+            $totalRequired++;
+            if ($field == 'date_of_birth') {
+                if (!empty($row->$field) && $row->$field != '1970-01-01') {
+                    $filledRequired++;
+                } else {
+                    $personalMissing[] = $label;
+                }
+            } else {
+                if (!empty($row->$field)) {
+                    $filledRequired++;
+                } else {
+                    $personalMissing[] = $label;
+                }
+            }
+        }
+        if ($row->physically_challenged == 'Yes' && empty($row->physical_challenge_type)) {
+            $personalMissing[] = 'Physical Challenge Type';
+        }
+        if (!empty($personalMissing)) $missingFields['Personal Info'] = $personalMissing;
+
+        // Service Record required fields
+        $serviceFields = [
+            'designation_id' => 'Designation/Rank',
+            'staff_category' => 'Staff Category',
+            'employee_status' => 'Employment Status',
+            'grade_id' => 'Grade/Level',
+            'step_id' => 'Step',
+            'date_of_first_appointment' => 'Date of First Appointment',
+            'rank_of_first_appointment' => 'Rank on First Appointment',
+            'date_of_asumption' => 'Date of Assumption',
+            'current_qualification' => 'Current Qualification recognized by the university',
+            'staff_status' => 'Staff Status',
+        ];
+        $serviceMissing = [];
+        foreach ($serviceFields as $field => $label) {
+            $totalRequired++;
+            if (in_array($field, ['date_of_first_appointment', 'date_of_asumption'])) {
+                if (!empty($row->$field) && $row->$field != '1970-01-01') {
+                    $filledRequired++;
+                } else {
+                    $serviceMissing[] = $label;
+                }
+            } else {
+                if (!empty($row->$field)) {
+                    $filledRequired++;
+                } else {
+                    $serviceMissing[] = $label;
+                }
+            }
+        }
+        if (!empty($serviceMissing)) $missingFields['Service Record'] = $serviceMissing;
+
+        // Next of Kin & Bank required fields
+        $kinBankFields = [
+            'kin_name' => 'Next of Kin Name',
+            'kin_phone' => 'Next of Kin Phone',
+            'kin_relationship' => 'Next of Kin Relationship',
+            'kin_address' => 'Next of Kin Address',
+            'bank_name' => 'Bank Name',
+            'account_number' => 'Account Number',
+            'pension_administrator' => 'Pension Name',
+            'pension_number' => 'Pension PIN Number',
+        ];
+        $kinBankMissing = [];
+        foreach ($kinBankFields as $field => $label) {
+            $totalRequired++;
+            if (!empty($row->$field)) {
+                $filledRequired++;
+            } else {
+                $kinBankMissing[] = $label;
+            }
+        }
+        if (!empty($kinBankMissing)) $missingFields['Next of Kin & Bank'] = $kinBankMissing;
+
+        // Education required (at least one record)
+        $educationInstitutions = json_decode($row->institutions ?? '[]', true) ?: [];
+        $hasEducation = false;
+        foreach ($educationInstitutions as $inst) {
+            if (!empty($inst['name'])) {
+                $hasEducation = true;
+                break;
+            }
+        }
+        $totalRequired++;
+        if ($hasEducation) {
+            $filledRequired++;
+        } else {
+            $missingFields['Education & Experience'] = ['At least one Education & Qualification record is required'];
+        }
+
+        // Documents required
+        $requiredDocs = [
+            'doc_photo' => 'Photo',
+            'doc_birth_certificate' => 'Birth Certificate/Declaration of Age',
+            'doc_primary_cert' => 'Primary School Certificate',
+            'doc_ssce' => 'SSCE/GCE',
+            'doc_indigine' => 'Indigine',
+            'doc_appointment_letter' => 'Appointment Letter',
+            'doc_confirmation' => 'Letter of Confirmation',
+        ];
+        $docsMissing = [];
+        foreach ($requiredDocs as $field => $label) {
+            $totalRequired++;
+            if (!empty($row->$field)) {
+                $filledRequired++;
+            } else {
+                $docsMissing[] = $label;
+            }
+        }
+        if (!empty($docsMissing)) $missingFields['Documents'] = $docsMissing;
+
+        $completionPercent = $totalRequired > 0 ? round(($filledRequired / $totalRequired) * 100) : 0;
+        $isComplete = empty($missingFields);
+    @endphp
+
+        <div class="sp-section-title"><i class="fas fa-paper-plane"></i> Profile Submission</div>
+
+        {{-- Progress Bar --}}
+        <div style="margin-bottom: 25px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                <strong>Profile Completion</strong>
+                <span style="font-weight:700; color:{{ $completionPercent == 100 ? '#06d6a0' : ($completionPercent >= 70 ? '#f4a261' : '#ef476f') }};">{{ $completionPercent }}%</span>
+            </div>
+            <div style="width:100%; background:#e9ecef; border-radius:10px; height:12px; overflow:hidden;">
+                <div style="width:{{ $completionPercent }}%; background:{{ $completionPercent == 100 ? '#06d6a0' : ($completionPercent >= 70 ? '#f4a261' : '#ef476f') }}; height:100%; border-radius:10px; transition:width 0.5s;"></div>
+            </div>
+        </div>
+
+        {{-- Status Badge --}}
+        @if($row->profile_status == 'submitted')
+            <div style="background:#d4edda; border:1px solid #c3e6cb; border-radius:10px; padding:20px; margin-bottom:20px;">
+                <h4 style="color:#155724; margin:0 0 8px 0;"><i class="fas fa-check-circle"></i> Profile Submitted</h4>
+                <p style="color:#155724; margin:0;">Your profile was submitted on <strong>{{ $row->profile_submitted_at ? \Carbon\Carbon::parse($row->profile_submitted_at)->format('d M, Y h:i A') : '' }}</strong>. All information has been recorded.</p>
+            </div>
+        @endif
+
+        {{-- Missing Fields --}}
+        @if(!$isComplete)
+            <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:10px; padding:20px; margin-bottom:20px;">
+                <h4 style="color:#856404; margin:0 0 12px 0;"><i class="fas fa-exclamation-triangle"></i> Incomplete Profile</h4>
+                <p style="color:#856404; margin:0 0 12px 0;">Please fill in the following required fields and <strong>save each section</strong> before submitting:</p>
+                @foreach($missingFields as $section => $fields)
+                    <div style="margin-bottom:12px;">
+                        <strong style="color:#6c4c00;">{{ $section }}:</strong>
+                        <ul style="margin:4px 0 0 20px; padding:0; color:#856404;">
+                            @foreach($fields as $f)
+                                <li>{{ $f }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <div style="background:#d1ecf1; border:1px solid #bee5eb; border-radius:10px; padding:20px; margin-bottom:20px;">
+                <h4 style="color:#0c5460; margin:0 0 8px 0;"><i class="fas fa-info-circle"></i> All Sections Complete</h4>
+                <p style="color:#0c5460; margin:0;">Your profile information is complete. You may now submit your profile.</p>
+            </div>
+        @endif
+
+        {{-- Declaration --}}
+        <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:10px; padding:20px; margin-bottom:20px;">
+            <h4 style="margin:0 0 12px 0; color:#2c3e50;"><i class="fas fa-shield-alt"></i> Declaration</h4>
+            <p style="font-size:14px; color:#495057; line-height:1.7; margin:0;">
+                I hereby declare that all the information provided in this profile is true, accurate, and complete to the best of my knowledge.
+                I understand that any false or misleading information may lead to disciplinary action, including but not limited to termination of appointment.
+                I also agree that this submission serves as my consent for the university to verify the information provided herein.
+            </p>
+        </div>
+
+        {{-- Submit Button --}}
+        @if($row->profile_status != 'submitted')
+            <form action="/staff-profile-submit" method="POST" id="profile-submit-form">
+                @csrf
+                <div style="margin-bottom:15px;">
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:14px;">
+                        <input type="checkbox" id="declaration-checkbox" required style="width:18px; height:18px;">
+                        <span>I have read and agree to the declaration above</span>
+                    </label>
+                </div>
+                <button type="submit" class="sp-save-btn" id="submit-profile-btn" style="background:linear-gradient(135deg, #06d6a0, #00b894); font-size:16px; padding:14px 32px;" {{ !$isComplete ? 'disabled' : '' }}>
+                    <i class="fas fa-paper-plane"></i> Submit Profile
+                </button>
+                @if(!$isComplete)
+                    <p style="color:#dc3545; margin-top:10px; font-size:13px;"><i class="fas fa-exclamation-circle"></i> Please complete all required fields before submitting.</p>
+                @endif
+            </form>
+        @else
+            <p style="color:#28a745; font-weight:600;"><i class="fas fa-check-circle"></i> Profile has been submitted successfully.</p>
+        @endif
+    </div>
 </div>
 @endforeach
 
@@ -1199,6 +1432,20 @@ $(document).on('change', '#sp-nationality', function(){ spSyncNinRequired(); });
 $(function(){ spSyncNinRequired(); });
 $('#sp-nationality').trigger('change');
 
+// Physically Challenged conditional field (staff profile personal tab)
+function spSyncPhysicallyChallenged() {
+    var physicallyChallenged = $('#sp-physically-challenged').val();
+    var typeGroup = $('#sp-physical-challenge-type-group');
+    if (physicallyChallenged === 'Yes') {
+        typeGroup.show();
+    } else {
+        typeGroup.hide();
+    }
+}
+$(document).on('change', '#sp-physically-challenged', function(){ spSyncPhysicallyChallenged(); });
+$(function(){ spSyncPhysicallyChallenged(); });
+$('#sp-physically-challenged').trigger('change');
+
 @include('includes.nigeria-states-lgas')
 
 // State → LGA cascading for staff profile
@@ -1215,5 +1462,27 @@ $(function() {
 $(document).on('submit', 'form[action="/staff-profile-documents"]', function(e) {
     console.log('Form submit event triggered');
     return checkRequiredDocs(this);
+});
+
+// Profile submit confirmation
+$(document).on('submit', '#profile-submit-form', function(e) {
+    e.preventDefault();
+    var form = this;
+    var checkbox = document.getElementById('declaration-checkbox');
+    if (!checkbox.checked) {
+        swal('Declaration Required', 'Please check the declaration checkbox to proceed.', 'warning');
+        return false;
+    }
+    swal({
+        title: 'Submit Profile?',
+        text: 'Are you sure you want to submit your profile? Please ensure all information is correct as this action confirms the genuineness of your data.',
+        icon: 'warning',
+        buttons: ['Cancel', 'Yes, Submit'],
+        dangerMode: true,
+    }).then(function(confirmed) {
+        if (confirmed) {
+            form.submit();
+        }
+    });
 });
 </script>

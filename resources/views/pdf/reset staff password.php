@@ -119,9 +119,18 @@ $table = new easyTable($pdf, '{12, 20, 30, 30, 30, 20, 30}', 'width:170; border-
     // Table body (data rows)
     $x = 0;
     foreach ($data as $row) {
-        $pass = password();
-        if(User::where(['username' => $row->username])->update(['password' => Hash::make(strtoupper($pass))])){
-        $x++;
+        // Use the generated password from the route, don't generate new ones
+        $pass = isset($row->generated_password) ? $row->generated_password : password();
+
+        // Only update if password wasn't already set in the route
+        if (!isset($row->generated_password)) {
+            if(User::where(['username' => $row->username])->update(['password' => Hash::make(strtoupper($pass))])){
+                $x++;
+            }
+        } else {
+            $x++;
+        }
+
         $table->rowStyle('align:{CLLLLCC}; font-size:8;');
         $table->easyCell($x);
         $table->easyCell($row->username);
@@ -131,7 +140,6 @@ $table = new easyTable($pdf, '{12, 20, 30, 30, 30, 20, 30}', 'width:170; border-
         $table->easyCell($row->phone);
         $table->easyCell($pass);
         $table->printRow();
-        }
 
     $pdf->Ln(5);
 

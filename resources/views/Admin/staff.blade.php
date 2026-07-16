@@ -432,7 +432,34 @@
                         aria-hidden="true">&times;</span></button>
             </div>
             <div class="card">
-                <a href="/reset-staff-password?{{ $requestUri }}" class="btn btn-warning">Reset Password</a>
+                <form class="form-group" action="/reset-staff-password" method="GET">
+                    <div class="card-body">
+                        <h5 class="card-title">Select Type First</h5>
+                        @foreach(request()->query() as $key => $value)
+                            <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                        @endforeach
+
+                        <div class="form-group">
+                            <label>Password Generation Method:</label>
+                            <select class="form-control" name="password_method">
+                                <option value="random" selected>Random</option>
+                                <option value="phone">Phone Number</option>
+                                <option value="ti_no">TI No.</option>
+                                <option value="account_no">Account Number</option>
+                                <option value="username">Username</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" name="generate_pdf" value="1"> Generate PDF
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-warning">Reset Password</button>
+                        <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </form>
             </div>
 
         </div>

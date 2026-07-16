@@ -34,6 +34,7 @@ use App\Models\Student;
 use App\Models\StudentCourseRegistration;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
@@ -865,17 +866,76 @@ Route::get('reset-staff-password', function (Request $req) {
         return redirect('/');
     }
     $data = $req->all();
-    unset($data['_token']);
+    $password_method = $req->input('password_method', 'random');
+    $generate_pdf = $req->input('generate_pdf', 0);
+
+    // If not generating PDF, redirect to progress view with parameters
+    if (!$generate_pdf) {
+        return redirect()->route('staff.reset_password_progress', $data);
+    }
+
+    unset($data['_token'], $data['password_method'], $data['generate_pdf']);
     $filteredData = array_filter($data);
     $query = DB::table('staff');
     foreach ($filteredData as $key => $value) {
         $query->where($key, $value);
-        // echo $key . ' ' . $value . '<br>';
     }
-    // die;
     $data['data'] = $query->get();
-    return view('pdf/reset staff password', $data);
+
+    // Generate passwords based on selected method
+    foreach ($data['data'] as $staff) {
+        $password = '';
+        switch ($password_method) {
+            case 'phone':
+                $password = $staff->phone ?? '';
+                if (empty($password)) {
+                    $password = $staff->username ?? '';
+                }
+                break;
+            case 'ti_no':
+                $password = $staff->ti_no ?? '';
+                if (empty($password)) {
+                    $password = $staff->username ?? '';
+                }
+                break;
+            case 'account_no':
+                $password = $staff->account_number ?? '';
+                if (empty($password)) {
+                    $password = $staff->username ?? '';
+                }
+                break;
+            case 'username':
+                $password = $staff->username ?? '';
+                break;
+            case 'random':
+            default:
+                $password = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+                break;
+        }
+
+        // Update the password in users table
+        if (!empty($password)) {
+            $user_id = $staff->user_id;
+            DB::table('users')->where('id', $user_id)->update([
+                'password' => Hash::make($password)
+            ]);
+            // Add generated password to staff data for display
+            $staff->generated_password = $password;
+        }
+    }
+
+    $data['password_method'] = $password_method;
+    $data['generate_pdf'] = $generate_pdf;
+
+    if ($generate_pdf) {
+        return view('pdf/reset staff password', $data);
+    } else {
+        return redirect()->back()->with('success', 'Passwords reset successfully.');
+    }
 });
+
+Route::get('/staff/reset-password-progress', [StaffController::class, 'showResetPasswordProgress'])->name('staff.reset_password_progress');
+Route::get('/staff/reset-password-stream', [StaffController::class, 'resetPasswordStream'])->name('staff.reset_password_stream');
 
 Route::get('/hostel-invoice', function (Request $req) {
     if (!session()->has('log')) {
@@ -931,6 +991,7 @@ Route::get('staff-profile', function () {
 Route::post('/staff-profile-update', [StaffController::class, 'profileUpdate']);
 Route::post('/staff-profile-documents', [StaffController::class, 'uploadDocuments']);
 Route::post('/staff-profile-delete-doc', [StaffController::class, 'deleteOtherDoc']);
+Route::post('/staff-profile-submit', [StaffController::class, 'submitProfile']);
 Route::post('/staff/export/pdf', [StaffController::class, 'exportPdf'])->name('staff.export.pdf')->middleware('role');
 Route::post('/staff/export/excel', [StaffController::class, 'exportExcel'])->name('staff.export.excel')->middleware('role');
 Route::get('/get-departments/{faculty}', [StaffController::class, 'getDepartments'])->middleware('role');

@@ -89,6 +89,10 @@
                 <tr><td class="label">Gender:</td><td class="value">{{ $row->gender ?? 'N/A' }}</td></tr>
                 <tr><td class="label">Marital Status:</td><td class="value">{{ $row->marital_status ?? 'N/A' }}</td></tr>
                 <tr><td class="label">Date of Birth:</td><td class="value">{{ ($row->date_of_birth && $row->date_of_birth != '1970-01-01') ? $row->date_of_birth : 'N/A' }}</td></tr>
+                <tr><td class="label">Physically Challenged:</td><td class="value">{{ $row->physically_challenged ?? 'N/A' }}</td></tr>
+                @if($row->physically_challenged == 'Yes')
+                    <tr><td class="label">Physical Challenge Type:</td><td class="value">{{ $row->physical_challenge_type ?? 'Not specified' }}</td></tr>
+                @endif
             </table>
         </td>
         <td>
