@@ -234,9 +234,11 @@ class StaffController extends Controller
             $faculty = $request->faculty;
             $department = $request->department;
             $program = $request->program;
+            $unit_id = $request->unit_id;
+            $staff_category = $request->staff_category;
 
             // Load the uploaded file using Maatwebsite/Excel
-            $import = new StaffImport($faculty, $department, $program);
+            $import = new StaffImport($faculty, $department, $program, $unit_id, $staff_category);
             // print_r($file);
             // die;
             Excel::import($import, $file);
