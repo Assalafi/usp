@@ -196,7 +196,7 @@
                     $action = 1;
                 } elseif ($approve == 'hod' && session('appointment') == 'DEAN') {
                     $action = 1;
-                } elseif ($approve == 'dean' && session('unit') == 'COURSE SYSTEM') {
+                } elseif ($approve == 'dean' && session('appointment') == 'COURSE SYSTEM') {
                     $action = 1;
                 } elseif ($approve == 'cs' && session('appointment') == 'VC') {
                     $action = 1;
