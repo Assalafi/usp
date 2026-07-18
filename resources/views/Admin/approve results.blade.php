@@ -113,6 +113,7 @@
                             @if (session('accType') == 'Admin' ||
                             session('appointment') == 'DEAN' ||
                             session('appointment') == 'VC' ||
+                            session('appointment') == 'COURSE SYSTEM' ||
                             session('unit') == 'COURSE SYSTEM')
 
 <div class="form-group col-md-2">
@@ -148,10 +149,10 @@
     <div class="invalid-feedback"> You must select Program </div>
 </div>
 
-                        
+
                             @endif
 
-                                
+
                                 <div class="form-group col-md-2">
                                     <label for="session">Session</label>
                                     <select class="form-control" id="session" name="session" required>
@@ -212,7 +213,7 @@
                                                 $action = 1;
                                             } elseif ($approve == 'hod' && session('appointment') == 'DEAN') {
                                                 $action = 1;
-                                            } elseif ($approve == 'dean' && session('unit') == 'COURSE SYSTEM') {
+                                            } elseif ($approve == 'dean' && session('appointment') == 'COURSE SYSTEM') {
                                                 $action = 1;
                                             } elseif ($approve == 'cs' && session('appointment') == 'VC') {
                                                 $action = 1;
