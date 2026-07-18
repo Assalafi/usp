@@ -171,6 +171,10 @@ class UsersController extends Controller
 
     public function accountNumberAsPasswordWithProgress()
     {
+        if (!session()->has('log') || session('accType') !== 'Admin') {
+            abort(403, 'Unauthorized');
+        }
+
         // Use Laravel's StreamedResponse for Server-Sent Events
         $response = new StreamedResponse(function () {
             set_time_limit(0);
