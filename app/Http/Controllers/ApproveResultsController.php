@@ -62,7 +62,7 @@ class ApproveResultsController extends Controller
         }
         $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
         $data['session'] = DB::table('session')->select('title')->orderBy('title', 'ASC')->get();
-        if (session('accType') == 'Staff' && session('appointment') != 'DEAN' && session('appointment') != 'VC' && session('unit') != 'COURSE SYSTEM') {
+        if (session('accType') == 'Staff' && session('appointment') != 'DEAN' && session('appointment') != 'VC' && session('appointment') != 'COURSE SYSTEM') {
             $data['sessions'] = $session;
             if (session('appointment') == 'HOD') {
                 $lecturerCourses = DB::table('course')->where(['department' => session('department')])->select('code')->pluck('code');
