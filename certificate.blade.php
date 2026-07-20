@@ -212,6 +212,16 @@
                 <form action="/print-certificate-batch-pdf" method="GET" target="_blank">
                     <div class="card-body">
                         <div class="form-group">
+                            <label for="batch_school">School</label>
+                            <select class="form-control" name="school_id" id="batch_school">
+                                <option value="">-- All --</option>
+                                <option value="0">UNIMAID</option>
+                                @foreach (($affiliated_schools ?? []) as $school)
+                                    <option value="{{ $school->id }}">{{ $school->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label for="batch_grad">Graduation Date</label>
                             <select class="form-control" name="graduation_date" id="batch_grad">
                                 <option value="">-- All --</option>

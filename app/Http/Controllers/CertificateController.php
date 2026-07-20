@@ -267,6 +267,9 @@ class CertificateController extends Controller
         if ($request->filled('faculty')) {
             $query->where('faculty', $request->faculty);
         }
+        if ($request->filled('school_id') || $request->input('school_id') === '0') {
+            $query->where('school_id', $request->school_id);
+        }
 
         $records = $query->orderBy('fullname', 'ASC')->get();
 
