@@ -14,6 +14,9 @@
                         <button class="btn btn-dark uploadAction" data-bs-toggle="modal" data-bs-target="#importGraduated">
                             <i class="fas fa-upload"></i> Upload Graduated Students
                         </button>
+                        <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#importAffiliatedStudents">
+                            <i class="fas fa-upload"></i> Upload Affiliated Students
+                        </button>
                         <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#batchGenerateModal">
                             <i class="fas fa-file-pdf"></i> Generate Batch PDF
                         </button>
@@ -39,6 +42,16 @@
                                 <div class="form-group col-md-2">
                                     <label for="username">ID Number</label>
                                     <input type="text" name="username" id="username" class="form-control" value="{{ request('username') }}">
+                                </div>
+                                <div class="form-group col-md-2">
+                                    <label for="filter_school">School</label>
+                                    <select class="form-control" id="filter_school" name="school_id">
+                                        <option value="">All</option>
+                                        <option value="0" {{ request('school_id') === '0' ? 'selected' : '' }}>UNIMAID</option>
+                                        @foreach ($affiliated_schools as $school)
+                                            <option value="{{ $school->id }}" {{ request('school_id') == $school->id ? 'selected' : '' }}>{{ $school->name }}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
                                 <div class="form-group col-md-2">
                                     <label for="filter_faculty">Faculty</label>
@@ -214,6 +227,69 @@
     </div>
 </div>
 
+<!-- Upload Affiliated Students Modal -->
+<div id="importAffiliatedStudents" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-md" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Upload Affiliated Graduated Students</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="card">
+                <div class="card-body">
+                    <p class="text-muted mb-2">Format: <strong>SN | ID No | Name | Class of Degree</strong></p>
+                    <a href="/download-affiliated-template" class="btn btn-info btn-sm mb-3"><i class="fas fa-download"></i> Download Template</a>
+                </div>
+                <form action="/upload-affiliated-certificate" method="POST" enctype="multipart/form-data">
+                    <div class="card-body">
+                        @csrf
+                        <div class="form-group">
+                            <label for="aff_school_id">Affiliated School <span class="text-danger">*</span></label>
+                            <select name="affiliated_school_id" id="aff_school_id" class="form-control" required>
+                                <option value="">Select Affiliated School</option>
+                                @foreach ($affiliated_schools as $school)
+                                    <option value="{{ $school->id }}">{{ $school->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="aff_cert_faculty">Faculty <span class="text-danger">*</span></label>
+                            <select class="form-control" id="aff_cert_faculty" name="faculty" required>
+                                <option value="">Select Option</option>
+                                @foreach ($faculty as $row)
+                                    <option value="{{ $row->code }}">{{ $row->title }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="aff_cert_department">Department <span class="text-danger">*</span></label>
+                            <select class="form-control" id="aff_cert_department" name="department" required>
+                                <option value="">Select Faculty First</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="aff_cert_program">Program <span class="text-danger">*</span></label>
+                            <select class="form-control" id="aff_cert_program" name="program" required>
+                                <option value="">Select Department First</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="aff_graduation_date">Graduation Date <span class="text-danger">*</span></label>
+                            <input type="date" name="graduation_date" id="aff_graduation_date" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="aff_cert_file">Excel/CSV File <span class="text-danger">*</span></label>
+                            <input type="file" name="file" id="aff_cert_file" accept=".xlsx, .xls, .csv" class="form-control" required>
+                        </div>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-success">Upload</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Batch Generate Modal -->
 <div id="batchGenerateModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-md" role="document">
@@ -276,4 +352,32 @@ function saveCertSetting() {
 }
 document.getElementById('certTypeSelect').addEventListener('change', saveCertSetting);
 document.getElementById('certBgSelect').addEventListener('change', saveCertSetting);
+
+// Affiliated student upload cascade
+var affDepts = @json($departments ?? []);
+var affProgs = @json($programs ?? []);
+var affFaculty = document.getElementById('aff_cert_faculty');
+var affDept = document.getElementById('aff_cert_department');
+var affProg = document.getElementById('aff_cert_program');
+if (affFaculty) {
+    affFaculty.addEventListener('change', function() {
+        var code = this.value;
+        affDept.innerHTML = '<option value="">Select Department</option>';
+        affProg.innerHTML = '<option value="">Select Department First</option>';
+        affDepts.forEach(function(d) {
+            if (d.faculty == code) {
+                affDept.insertAdjacentHTML('beforeend', '<option value="' + d.code + '">' + d.title + '</option>');
+            }
+        });
+    });
+    affDept.addEventListener('change', function() {
+        var code = this.value;
+        affProg.innerHTML = '<option value="">Select Program</option>';
+        affProgs.forEach(function(p) {
+            if (p.department == code) {
+                affProg.insertAdjacentHTML('beforeend', '<option value="' + p.code + '">' + p.title + '</option>');
+            }
+        });
+    });
+}
 </script>

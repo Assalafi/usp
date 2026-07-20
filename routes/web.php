@@ -861,6 +861,16 @@ Route::get('print-certificate-pdf', [CertificateController::class, 'generatePdf'
 Route::get('print-certificate-batch-pdf', [CertificateController::class, 'generateBatchPdf'])->middleware('role');
 Route::get('download-certificate-template', [CertificateController::class, 'downloadTemplate'])->middleware('role');
 
+// Affiliated Schools Certificate Routes
+Route::get('/affiliated-schools', [CertificateController::class, 'affiliatedSchoolsIndex'])->middleware('role');
+Route::post('/create-affiliated-school', [CertificateController::class, 'affiliatedSchoolsStore'])->middleware('role');
+Route::post('/update-affiliated-school', [CertificateController::class, 'affiliatedSchoolsUpdate'])->middleware('role');
+Route::post('/delete-affiliated-school', [CertificateController::class, 'affiliatedSchoolsDelete'])->middleware('role');
+Route::post('/upload-affiliated-schools-list', [CertificateController::class, 'uploadAffiliatedSchoolsList'])->middleware('role');
+Route::get('download-affiliated-schools-template', [CertificateController::class, 'downloadAffiliatedSchoolsTemplate'])->middleware('role');
+Route::post('/upload-affiliated-certificate', [CertificateController::class, 'affiliatedSchoolsUpload'])->middleware('role');
+Route::get('download-affiliated-template', [CertificateController::class, 'downloadAffiliatedTemplate'])->middleware('role');
+
 Route::get('reset-staff-password', function (Request $req) {
     if (!session()->has('log')) {
         return redirect('/');

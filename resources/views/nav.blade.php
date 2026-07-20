@@ -231,6 +231,8 @@
                             class="">Semester</a></li>
                     <li class="@if ($page == 'session') active @endif"><a href="/session"
                             class="">Session</a></li>
+                    <li class="@if ($page == 'affiliated schools') active @endif"><a href="/affiliated-schools"
+                            class="">Affiliated Schools</a></li>
                 </ul>
             </li>
             <li class="nav-item pcoded-hasmenu @if (
