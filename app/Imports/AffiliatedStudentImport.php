@@ -67,22 +67,22 @@ class AffiliatedStudentImport implements ToCollection
                 }
             }
 
+            // Skip records that already exist for this username and school
+            if (GraduatedStudent::where(['username' => $username, 'school_id' => $this->schoolId])->exists()) {
+                $this->skipped++;
+                continue;
+            }
+
             // Get award title from program
             $program = DB::table('program')->where('code', $this->program)->first();
             $degree = $program->award ?? '';
 
-            // Generate certificate ID: UM/CERT/YEAR/SERIAL
+            // Generate certificate ID: UM/CERT/YEAR/SERIAL based on the highest existing serial
             $year = date('Y');
-            $lastCert = GraduatedStudent::where('certificate_id', 'LIKE', "UM/CERT/{$year}/%")
-                ->orderBy('id', 'DESC')
-                ->value('certificate_id');
-            if ($lastCert) {
-                $lastSerial = (int) substr($lastCert, strrpos($lastCert, '/') + 1);
-                $serial = str_pad($lastSerial + 1, 4, '0', STR_PAD_LEFT);
-            } else {
-                $count = GraduatedStudent::where('certificate_id', 'LIKE', "UM/CERT/{$year}/%")->count();
-                $serial = str_pad($count + 1, 4, '0', STR_PAD_LEFT);
-            }
+            $maxSerial = DB::table('graduated_students')
+                ->where('certificate_id', 'LIKE', "UM/CERT/{$year}/%")
+                ->max(DB::raw('CAST(SUBSTRING_INDEX(certificate_id, "/", -1) AS UNSIGNED)'));
+            $serial = str_pad(($maxSerial ?? 0) + 1, 4, '0', STR_PAD_LEFT);
             $certificateId = "UM/CERT/{$year}/{$serial}";
 
             GraduatedStudent::updateOrCreate(
