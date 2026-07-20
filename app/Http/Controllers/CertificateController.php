@@ -534,42 +534,46 @@ class CertificateController extends Controller
         ]);
 
         if ($request->hasFile('file')) {
-            $file = $request->file('file');
+            try {
+                $file = $request->file('file');
 
-            $import = new AffiliatedSchoolsImport();
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mime = finfo_file($finfo, $file->getRealPath());
-            finfo_close($finfo);
+                $import = new AffiliatedSchoolsImport();
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mime = finfo_file($finfo, $file->getRealPath());
+                finfo_close($finfo);
 
-            if (in_array($mime, ['text/plain', 'text/csv', 'application/csv', 'application/vnd.ms-excel'])) {
-                // Read CSV manually to avoid PhpSpreadsheet XLSX fallback issues
-                $handle = fopen($file->getRealPath(), 'r');
-                $rows = collect();
-                while (($line = fgetcsv($handle)) !== false) {
-                    if (count(array_filter($line, function ($v) { return trim($v) !== ''; })) === 0) {
-                        continue;
+                if (in_array($mime, ['text/plain', 'text/csv', 'application/csv', 'application/vnd.ms-excel'])) {
+                    // Read CSV manually to avoid PhpSpreadsheet XLSX fallback issues
+                    $handle = fopen($file->getRealPath(), 'r');
+                    $rows = collect();
+                    while (($line = fgetcsv($handle)) !== false) {
+                        if (count(array_filter($line, function ($v) { return trim($v) !== ''; })) === 0) {
+                            continue;
+                        }
+                        $rows->push($line);
                     }
-                    $rows->push($line);
+                    fclose($handle);
+                    $import->collection($rows);
+                } else {
+                    Excel::import($import, $file);
                 }
-                fclose($handle);
-                $import->collection($rows);
-            } else {
-                Excel::import($import, $file);
-            }
 
-            $imported = $import->getImported();
-            $skipped = $import->getSkipped();
-            $errors = $import->getErrors();
+                $imported = $import->getImported();
+                $skipped = $import->getSkipped();
+                $errors = $import->getErrors();
 
-            $message = "Imported: {$imported}, Skipped: {$skipped}";
-            if (!empty($errors)) {
-                $message .= '. Errors: ' . implode('; ', array_slice($errors, 0, 5));
-                if (count($errors) > 5) {
-                    $message .= ' ... and ' . (count($errors) - 5) . ' more.';
+                $message = "Imported: {$imported}, Skipped: {$skipped}";
+                if (!empty($errors)) {
+                    $message .= '. Errors: ' . implode('; ', array_slice($errors, 0, 5));
+                    if (count($errors) > 5) {
+                        $message .= ' ... and ' . (count($errors) - 5) . ' more.';
+                    }
                 }
-            }
 
-            return redirect()->back()->with($skipped > 0 ? 'warning' : 'success', $message);
+                return redirect()->back()->with($skipped > 0 ? 'warning' : 'success', $message);
+            } catch (\Throwable $e) {
+                return redirect()->back()->with('error', 'Upload failed: ' . $e->getMessage());
+            }
         }
 
         return redirect()->back()->with('error', 'File not found.');
@@ -614,48 +618,52 @@ class CertificateController extends Controller
         ]);
 
         if ($request->hasFile('file')) {
-            $file = $request->file('file');
+            try {
+                $file = $request->file('file');
 
-            $import = new AffiliatedStudentImport(
-                $request->affiliated_school_id,
-                $request->faculty,
-                $request->department,
-                $request->program,
-                $request->graduation_date
-            );
+                $import = new AffiliatedStudentImport(
+                    $request->affiliated_school_id,
+                    $request->faculty,
+                    $request->department,
+                    $request->program,
+                    $request->graduation_date
+                );
 
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mime = finfo_file($finfo, $file->getRealPath());
-            finfo_close($finfo);
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mime = finfo_file($finfo, $file->getRealPath());
+                finfo_close($finfo);
 
-            if (in_array($mime, ['text/plain', 'text/csv', 'application/csv', 'application/vnd.ms-excel'])) {
-                $handle = fopen($file->getRealPath(), 'r');
-                $rows = collect();
-                while (($line = fgetcsv($handle)) !== false) {
-                    if (count(array_filter($line, function ($v) { return trim($v) !== ''; })) === 0) {
-                        continue;
+                if (in_array($mime, ['text/plain', 'text/csv', 'application/csv', 'application/vnd.ms-excel'])) {
+                    $handle = fopen($file->getRealPath(), 'r');
+                    $rows = collect();
+                    while (($line = fgetcsv($handle)) !== false) {
+                        if (count(array_filter($line, function ($v) { return trim($v) !== ''; })) === 0) {
+                            continue;
+                        }
+                        $rows->push($line);
                     }
-                    $rows->push($line);
+                    fclose($handle);
+                    $import->collection($rows);
+                } else {
+                    Excel::import($import, $file);
                 }
-                fclose($handle);
-                $import->collection($rows);
-            } else {
-                Excel::import($import, $file);
-            }
 
-            $imported = $import->getImported();
-            $skipped = $import->getSkipped();
-            $errors = $import->getErrors();
+                $imported = $import->getImported();
+                $skipped = $import->getSkipped();
+                $errors = $import->getErrors();
 
-            $message = "Imported: {$imported}, Skipped: {$skipped}";
-            if (!empty($errors)) {
-                $message .= '. Errors: ' . implode('; ', array_slice($errors, 0, 5));
-                if (count($errors) > 5) {
-                    $message .= ' ... and ' . (count($errors) - 5) . ' more.';
+                $message = "Imported: {$imported}, Skipped: {$skipped}";
+                if (!empty($errors)) {
+                    $message .= '. Errors: ' . implode('; ', array_slice($errors, 0, 5));
+                    if (count($errors) > 5) {
+                        $message .= ' ... and ' . (count($errors) - 5) . ' more.';
+                    }
                 }
-            }
 
-            return redirect()->back()->with($skipped > 0 ? 'warning' : 'success', $message);
+                return redirect()->back()->with($skipped > 0 ? 'warning' : 'success', $message);
+            } catch (\Throwable $e) {
+                return redirect()->back()->with('error', 'Upload failed: ' . $e->getMessage());
+            }
         }
 
         return redirect()->back()->with('error', 'File not found.');

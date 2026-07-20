@@ -85,21 +85,26 @@ class AffiliatedStudentImport implements ToCollection
             $serial = str_pad(($maxSerial ?? 0) + 1, 4, '0', STR_PAD_LEFT);
             $certificateId = "UM/CERT/{$year}/{$serial}";
 
-            GraduatedStudent::updateOrCreate(
-                ['username' => $username, 'school_id' => $this->schoolId],
-                [
-                    'fullname' => strtoupper($fullname),
-                    'faculty' => $this->faculty,
-                    'department' => $this->department,
-                    'program' => $this->program,
-                    'degree' => $degree,
-                    'class_of_degree' => strtoupper($classOfDegree),
-                    'graduation_date' => $readableDate,
-                    'certificate_id' => $certificateId,
-                ]
-            );
+            try {
+                GraduatedStudent::updateOrCreate(
+                    ['username' => $username, 'school_id' => $this->schoolId],
+                    [
+                        'fullname' => strtoupper($fullname),
+                        'faculty' => $this->faculty,
+                        'department' => $this->department,
+                        'program' => $this->program,
+                        'degree' => $degree,
+                        'class_of_degree' => strtoupper($classOfDegree),
+                        'graduation_date' => $readableDate,
+                        'certificate_id' => $certificateId,
+                    ]
+                );
 
-            $this->imported++;
+                $this->imported++;
+            } catch (\Throwable $e) {
+                $this->skipped++;
+                $this->errors[] = "Row {$row[0]}: " . $e->getMessage();
+            }
         }
     }
 

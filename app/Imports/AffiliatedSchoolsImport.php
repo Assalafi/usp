@@ -34,17 +34,22 @@ class AffiliatedSchoolsImport implements ToCollection
                 continue;
             }
 
-            DB::table('affiliated_schools')->insert([
-                'name' => strtoupper($name),
-                'faculty' => null,
-                'department' => null,
-                'program' => null,
-                'status' => '1',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            try {
+                DB::table('affiliated_schools')->insert([
+                    'name' => strtoupper($name),
+                    'faculty' => null,
+                    'department' => null,
+                    'program' => null,
+                    'status' => '1',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
 
-            $this->imported++;
+                $this->imported++;
+            } catch (\Throwable $e) {
+                $this->skipped++;
+                $this->errors[] = "Row {$row[0]}: " . $e->getMessage();
+            }
         }
     }
 
