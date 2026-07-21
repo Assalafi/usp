@@ -5,8 +5,6 @@ use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Hash;
-use App\Models\User;
 use App\Models\Staff;
 
 class StaffImport implements ToCollection, WithHeadingRow
@@ -42,6 +40,11 @@ class StaffImport implements ToCollection, WithHeadingRow
             if (!empty($row['staff_id'])) {
                 $sp = str_replace(' ', '', $row['staff_id']);
                 $id = DB::table('users')->where('username', $sp)->value('id');
+
+                // Skip non-existent staff — only update existing records
+                if (!$id || !Staff::where('username', $sp)->exists()) {
+                    continue;
+                }
 
                 // Use selected unit from form
                 $unit = $unit_name ?? '';
@@ -88,39 +91,7 @@ class StaffImport implements ToCollection, WithHeadingRow
                     $staffData['program'] = $this->program;
                 }
 
-                if ($id > 0) {
-                    Staff::updateOrCreate(
-                        ['username' => $sp],
-                        array_merge(['user_id' => $id], $staffData)
-                    );
-                } else {
-                    // Check if user already exists before updating
-                    $existingUser = User::where('username', $sp)->first();
-
-                    if ($existingUser) {
-                        User::where('username', $sp)->update([
-                            'accType' => 'Staff',
-                            'position' => 'Staff',
-                            'name' => strtoupper($row['name'] ?? ''),
-                            'status' => '1'
-                        ]);
-                    } else {
-                        User::create([
-                            'username' => $sp,
-                            'password' => Hash::make(strtoupper($sp)),
-                            'accType' => 'Staff',
-                            'position' => 'Staff',
-                            'name' => strtoupper($row['name'] ?? ''),
-                            'status' => '1'
-                        ]);
-                    }
-                }
-
-                $id = DB::table('users')->where('username', $sp)->value('id');
-                Staff::updateOrCreate(
-                    ['username' => $sp],
-                    array_merge(['user_id' => $id], $staffData)
-                );
+                Staff::where('username', $sp)->update(array_merge(['user_id' => $id], $staffData));
             }
         }
     }
