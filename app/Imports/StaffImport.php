@@ -58,14 +58,26 @@ class StaffImport implements ToCollection, WithHeadingRow
 
                 $staffData = [
                     'username' => strtoupper($sp),
-                    'name' => strtoupper($row['name'] ?? ''),
-                    'unit' => $unit,
-                    'unit_id' => $this->unit_id,
-                    'phone' => strtoupper($row['phone'] ?? ''),
-                    'staff_category' => $staff_category,
-                    'ti_no' => $ti_no,
                 ];
 
+                if (!empty($row['name'] ?? '')) {
+                    $staffData['name'] = strtoupper($row['name']);
+                }
+                if (!empty($unit)) {
+                    $staffData['unit'] = $unit;
+                }
+                if (!empty($this->unit_id)) {
+                    $staffData['unit_id'] = $this->unit_id;
+                }
+                if (!empty($row['phone'] ?? '')) {
+                    $staffData['phone'] = strtoupper($row['phone']);
+                }
+                if (!empty($staff_category)) {
+                    $staffData['staff_category'] = $staff_category;
+                }
+                if (!empty($ti_no)) {
+                    $staffData['ti_no'] = $ti_no;
+                }
                 if (!empty($this->faculty)) {
                     $staffData['faculty'] = $this->faculty;
                 }
