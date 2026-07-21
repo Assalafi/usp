@@ -5,6 +5,8 @@ use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Hash;
+use App\Models\User;
 use App\Models\Staff;
 
 class StaffImport implements ToCollection, WithHeadingRow
@@ -41,9 +43,26 @@ class StaffImport implements ToCollection, WithHeadingRow
                 $sp = str_replace(' ', '', $row['staff_id']);
                 $id = DB::table('users')->where('username', $sp)->value('id');
 
-                // Skip non-existent staff — only update existing records
-                if (!$id || !Staff::where('username', $sp)->exists()) {
-                    continue;
+                if ($id) {
+                    $userUpdate = [
+                        'accType' => 'Staff',
+                        'position' => 'Staff',
+                        'status' => '1'
+                    ];
+                    if (!empty($row['name'] ?? '')) {
+                        $userUpdate['name'] = strtoupper($row['name']);
+                    }
+                    User::where('username', $sp)->update($userUpdate);
+                } else {
+                    $user = User::create([
+                        'username' => $sp,
+                        'password' => Hash::make(strtoupper($sp)),
+                        'accType' => 'Staff',
+                        'position' => 'Staff',
+                        'name' => strtoupper($row['name'] ?? ''),
+                        'status' => '1'
+                    ]);
+                    $id = $user->id;
                 }
 
                 // Use selected unit from form
@@ -91,7 +110,10 @@ class StaffImport implements ToCollection, WithHeadingRow
                     $staffData['program'] = $this->program;
                 }
 
-                Staff::where('username', $sp)->update(array_merge(['user_id' => $id], $staffData));
+                Staff::updateOrCreate(
+                    ['username' => $sp],
+                    array_merge(['user_id' => $id], $staffData)
+                );
             }
         }
     }
