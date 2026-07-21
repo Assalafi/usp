@@ -64,10 +64,17 @@ class StaffImport implements ToCollection, WithHeadingRow
                     'phone' => strtoupper($row['phone'] ?? ''),
                     'staff_category' => $staff_category,
                     'ti_no' => $ti_no,
-                    'faculty' => $this->faculty,
-                    'department' => $this->department,
-                    'program' => $this->program,
                 ];
+
+                if (!empty($this->faculty)) {
+                    $staffData['faculty'] = $this->faculty;
+                }
+                if (!empty($this->department)) {
+                    $staffData['department'] = $this->department;
+                }
+                if (!empty($this->program)) {
+                    $staffData['program'] = $this->program;
+                }
 
                 if ($id > 0) {
                     Staff::updateOrCreate(
