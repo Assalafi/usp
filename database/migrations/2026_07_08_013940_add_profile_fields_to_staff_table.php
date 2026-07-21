@@ -73,6 +73,9 @@ class AddProfileFieldsToStaffTable extends Migration
             if (!Schema::hasColumn('staff', 'doc_nysc')) {
                 $table->string('doc_nysc')->nullable();
             }
+            if (!Schema::hasColumn('staff', 'doc_trade_test')) {
+                $table->string('doc_trade_test')->nullable();
+            }
             if (!Schema::hasColumn('staff', 'doc_appointment_letter')) {
                 $table->string('doc_appointment_letter')->nullable();
             }
@@ -104,7 +107,7 @@ class AddProfileFieldsToStaffTable extends Migration
                 'extra_curricular', 'kin_relationship',
                 'doc_photo', 'doc_birth_certificate', 'doc_primary_cert', 'doc_ssce',
                 'doc_diploma', 'doc_degree', 'doc_masters', 'doc_phd', 'doc_indigine',
-                'doc_workshop', 'doc_nysc', 'doc_appointment_letter', 'doc_confirmation',
+                'doc_workshop', 'doc_nysc', 'doc_trade_test', 'doc_appointment_letter', 'doc_confirmation',
                 'doc_professional_body', 'doc_other', 'doc_other_name'
             ]);
         });

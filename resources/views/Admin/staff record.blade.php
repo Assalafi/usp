@@ -69,6 +69,7 @@
                             'doc_indigine' => 'Indigene',
                             'doc_workshop' => 'Workshop Cert',
                             'doc_nysc' => 'NYSC/Exception',
+                            'doc_trade_test' => 'Trade Test Certificate',
                             'doc_appointment_letter' => 'Appointment Letter',
                             'doc_confirmation' => 'Letter of Confirmation',
                             'doc_professional_body' => 'Certificate of Professional Body Membership',
