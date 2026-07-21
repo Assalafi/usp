@@ -39,8 +39,8 @@ foreach ($certificates as $cert) {
     $pdf->SetTextColor(0, 0, 0);
 
     // --- ID Number (on dotted line, right of logo) ---
-    $pdf->SetFont('Calligrapher', '', 16);
-    $pdf->SetXY(146.5, 60.5);
+    $pdf->SetFont('Calligrapher', '', 15);
+    $pdf->SetXY(146, 61.5);
     $pdf->Cell(40, 6, $cert['username'] ?? '', 0, 0, 'L');
 
     // --- Student Name (on first dotted line, centered) ---
@@ -49,13 +49,13 @@ foreach ($certificates as $cert) {
     $nameSize = 34;            // <-- CHANGE THIS to adjust size
     $pdf->SetFont($nameFont, '', $nameSize);
     $studentName = ucwords(strtolower($cert['student_name']));
-    $pdf->SetXY(30, 110);
+    $pdf->SetXY(30, 110.5);
     $pdf->Cell(150, 12, $studentName, 0, 0, 'C');
 
     // --- Degree (on dotted line after body text, centered) ---
     $pdf->SetFont('Calligrapher', '', 22);
     $degree = $cert['degree'];
-    $pdf->SetXY(30, 148);
+    $pdf->SetXY(30, 149);
     $pdf->Cell(150, 10, $degree, 0, 0, 'C');
 
     // --- Class of Degree (on dotted line after "with", centered) ---
@@ -67,11 +67,11 @@ foreach ($certificates as $cert) {
     // --- Department (on dotted line after "in", centered) ---
     $pdf->SetFont('Calligrapher', '', 22);
     $department = ucwords(strtolower($cert['department']));
-    $pdf->SetXY(30, 192.5);
+    $pdf->SetXY(30, 193.5);
     $pdf->Cell(150, 10, $department, 0, 0, 'C');
 
     // --- Graduation Date (fill in "Given this...day of...20...") ---
-    $pdf->SetFont('Calligrapher', '', 14);
+    $pdf->SetFont('Calligrapher', '', 16);
     // Parse graduation_date format: "12th Day of September, 2025"
     $rawDate = $cert['graduation_date'] ?? '';
     if (preg_match('/(\d+)\w*\s+Day\s+of\s+(\w+),?\s*(\d{4})/i', $rawDate, $m)) {
@@ -92,11 +92,11 @@ foreach ($certificates as $cert) {
         $year = preg_match('/\d{4}/', $rawDate, $m) ? substr($m[0], 2) : '';
     }
     // Position day on "Given this......day of......20...."
-    $pdf->SetXY(71, 215.5);
+    $pdf->SetXY(71, 216.5);
     $pdf->Cell(15, 6, $day, 0, 0, 'C');
-    $pdf->SetXY(119, 215.5);
+    $pdf->SetXY(119, 216.5);
     $pdf->Cell(30, 6, $month, 0, 0, 'C');
-    $pdf->SetXY(156, 215.5);
+    $pdf->SetXY(157.5, 216.5);
     $pdf->Cell(15, 6, $year, 0, 0, 'C');
 
     // ==================== QR CODE (centered between signatures) ====================
