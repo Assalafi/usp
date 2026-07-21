@@ -334,20 +334,20 @@
                                 @foreach ($faculty as $row)
                                     <option value="{{ $row->code }}">{{ $row->title }}</option>
                                 @endforeach
-                                <option value="NON ACADEMIC">NON ACADEMIC</option>
+                                {{-- <option value="NON ACADEMIC">NON ACADEMIC</option> --}}
                             </select>
                         </div>
                         <div class="form-group">
                             <label for="department1">Department</label>
                             <select class="form-control department" id="department1" name="department"
                                 lang="1">
-                                <option value="NON ACADEMIC">Select Faculty First</option>
+                                <option value="">Select Faculty First</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label for="program1">Program</label>
                             <select class="form-control" id="program1" name="program" lang="1">
-                                <option value="NON ACADEMIC">Select Department First</option>
+                                <option value="">Select Department First</option>
                             </select>
                         </div>
                         <div class="form-group">
