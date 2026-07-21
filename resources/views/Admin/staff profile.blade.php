@@ -905,7 +905,7 @@
             <div class="sp-doc-grid">
                 @foreach($documents as $field => $label)
                 <div class="sp-doc-item">
-                    <label class="doc-label">{{ $label }} @if(in_array($field, ['doc_photo', 'doc_birth_certificate', 'doc_primary_cert', 'doc_ssce', 'doc_indigine', 'doc_appointment_letter', 'doc_confirmation']))<span class="text-danger">*</span>@endif</label>
+                    <label class="doc-label">{{ $label }} @if(in_array($field, ['doc_photo', 'doc_birth_certificate', 'doc_appointment_letter', 'doc_confirmation']))<span class="text-danger">*</span>@endif</label>
                     @if(!empty($row->$field))
                         <div class="doc-status uploaded"><i class="fas fa-check-circle"></i> Uploaded
                             <a href="{{ asset('storage/staff_documents/' . $row->$field) }}" target="_blank" style="font-size:11px; color:var(--primary); margin-left:5px;"><i class="fas fa-eye"></i> View</a>
@@ -1082,9 +1082,6 @@
         $requiredDocs = [
             'doc_photo' => 'Photo',
             'doc_birth_certificate' => 'Birth Certificate/Declaration of Age',
-            'doc_primary_cert' => 'Primary School Certificate',
-            'doc_ssce' => 'SSCE/GCE',
-            'doc_indigine' => 'Indigine',
             'doc_appointment_letter' => 'Appointment Letter',
             'doc_confirmation' => 'Letter of Confirmation',
         ];
@@ -1202,9 +1199,6 @@ function checkRequiredDocs(form) {
     const requiredDocs = {
         'doc_photo': 'Photo',
         'doc_birth_certificate': 'Birth Certificate/Declaration of Age',
-        'doc_primary_cert': 'Primary School Certificate',
-        'doc_ssce': 'SSCE/GCE',
-        'doc_indigine': 'Indigine',
         'doc_appointment_letter': 'Appointment Letter',
         'doc_confirmation': 'Letter of Confirmation'
     };
@@ -1212,9 +1206,6 @@ function checkRequiredDocs(form) {
     const uploadedDocs = [
         @if(!empty($row->doc_photo))'doc_photo',@endif
         @if(!empty($row->doc_birth_certificate))'doc_birth_certificate',@endif
-        @if(!empty($row->doc_primary_cert))'doc_primary_cert',@endif
-        @if(!empty($row->doc_ssce))'doc_ssce',@endif
-        @if(!empty($row->doc_indigine))'doc_indigine',@endif
         @if(!empty($row->doc_appointment_letter))'doc_appointment_letter',@endif
         @if(!empty($row->doc_confirmation))'doc_confirmation',@endif
     ];
