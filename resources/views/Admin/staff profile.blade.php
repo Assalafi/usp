@@ -535,6 +535,7 @@
                         <option value="SSCE/GCE" {{ $row->current_qualification == 'SSCE/GCE' ? 'selected' : '' }}>SSCE/GCE</option>
                         <option value="Trade Test" {{ $row->current_qualification == 'Trade Test' ? 'selected' : '' }}>Trade Test</option>
                         <option value="Diploma" {{ $row->current_qualification == 'Diploma' ? 'selected' : '' }}>Diploma</option>
+                        <option value="HND" {{ $row->current_qualification == 'HND' ? 'selected' : '' }}>HND</option>
                         <option value="Degree" {{ $row->current_qualification == 'Degree' ? 'selected' : '' }}>Degree</option>
                         <option value="Masters" {{ $row->current_qualification == 'Masters' ? 'selected' : '' }}>Masters</option>
                         <option value="PhD" {{ $row->current_qualification == 'PhD' ? 'selected' : '' }}>PhD</option>
@@ -641,6 +642,7 @@
             <div class="sp-view-item"><div class="label">Account Number</div><div class="value">{{ $row->account_number ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Pension Name</div><div class="value">{{ $row->pension_administrator ?? 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Pension PIN Number</div><div class="value">{{ $row->pension_number ?? 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">TI Number</div><div class="value">{{ $row->ti_no ?? 'Not set' }}</div></div>
         </div>
     @else
         <form action="/staff-profile-update" method="POST">
@@ -684,6 +686,10 @@
                 <div class="sp-form-group">
                     <label>Pension PIN Number</label>
                     <input type="text" name="pension_number" value="{{ $row->pension_number ?? '' }}">
+                </div>
+                <div class="sp-form-group">
+                    <label>TI Number</label>
+                    <input type="text" name="ti_no" value="{{ $row->ti_no ?? '' }}" placeholder="e.g. TI12345">
                 </div>
             </div>
             <button type="submit" class="sp-save-btn"><i class="fas fa-save"></i> Save Next of Kin & Bank</button>
@@ -855,6 +861,7 @@
             'doc_primary_cert' => 'Primary School Certificate',
             'doc_ssce' => 'SSCE/GCE',
             'doc_diploma' => 'Diploma',
+            'doc_hnd' => 'HND',
             'doc_degree' => 'Degree',
             'doc_masters' => 'Masters',
             'doc_phd' => 'PhD',

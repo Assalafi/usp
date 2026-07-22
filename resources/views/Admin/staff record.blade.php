@@ -63,6 +63,7 @@
                             'doc_primary_cert' => 'Primary School Certificate',
                             'doc_ssce' => 'SSCE/GCE',
                             'doc_diploma' => 'Diploma',
+                            'doc_hnd' => 'HND',
                             'doc_degree' => 'Degree',
                             'doc_masters' => 'Masters',
                             'doc_phd' => 'PhD',
@@ -384,6 +385,7 @@
                                             <table class="table table-sm table-borderless mb-0">
                                                 <tr><td class="font-weight-bold text-muted" style="width:40%">Pension Name</td><td>{{ $row->pension_administrator ?: 'N/A' }}</td></tr>
                                                 <tr><td class="font-weight-bold text-muted">Pension PIN Number</td><td>{{ $row->pension_number ?: 'N/A' }}</td></tr>
+                                                <tr><td class="font-weight-bold text-muted">TI Number</td><td>{{ $row->ti_no ?: 'N/A' }}</td></tr>
                                             </table>
                                         </div>
                                     </div>

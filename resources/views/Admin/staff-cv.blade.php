@@ -259,6 +259,7 @@
     <tr><td class="label">Account Number:</td><td class="value">{{ $row->account_number ?? 'N/A' }}</td></tr>
     <tr><td class="label">Pension Name:</td><td class="value">{{ $row->pension_administrator ?? 'N/A' }}</td></tr>
     <tr><td class="label">Pension PIN Number:</td><td class="value">{{ $row->pension_number ?? 'N/A' }}</td></tr>
+    <tr><td class="label">TI Number:</td><td class="value">{{ $row->ti_no ?? 'N/A' }}</td></tr>
 </table>
 @endif
 
@@ -270,6 +271,7 @@
         'doc_primary_cert' => 'Primary School Certificate',
         'doc_ssce' => 'SSCE/GCE',
         'doc_diploma' => 'Diploma',
+        'doc_hnd' => 'HND',
         'doc_degree' => 'Degree',
         'doc_masters' => 'Masters',
         'doc_phd' => 'PhD',
