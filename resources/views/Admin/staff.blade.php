@@ -135,6 +135,14 @@
                                         @endforeach
                                     </select>
                                 </div>
+                                <div class="form-group col-md-2">
+                                    <label for="profile_status" class="form-label">Profile Status</label>
+                                    <select name="profile_status" id="profile_status" class="form-control">
+                                        <option value="">All</option>
+                                        <option value="Incomplete">Incomplete</option>
+                                        <option value="Submitted">Submitted</option>
+                                    </select>
+                                </div>
 
                                 <div class="form-group col-md-2">
                                     <button type="submit" class="btn btn-info btn-filter"><i class="fas fa-search"></i>
@@ -707,7 +715,17 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-8">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Profile Status</label>
+                                <select class="form-control form-control-sm" name="profile_status">
+                                    <option value="">All</option>
+                                    <option value="Incomplete">Incomplete</option>
+                                    <option value="Submitted">Submitted</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
                             <div class="form-group">
                                 <label>Export Format</label>
                                 <div class="btn-group btn-group-toggle" data-toggle="buttons">

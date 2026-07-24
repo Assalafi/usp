@@ -53,6 +53,12 @@ class StaffController extends Controller
                     $query->where('grade_id', $value);
                 } elseif ($key === 'step_id' && $value) {
                     $query->where('step_id', $value);
+                } elseif ($key === 'profile_status' && $value) {
+                    if ($value === 'Submitted') {
+                        $query->where('profile_completion', 100);
+                    } elseif ($value === 'Incomplete') {
+                        $query->where('profile_completion', '<', 100)->orWhereNull('profile_completion');
+                    }
                 } elseif ($value) {
                     $query->where($key, $value);
                 }
@@ -1032,6 +1038,13 @@ class StaffController extends Controller
         }
         if ($request->filled('step_id')) {
             $query->where('step_id', $request->input('step_id'));
+        }
+        if ($request->filled('profile_status')) {
+            if ($request->input('profile_status') === 'Submitted') {
+                $query->where('profile_completion', 100);
+            } elseif ($request->input('profile_status') === 'Incomplete') {
+                $query->where('profile_completion', '<', 100)->orWhereNull('profile_completion');
+            }
         }
 
         return $query->get();
