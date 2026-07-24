@@ -47,7 +47,7 @@
                                 </div>
                                 <div class="form-group col-md-2">
                                     <label for="staff_category" class="form-label">Staff Category</label>
-                                    <select name="staff_category" id="staff_category" class="form-control">
+                                    <select name="staff_category" id="staff_category" class="form-control sp-select2" data-placeholder="Select Option">
                                         <option value="">Select Option</option>
                                         <option value="TEACHING STAFF">TEACHING STAFF</option>
                                         <option value="NON TEACHING STAFF">NON TEACHING STAFF</option>
@@ -55,8 +55,8 @@
                                 </div>
                                 <div class="form-group col-md-2 departmentAction">
                                     <label for="facultystaffFilter">Faculty</label>
-                                    <select class="form-control faculty" id="facultystaffFilter" name="faculty"
-                                        lang="staffFilter">
+                                    <select class="form-control faculty sp-select2" id="facultystaffFilter" name="faculty"
+                                        lang="staffFilter" data-placeholder="Select Option">
                                         <option value="">Select Option</option>
                                         @foreach ($faculty as $row)
                                             <option value="{{ $row->code }}">{{ $row->title }}</option>
@@ -65,21 +65,21 @@
                                 </div>
                                 <div class="form-group col-md-2 departmentAction">
                                     <label for="departmentstaffFilter">Department</label>
-                                    <select class="form-control department" id="departmentstaffFilter"
-                                        name="department" lang="staffFilter">
+                                    <select class="form-control department sp-select2" id="departmentstaffFilter"
+                                        name="department" lang="staffFilter" data-placeholder="Select Faculty First">
                                         <option value="">Select Faculty First</option>
                                     </select>
                                 </div>
                                 <div class="form-group col-md-2 departmentAction">
                                     <label for="programstaffFilter">Program</label>
-                                    <select class="form-control" id="programstaffFilter" name="program"
-                                        lang="staffFilter">
+                                    <select class="form-control sp-select2" id="programstaffFilter" name="program"
+                                        lang="staffFilter" data-placeholder="Select Department First">
                                         <option value="">Select Department First</option>
                                     </select>
                                 </div>
                                 <div class="form-group col-md-2 departmentAction">
                                     <label for="unit">Department/Unit</label>
-                                    <select class="form-control" lang="f" name="unit_id" id="unit">
+                                    <select class="form-control sp-select2" lang="f" name="unit_id" id="unit" data-placeholder="Select Option">
                                         <option value="">Select Option</option>
                                         @foreach ($unit as $roww)
                                             <option value="{{ $roww->id }}">{{ $roww->name }}</option>
@@ -88,7 +88,7 @@
                                 </div>
                                 <div class="form-group col-md-2 levelAction">
                                     <label for="current_rank">Designation</label>
-                                    <select class="form-control" lang="f" name="designation_id" id="current_rank">
+                                    <select class="form-control sp-select2" lang="f" name="designation_id" id="current_rank" data-placeholder="Select Option">
                                         <option value="">Select Option</option>
                                         @foreach ($designation as $roww)
                                             <option value="{{ $roww->id }}">{{ $roww->name }}
@@ -106,7 +106,7 @@
                                 </div>
                                 <div class="form-group col-md-2">
                                     <label for="state" class="form-label">State of Origin</label>
-                                    <select name="state" id="state-filter" class="form-control">
+                                    <select name="state" id="state-filter" class="form-control sp-select2" data-placeholder="All">
                                         <option value="">All</option>
                                         <option value="Abia">Abia</option><option value="Adamawa">Adamawa</option><option value="Akwa Ibom">Akwa Ibom</option><option value="Anambra">Anambra</option>
                                         <option value="Bauchi">Bauchi</option><option value="Bayelsa">Bayelsa</option><option value="Benue">Benue</option><option value="Borno">Borno</option>
@@ -122,13 +122,13 @@
                                 </div>
                                 <div class="form-group col-md-2">
                                     <label for="lga" class="form-label">LGA of Origin</label>
-                                    <select name="lga" id="lga-filter" class="form-control">
+                                    <select name="lga" id="lga-filter" class="form-control sp-select2" data-placeholder="All">
                                         <option value="">All</option>
                                     </select>
                                 </div>
                                 <div class="form-group col-md-2">
                                     <label for="appointment" class="form-label">Appointment</label>
-                                    <select name="appointment" id="appointment" class="form-control">
+                                    <select name="appointment" id="appointment" class="form-control sp-select2" data-placeholder="Select Option">
                                         <option value="">Select Option</option>
                                         @foreach ($appointment as $roww)
                                             <option value="{{ $roww->appointment }}">{{ $roww->appointment }}</option>
@@ -137,7 +137,7 @@
                                 </div>
                                 <div class="form-group col-md-2">
                                     <label for="profile_status" class="form-label">Profile Status</label>
-                                    <select name="profile_status" id="profile_status" class="form-control">
+                                    <select name="profile_status" id="profile_status" class="form-control sp-select2" data-placeholder="All">
                                         <option value="">All</option>
                                         <option value="Incomplete">Incomplete</option>
                                         <option value="Submitted">Submitted</option>
@@ -605,7 +605,7 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>State of Origin</label>
-                                <select class="form-control form-control-sm" name="state" id="export-state">
+                                <select class="form-control form-control-sm sp-select2" name="state" id="export-state" data-placeholder="All">
                                     <option value="">All</option>
                                     <option value="Abia">Abia</option><option value="Adamawa">Adamawa</option><option value="Akwa Ibom">Akwa Ibom</option><option value="Anambra">Anambra</option>
                                     <option value="Bauchi">Bauchi</option><option value="Bayelsa">Bayelsa</option><option value="Benue">Benue</option><option value="Borno">Borno</option>
@@ -623,7 +623,7 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>LGA</label>
-                                <select class="form-control form-control-sm" name="lga" id="export-lga">
+                                <select class="form-control form-control-sm sp-select2" name="lga" id="export-lga" data-placeholder="All">
                                     <option value="">All</option>
                                 </select>
                             </div>
@@ -631,7 +631,7 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Gender</label>
-                                <select class="form-control form-control-sm" name="gender">
+                                <select class="form-control form-control-sm sp-select2" name="gender" data-placeholder="All">
                                     <option value="">All</option>
                                     <option value="MALE">Male</option>
                                     <option value="FEMALE">Female</option>
@@ -643,7 +643,7 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Faculty</label>
-                                <select class="form-control form-control-sm faculty" name="faculty" id="exportFaculty">
+                                <select class="form-control form-control-sm faculty sp-select2" name="faculty" id="exportFaculty" data-placeholder="All">
                                     <option value="">All</option>
                                     @foreach ($faculty as $row)
                                         <option value="{{ $row->code }}">{{ $row->title }}</option>
@@ -654,7 +654,7 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Department</label>
-                                <select class="form-control form-control-sm department" name="department" id="exportDepartment">
+                                <select class="form-control form-control-sm department sp-select2" name="department" id="exportDepartment" data-placeholder="All">
                                     <option value="">All</option>
                                 </select>
                             </div>
@@ -662,7 +662,7 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Program</label>
-                                <select class="form-control form-control-sm program" name="program" id="exportProgram">
+                                <select class="form-control form-control-sm program sp-select2" name="program" id="exportProgram" data-placeholder="All">
                                     <option value="">All</option>
                                 </select>
                             </div>
@@ -672,7 +672,7 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Unit</label>
-                                <select class="form-control form-control-sm" name="unit_id">
+                                <select class="form-control form-control-sm sp-select2" name="unit_id" data-placeholder="All">
                                     <option value="">All</option>
                                     @foreach ($unit as $roww)
                                         <option value="{{ $roww->id }}">{{ $roww->name }}</option>
@@ -683,7 +683,7 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Current Rank</label>
-                                <select class="form-control form-control-sm" name="designation_id">
+                                <select class="form-control form-control-sm sp-select2" name="designation_id" data-placeholder="All">
                                     <option value="">All</option>
                                     @foreach ($designation as $roww)
                                         <option value="{{ $roww->id }}">{{ $roww->name }}</option>
@@ -694,7 +694,7 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Grade</label>
-                                <select class="form-control form-control-sm" name="grade_id">
+                                <select class="form-control form-control-sm sp-select2" name="grade_id" data-placeholder="All">
                                     <option value="">All</option>
                                     @foreach ($grade as $roww)
                                         <option value="{{ $roww->id }}">{{ $roww->name }}</option>
@@ -707,7 +707,7 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Step</label>
-                                <select class="form-control form-control-sm" name="step_id">
+                                <select class="form-control form-control-sm sp-select2" name="step_id" data-placeholder="All">
                                     <option value="">All</option>
                                     @foreach ($step as $roww)
                                         <option value="{{ $roww->id }}">{{ $roww->name }}</option>
@@ -718,7 +718,7 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label>Profile Status</label>
-                                <select class="form-control form-control-sm" name="profile_status">
+                                <select class="form-control form-control-sm sp-select2" name="profile_status" data-placeholder="All">
                                     <option value="">All</option>
                                     <option value="Incomplete">Incomplete</option>
                                     <option value="Submitted">Submitted</option>
@@ -787,6 +787,24 @@ bindStateLGA('#state-filter', '#lga-filter');
 // State → LGA cascading for export modal
 bindStateLGA('#export-state', '#export-lga');
 
+// Select2 initialization function
+function initSpSelect2(root) {
+    if (typeof jQuery === 'undefined') return;
+    var $root = root ? $(root) : $(document);
+    $root.find('.sp-select2').not('.select2-hidden-accessible').each(function() {
+        $(this).select2({
+            placeholder: $(this).data('placeholder') || 'Select',
+            allowClear: true,
+            width: '100%'
+        });
+    });
+}
+
+// Initialize Select2
+$(document).ready(function() {
+    initSpSelect2();
+});
+
 // Export modal cascading dropdowns
 $(document).ready(function() {
     // Faculty change - load departments
@@ -803,6 +821,7 @@ $(document).ready(function() {
                 $.each(data, function(key, value) {
                     deptSelect.append('<option value="' + value.code + '">' + value.title + '</option>');
                 });
+                initSpSelect2(deptSelect);
             });
         }
     });
@@ -819,6 +838,7 @@ $(document).ready(function() {
                 $.each(data, function(key, value) {
                     progSelect.append('<option value="' + value.code + '">' + value.title + '</option>');
                 });
+                initSpSelect2(progSelect);
             });
         }
     });
