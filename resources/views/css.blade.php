@@ -24,6 +24,7 @@
 <link rel="stylesheet"
     href="{{ url('dashboard/plugins/material-datetimepicker/css/bootstrap-material-datetimepicker.css') }}">
 <link rel="stylesheet" href="{{ url('dashboard/plugins/toastr/css/toastr.min.css') }}">
+<link rel="stylesheet" href="{{ url('dashboard/plugins/select2/css/select2.min.css') }}">
 <link rel="stylesheet" href="{{ url('dashboard/css/style.css') }}">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>

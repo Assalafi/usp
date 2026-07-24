@@ -461,7 +461,7 @@
                 </div>
                 <div class="sp-form-group">
                     <label>Department/Unit</label>
-                    <select name="unit_id">
+                    <select name="unit_id" class="sp-select2" data-placeholder="Select Unit">
                         <option value="">Select</option>
                         @foreach ($unit as $u)
                             <option value="{{ $u->id }}" {{ (isset($row->unit_id) && $row->unit_id == $u->id) || (isset($row->unit) && $row->unit == $u->name) ? 'selected' : '' }}>{{ $u->name }}</option>
@@ -470,7 +470,7 @@
                 </div>
                 <div class="sp-form-group">
                     <label>Designation/Rank</label>
-                    <select name="designation_id">
+                    <select name="designation_id" class="sp-select2" data-placeholder="Select Designation">
                         <option value="">Select</option>
                         @foreach ($designation as $d)
                             <option value="{{ $d->id }}" {{ (isset($row->designation_id) && $row->designation_id == $d->id) || (isset($row->current_rank) && $row->current_rank == $d->name) ? 'selected' : '' }}>{{ $d->name }}</option>
@@ -517,7 +517,7 @@
                 </div>
                 <div class="sp-form-group">
                     <label>Rank on First Appointment</label>
-                    <select name="rank_of_first_appointment_id">
+                    <select name="rank_of_first_appointment_id" class="sp-select2" data-placeholder="Select Rank">
                         <option value="">Select</option>
                         @foreach ($designation as $d)
                             <option value="{{ $d->id }}" {{ (isset($row->rank_of_first_appointment) && $row->rank_of_first_appointment == $d->name) ? 'selected' : '' }}>{{ $d->name }}</option>
@@ -591,7 +591,7 @@
                         </div>
                         <div class="sp-form-group">
                             <label>Designation/Rank</label>
-                            <select name="promotions[{{ $idx }}][designation]">
+                            <select name="promotions[{{ $idx }}][designation]" class="sp-select2" data-placeholder="Select Designation">
                                 <option value="{{ $promo['designation'] ?? '' }}">{{ $promo['designation'] ?? 'Select' }}</option>
                                 @foreach ($designation as $des)
                                     <option value="{{ $des->name }}">{{ $des->name }}</option>
@@ -1263,9 +1263,22 @@ function toggleLeaveFields() {
     }
 }
 
+function initSpSelect2(root) {
+    if (typeof jQuery === 'undefined') return;
+    var $root = root ? $(root) : $(document);
+    $root.find('.sp-select2').not('.select2-hidden-accessible').each(function() {
+        $(this).select2({
+            placeholder: $(this).data('placeholder') || 'Select',
+            allowClear: true,
+            width: '100%'
+        });
+    });
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     toggleLeaveFields();
+    initSpSelect2();
 });
 
 function addPromotion() {
@@ -1295,12 +1308,13 @@ function addPromotion() {
             <div class="sp-form-row">
                 <div class="sp-form-group"><label>Promotion</label><select name="promotions[${idx}][promotion]"><option value="">Select</option>${promotionOptions}</select></div>
                 <div class="sp-form-group"><label>Date</label><input type="date" name="promotions[${idx}][date]"></div>
-                <div class="sp-form-group"><label>Designation/Rank</label><select name="promotions[${idx}][designation]">${designationSelectOptions}</select></div>
+                <div class="sp-form-group"><label>Designation/Rank</label><select name="promotions[${idx}][designation]" class="sp-select2" data-placeholder="Select Designation">${designationSelectOptions}</select></div>
                 <div class="sp-form-group"><label>Grade/Level</label><select name="promotions[${idx}][grade]">${gradeSelectOptions}</select></div>
                 <div class="sp-form-group"><label>Step</label><select name="promotions[${idx}][step]">${stepSelectOptions}</select></div>
             </div>
         </div>
     `);
+    initSpSelect2(container);
 }
 
 function addEducation() {

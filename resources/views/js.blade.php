@@ -5,6 +5,7 @@
 <script src="{{ asset('dashboard/plugins/bootstrap/js/bootstrap.min.js') }}"></script>
 <script src="{{ asset('dashboard/plugins/jquery-scrollbar/js/perfect-scrollbar.min.js') }}"></script>
 <script src="{{ asset('dashboard/js/pcoded.min.js') }}"></script>
+<script src="{{ asset('dashboard/plugins/select2/js/select2.full.min.js') }}"></script>
 
 <!-- datatable Js -->
 <script src="{{ asset('dashboard/plugins/data-tables/js/datatables.min.js') }}"></script>
