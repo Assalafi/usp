@@ -1013,7 +1013,7 @@ Route::get('/reference-data/{type}/create', [ReferenceDataController::class, 'cr
 Route::post('/reference-data/{type}/store', [ReferenceDataController::class, 'store']);
 Route::get('/reference-data/{type}/{id}/edit', [ReferenceDataController::class, 'edit']);
 Route::post('/reference-data/{type}/{id}/update', [ReferenceDataController::class, 'update']);
-Route::get('/reference-data/{type}/{id}/delete', [ReferenceDataController::class, 'delete']);
+Route::post('/reference-data/{type}/{id}/delete', [ReferenceDataController::class, 'delete']);
 Route::get('/reference-data/{type}/bulk-upload', [ReferenceDataController::class, 'bulkUpload']);
 Route::post('/reference-data/{type}/process-bulk-upload', [ReferenceDataController::class, 'processBulkUpload']);
 Route::get('/reference-data/{type}/download-template', [ReferenceDataController::class, 'downloadTemplate']);
