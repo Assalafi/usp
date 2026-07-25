@@ -44,6 +44,8 @@ class CheckLogin
         'download-admission-letter',
 
         // Payment verification callbacks
+        'school-fees',
+
         'verify',
         'verify/*',
         'change-of-course/verify',
