@@ -295,21 +295,21 @@ class LoginController extends Controller
             User::where('id', $applicant_id)->update([
                 'password' => Hash::make($newPassword),
             ]);
-            return redirect('/reset-passwords')->with('success', 'Password reset successfully. New password: ' . $newPassword);
+            return redirect('/reset-passwords')->with('success', "Password for $username reset successfully. New password: $newPassword");
         }
         $user_id = Student::where('username', $username)->value('user_id');
         if ($user_id > 0) {
             User::where('id', $user_id)->update([
                 'password' => Hash::make($newPassword),
             ]);
-            return redirect('/reset-passwords')->with('success', 'Password reset successfully. New password: ' . $newPassword);
+            return redirect('/reset-passwords')->with('success', "Password for $username reset successfully. New password: $newPassword");
         } else {
-            $user_id = Student::where('jamb_no', $username)->value('user_id');
-            if ($user_id > 0) {
-                User::where('id', $user_id)->update([
+            $student = Student::where('jamb_no', $username)->select('user_id', 'username')->first();
+            if ($student) {
+                User::where('id', $student->user_id)->update([
                     'password' => Hash::make($newPassword),
                 ]);
-                return redirect('/reset-passwords')->with('success', 'Password reset successfully. New password: ' . $newPassword);
+                return redirect('/reset-passwords')->with('success', "Password for {$student->username} reset successfully. New password: $newPassword");
             } else {
                 // maybe is staff
                 $user_id = User::where('username', $username)->value('id');
@@ -320,7 +320,7 @@ class LoginController extends Controller
                     User::where('id', $user_id)->update([
                         'password' => Hash::make($newPassword),
                     ]);
-                    return redirect('/reset-passwords')->with('success', 'Password reset successfully. New password: ' . $newPassword);
+                    return redirect('/reset-passwords')->with('success', "Password for $username reset successfully. New password: $newPassword");
                 } else {
                     return redirect('/reset-passwords')->with('error', 'User not found');
                 }
