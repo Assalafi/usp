@@ -288,28 +288,28 @@ class LoginController extends Controller
             return redirect('/');
         }
         $username = $req->username;
-        // get user_id from Student table where username = $username
+        $newPassword = str_pad(rand(0, 99999999), 8, '0', STR_PAD_LEFT);
 
         $applicant_id = Applicant::where('username', $username)->value('user_id');
         if($applicant_id > 0){
             User::where('id', $applicant_id)->update([
-                'password' => Hash::make(\App\Http\Controllers\SystemSettingsController::get('default_student_password', 'umstad@2026')),
+                'password' => Hash::make($newPassword),
             ]);
-            return redirect('/reset-passwords')->with('success', 'Password reset to ' . \App\Http\Controllers\SystemSettingsController::get('default_student_password', 'umstad@2026'));
+            return redirect('/reset-passwords')->with('success', 'Password reset successfully. New password: ' . $newPassword);
         }
         $user_id = Student::where('username', $username)->value('user_id');
         if ($user_id > 0) {
             User::where('id', $user_id)->update([
-                'password' => Hash::make(\App\Http\Controllers\SystemSettingsController::get('default_student_password', 'umstad@2026')),
+                'password' => Hash::make($newPassword),
             ]);
-            return redirect('/reset-passwords')->with('success', 'Password reset to ' . \App\Http\Controllers\SystemSettingsController::get('default_student_password', 'umstad@2026'));
+            return redirect('/reset-passwords')->with('success', 'Password reset successfully. New password: ' . $newPassword);
         } else {
             $user_id = Student::where('jamb_no', $username)->value('user_id');
             if ($user_id > 0) {
                 User::where('id', $user_id)->update([
-                    'password' => Hash::make(\App\Http\Controllers\SystemSettingsController::get('default_student_password', 'umstad@2026')),
+                    'password' => Hash::make($newPassword),
                 ]);
-                return redirect('/reset-passwords')->with('success', 'Password reset to ' . \App\Http\Controllers\SystemSettingsController::get('default_student_password', 'umstad@2026'));
+                return redirect('/reset-passwords')->with('success', 'Password reset successfully. New password: ' . $newPassword);
             } else {
                 // maybe is staff
                 $user_id = User::where('username', $username)->value('id');
@@ -318,9 +318,9 @@ class LoginController extends Controller
                         return redirect('/reset-passwords')->with('error', 'You are not authorized to reset this password');
                     }
                     User::where('id', $user_id)->update([
-                        'password' => Hash::make(\App\Http\Controllers\SystemSettingsController::get('default_student_password', 'umstad@2026')),
+                        'password' => Hash::make($newPassword),
                     ]);
-                    return redirect('/reset-passwords')->with('success', 'Password reset to ' . \App\Http\Controllers\SystemSettingsController::get('default_student_password', 'umstad@2026'));
+                    return redirect('/reset-passwords')->with('success', 'Password reset successfully. New password: ' . $newPassword);
                 } else {
                     return redirect('/reset-passwords')->with('error', 'User not found');
                 }
