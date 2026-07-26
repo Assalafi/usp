@@ -315,7 +315,7 @@ class LoginController extends Controller
                 $user_id = User::where('username', $username)->value('id');
                 if ($user_id > 0) {
                     if (session('accType') != 'Admin') {
-                        return redirect('/reset-passwords')->with('error', 'You are not authorized to reset this password');
+                        // return redirect('/reset-passwords')->with('error', 'You are not authorized to reset this password');
                     }
                     User::where('id', $user_id)->update([
                         'password' => Hash::make($newPassword),
