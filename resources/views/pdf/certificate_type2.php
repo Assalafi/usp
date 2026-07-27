@@ -94,7 +94,7 @@ foreach ($certificates as $cert) {
     // Position day on "Given this......day of......20...."
     $pdf->SetXY(71, 216);
     $pdf->Cell(15, 6, $day, 0, 0, 'C');
-    $pdf->SetXY(119, 216);
+    $pdf->SetXY(121, 216);
     $pdf->Cell(30, 6, $month, 0, 0, 'C');
     $pdf->SetXY(158.5, 216);
     $pdf->Cell(15, 6, $year, 0, 0, 'C');
