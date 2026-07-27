@@ -39,7 +39,7 @@ foreach ($certificates as $cert) {
     $pdf->SetTextColor(0, 0, 0);
 
     // --- ID Number (on dotted line, right of logo) ---
-    $pdf->SetFont('Calligrapher', '', 15);
+    $pdf->SetFont('Calligrapher', '', 13);
     $pdf->SetXY(146, 61.5);
     $pdf->Cell(40, 6, $cert['username'] ?? '', 0, 0, 'L');
 
@@ -71,7 +71,7 @@ foreach ($certificates as $cert) {
     $pdf->Cell(150, 10, $department, 0, 0, 'C');
 
     // --- Graduation Date (fill in "Given this...day of...20...") ---
-    $pdf->SetFont('Calligrapher', '', 16);
+    $pdf->SetFont('Calligrapher', '', 18);
     // Parse graduation_date format: "12th Day of September, 2025"
     $rawDate = $cert['graduation_date'] ?? '';
     if (preg_match('/(\d+)\w*\s+Day\s+of\s+(\w+),?\s*(\d{4})/i', $rawDate, $m)) {
