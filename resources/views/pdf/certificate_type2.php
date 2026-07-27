@@ -96,7 +96,7 @@ foreach ($certificates as $cert) {
     $pdf->Cell(15, 6, $day, 0, 0, 'C');
     $pdf->SetXY(122, 218);
     $pdf->Cell(30, 6, $month, 0, 0, 'C');
-    $pdf->SetXY(159.5, 218);
+    $pdf->SetXY(161.5, 218);
     $pdf->Cell(15, 6, $year, 0, 0, 'C');
 
     // ==================== QR CODE (centered between signatures) ====================
