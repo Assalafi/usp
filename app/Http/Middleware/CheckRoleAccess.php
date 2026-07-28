@@ -34,6 +34,7 @@ class CheckRoleAccess
         }
 
         $page = trim($request->path(), '/');
+        $page = urldecode($page);
         $page = preg_replace('/\/\d+$/', '', $page);
         $page = preg_replace('/\/[a-f0-9-]{36}$/', '', $page);
 
