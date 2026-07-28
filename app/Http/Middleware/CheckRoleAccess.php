@@ -7,9 +7,6 @@ use Illuminate\Http\Request;
 
 class CheckRoleAccess
 {
-    /**
-     * Pages that should be accessible without role assignment (public admin pages).
-     */
     protected $except = [
         '',
         'dashboard',
@@ -21,9 +18,6 @@ class CheckRoleAccess
         'forgot',
     ];
 
-    /**
-     * Pages accessible via course allocation (independent of rolls).
-     */
     protected $courseAllocationPages = [
         'results',
         'approve results',
@@ -35,34 +29,29 @@ class CheckRoleAccess
 
     public function handle(Request $request, Closure $next)
     {
-        // Skip check for Admin users
         if (session('accType') == 'Admin') {
             return $next($request);
         }
 
-        // Skip check for public pages
         $page = trim($request->path(), '/');
-
-        // Strip dynamic ID parameters for certain routes
-        $page = preg_replace('/\/\d+$/', '', $page); // Remove trailing /123
-        $page = preg_replace('/\/[a-f0-9-]{36}$/', '', $page); // Remove trailing UUID
+        $page = preg_replace('/\/\d+$/', '', $page);
+        $page = preg_replace('/\/[a-f0-9-]{36}$/', '', $page);
 
         if (in_array($page, $this->except)) {
             return $next($request);
         }
 
-        // Admin-only pages - block non-admins
-        $adminOnlyPages = ['rolls', 'pages', 'users', 'users2', 'fees due', 'fees%20due'];
+        $adminOnlyPages = ['rolls', 'pages', 'users', 'users2'];
         if (in_array($page, $adminOnlyPages)) {
             return redirect('/')->with('error', 'You do not have access to this page.');
         }
 
-        // Skip check for non-admin routes (applicant, student, etc.)
+        // Skip check for non-Staff users (Students, Applicants, etc.)
         if (session('accType') != 'Staff') {
             return $next($request);
         }
 
-        // Check if page is accessible via course allocation
+        // Check course allocation
         $encodedPage = str_replace(' ', '%20', $page);
         if (in_array($page, $this->courseAllocationPages) || in_array($encodedPage, $this->courseAllocationPages)) {
             $hasCourseAllocation = \Illuminate\Support\Facades\DB::table('course_allocation')
@@ -73,33 +62,58 @@ class CheckRoleAccess
             }
         }
 
-        // Check if user has this page assigned in rolls table
-        // First check if this page exists in rolls for ANY user
+        // Check if page exists in rolls table
         $pageExistsInRolls = \Illuminate\Support\Facades\DB::table('rolls')
-            ->where(function ($q) use ($page) {
+            ->where(function ($q) use ($page, $encodedPage) {
                 $q->where('link', '/' . $page)
-                  ->orWhere('link', '/' . str_replace(' ', '%20', $page));
+                  ->orWhere('link', '/' . $encodedPage);
             })
             ->exists();
 
-        // If page doesn't exist in rolls at all, allow access
-        if (!$pageExistsInRolls) {
+        // If page exists in rolls, check if this user has access
+        if ($pageExistsInRolls) {
+            $hasAccess = \Illuminate\Support\Facades\DB::table('rolls')
+                ->where(function ($q) {
+                    $q->where('username', session('username'))
+                      ->orWhere('username', session('appointment'));
+                })
+                ->where(function ($q) use ($page, $encodedPage) {
+                    $q->where('link', '/' . $page)
+                      ->orWhere('link', '/' . $encodedPage);
+                })
+                ->exists();
+
+            if (!$hasAccess) {
+                return redirect('/')->with('error', 'You do not have access to this page.');
+            }
+
             return $next($request);
         }
 
-        // Page exists in rolls, so check if user has access
-        $hasAccess = \Illuminate\Support\Facades\DB::table('rolls')
-            ->where(function ($q) {
-                $q->where('username', session('username'))
-                  ->orWhere('username', session('appointment'));
-            })
-            ->where(function ($q) use ($page) {
-                $q->where('link', '/' . $page)
-                  ->orWhere('link', '/' . str_replace(' ', '%20', $page));
-            })
-            ->exists();
+        // Page not in rolls — check if it's a known system page
+        // Known admin pages that require roll assignment
+        $protectedPages = [
+            'faculty', 'department', 'program', 'semester', 'session',
+            'halls', 'hall allocation', 'lecture timetable', 'exam timetable',
+            'ca timetable', 'fees due', 'fees type', 'fees master list',
+            'students list', 'student id card', 'course allocation',
+            'course material', 'attendance', 'assignment', 'student exit',
+            'status', 'results', 'approve results', 'program course registration',
+            'student course registration', 'summary of graduation',
+            'press release', 'computation record', 'transcript',
+            'school fees', 'hostel fees', 'staff',
+            'election settings', 'election positions', 'election candidates',
+            'election votes', 'election general', 'election faculty',
+            'election hostel', 'election lga', 'manage fixed assets',
+            'fixed assets', 'fixed assets depreciation', 'fixed assets analysis',
+            'fixed assets disposal', 'grading system', 'committee',
+            'committee role', 'committee membership', 'committee meetings',
+            'sub committee', 'session history',
+            'available bed space', 'online bed space', 'hostel recipients',
+            'manage hostel', 'pins', 'bed space reservations',
+        ];
 
-        if (!$hasAccess) {
+        if (in_array($page, $protectedPages) || in_array($encodedPage, $protectedPages)) {
             return redirect('/')->with('error', 'You do not have access to this page.');
         }
 
