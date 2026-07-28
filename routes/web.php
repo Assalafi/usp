@@ -1111,7 +1111,7 @@ Route::get('/reset-passwords', function () {
         return redirect('/');
     }
     return view('main', ['page' => 'reset password']);
-});
+})->middleware('role');
 Route::get('/student-result', function (Request $req) {
     if (!session()->has('log')) {
         return redirect('/');
