@@ -52,7 +52,7 @@ class CheckRoleAccess
         }
 
         // Admin-only pages - block non-admins
-        $adminOnlyPages = ['rolls', 'pages', 'users', 'users2', 'fees due'];
+        $adminOnlyPages = ['rolls', 'pages', 'users', 'users2', 'fees due', 'fees%20due'];
         if (in_array($page, $adminOnlyPages)) {
             return redirect('/')->with('error', 'You do not have access to this page.');
         }
