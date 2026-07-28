@@ -40,7 +40,7 @@ foreach ($certificates as $cert) {
 
     // --- ID Number (on dotted line, right of logo) ---
     $pdf->SetFont('Calligrapher', '', 13);
-    $pdf->SetXY(145, 61.5);
+    $pdf->SetXY(144.6, 61.5);
     $pdf->Cell(40, 6, $cert['username'] ?? '', 0, 0, 'L');
 
     // --- Student Name (on first dotted line, centered) ---
