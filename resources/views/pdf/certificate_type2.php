@@ -40,7 +40,7 @@ foreach ($certificates as $cert) {
 
     // --- ID Number (on dotted line, right of logo) ---
     $pdf->SetFont('Calligrapher', '', 13);
-    $pdf->SetXY(146, 61.5);
+    $pdf->SetXY(145, 61.5);
     $pdf->Cell(40, 6, $cert['username'] ?? '', 0, 0, 'L');
 
     // --- Student Name (on first dotted line, centered) ---
@@ -92,11 +92,11 @@ foreach ($certificates as $cert) {
         $year = preg_match('/\d{4}/', $rawDate, $m) ? substr($m[0], 2) : '';
     }
     // Position day on "Given this......day of......20...."
-    $pdf->SetXY(71, 217);
+    $pdf->SetXY(71, 216.5);
     $pdf->Cell(15, 6, $day, 0, 0, 'C');
-    $pdf->SetXY(122, 217);
+    $pdf->SetXY(122, 216.5);
     $pdf->Cell(30, 6, $month, 0, 0, 'C');
-    $pdf->SetXY(158.5, 217);
+    $pdf->SetXY(157.5, 216.5);
     $pdf->Cell(15, 6, $year, 0, 0, 'C');
 
     // ==================== QR CODE (centered between signatures) ====================
