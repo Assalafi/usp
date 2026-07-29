@@ -276,6 +276,7 @@
         'doc_degree' => 'Degree',
         'doc_masters' => 'Masters',
         'doc_phd' => 'PhD',
+        'doc_medical_fellowship' => 'Medical Fellowship',
         'doc_indigine' => 'Indigene',
         'doc_workshop' => 'Workshop Cert',
         'doc_nysc' => 'NYSC/Exception',

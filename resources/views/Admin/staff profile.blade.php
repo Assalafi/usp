@@ -540,6 +540,7 @@
                         <option value="Degree" {{ $row->current_qualification == 'Degree' ? 'selected' : '' }}>Degree</option>
                         <option value="Masters" {{ $row->current_qualification == 'Masters' ? 'selected' : '' }}>Masters</option>
                         <option value="PhD" {{ $row->current_qualification == 'PhD' ? 'selected' : '' }}>PhD</option>
+                        <option value="Medical Fellowship" {{ $row->current_qualification == 'Medical Fellowship' ? 'selected' : '' }}>Medical Fellowship</option>
                     </select>
                 </div>
                 <div class="sp-form-group">
@@ -867,6 +868,7 @@
             'doc_degree' => 'Degree',
             'doc_masters' => 'Masters',
             'doc_phd' => 'PhD',
+            'doc_medical_fellowship' => 'Medical Fellowship',
             'doc_indigine' => 'Indigine',
             'doc_workshop' => 'Workshop Cert',
             'doc_nysc' => 'NYSC/Exception',
@@ -886,7 +888,6 @@
                 @if(!empty($row->$field))
                     <span class="doc-badge yes"><i class="fas fa-check"></i> Uploaded</span>
                     <a href="{{ asset('storage/staff_documents/' . $row->$field) }}" target="_blank" style="display:inline-block; font-size:11px; margin-top:4px; color:var(--primary);"><i class="fas fa-eye"></i> View</a>
-                    <a href="#" onclick="removeDocument('{{ $field }}', '{{ $label }}')" style="display:inline-block; font-size:11px; margin-top:4px; margin-left:8px; color:#dc3545;"><i class="fas fa-trash"></i> Remove</a>
                 @else
                     <span class="doc-badge no"><i class="fas fa-times"></i> Missing</span>
                 @endif

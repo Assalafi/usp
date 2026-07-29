@@ -379,9 +379,9 @@ class StaffController extends Controller
 
         $documentFields = [
             'doc_photo', 'doc_birth_certificate', 'doc_primary_cert', 'doc_ssce',
-            'doc_diploma', 'doc_nce', 'doc_hnd', 'doc_degree', 'doc_masters', 'doc_phd', 'doc_indigine',
-            'doc_workshop', 'doc_nysc', 'doc_trade_test', 'doc_appointment_letter', 'doc_confirmation',
-            'doc_professional_body'
+            'doc_diploma', 'doc_nce', 'doc_hnd', 'doc_degree', 'doc_masters', 'doc_phd', 'doc_medical_fellowship',
+            'doc_indigine', 'doc_workshop', 'doc_nysc', 'doc_trade_test', 'doc_appointment_letter',
+            'doc_confirmation', 'doc_professional_body'
         ];
 
         $updates = [];
@@ -456,7 +456,7 @@ class StaffController extends Controller
         $allowedFields = [
             'doc_photo', 'doc_birth_certificate', 'doc_primary_cert', 'doc_ssce',
             'doc_diploma', 'doc_nce', 'doc_hnd', 'doc_degree', 'doc_masters', 'doc_phd',
-            'doc_indigine', 'doc_workshop', 'doc_nysc', 'doc_trade_test',
+            'doc_medical_fellowship', 'doc_indigine', 'doc_workshop', 'doc_nysc', 'doc_trade_test',
             'doc_appointment_letter', 'doc_confirmation', 'doc_professional_body'
         ];
 
@@ -668,6 +668,7 @@ class StaffController extends Controller
                 'doc_degree' => 'Degree',
                 'doc_masters' => 'Masters',
                 'doc_phd' => 'PhD',
+                'doc_medical_fellowship' => 'Medical Fellowship',
                 'doc_indigine' => 'Indigene',
                 'doc_workshop' => 'Workshop Cert',
                 'doc_nysc' => 'NYSC/Exception',
