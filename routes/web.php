@@ -879,13 +879,17 @@ Route::get('reset-staff-password', function (Request $req) {
     $password_method = $req->input('password_method', 'random');
     $generate_pdf = $req->input('generate_pdf', 0);
 
+    unset($data['_token'], $data['password_method'], $data['generate_pdf']);
+    $filteredData = array_filter($data);
+
+    if (empty($filteredData)) {
+        return redirect()->back()->with('error', 'Please select at least one filter before resetting passwords.');
+    }
+
     // If not generating PDF, redirect to progress view with parameters
     if (!$generate_pdf) {
         return redirect()->route('staff.reset_password_progress', $data);
     }
-
-    unset($data['_token'], $data['password_method'], $data['generate_pdf']);
-    $filteredData = array_filter($data);
     $query = DB::table('staff');
     foreach ($filteredData as $key => $value) {
         $query->where($key, $value);

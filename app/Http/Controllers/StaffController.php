@@ -1083,6 +1083,11 @@ class StaffController extends Controller
     {
         $password_method = $request->input('password_method', 'random');
         $filters = $request->except(['password_method', 'generate_pdf', '_token']);
+        $filters = array_filter($filters);
+
+        if (empty($filters)) {
+            return response()->json(['error' => 'No filters provided'], 400);
+        }
 
         $response = new StreamedResponse(function () use ($password_method, $filters) {
             set_time_limit(0);
