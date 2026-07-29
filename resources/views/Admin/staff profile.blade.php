@@ -915,7 +915,7 @@
             <div class="sp-doc-grid">
                 @foreach($documents as $field => $label)
                 <div class="sp-doc-item">
-                    <label class="doc-label">{{ $label }} @if(in_array($field, ['doc_photo', 'doc_birth_certificate', 'doc_appointment_letter', 'doc_confirmation']))<span class="text-danger">*</span>@endif</label>
+                    <label class="doc-label">{{ $label }} @if(in_array($field, ['doc_photo', 'doc_birth_certificate', 'doc_appointment_letter']))<span class="text-danger">*</span>@endif</label>
                     @if(!empty($row->$field))
                         <div class="doc-status uploaded"><i class="fas fa-check-circle"></i> Uploaded
                             <a href="{{ asset('storage/staff_documents/' . $row->$field) }}" target="_blank" style="font-size:11px; color:var(--primary); margin-left:5px;"><i class="fas fa-eye"></i> View</a>
@@ -1209,15 +1209,13 @@ function checkRequiredDocs(form) {
     const requiredDocs = {
         'doc_photo': 'Photo',
         'doc_birth_certificate': 'Birth Certificate/Declaration of Age',
-        'doc_appointment_letter': 'Appointment Letter',
-        'doc_confirmation': 'Letter of Confirmation'
+        'doc_appointment_letter': 'Appointment Letter'
     };
 
     const uploadedDocs = [
         @if(!empty($row->doc_photo))'doc_photo',@endif
         @if(!empty($row->doc_birth_certificate))'doc_birth_certificate',@endif
         @if(!empty($row->doc_appointment_letter))'doc_appointment_letter',@endif
-        @if(!empty($row->doc_confirmation))'doc_confirmation',@endif
     ];
 
     const missingDocs = [];
