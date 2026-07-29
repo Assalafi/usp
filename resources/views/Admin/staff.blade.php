@@ -380,6 +380,12 @@
                             <input type="file" name="file" id="file" accept=".xlsx,.xls,.csv"
                                 class="form-control" required>
                         </div>
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="reset_password" name="reset_password" value="1">
+                                <label class="form-check-label" for="reset_password">Reset password to username for all staff in file</label>
+                            </div>
+                        </div>
                         <!-- Details View End -->
                         <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
                         <button type="submit" class="btn btn-success">Upload</button>

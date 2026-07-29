@@ -233,7 +233,8 @@ class StaffController extends Controller
             $staff_category = $request->staff_category;
 
             // Load the uploaded file using Maatwebsite/Excel
-            $import = new StaffImport($faculty, $department, $program, $unit_id, $staff_category);
+            $resetPassword = $request->has('reset_password');
+            $import = new StaffImport($faculty, $department, $program, $unit_id, $staff_category, $resetPassword);
             // print_r($file);
             // die;
             Excel::import($import, $file);

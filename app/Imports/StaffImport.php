@@ -17,14 +17,16 @@ class StaffImport implements ToCollection, WithHeadingRow
     private $program;
     private $unit_id;
     private $staff_category;
+    private $resetPassword;
 
-    public function __construct($faculty, $department, $program, $unit_id = null, $staff_category = null)
+    public function __construct($faculty, $department, $program, $unit_id = null, $staff_category = null, $resetPassword = false)
     {
         $this->faculty = $faculty;
         $this->department = $department;
         $this->program = $program;
         $this->unit_id = $unit_id;
         $this->staff_category = $staff_category;
+        $this->resetPassword = $resetPassword;
     }
 
     public function collection(Collection $rows)
@@ -52,11 +54,15 @@ class StaffImport implements ToCollection, WithHeadingRow
                     if (!empty($row['name'] ?? '')) {
                         $userUpdate['name'] = strtoupper($row['name']);
                     }
+                    if ($this->resetPassword) {
+                        $userUpdate['password'] = Hash::make(strtoupper($sp));
+                    }
                     User::where('username', $sp)->update($userUpdate);
                 } else {
+                    $password = $this->resetPassword ? Hash::make(strtoupper($sp)) : Hash::make(strtoupper($sp));
                     $user = User::create([
                         'username' => $sp,
-                        'password' => Hash::make(strtoupper($sp)),
+                        'password' => $password,
                         'accType' => 'Staff',
                         'position' => 'Staff',
                         'name' => strtoupper($row['name'] ?? ''),
