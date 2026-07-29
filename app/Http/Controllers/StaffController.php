@@ -65,11 +65,7 @@ class StaffController extends Controller
             }
             $data['data'] = $query->paginate(500);
         } else {
-            $data['data'] = DB::table($this->table)->select('*')
-                ->where('current_rank', 'LIKE', '%LIBRARIAN%')
-                ->orWhere('current_rank', 'LIKE', '%PROFESSOR%')
-                ->orWhere('current_rank', 'LIKE', '%LECTURER%')
-                ->paginate(500);
+            $data['data'] = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 500);
         }
         $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
         $data['designation'] = DB::table('designations')->where(['status' => '1'])->select('id', 'name')->orderBy('order', 'ASC')->orderBy('name', 'ASC')->get();
