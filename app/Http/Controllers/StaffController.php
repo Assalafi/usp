@@ -1072,11 +1072,17 @@ class StaffController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
+        if (session('accType') != 'Admin' && !DB::table('rolls')->where('username', session('username'))->where('link', '/staff')->exists()) {
+            return redirect('/')->with('error', 'You do not have access to this page.');
+        }
         return view('main', ['page' => 'staff.reset_password_progress']);
     }
 
     public function resetPasswordStream(Request $request)
     {
+        if (session('accType') != 'Admin' && !DB::table('rolls')->where('username', session('username'))->where('link', '/staff')->exists()) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
         $password_method = $request->input('password_method', 'random');
         $filters = $request->except(['password_method', 'generate_pdf', '_token']);
         $filters = array_filter($filters);

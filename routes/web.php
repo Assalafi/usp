@@ -875,6 +875,9 @@ Route::get('reset-staff-password', function (Request $req) {
     if (!session()->has('log')) {
         return redirect('/');
     }
+    if (session('accType') != 'Admin' && !\Illuminate\Support\Facades\DB::table('rolls')->where('username', session('username'))->where('link', '/staff')->exists()) {
+        return redirect('/')->with('error', 'You do not have access to this page.');
+    }
     $data = $req->all();
     $password_method = $req->input('password_method', 'random');
     $generate_pdf = $req->input('generate_pdf', 0);
