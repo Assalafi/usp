@@ -163,6 +163,7 @@
                 <th class="state">STATE</th>
                 <th class="lga">LGA</th>
                 <th class="qualification">QUALIFICATION</th>
+                <th>CLASS OF DEGREE</th>
                 <th class="post-applied">POST APPLIED</th>
                 <th class="department">DEPARTMENT</th>
                 <th class="gsm-no">GSM NO</th>
@@ -179,6 +180,7 @@
                 <td class="state">{{ $applicant['state'] }}</td>
                 <td class="lga">{{ $applicant['lga'] }}</td>
                 <td class="qualification">{{ $applicant['qualification'] }}</td>
+                <td>{{ $applicant['class_of_degree'] ?? 'N/A' }}</td>
                 <td class="post-applied">{{ $applicant['post_applied'] }}</td>
                 <td class="department">{{ $applicant['department'] }}</td>
                 <td class="gsm-no">{{ $applicant['gsm_no'] }}</td>

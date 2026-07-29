@@ -57,8 +57,8 @@ if (empty($applicants)) {
     $pdf->Cell(0, 8, 'No applicants found matching the selected criteria.', 0, 1, 'C');
 } else {
     // Create table for LANDSCAPE - ABSOLUTE MAXIMUM WIDTH (297mm - 2mm margins = 295mm)
-    // Columns: S/NO(10) NAME(50) GENDER(16) DOB(18) STATE(20) LGA(20) QUALIFICATION(42) POST(42) DEPARTMENT(42) GSM(22) = 295
-    $table = new easyTable($pdf, '{10, 47, 16, 18, 20, 20, 42, 42, 42, 22}', 'width:295; border-color:black; font-size:7; border:1; paddingY:1; paddingX:1;');
+    // Columns: S/NO(10) NAME(47) GENDER(16) DOB(18) STATE(20) LGA(20) QUALIFICATION(35) CLASS OF DEGREE(15) POST(35) DEPARTMENT(42) GSM(22) = 280
+    $table = new easyTable($pdf, '{10, 47, 16, 18, 20, 20, 35, 15, 35, 42, 22}', 'width:295; border-color:black; font-size:7; border:1; paddingY:1; paddingX:1;');
     
     // Add headers
     $table->easyCell('S/NO', 'font-style:B; align:C; bgcolor:#f2f2f2;');
@@ -68,6 +68,7 @@ if (empty($applicants)) {
     $table->easyCell('STATE', 'font-style:B; align:C; bgcolor:#f2f2f2;');
     $table->easyCell('LGA', 'font-style:B; align:C; bgcolor:#f2f2f2;');
     $table->easyCell('QUALIFICATION', 'font-style:B; align:C; bgcolor:#f2f2f2;');
+    $table->easyCell('CLASS OF DEGREE', 'font-style:B; align:C; bgcolor:#f2f2f2;');
     $table->easyCell('POST APPLIED', 'font-style:B; align:C; bgcolor:#f2f2f2;');
     $table->easyCell('DEPARTMENT', 'font-style:B; align:C; bgcolor:#f2f2f2;');
     $table->easyCell('GSM NO', 'font-style:B; align:C; bgcolor:#f2f2f2;');
@@ -82,6 +83,7 @@ if (empty($applicants)) {
         $table->easyCell($applicant['state'], 'align:L;');
         $table->easyCell($applicant['lga'], 'align:L;');
         $table->easyCell($applicant['qualification'], 'align:L; font-size:6;');
+        $table->easyCell($applicant['class_of_degree'], 'align:C; font-size:6;');
         $table->easyCell($applicant['post_applied'], 'align:L; font-size:6;');
         $table->easyCell($applicant['department'], 'align:L; font-size:6;');
         $table->easyCell($applicant['gsm_no'], 'align:C;');
@@ -89,7 +91,7 @@ if (empty($applicants)) {
     }
     
     // Add total row in table with colspan
-    $table->easyCell('Total: ' . count($applicants) . ' applicants', 'colspan:10; font-style:B; font-size:7; bgcolor:#f9f9f9; border:1;');
+    $table->easyCell('Total: ' . count($applicants) . ' applicants', 'colspan:11; font-style:B; font-size:7; bgcolor:#f9f9f9; border:1;');
     $table->printRow();
     
     $table->endTable(2);

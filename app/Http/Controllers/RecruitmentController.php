@@ -304,6 +304,7 @@ class RecruitmentController extends Controller
         $serialNumber = 1;
         
         foreach ($applications as $application) {
+            $honours = collect($application['honours'] ?? [])->pluck('content')->filter()->implode(', ');
             $exportData[] = [
                 'sno' => $serialNumber++,
                 'name' => ($application['personal']['first_name'] ?? '') . ' ' . 
@@ -315,6 +316,7 @@ class RecruitmentController extends Controller
                 'state' => $application['personal']['state_of_origin'] ?? 'N/A',
                 'lga' => $application['personal']['local_govt_of_origin'] ?? 'N/A',
                 'qualification' => $this->getHighestQualification($application['education'] ?? []),
+                'class_of_degree' => $honours ?: 'N/A',
                 'post_applied' => $application['job']['title'] ?? 'N/A',
                 'department' => $application['job']['department_name'] ?? 'N/A',
                 'gsm_no' => $application['contact']['contact_phone'] ?? $application['applicant_phone'] ?? 'N/A',
@@ -631,6 +633,7 @@ class RecruitmentController extends Controller
         $serialNumber = 1;
         
         foreach ($applications as $application) {
+            $honours = collect($application['honours'] ?? [])->pluck('content')->filter()->implode(', ');
             $exportData[] = [
                 'S/NO' => $serialNumber++,
                 'NAME' => ($application['personal']['first_name'] ?? '') . ' ' . 
@@ -642,6 +645,7 @@ class RecruitmentController extends Controller
                 'STATE' => $application['personal']['state_of_origin'] ?? 'N/A',
                 'LGA' => $application['personal']['local_govt_of_origin'] ?? 'N/A',
                 'QUALIFICATION' => $this->getHighestQualification($application['education'] ?? []),
+                'CLASS OF DEGREE' => $honours ?: 'N/A',
                 'POST APPLIED' => $application['job']['title'] ?? 'N/A',
                 'DEPARTMENT' => $application['job']['department_name'] ?? 'N/A',
                 'GSM NO' => $application['contact']['contact_phone'] ?? $application['applicant_phone'] ?? 'N/A',
