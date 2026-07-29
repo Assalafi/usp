@@ -535,6 +535,7 @@
                         <option value="SSCE/GCE" {{ $row->current_qualification == 'SSCE/GCE' ? 'selected' : '' }}>SSCE/GCE</option>
                         <option value="Trade Test" {{ $row->current_qualification == 'Trade Test' ? 'selected' : '' }}>Trade Test</option>
                         <option value="Diploma" {{ $row->current_qualification == 'Diploma' ? 'selected' : '' }}>Diploma</option>
+                        <option value="NCE" {{ $row->current_qualification == 'NCE' ? 'selected' : '' }}>NCE</option>
                         <option value="HND" {{ $row->current_qualification == 'HND' ? 'selected' : '' }}>HND</option>
                         <option value="Degree" {{ $row->current_qualification == 'Degree' ? 'selected' : '' }}>Degree</option>
                         <option value="Masters" {{ $row->current_qualification == 'Masters' ? 'selected' : '' }}>Masters</option>
@@ -861,6 +862,7 @@
             'doc_primary_cert' => 'Primary School Certificate',
             'doc_ssce' => 'SSCE/GCE',
             'doc_diploma' => 'Diploma',
+            'doc_nce' => 'NCE',
             'doc_hnd' => 'HND',
             'doc_degree' => 'Degree',
             'doc_masters' => 'Masters',

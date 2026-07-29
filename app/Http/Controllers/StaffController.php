@@ -379,7 +379,7 @@ class StaffController extends Controller
 
         $documentFields = [
             'doc_photo', 'doc_birth_certificate', 'doc_primary_cert', 'doc_ssce',
-            'doc_diploma', 'doc_hnd', 'doc_degree', 'doc_masters', 'doc_phd', 'doc_indigine',
+            'doc_diploma', 'doc_nce', 'doc_hnd', 'doc_degree', 'doc_masters', 'doc_phd', 'doc_indigine',
             'doc_workshop', 'doc_nysc', 'doc_trade_test', 'doc_appointment_letter', 'doc_confirmation',
             'doc_professional_body'
         ];
@@ -626,6 +626,7 @@ class StaffController extends Controller
                 'doc_primary_cert' => 'Primary School Certificate',
                 'doc_ssce' => 'SSCE/GCE',
                 'doc_diploma' => 'Diploma',
+                'doc_nce' => 'NCE',
                 'doc_hnd' => 'HND',
                 'doc_degree' => 'Degree',
                 'doc_masters' => 'Masters',

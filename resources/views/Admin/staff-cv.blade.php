@@ -271,6 +271,7 @@
         'doc_primary_cert' => 'Primary School Certificate',
         'doc_ssce' => 'SSCE/GCE',
         'doc_diploma' => 'Diploma',
+        'doc_nce' => 'NCE',
         'doc_hnd' => 'HND',
         'doc_degree' => 'Degree',
         'doc_masters' => 'Masters',
