@@ -440,6 +440,43 @@ class StaffController extends Controller
         return redirect('/staff-profile?tab=documents&mode=edit')->with('success', 'Documents Uploaded Successfully!');
     }
 
+    public function removeDocument(Request $req)
+    {
+        if (!session()->has('log')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $username = session('username');
+        $staff = DB::table('staff')->where('username', $username)->first();
+        if (!$staff) {
+            return response()->json(['success' => false, 'message' => 'Staff record not found']);
+        }
+
+        $field = $req->input('field');
+        $allowedFields = [
+            'doc_photo', 'doc_birth_certificate', 'doc_primary_cert', 'doc_ssce',
+            'doc_diploma', 'doc_nce', 'doc_hnd', 'doc_degree', 'doc_masters', 'doc_phd',
+            'doc_indigine', 'doc_workshop', 'doc_nysc', 'doc_trade_test',
+            'doc_appointment_letter', 'doc_confirmation', 'doc_professional_body'
+        ];
+
+        if (!in_array($field, $allowedFields)) {
+            return response()->json(['success' => false, 'message' => 'Invalid document field']);
+        }
+
+        if (!empty($staff->$field)) {
+            $filePath = storage_path('app/public/staff_documents/' . $staff->$field);
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+            DB::table('staff')->where('username', $username)->update([$field => null]);
+        }
+
+        $this->recalculateProfileCompletion($username);
+
+        return response()->json(['success' => true]);
+    }
+
     public function deleteOtherDoc(Request $req)
     {
         if (!session()->has('log')) {

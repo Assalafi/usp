@@ -1007,6 +1007,7 @@ Route::get('staff-profile', function () {
 });
 Route::post('/staff-profile-update', [StaffController::class, 'profileUpdate']);
 Route::post('/staff-profile-documents', [StaffController::class, 'uploadDocuments']);
+Route::post('/staff-profile-remove-document', [StaffController::class, 'removeDocument']);
 Route::post('/staff-profile-delete-doc', [StaffController::class, 'deleteOtherDoc']);
 Route::post('/staff-profile-submit', [StaffController::class, 'submitProfile']);
 Route::post('/staff/export/pdf', [StaffController::class, 'exportPdf'])->name('staff.export.pdf')->middleware('role');

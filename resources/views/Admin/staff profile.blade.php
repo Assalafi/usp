@@ -885,7 +885,8 @@
                 <div class="doc-name">{{ $label }}</div>
                 @if(!empty($row->$field))
                     <span class="doc-badge yes"><i class="fas fa-check"></i> Uploaded</span>
-                    <a href="{{ asset('storage/staff_documents/' . $row->$field) }}" target="_blank" style="display:block; font-size:11px; margin-top:4px; color:var(--primary);"><i class="fas fa-eye"></i> View</a>
+                    <a href="{{ asset('storage/staff_documents/' . $row->$field) }}" target="_blank" style="display:inline-block; font-size:11px; margin-top:4px; color:var(--primary);"><i class="fas fa-eye"></i> View</a>
+                    <a href="#" onclick="removeDocument('{{ $field }}', '{{ $label }}')" style="display:inline-block; font-size:11px; margin-top:4px; margin-left:8px; color:#dc3545;"><i class="fas fa-trash"></i> Remove</a>
                 @else
                     <span class="doc-badge no"><i class="fas fa-times"></i> Missing</span>
                 @endif
@@ -919,6 +920,7 @@
                     @if(!empty($row->$field))
                         <div class="doc-status uploaded"><i class="fas fa-check-circle"></i> Uploaded
                             <a href="{{ asset('storage/staff_documents/' . $row->$field) }}" target="_blank" style="font-size:11px; color:var(--primary); margin-left:5px;"><i class="fas fa-eye"></i> View</a>
+                            <a href="#" onclick="removeDocument('{{ $field }}', '{{ $label }}')" style="font-size:11px; color:#dc3545; margin-left:8px;"><i class="fas fa-trash"></i> Remove</a>
                         </div>
                     @else
                         <div class="doc-status pending"><i class="fas fa-clock"></i> Not uploaded</div>
@@ -1203,6 +1205,39 @@ function switchTab(tab) {
     document.getElementById('panel-' + tab).classList.add('active');
     var mode = '{{ $editMode ? "edit" : "view" }}';
     history.replaceState(null, '', '/staff-profile?tab=' + tab + '&mode=' + mode);
+}
+
+function removeDocument(field, label) {
+    swal({
+        title: 'Remove Document?',
+        text: 'Are you sure you want to remove "' + label + '"? This action cannot be undone.',
+        icon: 'warning',
+        buttons: ['Cancel', 'Yes, Remove'],
+        dangerMode: true,
+    }).then(function(confirmed) {
+        if (confirmed) {
+            fetch('/staff-profile-remove-document', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ field: field })
+            }).then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    swal('Removed!', label + ' has been removed.', 'success').then(function() {
+                        location.reload();
+                    });
+                } else {
+                    swal('Error', data.message || 'Failed to remove document.', 'error');
+                }
+            }).catch(function() {
+                swal('Error', 'Something went wrong.', 'error');
+            });
+        }
+    });
+    return false;
 }
 
 function checkRequiredDocs(form) {
