@@ -205,6 +205,9 @@
             <span><i class="fas fa-star"></i> {{ $row->current_rank }}</span>
         </div>
         <div class="sp-header-actions">
+            @if($row->profile_status == 'submitted')
+                <a href="/staff-profile/download-cv" class="sp-edit-toggle" style="background:linear-gradient(135deg, #667eea, #764ba2); color:#fff;"><i class="fas fa-download"></i> Get CV</a>
+            @endif
             @if($editMode)
                 <a href="/staff-profile?tab={{ $activeTab }}&mode=view" class="sp-edit-toggle editing"><i class="fas fa-times"></i> Cancel Editing</a>
             @else
@@ -1131,6 +1134,7 @@
             <div style="background:#d4edda; border:1px solid #c3e6cb; border-radius:10px; padding:20px; margin-bottom:20px;">
                 <h4 style="color:#155724; margin:0 0 8px 0;"><i class="fas fa-check-circle"></i> Profile Submitted</h4>
                 <p style="color:#155724; margin:0;">Your profile was submitted on <strong>{{ $row->profile_submitted_at ? \Carbon\Carbon::parse($row->profile_submitted_at)->format('d M, Y h:i A') : '' }}</strong>. All information has been recorded.</p>
+                <a href="/staff-profile/download-cv" class="sp-save-btn" style="display:inline-block; margin-top:12px; background:linear-gradient(135deg, #667eea, #764ba2); text-decoration:none; color:#fff; padding:10px 20px; border-radius:8px; font-size:14px;"><i class="fas fa-download"></i> Download CV</a>
             </div>
         @endif
 

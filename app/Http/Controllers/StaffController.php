@@ -631,6 +631,21 @@ class StaffController extends Controller
     /**
      * Download staff CV as PDF, merging any uploaded PDF documents (like recruitment).
      */
+    public function downloadMyCV()
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        $username = session('username');
+        $row = DB::table('staff')->where('username', $username)->first();
+        if (!$row) {
+            return back()->with('error', 'Staff record not found');
+        }
+
+        return $this->downloadCV($row->id);
+    }
+
     public function downloadCV($id)
     {
         if (!session()->has('log')) {
