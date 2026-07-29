@@ -1248,7 +1248,7 @@ class StaffController extends Controller
         }
 
         // Documents
-        $requiredDocs = ['doc_photo', 'doc_birth_certificate', 'doc_appointment_letter', 'doc_confirmation'];
+        $requiredDocs = ['doc_photo', 'doc_birth_certificate', 'doc_appointment_letter'];
         foreach ($requiredDocs as $field) {
             $totalRequired++;
             if (!empty($row->$field)) $filledRequired++;
