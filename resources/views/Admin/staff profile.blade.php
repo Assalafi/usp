@@ -400,6 +400,7 @@
         <div class="sp-view-grid">
             <div class="sp-view-item"><div class="label">Faculty</div><div class="value">{{ $facultyTitle ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Department</div><div class="value">{{ $deptTitle ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Program</div><div class="value">{{ $programTitle ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Unit</div><div class="value">{{ $unitName ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Designation/Rank</div><div class="value">{{ $designationName ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Staff Category</div><div class="value">{{ $row->staff_category ?: 'Not set' }}</div></div>

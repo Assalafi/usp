@@ -115,6 +115,9 @@
 {{-- ==================== SERVICE RECORD ==================== --}}
 <h2>Service Record</h2>
 <table class="info-table">
+    <tr><td class="label">Faculty:</td><td class="value">{{ $facultyTitle ?? $row->faculty ?? 'N/A' }}</td></tr>
+    <tr><td class="label">Department:</td><td class="value">{{ $deptTitle ?? $row->department ?? 'N/A' }}</td></tr>
+    <tr><td class="label">Program:</td><td class="value">{{ $programTitle ?? $row->program ?? 'N/A' }}</td></tr>
     <tr><td class="label">Staff Category:</td><td class="value">{{ $row->staff_category ?? 'N/A' }}</td></tr>
     <tr><td class="label">Employment Status:</td><td class="value">{{ $row->employee_status ?? 'N/A' }}</td></tr>
     <tr><td class="label">Grade/Level:</td><td class="value">{{ $gradeName ?? $row->grade ?? 'N/A' }}</td></tr>
@@ -148,9 +151,9 @@
 {{-- ==================== ACADEMIC INFORMATION ==================== --}}
 <h2>Academic Information</h2>
 <table class="info-table">
-    <tr><td class="label">Faculty:</td><td class="value">{{ $row->faculty ?? 'N/A' }}</td></tr>
-    <tr><td class="label">Department:</td><td class="value">{{ $row->department ?? 'N/A' }}</td></tr>
-    <tr><td class="label">Program:</td><td class="value">{{ $row->program ?? 'N/A' }}</td></tr>
+    <tr><td class="label">Faculty:</td><td class="value">{{ $facultyTitle ?? $row->faculty ?? 'N/A' }}</td></tr>
+    <tr><td class="label">Department:</td><td class="value">{{ $deptTitle ?? $row->department ?? 'N/A' }}</td></tr>
+    <tr><td class="label">Program:</td><td class="value">{{ $programTitle ?? $row->program ?? 'N/A' }}</td></tr>
     <tr><td class="label">Degree Status:</td><td class="value">{{ $row->degree ? 'Available' : 'Not Available' }}</td></tr>
 </table>
 

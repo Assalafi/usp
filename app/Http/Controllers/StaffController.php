@@ -663,6 +663,9 @@ class StaffController extends Controller
             $designationName = (isset($row->designation_id) && $row->designation_id) ? DB::table('designations')->where('id', $row->designation_id)->value('name') : ($row->current_rank ?? '');
             $gradeName = (isset($row->grade_id) && $row->grade_id) ? DB::table('grades')->where('id', $row->grade_id)->value('name') : ($row->grade ?? '');
             $stepName = (isset($row->step_id) && $row->step_id) ? DB::table('steps')->where('id', $row->step_id)->value('name') : ($row->step ?? '');
+            $facultyTitle = $row->faculty ? (DB::table('faculty')->where('code', $row->faculty)->value('title') ?? $row->faculty) : '';
+            $deptTitle = $row->department ? (DB::table('department')->where('code', $row->department)->value('title') ?? $row->department) : '';
+            $programTitle = $row->program ? (DB::table('program')->where('code', $row->program)->value('title') ?? $row->program) : '';
 
             // Decode JSON fields
             $institutions = json_decode($row->institutions ?? '[]', true) ?: [];
@@ -833,6 +836,9 @@ class StaffController extends Controller
                 'designationName' => $designationName,
                 'gradeName' => $gradeName,
                 'stepName' => $stepName,
+                'facultyTitle' => $facultyTitle,
+                'deptTitle' => $deptTitle,
+                'programTitle' => $programTitle,
                 'institutions' => $institutions,
                 'experiences' => $experiences,
                 'publications' => $publications,

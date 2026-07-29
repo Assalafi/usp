@@ -240,9 +240,14 @@
                                     <div class="row">
                                         <div class="col-md-6">
                                             <table class="table table-sm table-borderless mb-0">
-                                                <tr><td class="font-weight-bold text-muted" style="width:40%">Faculty</td><td>{{ $row->faculty ?? 'N/A' }}</td></tr>
-                                                <tr><td class="font-weight-bold text-muted">Department</td><td>{{ $row->department ?? 'N/A' }}</td></tr>
-                                                <tr><td class="font-weight-bold text-muted">Program</td><td>{{ $row->program ?? 'N/A' }}</td></tr>
+                                                @php
+                                                    $facultyTitle = $row->faculty ? (DB::table('faculty')->where('code', $row->faculty)->value('title') ?? $row->faculty) : 'N/A';
+                                                    $deptTitle = $row->department ? (DB::table('department')->where('code', $row->department)->value('title') ?? $row->department) : 'N/A';
+                                                    $programTitle = $row->program ? (DB::table('program')->where('code', $row->program)->value('title') ?? $row->program) : 'N/A';
+                                                @endphp
+                                                <tr><td class="font-weight-bold text-muted" style="width:40%">Faculty</td><td>{{ $facultyTitle }}</td></tr>
+                                                <tr><td class="font-weight-bold text-muted">Department</td><td>{{ $deptTitle }}</td></tr>
+                                                <tr><td class="font-weight-bold text-muted">Program</td><td>{{ $programTitle }}</td></tr>
                                                 <tr><td class="font-weight-bold text-muted">Degree Status</td><td>{{ $row->degree ? 'Available' : 'Not Available' }}</td></tr>
                                             </table>
                                         </div>
