@@ -1007,6 +1007,7 @@ Route::get('staff-profile', function () {
 });
 Route::post('/staff-profile-update', [StaffController::class, 'profileUpdate']);
 Route::get('/staff-profile/download-cv', [StaffController::class, 'downloadMyCV']);
+Route::get('/staff-profile/download-audit-form', [StaffController::class, 'downloadAuditForm']);
 Route::post('/staff-profile-documents', [StaffController::class, 'uploadDocuments']);
 Route::post('/staff-profile-remove-document', [StaffController::class, 'removeDocument']);
 Route::post('/staff-profile-delete-doc', [StaffController::class, 'deleteOtherDoc']);

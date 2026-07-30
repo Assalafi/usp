@@ -170,7 +170,7 @@ class StaffController extends Controller
         }
 
         // Date fields that should NOT be uppercased
-        $dateFields = ['date_of_birth', 'date_of_first_appointment', 'date_of_asumption', 'date_of_last_promotion', 'date_of_comfirmation', 'leave_start_date', 'leave_end_date'];
+        $dateFields = ['date_of_birth', 'date_of_first_appointment', 'date_of_asumption', 'date_of_last_promotion', 'date_of_comfirmation', 'date_of_current_appointment', 'leave_start_date', 'leave_end_date'];
 
         // Fields that should keep original case (not uppercased)
         $caseSensitiveFields = ['current_qualification', 'staff_status', 'leave_institution', 'physically_challenged', 'physical_challenge_type'];
@@ -290,7 +290,7 @@ class StaffController extends Controller
         $jsonFields = ['institutions', 'experiences', 'publications', 'honours', 'memberships', 'promotions'];
 
         // Date fields that should NOT be uppercased
-        $dateFields = ['date_of_birth', 'date_of_first_appointment', 'date_of_asumption', 'date_of_last_promotion', 'date_of_comfirmation', 'leave_start_date', 'leave_end_date'];
+        $dateFields = ['date_of_birth', 'date_of_first_appointment', 'date_of_asumption', 'date_of_last_promotion', 'date_of_comfirmation', 'date_of_current_appointment', 'leave_start_date', 'leave_end_date'];
 
         // Fields that should keep original case (not uppercased)
         $caseSensitiveFields = ['current_qualification', 'staff_status', 'leave_institution', 'physically_challenged', 'physical_challenge_type'];
@@ -644,6 +644,60 @@ class StaffController extends Controller
         }
 
         return $this->downloadCV($row->id);
+    }
+
+    public function downloadAuditForm()
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        $username = session('username');
+        $row = DB::table('staff')->where('username', $username)->first();
+        if (!$row) {
+            return back()->with('error', 'Staff record not found');
+        }
+
+        try {
+            $unitName = (isset($row->unit_id) && $row->unit_id) ? DB::table('units')->where('id', $row->unit_id)->value('name') : ($row->unit ?? '');
+            $designationName = (isset($row->designation_id) && $row->designation_id) ? DB::table('designations')->where('id', $row->designation_id)->value('name') : ($row->current_rank ?? '');
+            $gradeName = (isset($row->grade_id) && $row->grade_id) ? DB::table('grades')->where('id', $row->grade_id)->value('name') : ($row->grade ?? '');
+            $deptTitle = $row->department ? (DB::table('department')->where('code', $row->department)->value('title') ?? $row->department) : '';
+
+            // Department/Unit: show both department and unit if available
+            $parts = [];
+            if (!empty($deptTitle)) $parts[] = $deptTitle;
+            if (!empty($unitName) && $unitName !== $deptTitle) $parts[] = $unitName;
+            $deptUnitDisplay = implode(' / ', $parts) ?: 'N/A';
+
+            $options = new \Dompdf\Options();
+            $options->set('chroot', public_path());
+            $options->set('tempDir', sys_get_temp_dir());
+            $options->set('isRemoteEnabled', true);
+            $options->set('defaultFont', 'DejaVu Sans');
+
+            $html = view('Admin.staff-audit-form', [
+                'row' => $row,
+                'unitName' => $unitName,
+                'designationName' => $designationName,
+                'gradeName' => $gradeName,
+                'deptUnitDisplay' => $deptUnitDisplay,
+            ])->render();
+
+            $dompdf = new \Dompdf\Dompdf($options);
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+
+            $safeName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $row->name ?? 'staff');
+            return response($dompdf->output(), 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', 'inline; filename="Audit_Form_' . $safeName . '.pdf"');
+
+        } catch (\Exception $e) {
+            \Log::error('Audit Form Generation Error: ' . $e->getMessage());
+            return back()->with('error', 'Failed to generate audit form: ' . $e->getMessage());
+        }
     }
 
     public function downloadCV($id)

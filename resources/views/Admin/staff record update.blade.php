@@ -303,6 +303,16 @@
                                             value="{{ $row->date_of_asumption }}" class="form-control">
                                     </div>
                                     <div class="form-group">
+                                        <label for="date_of_comfirmation" class="form-label">Date of Confirmation of Appointment</label>
+                                        <input type="date" name="date_of_comfirmation" id="date_of_comfirmation"
+                                            value="{{ $row->date_of_comfirmation }}" class="form-control">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="date_of_current_appointment" class="form-label">Date of Current Appointment</label>
+                                        <input type="date" name="date_of_current_appointment" id="date_of_current_appointment"
+                                            value="{{ $row->date_of_current_appointment }}" class="form-control">
+                                    </div>
+                                    <div class="form-group">
                                         <label for="current_qualification" class="form-label">Current Qualification recognized by the university</label>
                                         <select name="current_qualification" id="current_qualification" class="form-control">
                                             <option value="">{{ $row->current_qualification ?: 'Select' }}</option>

@@ -207,6 +207,7 @@
         <div class="sp-header-actions">
             @if($row->profile_status == 'submitted')
                 <a href="/staff-profile/download-cv" class="sp-edit-toggle" style="background:linear-gradient(135deg, #667eea, #764ba2); color:#fff;"><i class="fas fa-download"></i> Get CV</a>
+                <a href="/staff-profile/download-audit-form" class="sp-edit-toggle" style="background:linear-gradient(135deg, #2d6a4f, #40916c); color:#fff; margin-left:6px;"><i class="fas fa-file-alt"></i> Audit Form</a>
             @endif
             @if($editMode)
                 <a href="/staff-profile?tab={{ $activeTab }}&mode=view" class="sp-edit-toggle editing"><i class="fas fa-times"></i> Cancel Editing</a>
@@ -410,6 +411,8 @@
             <div class="sp-view-item"><div class="label">Date of First Appointment</div><div class="value">{{ ($row->date_of_first_appointment && $row->date_of_first_appointment != '1970-01-01') ? $row->date_of_first_appointment : 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Rank on First Appointment</div><div class="value">{{ $row->rank_of_first_appointment ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Date of Assumption</div><div class="value">{{ ($row->date_of_asumption && $row->date_of_asumption != '1970-01-01') ? $row->date_of_asumption : 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Date of Confirmation of Appointment</div><div class="value">{{ ($row->date_of_comfirmation && $row->date_of_comfirmation != '1970-01-01') ? $row->date_of_comfirmation : 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Date of Current Appointment</div><div class="value">{{ ($row->date_of_current_appointment && $row->date_of_current_appointment != '1970-01-01') ? $row->date_of_current_appointment : 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Current Qualification recognized by the university</div><div class="value">{{ $row->current_qualification ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Staff Status</div><div class="value">{{ $row->staff_status ?: 'Active' }}</div></div>
             @if($row->staff_status && $row->staff_status != 'Active')
@@ -531,6 +534,14 @@
                 <div class="sp-form-group">
                     <label>Date of Assumption</label>
                     <input type="date" name="date_of_asumption" value="{{ $row->date_of_asumption }}">
+                </div>
+                <div class="sp-form-group">
+                    <label>Date of Confirmation of Appointment</label>
+                    <input type="date" name="date_of_comfirmation" value="{{ $row->date_of_comfirmation }}">
+                </div>
+                <div class="sp-form-group">
+                    <label>Date of Current Appointment</label>
+                    <input type="date" name="date_of_current_appointment" value="{{ $row->date_of_current_appointment }}">
                 </div>
                 <div class="sp-form-group">
                     <label>Current Qualification recognized by the university</label>
