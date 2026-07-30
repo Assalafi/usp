@@ -1111,7 +1111,6 @@
             'doc_photo' => 'Photo',
             'doc_birth_certificate' => 'Birth Certificate/Declaration of Age',
             'doc_appointment_letter' => 'Appointment Letter',
-            'doc_confirmation' => 'Letter of Confirmation',
         ];
         $docsMissing = [];
         foreach ($requiredDocs as $field => $label) {

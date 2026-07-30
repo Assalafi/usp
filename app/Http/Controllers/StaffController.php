@@ -578,7 +578,6 @@ class StaffController extends Controller
         $requiredDocs = [
             'doc_photo' => 'Photo', 'doc_birth_certificate' => 'Birth Certificate',
             'doc_appointment_letter' => 'Appointment Letter',
-            'doc_confirmation' => 'Letter of Confirmation',
         ];
         foreach ($requiredDocs as $field => $label) {
             if (empty($row->$field)) $missingFields[] = "Documents: $label";
