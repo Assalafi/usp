@@ -448,22 +448,28 @@
                 <div class="sp-form-group">
                     <label>Faculty</label>
                     <select name="faculty" class="faculty" id="facultysp1" lang="sp1">
-                        <option value="{{ $row->faculty }}">{{ $facultyTitle ?: 'Select Faculty' }}</option>
+                        <option value="">-- None --</option>
                         @foreach ($faculty as $fac)
-                            <option value="{{ $fac->code }}">{{ $fac->title }}</option>
+                            <option value="{{ $fac->code }}" {{ $row->faculty == $fac->code ? 'selected' : '' }}>{{ $fac->title }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="sp-form-group">
                     <label>Department</label>
                     <select name="department" class="department" id="departmentsp1" lang="sp1">
-                        <option value="{{ $row->department }}">{{ $deptTitle ?: 'Select Faculty First' }}</option>
+                        <option value="">-- None --</option>
+                        @if($row->department)
+                            <option value="{{ $row->department }}" selected>{{ $deptTitle ?: $row->department }}</option>
+                        @endif
                     </select>
                 </div>
                 <div class="sp-form-group">
                     <label>Program</label>
                     <select name="program" class="program" id="programsp1" lang="sp1">
-                        <option value="{{ $row->program ?? '' }}">{{ $programTitle ?: 'Select Department First' }}</option>
+                        <option value="">-- None --</option>
+                        @if($row->program)
+                            <option value="{{ $row->program }}" selected>{{ $programTitle ?: $row->program }}</option>
+                        @endif
                     </select>
                 </div>
                 <div class="sp-form-group">
@@ -1457,12 +1463,18 @@ $(document).on('change', '#facultysp1', function() {
     let _url = '/department ajax public';
     var faculty = this.value;
     var _token = $('input[name="_token"]').val();
+    if (!faculty) {
+        $("#departmentsp1").html('<option value="">-- None --</option>');
+        $("#programsp1").html('<option value="">-- None --</option>');
+        return;
+    }
     $.ajax({
         type: 'POST',
         url: _url,
         data: { faculty: faculty, _token: _token },
         success: function(data) {
-            $("#departmentsp1").html(data);
+            $("#departmentsp1").html('<option value="">-- None --</option>' + data);
+            $("#programsp1").html('<option value="">-- None --</option>');
         }
     });
 });
@@ -1472,12 +1484,16 @@ $(document).on('change', '#departmentsp1', function() {
     var dept = this.value;
     var faculty = $('#facultysp1').val();
     var _token = $('input[name="_token"]').val();
+    if (!dept) {
+        $("#programsp1").html('<option value="">-- None --</option>');
+        return;
+    }
     $.ajax({
         type: 'POST',
         url: _url,
         data: { faculty: faculty, dept: dept, _token: _token },
         success: function(data) {
-            $("#programsp1").html(data);
+            $("#programsp1").html('<option value="">-- None --</option>' + data);
         }
     });
 });
