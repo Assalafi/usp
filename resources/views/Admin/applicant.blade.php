@@ -63,7 +63,7 @@
                     <div class="card-header">
                         <h5>Applicants List</h5>
                     </div>
-                    @if (strtoupper(session('accType')) == 'ADMIN')
+                    @if (strtoupper(session('accType')) == 'ADMIN' || strtoupper(session('username')) == 'ADMIN')
                         <div class="card-block">
 
                             {{-- <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createStudent"><i class="fas fa-plus"></i> {{ ('Add New') }}</a> --}}
@@ -91,7 +91,7 @@
                                     <input type="text" class="form-control" id="search" name="search"
                                         value="{{ $filters['search'] ?? '' }}" placeholder="Search by name, ID...">
                                 </div>
-                                @if (strtoupper(session('accType')) == 'ADMIN')
+                                @if (strtoupper(session('accType')) == 'ADMIN' || strtoupper(session('username')) == 'ADMIN')
                                     <!-- Faculty Filter -->
                                     <div class="form-group col-md-2">
                                         <label for="facultyf">Faculty</label>
