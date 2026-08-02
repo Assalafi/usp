@@ -480,13 +480,13 @@ class StaffController extends Controller
     public function deleteOtherDoc(Request $req)
     {
         if (!session()->has('log')) {
-            return redirect('/');
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
         $username = session('username');
         $staff = DB::table('staff')->where('username', $username)->first();
         if (!$staff) {
-            return redirect()->back()->with('error', 'Staff record not found');
+            return response()->json(['success' => false, 'message' => 'Staff record not found']);
         }
 
         $index = $req->input('index');
@@ -500,9 +500,10 @@ class StaffController extends Controller
             }
             array_splice($others, $index, 1);
             DB::table('staff')->where('username', $username)->update(['doc_others' => json_encode($others)]);
+            return response()->json(['success' => true]);
         }
 
-        return redirect('/staff-profile?tab=documents&mode=edit')->with('success', 'Document removed successfully!');
+        return response()->json(['success' => false, 'message' => 'Document not found']);
     }
 
     public function submitProfile(Request $req)

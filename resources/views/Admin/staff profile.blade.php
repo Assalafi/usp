@@ -961,11 +961,7 @@
                 <div class="sp-doc-view-item" style="position:relative;">
                     <div class="doc-name">{{ $other['name'] ?? 'Unnamed' }}</div>
                     <a href="{{ asset('storage/staff_documents/' . $other['file']) }}" target="_blank" style="font-size:11px; color:var(--primary);"><i class="fas fa-eye"></i> View</a>
-                    <form action="/staff-profile-delete-doc" method="POST" style="display:inline; margin-left:6px;" onsubmit="return confirm('Delete this document?')">
-                        @csrf
-                        <input type="hidden" name="index" value="{{ $idx }}">
-                        <button type="submit" style="background:none; border:none; color:#dc3545; font-size:11px; cursor:pointer;"><i class="fas fa-trash"></i> Remove</button>
-                    </form>
+                    <a href="#" onclick="return deleteOtherDoc({{ $idx }}, '{{ addslashes($other['name'] ?? 'Unnamed') }}')" style="font-size:11px; color:#dc3545; margin-left:6px; cursor:pointer;"><i class="fas fa-trash"></i> Remove</a>
                 </div>
                 @endforeach
             </div>
@@ -1245,6 +1241,39 @@ function removeDocument(field, label) {
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
                 body: JSON.stringify({ field: field })
+            }).then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    swal('Removed!', label + ' has been removed.', 'success').then(function() {
+                        location.reload();
+                    });
+                } else {
+                    swal('Error', data.message || 'Failed to remove document.', 'error');
+                }
+            }).catch(function() {
+                swal('Error', 'Something went wrong.', 'error');
+            });
+        }
+    });
+    return false;
+}
+
+function deleteOtherDoc(index, label) {
+    swal({
+        title: 'Remove Document?',
+        text: 'Are you sure you want to remove "' + label + '"? This action cannot be undone.',
+        icon: 'warning',
+        buttons: ['Cancel', 'Yes, Remove'],
+        dangerMode: true,
+    }).then(function(confirmed) {
+        if (confirmed) {
+            fetch('/staff-profile-delete-doc', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ index: index })
             }).then(function(response) { return response.json(); })
             .then(function(data) {
                 if (data.success) {
