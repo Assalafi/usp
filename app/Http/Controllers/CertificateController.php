@@ -271,7 +271,7 @@ class CertificateController extends Controller
             $query->where('school_id', $request->school_id);
         }
 
-        $records = $query->orderBy('fullname', 'ASC')->get();
+        $records = $query->orderBy('class_of_degree', 'ASC')->get();
 
         if ($records->isEmpty()) {
             return redirect()->back()->with('error', 'No records found for the selected filters.');
@@ -424,7 +424,7 @@ class CertificateController extends Controller
             $query->where('faculty', $request->faculty);
         }
 
-        $records = $query->orderBy('fullname', 'ASC')->get();
+        $records = $query->orderBy('class_of_degree', 'ASC')->get();
 
         if ($records->isEmpty()) {
             return redirect()->back()->with('error', 'No records found for the selected filters.');
