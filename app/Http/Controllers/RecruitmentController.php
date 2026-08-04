@@ -112,19 +112,19 @@ class RecruitmentController extends Controller
                 $headers = ['X-API-Key' => $apiKey, 'Accept' => 'application/json'];
 
                 // Fetch total count
-                $totalResp = Http::withHeaders($headers)->withoutVerifying()->get($apiUrl, ['per_page' => 1]);
+                $totalResp = Http::withHeaders($headers)->withoutVerifying()->get($apiUrl, ['per_page' => 1, 'api_key' => $apiKey]);
                 if ($totalResp->successful() && ($totalResp->json()['success'] ?? false)) {
                     $data['totalCount'] = $totalResp->json()['data']['total_count'] ?? 0;
                 }
 
                 // Fetch submitted (NEW) count
-                $submittedResp = Http::withHeaders($headers)->withoutVerifying()->get($apiUrl, ['per_page' => 1, 'status' => 'NEW']);
+                $submittedResp = Http::withHeaders($headers)->withoutVerifying()->get($apiUrl, ['per_page' => 1, 'status' => 'NEW', 'api_key' => $apiKey]);
                 if ($submittedResp->successful() && ($submittedResp->json()['success'] ?? false)) {
                     $data['submittedCount'] = $submittedResp->json()['data']['total_count'] ?? 0;
                 }
 
                 // Fetch draft count
-                $draftResp = Http::withHeaders($headers)->withoutVerifying()->get($apiUrl, ['per_page' => 1, 'status' => 'DRAFT']);
+                $draftResp = Http::withHeaders($headers)->withoutVerifying()->get($apiUrl, ['per_page' => 1, 'status' => 'DRAFT', 'api_key' => $apiKey]);
                 if ($draftResp->successful() && ($draftResp->json()['success'] ?? false)) {
                     $data['draftCount'] = $draftResp->json()['data']['total_count'] ?? 0;
                 }
@@ -187,6 +187,7 @@ class RecruitmentController extends Controller
             }
 
             // Make API request with filters
+            $queryParams['api_key'] = $apiKey;
             $response = Http::withHeaders([
                 'X-API-Key' => $apiKey,
                 'Accept' => 'application/json',
@@ -314,7 +315,7 @@ class RecruitmentController extends Controller
                 'X-API-Key' => $apiKey,
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
-            ])->withoutVerifying()->get($apiUrl);
+            ])->withoutVerifying()->get($apiUrl, ['api_key' => $apiKey]);
 
             if ($response->successful()) {
                 $responseData = $response->json();
@@ -444,9 +445,10 @@ class RecruitmentController extends Controller
     private function getApplicantsData()
     {
         try {
+            $apiKey = 'umstad_recruitment_api_OWVlNDBjNjNjYTlmNGRiNTI4ODRiMTk1';
             $response = Http::withHeaders([
-                'X-API-Key' => 'umstad_recruitment_api_OWVlNDBjNjNjYTlmNGRiNTI4ODRiMTk1'
-            ])->get('https://employee.umstad.online/api/applicants');
+                'X-API-Key' => $apiKey,
+            ])->get('https://employee.umstad.online/api/applicants', ['per_page' => 100, 'api_key' => $apiKey]);
             
             if ($response->successful()) {
                 $data = $response->json();
@@ -489,7 +491,7 @@ class RecruitmentController extends Controller
                 'X-API-Key' => $apiKey,
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
-            ])->withoutVerifying()->get($apiUrl);
+            ])->withoutVerifying()->get($apiUrl, ['api_key' => $apiKey]);
 
             if (!$response->successful()) {
                 $errorMessage = 'API request failed';
@@ -825,7 +827,7 @@ class RecruitmentController extends Controller
             $response = Http::withHeaders([
                 'X-API-Key' => $apiKey,
                 'Accept' => 'application/json',
-            ])->withoutVerifying()->timeout(60)->get($apiUrl, $queryParams);
+            ])->withoutVerifying()->timeout(60)->get($apiUrl, array_merge($queryParams, ['api_key' => $apiKey]));
 
             if ($response->successful()) {
                 $responseData = $response->json();

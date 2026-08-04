@@ -17,6 +17,8 @@ class RecruitmentManagementController extends Controller
         $apiUrl = 'https://employee.umstad.online/api/management/' . $endpoint;
         $apiKey = $this->getApiKey();
 
+        $data['api_key'] = $apiKey;
+
         $response = Http::withHeaders([
             'X-API-Key' => $apiKey,
             'Accept' => 'application/json',

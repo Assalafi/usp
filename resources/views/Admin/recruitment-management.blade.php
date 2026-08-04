@@ -331,27 +331,30 @@ function switchTab(tabId) {
 }
 
 // ── API Helpers ──
+function apiUrl(endpoint) {
+    return API_BASE + '/' + endpoint + (endpoint.indexOf('?') !== -1 ? '&' : '?') + 'api_key=' + encodeURIComponent(API_KEY);
+}
 async function apiGet(endpoint) {
     try {
-        const r = await fetch(API_BASE + '/' + endpoint, { headers: { 'X-API-Key': API_KEY, 'Accept': 'application/json' } });
+        const r = await fetch(apiUrl(endpoint), { headers: { 'X-API-Key': API_KEY, 'Accept': 'application/json' } });
         return await r.json();
     } catch(e) { console.error('API GET error:', e); return { success: false, message: 'Network error' }; }
 }
 async function apiPost(endpoint, data) {
     try {
-        const r = await fetch(API_BASE + '/' + endpoint, { method: 'POST', headers: { 'X-API-Key': API_KEY, 'Accept': 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        const r = await fetch(apiUrl(endpoint), { method: 'POST', headers: { 'X-API-Key': API_KEY, 'Accept': 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
         return await r.json();
     } catch(e) { return { success: false, message: 'Network error' }; }
 }
 async function apiPut(endpoint, data) {
     try {
-        const r = await fetch(API_BASE + '/' + endpoint, { method: 'PUT', headers: { 'X-API-Key': API_KEY, 'Accept': 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        const r = await fetch(apiUrl(endpoint), { method: 'PUT', headers: { 'X-API-Key': API_KEY, 'Accept': 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
         return await r.json();
     } catch(e) { return { success: false, message: 'Network error' }; }
 }
 async function apiDelete(endpoint) {
     try {
-        const r = await fetch(API_BASE + '/' + endpoint, { method: 'DELETE', headers: { 'X-API-Key': API_KEY, 'Accept': 'application/json' } });
+        const r = await fetch(apiUrl(endpoint), { method: 'DELETE', headers: { 'X-API-Key': API_KEY, 'Accept': 'application/json' } });
         return await r.json();
     } catch(e) { return { success: false, message: 'Network error' }; }
 }
