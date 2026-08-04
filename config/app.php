@@ -17,6 +17,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | PG School Admission External API
+    |--------------------------------------------------------------------------
+    |
+    | Base URL and shared secret used to consume the PG School admission API
+    | from the central admin / VC portal.
+    |
+    */
+
+    'pg_admission_api_url' => env('PG_ADMISSION_API_URL', 'https://pg.umstad.online/api/v1/pg-admissions'),
+    'pg_admission_api_key' => env('PG_ADMISSION_API_KEY'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

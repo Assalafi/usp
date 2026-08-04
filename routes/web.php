@@ -13,6 +13,7 @@ use App\Http\Controllers\ElectionVotingController;
 use App\Http\Controllers\ExamTimebleController;
 use App\Http\Controllers\FacultyController;
 use App\Http\Controllers\HallsController;
+use App\Http\Controllers\PgAdmissionController;
 use App\Http\Controllers\HostelController;
 use App\Http\Controllers\InvoicesController;
 use App\Http\Controllers\LectureTimetableController;
@@ -1227,6 +1228,13 @@ Route::post('/assign-upload-excel', [UsersController::class, 'uploadExcel2']);
 
 Route::get('/registration', [RegistrationController::class, 'index'])->middleware('role');
 Route::get('/applicants', [RegistrationController::class, 'applicant'])->middleware('role');
+
+// PG School Admission (VC / Admin portal consuming the PG School API)
+Route::get('/pg-admission', [PgAdmissionController::class, 'index'])->middleware('role');
+Route::get('/pg-admission/overview', [PgAdmissionController::class, 'overview'])->middleware('role');
+Route::get('/pg-admission/applications', [PgAdmissionController::class, 'applications'])->middleware('role');
+Route::post('/pg-admission/bulk-approve', [PgAdmissionController::class, 'bulkApprove'])->middleware('role');
+Route::get('/pg-admission/history', [PgAdmissionController::class, 'history'])->middleware('role');
 Route::get('/audit-logs', function (\Illuminate\Http\Request $req) {
     if (!session()->has('log') || session('accType') != 'Admin') {
         return redirect('/');

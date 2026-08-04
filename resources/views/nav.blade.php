@@ -56,6 +56,17 @@
                     <span class="pcoded-mtext">Profile</span>
                 </a>
             </li>
+            @if ($positions == 'VC')
+                <li class="nav-item pcoded-hasmenu @if ($page == 'pg-admission') pcoded-trigger active @endif">
+                    <a href="#!" class="nav-link">
+                        <span class="pcoded-micon"><i class="fas fa-graduation-cap"></i></span>
+                        <span class="pcoded-mtext">PG Admission</span>
+                    </a>
+                    <ul class="pcoded-submenu">
+                        <li class="@if ($page == 'pg-admission') active @endif"><a href="/pg-admission" class="">PG School Admission</a></li>
+                    </ul>
+                </li>
+            @endif
             @if ($nav_allo == 1)
                 <li class="nav-item">
                     <a href="/my-lecture-timetable" class="nav-link">
@@ -194,17 +205,18 @@
                             class="">Membership</a></li>
                 </ul>
             </li>
-            <li class="nav-item pcoded-hasmenu">
+            <li class="nav-item pcoded-hasmenu @if ($page == 'applicants' || $page == 'pg-admission' || $page == 'registration') pcoded-trigger active @endif">
                 <a href="#!" class="nav-link">
                     <span class="pcoded-micon"><i class="fas fa-edit"></i></span>
                     <span class="pcoded-mtext">Admission</span>
                 </a>
                 <ul class="pcoded-submenu">
-                    <li class=""><a href="/applicants" class="">PUTME</a></li>
+                    <li class="@if ($page == 'applicants') active @endif"><a href="/applicants" class="">PUTME</a></li>
+                    <li class="@if ($page == 'pg-admission') active @endif"><a href="/pg-admission" class="">PG School Admission</a></li>
                     {{-- <li class=""><a href="#" class="">Admission Letter</a></li> --}}
                     {{-- <li class=""><a href="#" class="">Clearance</a></li> --}}
                     {{-- <li class=""><a href="/jamb-admitted" class="">Jamb Admitted</a></li> --}}
-                    <li class=""><a href="/registration" class="">New Registration</a></li>
+                    <li class="@if ($page == 'registration') active @endif"><a href="/registration" class="">New Registration</a></li>
                 </ul>
             </li>
             <li class="nav-item pcoded-hasmenu @if ($page == 'faculty' || $page == 'department' || $page == 'program' || $page == 'session' || $page == 'semester' || $page == 'unit' || $page == 'designation' || $page == 'grade' || $page == 'step') pcoded-trigger active @endif ">
