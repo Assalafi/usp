@@ -38,6 +38,7 @@ class RecruitmentManagementController extends Controller
         $data['page'] = 'recruitment-management';
         $data['title'] = 'RECRUITMENT MANAGEMENT';
         $data['statistics'] = $statistics;
+        $data['accessList'] = \Illuminate\Support\Facades\DB::table('recruitment_access')->orderBy('name', 'ASC')->get();
 
         return view('main', $data);
     }

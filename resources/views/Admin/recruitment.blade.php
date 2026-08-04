@@ -72,9 +72,11 @@
                             <button type="button" class="btn btn-primary btn-sm" data-toggle="collapse" data-target="#filterPanel">
                                 <i class="fas fa-filter"></i> Filters
                             </button>
+                            @if($canExport ?? false)
                             <button type="button" class="btn btn-success btn-sm" onclick="$('#exportModal').modal('show')">
                                 <i class="fas fa-download"></i> Export
                             </button>
+                            @endif
                             <button type="button" class="btn btn-default btn-sm" onclick="location.reload()">
                                 <i class="fas fa-sync-alt"></i> Refresh
                             </button>
@@ -294,6 +296,7 @@
 </div>
 
 {{-- ── Export Modal ── --}}
+@if($canExport ?? false)
 <div class="modal fade" id="exportModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -419,6 +422,7 @@
         </div>
     </div>
 </div>
+@endif
 
 <script>
 $(document).ready(function() {

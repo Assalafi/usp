@@ -1,6 +1,16 @@
 @php
     $statistics = $statistics ?? [];
 @endphp
+<style>
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; }
+    .switch .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; }
+    .switch input:checked + .slider { background-color: #28a745; }
+    .switch input:checked + .slider:before { transform: translateX(20px); }
+    .switch .slider.round { border-radius: 24px; }
+    .switch .slider.round:before { border-radius: 50%; }
+</style>
 <div class="pcoded-content">
     <div class="page-header">
         <div class="page-block">
@@ -77,6 +87,11 @@
                                 <li class="nav-item">
                                     <a class="nav-link" id="tab-jobs-link" href="javascript:void(0)" onclick="switchTab('tabJobs')">
                                         <i class="fas fa-briefcase mr-1"></i>Jobs / Positions
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="tab-access-link" href="javascript:void(0)" onclick="switchTab('tabAccess')">
+                                        <i class="fas fa-user-lock mr-1"></i>Access Control
                                     </a>
                                 </li>
                             </ul>
@@ -195,6 +210,94 @@
                                         </thead>
                                         <tbody>
                                             <tr><td colspan="7" class="text-center py-4"><i class="fas fa-spinner fa-spin mr-2"></i>Loading jobs...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {{-- ── Access Control Tab ── --}}
+                            <div class="mgmt-tab" id="tabAccess" style="display:none;">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <h6 class="mb-0 d-inline">Recruitment Access Control</h6>
+                                        <small class="text-muted ml-2" id="accessCount"></small>
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-outline-secondary btn-sm mr-1" onclick="loadAccess()"><i class="fas fa-sync-alt"></i></button>
+                                        <button class="btn btn-primary btn-sm" onclick="showAddAccess()"><i class="fas fa-plus mr-1"></i>Grant Access</button>
+                                    </div>
+                                </div>
+                                <div class="alert alert-info mb-3" style="border-left:4px solid #17a2b8;">
+                                    <small><i class="fas fa-info-circle mr-1"></i>Users with access can view the Recruitment page. Their visibility is limited to assigned <strong>Departments</strong> and <strong>Posts</strong>. Toggle below to control exporting and CV viewing.</small>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover table-striped" id="accessTable">
+                                        <thead class="thead-light">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>User</th>
+                                                <th>Access</th>
+                                                <th>Departments</th>
+                                                <th>Posts</th>
+                                                <th>Export</th>
+                                                <th>View CV</th>
+                                                <th width="130">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @forelse ($accessList ?? [] as $acc)
+                                                <tr data-id="{{ $acc->id }}" data-depts="{{ $acc->departments ?? '[]' }}" data-posts="{{ $acc->posts ?? '[]' }}">
+                                                    <td>{{ $loop->iteration }}</td>
+                                                    <td>
+                                                        <strong>{{ $acc->name }}</strong>
+                                                        <br><small class="text-muted">{{ $acc->username }}</small>
+                                                    </td>
+                                                    <td>
+                                                        @if ($acc->can_access)
+                                                            <span class="badge badge-success">Allowed</span>
+                                                        @else
+                                                            <span class="badge badge-secondary">Blocked</span>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @php $depts = json_decode($acc->departments ?? '[]', true) ?: []; @endphp
+                                                        @if (count($depts) > 0)
+                                                            <span class="badge badge-light">{{ count($depts) }}</span>
+                                                            <small class="text-muted d-block" style="max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ implode(', ', array_slice($depts, 0, 2)) }}@if(count($depts) > 2)...@endif</small>
+                                                        @else
+                                                            <span class="badge badge-warning">All</span>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @php $posts = json_decode($acc->posts ?? '[]', true) ?: []; @endphp
+                                                        @if (count($posts) > 0)
+                                                            <span class="badge badge-light">{{ count($posts) }}</span>
+                                                            <small class="text-muted d-block" style="max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ implode(', ', array_slice($posts, 0, 2)) }}@if(count($posts) > 2)...@endif</small>
+                                                        @else
+                                                            <span class="badge badge-warning">All</span>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @if ($acc->can_export)
+                                                            <span class="badge badge-success">Yes</span>
+                                                        @else
+                                                            <span class="badge badge-secondary">No</span>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @if ($acc->can_view_cv)
+                                                            <span class="badge badge-success">Yes</span>
+                                                        @else
+                                                            <span class="badge badge-secondary">No</span>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        <button class="btn btn-outline-info btn-sm mr-1" onclick="editAccess('{{ $acc->id }}')" title="Edit"><i class="fas fa-edit"></i></button>
+                                                        <button class="btn btn-outline-danger btn-sm" onclick="deleteAccess('{{ $acc->id }}')" title="Delete"><i class="fas fa-trash"></i></button>
+                                                    </td>
+                                                </tr>
+                                            @empty
+                                                <tr><td colspan="8" class="text-center text-muted py-4">No access rules yet. Click "Grant Access" to add a user.</td></tr>
+                                            @endforelse
                                         </tbody>
                                     </table>
                                 </div>
@@ -598,6 +701,236 @@ async function deleteJob(id) {
         const res = await apiDelete('jobs/' + id);
         if (res.success) { loadJobs(); Swal.fire({icon:'success',title:'Deleted!',timer:1500,showConfirmButton:false}); }
         else { Swal.fire('Cannot Delete', res.message || 'This job has applications and cannot be removed.', 'error'); }
+    }
+}
+
+// ══════════════════════════════════════════════
+//                ACCESS CONTROL
+// ══════════════════════════════════════════════
+let accessDepts = [];
+let accessPosts = [];
+
+function loadAccess() {
+    location.reload();
+}
+
+function accessToggleHtml(id, checked, label) {
+    return '<label class="switch mb-0"><input type="checkbox" id="' + id + '"' + (checked ? ' checked' : '') + '><span class="slider round"></span></label>' +
+           '<small class="text-muted ml-2">' + label + '</small>';
+}
+
+async function fetchJson(url, timeout = 15000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' }, signal: controller.signal });
+        return await res.json();
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function loadAccessOptions() {
+    try {
+        const [dRes, pRes] = await Promise.all([
+            fetchJson('{{ url("/recruitment/access/departments") }}'),
+            fetchJson('{{ url("/recruitment/access/posts") }}')
+        ]);
+        accessDepts = (dRes.data || []);
+        accessPosts = (pRes.data || []);
+    } catch(e) {
+        console.error('Failed to load depts/posts:', e);
+        accessDepts = [];
+        accessPosts = [];
+    }
+}
+
+function accessDeptOptions(selected) {
+    if (!accessDepts.length) return '<option value="">No departments loaded</option>';
+    return accessDepts.map(d => {
+        const sel = (selected || []).indexOf(d) !== -1 ? ' selected' : '';
+        return '<option value="' + d.replace(/"/g, '&quot;') + '"' + sel + '>' + d + '</option>';
+    }).join('');
+}
+
+function accessPostOptions(selected) {
+    if (!accessPosts.length) return '<option value="">No posts loaded</option>';
+    return accessPosts.map(p => {
+        const sel = (selected || []).indexOf(p) !== -1 ? ' selected' : '';
+        return '<option value="' + p.replace(/"/g, '&quot;') + '"' + sel + '>' + p + '</option>';
+    }).join('');
+}
+
+function initAccessUserSelect($el, preselected) {
+    if (typeof jQuery === 'undefined' || typeof $.fn.select2 === 'undefined') {
+        return;
+    }
+    $el.select2({
+        placeholder: 'Search by name or username...',
+        allowClear: true,
+        width: '100%',
+        ajax: {
+            url: '{{ url("/recruitment/access/users") }}',
+            dataType: 'json',
+            delay: 300,
+            data: function(params) {
+                return { q: params.term || '' };
+            },
+            processResults: function(data) {
+                return {
+                    results: (data.data || []).map(function(u) {
+                        return { id: u.username, text: u.name + ' (' + u.username + ')' };
+                    })
+                };
+            }
+        }
+    });
+    if (preselected) {
+        $el.append('<option value="' + preselected.username + '" selected>' + preselected.name + ' (' + preselected.username + ')</option>');
+        $el.trigger('change');
+    }
+}
+
+async function showAddAccess() {
+    let deptsOptions = '<option value="">Loading...</option>';
+    let postsOptions = '<option value="">Loading...</option>';
+
+    // Open modal immediately, populate asynchronously
+    Swal.fire({
+        title: 'Grant Recruitment Access',
+        width: '700px',
+        html:
+            '<div class="text-left px-2">' +
+                '<label class="small font-weight-bold">Select User</label>' +
+                '<select id="accUser" class="form-control mb-3"></select>' +
+                '<label class="small font-weight-bold">Permissions</label>' +
+                '<div class="border rounded p-3 mb-3">' +
+                    '<div class="d-flex justify-content-between align-items-center mb-2">' + accessToggleHtml('accAccess', true, 'Can Access Recruitment Page') + '</div>' +
+                    '<div class="d-flex justify-content-between align-items-center mb-2">' + accessToggleHtml('accExport', false, 'Can Export (PDF / CSV)') + '</div>' +
+                    '<div class="d-flex justify-content-between align-items-center">' + accessToggleHtml('accCv', false, 'Can View Applicant CV') + '</div>' +
+                '</div>' +
+                '<div class="row">' +
+                    '<div class="col-md-6">' +
+                        '<label class="small font-weight-bold">Assigned Departments <small class="text-muted">(empty = all)</small></label>' +
+                        '<select id="accDepts" class="form-control form-control-sm" multiple size="6">' + deptsOptions + '</select>' +
+                    '</div>' +
+                    '<div class="col-md-6">' +
+                        '<label class="small font-weight-bold">Assigned Posts <small class="text-muted">(empty = all)</small></label>' +
+                        '<select id="accPosts" class="form-control form-control-sm" multiple size="6">' + postsOptions + '</select>' +
+                    '</div>' +
+                '</div>' +
+            '</div>',
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-save mr-1"></i>Grant Access',
+        confirmButtonColor: '#4680ff',
+        didOpen: async () => {
+            initAccessUserSelect($('#accUser'));
+            try {
+                await loadAccessOptions();
+                const dSel = document.getElementById('accDepts');
+                const pSel = document.getElementById('accPosts');
+                if (dSel) dSel.innerHTML = accessDeptOptions([]);
+                if (pSel) pSel.innerHTML = accessPostOptions([]);
+            } catch (e) { console.error('Failed to load options:', e); }
+        },
+        preConfirm: async () => {
+            const username = document.getElementById('accUser').value;
+            if (!username) { Swal.showValidationMessage('Please select a user'); return false; }
+            const depts = Array.from(document.getElementById('accDepts').selectedOptions).map(o => o.value);
+            const posts = Array.from(document.getElementById('accPosts').selectedOptions).map(o => o.value);
+            const res = await fetch('{{ url("/recruitment/access/store") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: JSON.stringify({
+                    username,
+                    can_access: document.getElementById('accAccess').checked,
+                    can_export: document.getElementById('accExport').checked,
+                    can_view_cv: document.getElementById('accCv').checked,
+                    departments: depts,
+                    posts: posts
+                })
+            }).then(r => r.json());
+            if (!res.success) { Swal.showValidationMessage(res.message || 'Failed to save'); return false; }
+            return res;
+        }
+    }).then(r => { if (r.isConfirmed) { loadAccess(); Swal.fire({icon:'success',title:'Granted!',text:r.value.message,timer:1500,showConfirmButton:false}); } });
+}
+
+async function editAccess(id) {
+    const row = document.querySelector('#accessTable tr[data-id="' + id + '"]');
+    if (!row) return;
+    const name = row.children[1].innerText.trim().split('\n')[0];
+    const username = row.children[1].innerText.trim().split('\n')[1].trim();
+    const depts = row.children[3].textContent.trim() === 'All' ? [] : (row.getAttribute('data-depts') ? JSON.parse(row.getAttribute('data-depts')) : []);
+    const posts = row.children[4].textContent.trim() === 'All' ? [] : (row.getAttribute('data-posts') ? JSON.parse(row.getAttribute('data-posts')) : []);
+    const canAccess = row.querySelector('.badge-success') && row.children[2].textContent.includes('Allowed');
+    const canExport = row.children[5].textContent.includes('Yes');
+    const canCv = row.children[6].textContent.includes('Yes');
+
+    // Open modal immediately; refresh options in the background
+    Swal.fire({
+        title: 'Edit Access - ' + name,
+        width: '700px',
+        html:
+            '<div class="text-left px-2">' +
+                '<p class="mb-3"><strong>User:</strong> ' + name + ' (' + username + ')</p>' +
+                '<div class="border rounded p-3 mb-3">' +
+                    '<div class="d-flex justify-content-between align-items-center mb-2">' + accessToggleHtml('accAccess', canAccess, 'Can Access Recruitment Page') + '</div>' +
+                    '<div class="d-flex justify-content-between align-items-center mb-2">' + accessToggleHtml('accExport', canExport, 'Can Export (PDF / CSV)') + '</div>' +
+                    '<div class="d-flex justify-content-between align-items-center">' + accessToggleHtml('accCv', canCv, 'Can View Applicant CV') + '</div>' +
+                '</div>' +
+                '<div class="row">' +
+                    '<div class="col-md-6">' +
+                        '<label class="small font-weight-bold">Assigned Departments <small class="text-muted">(empty = all)</small></label>' +
+                        '<select id="accDepts" class="form-control form-control-sm" multiple size="6"><option value="">Loading...</option></select>' +
+                    '</div>' +
+                    '<div class="col-md-6">' +
+                        '<label class="small font-weight-bold">Assigned Posts <small class="text-muted">(empty = all)</small></label>' +
+                        '<select id="accPosts" class="form-control form-control-sm" multiple size="6"><option value="">Loading...</option></select>' +
+                    '</div>' +
+                '</div>' +
+            '</div>',
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-save mr-1"></i>Update',
+        confirmButtonColor: '#4680ff',
+        didOpen: async () => {
+            try {
+                await loadAccessOptions();
+                const dSel = document.getElementById('accDepts');
+                const pSel = document.getElementById('accPosts');
+                if (dSel) dSel.innerHTML = accessDeptOptions(depts);
+                if (pSel) pSel.innerHTML = accessPostOptions(posts);
+            } catch (e) { console.error('Failed to load depts/posts:', e); }
+        },
+        preConfirm: async () => {
+            const deptsArr = Array.from(document.getElementById('accDepts').selectedOptions).map(o => o.value);
+            const postsArr = Array.from(document.getElementById('accPosts').selectedOptions).map(o => o.value);
+            const res = await fetch('{{ url("/recruitment/access/update") }}/' + id, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: JSON.stringify({
+                    can_access: document.getElementById('accAccess').checked,
+                    can_export: document.getElementById('accExport').checked,
+                    can_view_cv: document.getElementById('accCv').checked,
+                    departments: deptsArr,
+                    posts: postsArr
+                })
+            }).then(r => r.json());
+            if (!res.success) { Swal.showValidationMessage(res.message || 'Failed to update'); return false; }
+            return res;
+        }
+    }).then(r => { if (r.isConfirmed) { loadAccess(); Swal.fire({icon:'success',title:'Updated!',timer:1500,showConfirmButton:false}); } });
+}
+
+async function deleteAccess(id) {
+    const r = await Swal.fire({ title: 'Remove Access?', text: 'This user will lose access to the recruitment page.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: '<i class="fas fa-trash mr-1"></i>Remove' });
+    if (r.isConfirmed) {
+        const res = await fetch('{{ url("/recruitment/access/delete") }}/' + id, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+        }).then(r => r.json());
+        if (res.success) { loadAccess(); Swal.fire({icon:'success',title:'Removed!',timer:1500,showConfirmButton:false}); }
+        else { Swal.fire('Error', res.message || 'Failed to remove', 'error'); }
     }
 }
 

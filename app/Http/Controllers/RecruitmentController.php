@@ -23,6 +23,61 @@ class RecruitmentController extends Controller
     }
 
     /**
+     * Get the current user's recruitment access record.
+     */
+    private function getAccess()
+    {
+        return DB::table('recruitment_access')->where('username', session('username'))->first();
+    }
+
+    /**
+     * Merge the user's assigned department/post restrictions into the API query params.
+     */
+    private function applyAccessRestrictions($queryParams, $access)
+    {
+        if (!$access) {
+            return $queryParams;
+        }
+
+        $departments = json_decode($access->departments ?? '[]', true) ?: [];
+        $posts = json_decode($access->posts ?? '[]', true) ?: [];
+
+        if (!empty($departments)) {
+            $queryParams['department'] = $departments;
+        }
+        if (!empty($posts)) {
+            $queryParams['post'] = $posts;
+        }
+
+        return $queryParams;
+    }
+
+    /**
+     * Check whether an applicant's job falls within the user's assigned departments/posts.
+     */
+    private function canViewApplicant($application, $access)
+    {
+        if (!$access) {
+            return false;
+        }
+
+        $departments = json_decode($access->departments ?? '[]', true) ?: [];
+        $posts = json_decode($access->posts ?? '[]', true) ?: [];
+
+        $dept = $application['job']['department_name'] ?? null;
+        $post = $application['job']['title'] ?? null;
+
+        if (!empty($departments) && !in_array($dept, $departments)) {
+            return false;
+        }
+        if (!empty($posts) && !in_array($post, $posts)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Display the recruitment page with applicants data
      */
     public function index(Request $request)
@@ -32,8 +87,17 @@ class RecruitmentController extends Controller
             return redirect('/');
         }
 
+        $access = $this->getAccess();
+
+        // Admins always have access; other users must be granted access
+        if (session('accType') != 'Admin' && (!$access || !$access->can_access)) {
+            return redirect('/dash')->with('error', 'You do not have access to the recruitment page.');
+        }
+
         $data['page'] = $this->page;
         $data['title'] = $this->title;
+        $data['canExport'] = session('accType') == 'Admin' || ($access && $access->can_export);
+        $data['canViewCv'] = session('accType') == 'Admin' || ($access && $access->can_view_cv);
         $data['filters'] = [
             'search' => '', 'status' => '', 'department' => '', 'post' => '',
             'state' => '', 'lga' => '', 'gender' => '', 'staff_type' => ''
@@ -85,6 +149,11 @@ class RecruitmentController extends Controller
             return response()->json($emptyResponse);
         }
 
+        $access = $this->getAccess();
+        if (session('accType') != 'Admin' && (!$access || !$access->can_access)) {
+            return response()->json($emptyResponse);
+        }
+
         // API configuration
         $apiUrl = 'https://employee.umstad.online/api/applicants';
         $apiKey = config('app.recruitment_api_key', env('RECRUITMENT_API_KEY'));
@@ -112,6 +181,11 @@ class RecruitmentController extends Controller
                 }
             }
 
+            // Apply access restrictions (assigned departments/posts)
+            if (session('accType') != 'Admin') {
+                $queryParams = $this->applyAccessRestrictions($queryParams, $access);
+            }
+
             // Make API request with filters
             $response = Http::withHeaders([
                 'X-API-Key' => $apiKey,
@@ -130,6 +204,8 @@ class RecruitmentController extends Controller
 
             $applications = $responseData['data']['applications'] ?? [];
             $totalCount = $responseData['data']['total_count'] ?? 0;
+
+            $canViewCv = session('accType') == 'Admin' || ($access && $access->can_view_cv);
 
             // Format data for DataTables
             $data = [];
@@ -170,10 +246,12 @@ class RecruitmentController extends Controller
 
                 $actions = '<div class="btn-group btn-group-sm">';
                 $actions .= '<a href="/recruitment/' . $applicantId . '" class="btn btn-outline-info btn-sm" title="View"><i class="fas fa-eye"></i></a>';
-                if ($status !== 'DRAFT') {
-                    $actions .= '<a href="/recruitment/download-cv/' . $applicantId . '" class="btn btn-outline-success btn-sm" title="CV" target="_blank"><i class="fas fa-file-pdf"></i></a>';
-                } else {
-                    $actions .= '<button class="btn btn-outline-secondary btn-sm" title="CV not available for drafts" disabled><i class="fas fa-file-pdf"></i></button>';
+                if ($canViewCv) {
+                    if ($status !== 'DRAFT') {
+                        $actions .= '<a href="/recruitment/download-cv/' . $applicantId . '" class="btn btn-outline-success btn-sm" title="CV" target="_blank"><i class="fas fa-file-pdf"></i></a>';
+                    } else {
+                        $actions .= '<button class="btn btn-outline-secondary btn-sm" title="CV not available for drafts" disabled><i class="fas fa-file-pdf"></i></button>';
+                    }
                 }
                 $actions .= '</div>';
 
@@ -212,6 +290,11 @@ class RecruitmentController extends Controller
             return redirect('/');
         }
 
+        $access = $this->getAccess();
+        if (session('accType') != 'Admin' && (!$access || !$access->can_access)) {
+            return redirect('/dash')->with('error', 'You do not have access to the recruitment page.');
+        }
+
         // API configuration
         $apiUrl = "https://employee.umstad.online/api/applicants/{$id}";
         $apiKey = config('app.recruitment_api_key', env('RECRUITMENT_API_KEY'));
@@ -237,7 +320,17 @@ class RecruitmentController extends Controller
                 $responseData = $response->json();
                 
                 if ($responseData['success']) {
-                    $data['applicant'] = $responseData['data'];
+                    $applicant = $responseData['data'];
+
+                    // Enforce department/post restrictions for non-admin users
+                    if (session('accType') != 'Admin' && $access) {
+                        $application = $applicant['applications'][0] ?? null;
+                        if (!$application || !$this->canViewApplicant($application, $access)) {
+                            return redirect('/recruitment')->with('error', 'This applicant is not within your assigned departments or posts.');
+                        }
+                    }
+
+                    $data['applicant'] = $applicant;
                 } else {
                     $data['error'] = $responseData['message'] ?? 'Applicant not found';
                 }
@@ -294,6 +387,11 @@ class RecruitmentController extends Controller
         // Check if user is logged in
         if (!session()->has('log')) {
             return redirect('/');
+        }
+
+        $access = $this->getAccess();
+        if (session('accType') != 'Admin' && (!$access || !$access->can_access || !$access->can_export)) {
+            return back()->with('error', 'You do not have permission to export recruitment data.');
         }
 
         // Get filtered applications (flat list)
@@ -372,6 +470,11 @@ class RecruitmentController extends Controller
             return redirect('/');
         }
 
+        $access = $this->getAccess();
+        if (session('accType') != 'Admin' && (!$access || !$access->can_access || !$access->can_view_cv)) {
+            return back()->with('error', 'You do not have permission to view CVs.');
+        }
+
         try {
             // Get applicant data using same approach as show method
             $apiUrl = "https://employee.umstad.online/api/applicants/{$id}";
@@ -416,6 +519,11 @@ class RecruitmentController extends Controller
 
             if (!$application) {
                 return back()->with('error', 'No application found for this applicant');
+            }
+
+            // Enforce department/post restrictions for non-admin users
+            if (session('accType') != 'Admin' && $access && !$this->canViewApplicant($application, $access)) {
+                return back()->with('error', 'This applicant is not within your assigned departments or posts.');
             }
 
             // Check if application is a draft - don't generate CV for incomplete applications
@@ -625,6 +733,11 @@ class RecruitmentController extends Controller
             return redirect('/');
         }
 
+        $access = $this->getAccess();
+        if (session('accType') != 'Admin' && (!$access || !$access->can_access || !$access->can_export)) {
+            return back()->with('error', 'You do not have permission to export recruitment data.');
+        }
+
         // Get filtered applications (flat list)
         $applications = $this->getFilteredApplicants($request);
         
@@ -702,6 +815,12 @@ class RecruitmentController extends Controller
             if ($request->filled('lga')) $queryParams['lga'] = $request->input('lga');
             if ($request->filled('gender')) $queryParams['gender'] = $request->input('gender');
             if ($request->filled('staff_type')) $queryParams['staff_type'] = $request->input('staff_type');
+
+            // Apply access restrictions (assigned departments/posts) for non-admin users
+            $access = $this->getAccess();
+            if (session('accType') != 'Admin') {
+                $queryParams = $this->applyAccessRestrictions($queryParams, $access);
+            }
 
             $response = Http::withHeaders([
                 'X-API-Key' => $apiKey,

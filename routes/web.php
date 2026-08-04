@@ -1632,10 +1632,22 @@ foreach ($links as $key => $link) {
 // Recruitment Routes
 use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\RecruitmentManagementController;
+use App\Http\Controllers\RecruitmentAccessController;
 Route::get('/recruitment', [RecruitmentController::class, 'index'])->name('recruitment.index')->middleware('role');
 Route::get('/recruitment/data', [RecruitmentController::class, 'data'])->name('recruitment.data')->middleware('role');
 Route::get('/recruitment/management', [RecruitmentManagementController::class, 'index'])->name('recruitment.management')->middleware('role');
 Route::get('/recruitment/download-cv/{id}', [RecruitmentController::class, 'downloadCV'])->name('recruitment.download.cv')->middleware('role');
 Route::post('/recruitment/export/pdf', [RecruitmentController::class, 'exportPdf'])->name('recruitment.export.pdf')->middleware('role');
 Route::post('/recruitment/export/excel', [RecruitmentController::class, 'exportExcel'])->name('recruitment.export.excel');
+
+Route::prefix('recruitment/access')->name('recruitment.access.')->middleware('role')->group(function () {
+    Route::get('/', [RecruitmentAccessController::class, 'index']);
+    Route::post('/store', [RecruitmentAccessController::class, 'store'])->name('store');
+    Route::post('/update/{id}', [RecruitmentAccessController::class, 'update'])->name('update');
+    Route::post('/delete/{id}', [RecruitmentAccessController::class, 'destroy'])->name('delete');
+    Route::get('/users', [RecruitmentAccessController::class, 'users'])->name('users');
+    Route::get('/departments', [RecruitmentAccessController::class, 'departments'])->name('departments');
+    Route::get('/posts', [RecruitmentAccessController::class, 'posts'])->name('posts');
+});
+
 Route::get('/recruitment/{id}', [RecruitmentController::class, 'show'])->name('recruitment.show');
