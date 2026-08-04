@@ -1232,8 +1232,10 @@ Route::get('/applicants', [RegistrationController::class, 'applicant'])->middlew
 // PG School Admission (VC / Admin portal consuming the PG School API)
 Route::get('/pg-admission', [PgAdmissionController::class, 'index'])->middleware('role');
 Route::get('/pg-admission/overview', [PgAdmissionController::class, 'overview'])->middleware('role');
+Route::get('/pg-admission/filters', [PgAdmissionController::class, 'filters'])->middleware('role');
 Route::get('/pg-admission/applications', [PgAdmissionController::class, 'applications'])->middleware('role');
 Route::post('/pg-admission/bulk-approve', [PgAdmissionController::class, 'bulkApprove'])->middleware('role');
+Route::post('/pg-admission/bulk-revert', [PgAdmissionController::class, 'bulkRevert'])->middleware('role');
 Route::get('/pg-admission/history', [PgAdmissionController::class, 'history'])->middleware('role');
 Route::get('/audit-logs', function (\Illuminate\Http\Request $req) {
     if (!session()->has('log') || session('accType') != 'Admin') {

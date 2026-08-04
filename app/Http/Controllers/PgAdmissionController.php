@@ -72,13 +72,27 @@ class PgAdmissionController extends Controller
         $params = array_filter([
             'status' => $request->input('status'),
             'search' => $request->input('search'),
+            'faculty_id' => $request->input('faculty_id'),
+            'department_id' => $request->input('department_id'),
             'program_id' => $request->input('program_id'),
+            'level_id' => $request->input('level_id'),
             'academic_session_id' => $request->input('academic_session_id'),
+            'academic_semester_id' => $request->input('academic_semester_id'),
+            'all_ids' => $request->boolean('all_ids') ? 1 : null,
             'page' => $request->input('page', 1),
             'per_page' => $request->input('per_page', 50),
         ]);
 
         return response()->json($this->apiCall('get', 'applications', $params));
+    }
+
+    public function filters()
+    {
+        if (!session()->has('log') || (session('accType') != 'Admin' && session('appointment') != 'VC')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        return response()->json($this->apiCall('get', 'filters'));
     }
 
     public function bulkApprove(Request $request)
@@ -107,6 +121,32 @@ class PgAdmissionController extends Controller
         ]));
     }
 
+    public function bulkRevert(Request $request)
+    {
+        if (!session()->has('log') || (session('accType') != 'Admin' && session('appointment') != 'VC')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $request->validate([
+            'application_ids' => 'required|array|min:1',
+            'application_ids.*' => 'string',
+            'remarks' => 'nullable|string|max:2000',
+        ]);
+
+        $username = session('username');
+        $name = \Illuminate\Support\Facades\DB::table('users')->where('username', $username)->value('name');
+        if (!$name) {
+            $name = \Illuminate\Support\Facades\DB::table('staff')->where('username', $username)->value('name');
+        }
+        $revertedBy = trim(($name ? $name . ' ' : '') . '(' . $username . ')');
+
+        return response()->json($this->apiCall('post', 'bulk-revert', [
+            'application_ids' => $request->application_ids,
+            'remarks' => $request->remarks,
+            'reverted_by' => $revertedBy,
+        ]));
+    }
+
     public function history(Request $request)
     {
         if (!session()->has('log') || (session('accType') != 'Admin' && session('appointment') != 'VC')) {
@@ -115,6 +155,13 @@ class PgAdmissionController extends Controller
 
         $params = array_filter([
             'search' => $request->input('search'),
+            'faculty_id' => $request->input('faculty_id'),
+            'department_id' => $request->input('department_id'),
+            'program_id' => $request->input('program_id'),
+            'level_id' => $request->input('level_id'),
+            'academic_session_id' => $request->input('academic_session_id'),
+            'academic_semester_id' => $request->input('academic_semester_id'),
+            'all_ids' => $request->boolean('all_ids') ? 1 : null,
             'page' => $request->input('page', 1),
             'per_page' => $request->input('per_page', 50),
         ]);
