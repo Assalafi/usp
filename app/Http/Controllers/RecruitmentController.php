@@ -136,20 +136,27 @@ class RecruitmentController extends Controller
             try {
                 $headers = ['X-API-Key' => $apiKey, 'Accept' => 'application/json'];
 
+                // Base params; apply access restrictions for non-admin users so
+                // summary counts reflect only the user's assigned departments/posts
+                $baseParams = ['per_page' => 1, 'api_key' => $apiKey];
+                if (session('accType') != 'Admin') {
+                    $baseParams = $this->applyAccessRestrictions($baseParams, $access);
+                }
+
                 // Fetch total count
-                $totalResp = Http::withHeaders($headers)->withoutVerifying()->get($apiUrl, ['per_page' => 1, 'api_key' => $apiKey]);
+                $totalResp = Http::withHeaders($headers)->withoutVerifying()->get($apiUrl, $baseParams);
                 if ($totalResp->successful() && ($totalResp->json()['success'] ?? false)) {
                     $data['totalCount'] = $totalResp->json()['data']['total_count'] ?? 0;
                 }
 
                 // Fetch submitted (NEW) count
-                $submittedResp = Http::withHeaders($headers)->withoutVerifying()->get($apiUrl, ['per_page' => 1, 'status' => 'NEW', 'api_key' => $apiKey]);
+                $submittedResp = Http::withHeaders($headers)->withoutVerifying()->get($apiUrl, array_merge($baseParams, ['status' => 'NEW']));
                 if ($submittedResp->successful() && ($submittedResp->json()['success'] ?? false)) {
                     $data['submittedCount'] = $submittedResp->json()['data']['total_count'] ?? 0;
                 }
 
                 // Fetch draft count
-                $draftResp = Http::withHeaders($headers)->withoutVerifying()->get($apiUrl, ['per_page' => 1, 'status' => 'DRAFT', 'api_key' => $apiKey]);
+                $draftResp = Http::withHeaders($headers)->withoutVerifying()->get($apiUrl, array_merge($baseParams, ['status' => 'DRAFT']));
                 if ($draftResp->successful() && ($draftResp->json()['success'] ?? false)) {
                     $data['draftCount'] = $draftResp->json()['data']['total_count'] ?? 0;
                 }
