@@ -32,6 +32,8 @@ class RecruitmentController extends Controller
 
     /**
      * Merge the user's assigned department/post restrictions into the API query params.
+     * The user's own selection is intersected with their assigned scope so they can
+     * narrow results within their allowed departments/posts but never see outside them.
      */
     private function applyAccessRestrictions($queryParams, $access)
     {
@@ -39,14 +41,33 @@ class RecruitmentController extends Controller
             return $queryParams;
         }
 
-        $departments = json_decode($access->departments ?? '[]', true) ?: [];
-        $posts = json_decode($access->posts ?? '[]', true) ?: [];
+        $assignedDepts = json_decode($access->departments ?? '[]', true) ?: [];
+        $assignedPosts = json_decode($access->posts ?? '[]', true) ?: [];
 
-        if (!empty($departments)) {
-            $queryParams['department'] = $departments;
+        if (!empty($assignedDepts)) {
+            $selected = $queryParams['department'] ?? null;
+            if (!empty($selected)) {
+                $selectedArr = is_array($selected) ? $selected : [$selected];
+                $queryParams['department'] = array_values(array_intersect($selectedArr, $assignedDepts));
+                if (empty($queryParams['department'])) {
+                    $queryParams['department'] = ['__none__'];
+                }
+            } else {
+                $queryParams['department'] = $assignedDepts;
+            }
         }
-        if (!empty($posts)) {
-            $queryParams['post'] = $posts;
+
+        if (!empty($assignedPosts)) {
+            $selected = $queryParams['post'] ?? null;
+            if (!empty($selected)) {
+                $selectedArr = is_array($selected) ? $selected : [$selected];
+                $queryParams['post'] = array_values(array_intersect($selectedArr, $assignedPosts));
+                if (empty($queryParams['post'])) {
+                    $queryParams['post'] = ['__none__'];
+                }
+            } else {
+                $queryParams['post'] = $assignedPosts;
+            }
         }
 
         return $queryParams;
@@ -102,6 +123,10 @@ class RecruitmentController extends Controller
             'search' => '', 'status' => '', 'department' => '', 'post' => '',
             'state' => '', 'lga' => '', 'gender' => '', 'staff_type' => ''
         ];
+
+        // Pass access restrictions for non-admin users (limit filter options to assigned scope)
+        $data['assignedDepartments'] = session('accType') == 'Admin' ? [] : (json_decode($access->departments ?? '[]', true) ?: []);
+        $data['assignedPosts'] = session('accType') == 'Admin' ? [] : (json_decode($access->posts ?? '[]', true) ?: []);
 
         // Fetch counts for stats cards
         $apiUrl = 'https://employee.umstad.online/api/applicants';

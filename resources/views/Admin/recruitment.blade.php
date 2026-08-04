@@ -116,6 +116,11 @@
                                             <label class="small font-weight-bold">Department</label>
                                             <select class="form-control form-control-sm" name="department" id="filterDepartment">
                                                 <option value="">All Departments</option>
+                                                @if(!empty($assignedDepartments))
+                                                    @foreach($assignedDepartments as $dept)
+                                                        <option value="{{ $dept }}">{{ $dept }}</option>
+                                                    @endforeach
+                                                @else
                                                 <optgroup label="College of Medical Sciences">
                                                     <option>Nursing Science</option><option>Medical Laboratory Science</option><option>Radiography</option>
                                                     <option>Chemical Pathology</option><option>Medical Microbiology</option><option>Haematology</option>
@@ -182,6 +187,7 @@
                                                     <option>General Studies</option><option>Research Office</option><option>University Medical Centre</option>
                                                     <option>Registry</option><option>Bursary</option>
                                                 </optgroup>
+                                                @endif
                                             </select>
                                         </div>
                                     </div>
@@ -190,6 +196,11 @@
                                             <label class="small font-weight-bold">Post Applied</label>
                                             <select class="form-control form-control-sm" name="post" id="filterPost">
                                                 <option value="">All Posts</option>
+                                                @if(!empty($assignedPosts))
+                                                    @foreach($assignedPosts as $post)
+                                                        <option value="{{ $post }}">{{ $post }}</option>
+                                                    @endforeach
+                                                @else
                                                 <optgroup label="Academic">
                                                     <option>SENIOR LECTURER</option><option>LECTURER I</option><option>LECTURER II</option>
                                                     <option>ASSISTANT LECTURER</option><option>GRADUATE ASSISTANT</option>
@@ -200,6 +211,7 @@
                                                     <option>EDUCATION OFFICER II</option><option>PROCUREMENT OFFICER</option>
                                                     <option>ARCHIVIST II</option><option>ACCOUNTANT II</option><option>TECHNOLOGIST</option>
                                                 </optgroup>
+                                                @endif
                                             </select>
                                         </div>
                                     </div>
@@ -323,6 +335,11 @@
                                 <label>Department</label>
                                 <select class="form-control form-control-sm export-dept-select" name="department">
                                     <option value="">All Departments</option>
+                                    @if(!empty($assignedDepartments))
+                                        @foreach($assignedDepartments as $dept)
+                                            <option value="{{ $dept }}">{{ $dept }}</option>
+                                        @endforeach
+                                    @else
                                     <optgroup label="College of Medical Sciences"><option>Nursing Science</option><option>Medical Laboratory Science</option><option>Radiography</option><option>Chemical Pathology</option><option>Medical Microbiology</option><option>Haematology</option><option>Pharmacology &amp; Therapeutics</option><option>Anaesthesia</option><option>Ear, Nose and Throat (ENT)</option><option>Ophthalmology</option><option>Paediatrics</option><option>Community Medicine</option><option>Mental Health</option><option>Radiology</option><option>Obstetrics &amp; Gynaecology (O&amp;G)</option><option>Orthopaedics</option><option>Medicine</option><option>Surgery</option><option>Child Dental Health</option><option>Oral &amp; Maxillofacial Surgery</option><option>Restorative Dentistry</option><option>Human Physiology</option><option>Nutrition and Dietetics</option><option>Human Anatomy</option><option>Medical Rehabilitation (Physiotherapy)</option></optgroup>
                                     <optgroup label="Faculty of Agriculture"><option>Animal Science</option><option>Soil Science</option><option>Crop Protection</option><option>Agric Extension</option><option>Agric Economics</option></optgroup>
                                     <optgroup label="Faculty of Arts"><option>Arabic Studies</option><option>English and Literary Studies</option><option>Islamic Studies</option><option>History and Strategic Studies</option><option>Languages and Linguistics</option></optgroup>
@@ -338,6 +355,7 @@
                                     <optgroup label="Faculty of Social Sciences"><option>Economics</option><option>Geography</option><option>Political Science</option><option>Sociology and Anthropology</option></optgroup>
                                     <optgroup label="Faculty of Veterinary Medicine"><option>Veterinary Microbiology</option></optgroup>
                                     <optgroup label="Other Units"><option>General Studies</option><option>Research Office</option><option>University Medical Centre</option><option>Registry</option><option>Bursary</option></optgroup>
+                                    @endif
                                 </select>
                             </div>
                         </div>
@@ -346,8 +364,14 @@
                                 <label>Post Applied</label>
                                 <select class="form-control form-control-sm export-post-select" name="post_applied">
                                     <option value="">All Posts</option>
+                                    @if(!empty($assignedPosts))
+                                        @foreach($assignedPosts as $post)
+                                            <option value="{{ $post }}">{{ $post }}</option>
+                                        @endforeach
+                                    @else
                                     <optgroup label="Academic"><option>SENIOR LECTURER</option><option>LECTURER I</option><option>LECTURER II</option><option>ASSISTANT LECTURER</option><option>GRADUATE ASSISTANT</option></optgroup>
                                     <optgroup label="Non-Academic"><option>RESEARCH OFFICER II</option><option>MEDICAL LABORATORY TECHNICIAN</option><option>HEALTH INFORMATION MANAGEMENT TECHNICIAN</option><option>INSTRUCTOR</option><option>EDUCATION OFFICER II</option><option>PROCUREMENT OFFICER</option><option>ARCHIVIST II</option><option>ACCOUNTANT II</option><option>TECHNOLOGIST</option></optgroup>
+                                    @endif
                                 </select>
                             </div>
                         </div>
