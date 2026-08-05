@@ -168,6 +168,7 @@ class ResultImport implements ToCollection
                             ->where('approve', '!=', 'system')
                             ->first();
                         dd($checking);
+                        die;
                         if ($checking) {
 
                         } else {
