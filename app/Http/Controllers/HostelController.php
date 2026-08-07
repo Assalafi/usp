@@ -598,7 +598,7 @@ class HostelController extends Controller
         // payment_method
         if($bedType == 'Online' || $bedType == 'Bank'){
             $columnToUpdate = 'payment_method';
-        }elseif($bedType == '0' || $bedType == '1' || $bedType == '2'){
+        }elseif($bedType == '0' || $bedType == '1' || $bedType == '2' || $bedType == '3'){
             $columnToUpdate = 'bed_type';
         }else{
             return redirect()->back()->with('error', 'Something Went Wrong, with bed type');

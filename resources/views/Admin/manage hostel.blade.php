@@ -139,6 +139,7 @@
                                 <option value="0">Online</option>
                                 <option value="1">Reserve</option>
                                 <option value="2">New Student</option>
+                                <option value="3">Remedial Student</option>
                                 <option value="Online">Online Payment</option>
                                 <option value="Bank">Bank Payment</option>
                             </select>
