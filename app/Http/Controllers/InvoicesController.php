@@ -498,9 +498,9 @@ class InvoicesController extends Controller
                 return redirect()->back()->with('error', 'Invalid Amount.');
             }
         } else if ($req->page == 'id-card') {
-            $amount = 2000;
+            $amount = (float) \App\Http\Controllers\SystemSettingsController::get('id_card_fee', 2000);
             $description = 'ID CARDS';
-            $serviceTypeId = '767553585';
+            $serviceTypeId = \App\Http\Controllers\SystemSettingsController::get('id_card_service_type', '767553585');
             $name = $datas['name'] = $name . ' (' . session('username') . ')';
             $phone = $datas['phone'] = $req->phone;
             $email = $datas['email'] = strtolower($req->email);

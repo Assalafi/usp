@@ -304,6 +304,7 @@ class SystemSettingsController extends Controller
             'fees' => [
                 'change_of_course_fee' => '5000',
                 'putme_fee' => '2000',
+                'id_card_fee' => '2000',
                 'acceptance_fee' => '50000',
                 'school_fee_fresh' => '45000',
                 'school_fee_returning' => '35000',

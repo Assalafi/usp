@@ -39,6 +39,7 @@
         ->limit(1)
         ->orderBy('id', 'ASC')
         ->get();
+    $id_card_fee = (float) \App\Http\Controllers\SystemSettingsController::get('id_card_fee', 2000);
     if (session('system_session') == session('student_session')) {
         $amountPaid = $sessionAmountPaid[session('system_session')] = DB::table('invoices')
             ->where([
@@ -480,8 +481,7 @@
             <div class="card">
                 <div class="card-body text-center">
                     <h4 class="mb-2">ID Card Payment</h4>
-                    {{-- Info for the amount N4,000 --}}
-                    <p class="mb-2">Amount: N2,000</p>
+                    <p class="mb-2">Amount: N{{ number_format($id_card_fee) }}</p>
                     <!-- Form Start -->
                     <div class="card-body">
                         {{-- <p>COURSE: {{ DB::table('program')->where('code', $row->program)->value('title') }}</p> --}}
