@@ -33,4 +33,5 @@ Route::prefix('v1/hostel')->middleware(['hostel.api'])->group(function () {
     Route::post('reserve', [\App\Http\Controllers\Api\HostelApiController::class, 'reserve']);
     Route::get('status', [\App\Http\Controllers\Api\HostelApiController::class, 'status']);
     Route::post('release', [\App\Http\Controllers\Api\HostelApiController::class, 'release']);
+    Route::post('confirm-payment', [\App\Http\Controllers\Api\HostelApiController::class, 'confirmPayment']);
 });

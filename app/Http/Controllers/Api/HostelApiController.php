@@ -315,4 +315,46 @@ class HostelApiController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Reservation released successfully.']);
     }
+
+    /**
+     * Confirm that the student has paid for the hostel (called by SBRS after
+     * successful Remita payment verification).
+     */
+    public function confirmPayment(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'registration_number' => 'required|string|max:50',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
+        }
+
+        $reservation = DB::table('hostel')
+            ->where('occupant', trim($request->registration_number))
+            ->where('bed_type', self::REMEDIAL_BED_TYPE)
+            ->first();
+
+        if (!$reservation) {
+            return response()->json(['success' => false, 'message' => 'No reservation found for this student.'], 404);
+        }
+
+        DB::table('hostel')
+            ->where('id', $reservation->id)
+            ->update([
+                'hostel_payment' => '1',
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Hostel payment confirmed.',
+            'data' => [
+                'hall' => $reservation->hall,
+                'block' => $reservation->block,
+                'room' => $reservation->room,
+                'bed' => $reservation->bed,
+                'hostel_payment' => '1',
+            ],
+        ]);
+    }
 }
