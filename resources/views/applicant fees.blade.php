@@ -12,11 +12,13 @@
 
     //dd($invs);
 
+    // PUTME fee from settings (admin-controlled)
+    $amount = (float) \App\Http\Controllers\SystemSettingsController::get('putme_fee', 2000);
+    $serviceTypeId = \App\Http\Controllers\SystemSettingsController::get('remita_putme_service_type', 4430731);
+
     // If no invoice exists, create one automatically
     if ($invs->isEmpty() && $applicant) {
-        $amount = 2000;
         $description = 'POST UTME';
-        $serviceTypeId = 4430731;
         $orderId = 'POSTUTME' . time() . rand(100, 999);
 
         $phone = $applicant->phone ?? '';
@@ -567,7 +569,7 @@
                             {{-- amount --}}
                             <div class="detail-row">
                                 <span class="detail-label">Amount</span>
-                                <span class="detail-value">₦{{ number_format(2000, 0) }}</span>
+                                <span class="detail-value">₦{{ number_format($amount, 0) }}</span>
                             </div>
                         </div>
 
@@ -588,7 +590,7 @@
 
                             <button type="button" class="btn btn-primary" id="payButton" onclick="makePayment()">
                                 <i class="fas fa-credit-card me-2"></i>
-                                Pay ₦{{ number_format(2000) }} Now
+                                Pay ₦{{ number_format($amount) }} Now
                             </button>
 
                             <script>
@@ -662,7 +664,7 @@
                                             // Give up after 10 seconds
                                             console.error('Remita Payment Engine failed to load after 10 seconds');
                                             payBtn.disabled = false;
-                                            payBtn.innerHTML = '<i class="fas fa-credit-card me-2"></i> Pay ₦{{ number_format(2000) }} Now';
+                                            payBtn.innerHTML = '<i class="fas fa-credit-card me-2"></i> Pay ₦{{ number_format($amount) }} Now';
 
                                             // Try to reload the script as last resort
                                             showStatusMessage('Payment system is loading slowly. Trying to reload...', 'warning');
@@ -733,7 +735,7 @@
                                                     if (!paymentSuccessful) {
                                                         payBtn.disabled = false;
                                                         payBtn.innerHTML =
-                                                            '<i class="fas fa-credit-card me-2"></i> Pay ₦{{ number_format(2000) }} Now';
+                                                            '<i class="fas fa-credit-card me-2"></i> Pay ₦{{ number_format($amount) }} Now';
 
                                                         // Show cancellation message on page
                                                         showStatusMessage('Payment cancelled. You can try again when ready.',
@@ -749,7 +751,7 @@
                                         } catch (error) {
                                             console.error('Payment initialization failed:', error);
                                             payBtn.disabled = false;
-                                            payBtn.innerHTML = '<i class="fas fa-credit-card me-2"></i> Pay ₦{{ number_format(2000) }} Now';
+                                            payBtn.innerHTML = '<i class="fas fa-credit-card me-2"></i> Pay ₦{{ number_format($amount) }} Now';
                                             alert('Payment system error: ' + error.message);
                                         }
                                     } // End of initiatePayment function

@@ -611,9 +611,9 @@ class InvoicesController extends Controller
         if ($x != 2) {
             return redirect()->back()->with('error', 'Your Personal Record Not Found in Current Uploaded Data, Report to Student Affairs.');
         }
-        $amount = (float) \App\Http\Controllers\SystemSettingsController::get('post_utme_fee', 2000);
+        $amount = (float) \App\Http\Controllers\SystemSettingsController::get('putme_fee', 2000);
         $description = env('REMITA_POST_UTME_DESCRIPTION');
-        $serviceTypeId = env('REMITA_POST_UTME_KEY');
+        $serviceTypeId = \App\Http\Controllers\SystemSettingsController::get('remita_putme_service_type', env('REMITA_POST_UTME_KEY'));
         $name = $datas['name'] = $name . ' (' . session('username') . ')';
 
         $baseUrl = env('REMITA_BASE_URL') . 'remita/exapp/api/v1/send/api';
