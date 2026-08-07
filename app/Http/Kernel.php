@@ -67,5 +67,6 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'audit' => \App\Http\Middleware\AuditLog::class,
         'role' => \App\Http\Middleware\CheckRoleAccess::class,
+        'hostel.api' => \App\Http\Middleware\HostelApiAuth::class,
     ];
 }
