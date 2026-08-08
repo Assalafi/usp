@@ -94,7 +94,7 @@
     <tr>
         <td class="ul">2. Date of Birth: {{ $dob }}</td>
         <td class="ul">Local Govt.: {{ $row->lga ?? '' }}</td>
-        <td class="ul">Town: {{ $row->state ?? '' }}</td>
+        <td class="ul">State: {{ $row->state ?? '' }}</td>
     </tr>
     <tr>
         <td colspan="3" class="ul">3. Nationality: {{ $row->nationality ?? '' }}</td>
