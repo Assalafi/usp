@@ -72,10 +72,14 @@
             error_log('Invoice generation HTTP error: ' . $http_code);
             // Don't create invoice, let the user try the manual form
             } else {
-                $substr = substr($response, 7, -1);
-                $obj = json_decode($substr, true);
+                $obj = json_decode($response, true);
 
-                if (isset($obj['RRR']) && !empty($obj['RRR'])) {
+                if ($obj === null) {
+                    $substr = substr($response, 7, -1);
+                    $obj = json_decode($substr, true);
+                }
+
+                if (is_array($obj) && isset($obj['RRR']) && !empty($obj['RRR'])) {
                     $datas = [
                         'username' => session('id'),
                         'description' => $description,

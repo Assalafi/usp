@@ -554,11 +554,18 @@ class InvoicesController extends Controller
 
         curl_close($curl);
 
-        $substr = substr($response, 7, -1);
-        $obj = json_decode($substr, true);
+        $obj = json_decode($response, true);
 
-        if (isset($obj['RRR'])) {
+        if ($obj === null) {
+            $substr = substr($response, 7, -1);
+            $obj = json_decode($substr, true);
+        }
+
+        if (is_array($obj) && isset($obj['RRR']) && !empty($obj['RRR'])) {
             $rrr = $obj['RRR'];
+        } elseif (is_array($obj) && isset($obj['status']) && $obj['status'] !== '00') {
+            $msg = $obj['statusMessage'] ?? $obj['status'] ?? 'Unknown error';
+            return redirect()->back()->with('error', 'REMITA Error: ' . $msg);
         } else {
             return redirect()->back()->with('error', 'Failed to Connect to REMITA. Try Again');
         }
@@ -674,12 +681,19 @@ class InvoicesController extends Controller
             return redirect()->back()->with('error', 'Payment service unavailable (HTTP ' . $http_code . '). Please try again later.');
         }
 
-        $substr = substr($response, 7, -1);
-        $obj = json_decode($substr, true);
+        $obj = json_decode($response, true);
+
+        if ($obj === null) {
+            $substr = substr($response, 7, -1);
+            $obj = json_decode($substr, true);
+        }
         // dd($response);
 
-        if (isset($obj['RRR'])) {
+        if (is_array($obj) && isset($obj['RRR']) && !empty($obj['RRR'])) {
             $rrr = $obj['RRR'];
+        } elseif (is_array($obj) && isset($obj['status']) && $obj['status'] !== '00') {
+            $msg = $obj['statusMessage'] ?? $obj['status'] ?? 'Unknown error';
+            return redirect()->back()->with('error', 'REMITA Error: ' . $msg);
         } else {
             return redirect()->back()->with('error', 'Failed to Connect to REMITA. Try Again');
         }
