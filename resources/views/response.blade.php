@@ -40,7 +40,7 @@ if (isset($_GET['RRR']) && isset($_GET['orderID'])) {
         echo '<script>window.location.href="/payment";</script>';
     } elseif ($status == '023') {
         echo '<script>window.location.href="/payment";</script>';
-    } elseif ($status == '01') {
+    } elseif (in_array($status, ['00', '01'])) {
         $datas['status'] = 'Paid';
         $datas['updated_at'] = NOW();
         $des = DB::table('invoices')

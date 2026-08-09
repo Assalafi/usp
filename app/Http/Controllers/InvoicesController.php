@@ -844,7 +844,7 @@ class InvoicesController extends Controller
         } elseif ($status == '023') {
             // echo '<div class="alert alert-danger">Invalid RRR</div>';
             return redirect()->back()->with('error', 'Invalid RRR');
-        } elseif ($status == '01') {
+        } elseif (in_array($status, ['00', '01'])) {
             // Update invoice status to Paid
             $datas['status'] = 'Paid';
             $datas['rrr_status'] = $status;
@@ -1199,7 +1199,7 @@ class InvoicesController extends Controller
         $datas['rrr_status'] = $status;
         $datas['updated_at'] = now();
 
-        if ($status == '01') {
+        if (in_array($status, ['00', '01'])) {
             // Payment successful
             $datas['status'] = 'Paid';
 
