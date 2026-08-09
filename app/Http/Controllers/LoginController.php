@@ -112,8 +112,9 @@ class LoginController extends Controller
                         return redirect('/account validation');
                     }
                     $applicant = Applicant::where('user_id', $row->id)->first();
+                    $putme_session = \App\Http\Controllers\SystemSettingsController::getPostUtmeSession();
                     if ($applicant) {
-                        $paymentStatus = Invoice::where(['description' => 'POST UTME', 'session' => $system_session, 'status' => 'Paid', 'username' => $row->id])->select('id')->value('id');
+                        $paymentStatus = Invoice::where(['description' => 'POST UTME', 'session' => $putme_session, 'status' => 'Paid', 'username' => $row->id])->select('id')->value('id');
                         if ($paymentStatus > 0) {
                             $req->session()->put('log', '1');
                             $req->session()->flash('success', 'Successfully Login');
