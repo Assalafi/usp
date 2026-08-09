@@ -13,7 +13,7 @@ if (isset($_GET['RRR']) && isset($_GET['orderID'])) {
     $curl = curl_init();
 
     curl_setopt_array($curl, [
-        CURLOPT_URL => env('REMITA_CURLOPT_URL') . $merchantId . '/' . $rrr . '/' . $apiHash . '/status.reg',
+        CURLOPT_URL => \App\Http\Controllers\SystemSettingsController::getRemitaBaseUrl() . '/remita/exapp/api/v1/send/api/echannelsvc/' . $merchantId . '/' . $rrr . '/' . $apiHash . '/status.reg',
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_ENCODING => '',
         CURLOPT_MAXREDIRS => 10,
