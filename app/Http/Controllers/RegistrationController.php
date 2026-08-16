@@ -1933,9 +1933,31 @@ class RegistrationController extends Controller
         $data = $request->all();
         unset($data['_token']);
         $filteredData = array_filter($data);
-        // $query = DB::table('students')->select('username','fullname','faculty','program','state_origin','country','kin_name','kin_phone');
 
-        $query = DB::table('students')->join('faculty', 'students.faculty', '=', 'faculty.code')->join('program', 'students.program', '=', 'program.code')->select('students.username', 'students.fullname', 'faculty.title as faculty_name', 'program.title as program_name', 'students.state_origin', 'students.country', 'students.kin_name', 'students.kin_phone');
+        $query = DB::table('students')
+            ->join('faculty', 'students.faculty', '=', 'faculty.code')
+            ->leftJoin('department', 'students.department', '=', 'department.code')
+            ->join('program', 'students.program', '=', 'program.code')
+            ->select(
+                'students.username',
+                'students.fullname',
+                'students.gender',
+                'students.date_of_birth',
+                'faculty.title as faculty_name',
+                'department.title as department_name',
+                'program.title as program_name',
+                'students.level',
+                'students.session_of_entry',
+                'students.jamb_no',
+                'students.state_origin',
+                'students.lga_origin',
+                'students.country',
+                'students.marital_status',
+                'students.contact_phone',
+                'students.contact_email',
+                'students.kin_name',
+                'students.kin_phone'
+            );
 
         foreach ($filteredData as $key => $value) {
             $query->where('students.' . $key, $value);
