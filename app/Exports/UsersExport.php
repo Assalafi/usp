@@ -70,42 +70,51 @@ class UsersExport implements FromCollection, WithHeadings, ShouldAutoSize
             ? date('d/m/Y', strtotime($row->date_of_birth))
             : 'N/A';
 
+        // Escape values that look like spreadsheet formulas (formula-injection / PhpSpreadsheet error protection)
+        $esc = function ($value) {
+            $value = (string) ($value ?? 'N/A');
+            if ($value !== '' && in_array($value[0], ['=', '+', '-', '@'])) {
+                return "'" . $value;
+            }
+            return $value;
+        };
+
         return [
-            'username' => $row->username ?? 'N/A',
-            'fullname' => $row->fullname ?? 'N/A',
-            'gender' => $row->gender ?? 'N/A',
+            'username' => $esc($row->username ?? null),
+            'fullname' => $esc($row->fullname ?? null),
+            'gender' => $esc($row->gender ?? null),
             'date_of_birth' => $dob,
-            'faculty_name' => $row->faculty_name ?? $row->faculty ?? 'N/A',
-            'department_name' => $row->department_name ?? $row->department ?? 'N/A',
-            'program_name' => $row->program_name ?? $row->program ?? 'N/A',
-            'level' => $row->level ?? 'N/A',
-            'session_of_entry' => $row->session_of_entry ?? 'N/A',
-            'jamb_no' => $row->jamb_no ?? 'N/A',
-            'mode_of_entry' => $row->mode_of_entry ?? 'N/A',
-            'state_origin' => $row->state_origin ?? 'N/A',
-            'lga_origin' => $row->lga_origin ?? 'N/A',
-            'country' => $row->country ?? 'N/A',
-            'marital_status' => $row->marital_status ?? 'N/A',
-            'religion' => $row->religion ?? 'N/A',
-            'nin' => $row->nin ?? 'N/A',
-            'blood_group' => $row->blood_group ?? 'N/A',
-            'genotype' => $row->genotype ?? 'N/A',
-            'highest_qualification' => $row->highest_qualification ?? 'N/A',
-            'place_of_birth' => $row->place_of_birth ?? 'N/A',
-            'contact_phone' => $row->contact_phone ?? 'N/A',
-            'contact_email' => $row->contact_email ?? 'N/A',
-            'contact_address' => $row->contact_address ?? 'N/A',
-            'kin_name' => $row->kin_name ?? 'N/A',
-            'kin_phone' => $row->kin_phone ?? 'N/A',
-            'kin_address' => $row->kin_address ?? 'N/A',
-            'kin_email' => $row->kin_email ?? 'N/A',
-            'sponsor_type' => $row->sponsor_type ?? 'N/A',
-            'sponsor_name' => $row->sponsor_name ?? 'N/A',
-            'sponsor_phone' => $row->sponsor_phone ?? 'N/A',
-            'father_name' => $row->father_name ?? 'N/A',
-            'father_phone' => $row->father_phone ?? 'N/A',
-            'mother_name' => $row->mother_name ?? 'N/A',
-            'mother_phone' => $row->mother_phone ?? 'N/A',
+            'faculty_name' => $esc($row->faculty_name ?? $row->faculty ?? null),
+            'department_name' => $esc($row->department_name ?? $row->department ?? null),
+            'program_name' => $esc($row->program_name ?? $row->program ?? null),
+            'level' => $esc($row->level ?? null),
+            'session_of_entry' => $esc($row->session_of_entry ?? null),
+            'jamb_no' => $esc($row->jamb_no ?? null),
+            'mode_of_entry' => $esc($row->mode_of_entry ?? null),
+            'state_origin' => $esc($row->state_origin ?? null),
+            'lga_origin' => $esc($row->lga_origin ?? null),
+            'country' => $esc($row->country ?? null),
+            'marital_status' => $esc($row->marital_status ?? null),
+            'religion' => $esc($row->religion ?? null),
+            'nin' => $esc($row->nin ?? null),
+            'blood_group' => $esc($row->blood_group ?? null),
+            'genotype' => $esc($row->genotype ?? null),
+            'highest_qualification' => $esc($row->highest_qualification ?? null),
+            'place_of_birth' => $esc($row->place_of_birth ?? null),
+            'contact_phone' => $esc($row->contact_phone ?? null),
+            'contact_email' => $esc($row->contact_email ?? null),
+            'contact_address' => $esc($row->contact_address ?? null),
+            'kin_name' => $esc($row->kin_name ?? null),
+            'kin_phone' => $esc($row->kin_phone ?? null),
+            'kin_address' => $esc($row->kin_address ?? null),
+            'kin_email' => $esc($row->kin_email ?? null),
+            'sponsor_type' => $esc($row->sponsor_type ?? null),
+            'sponsor_name' => $esc($row->sponsor_name ?? null),
+            'sponsor_phone' => $esc($row->sponsor_phone ?? null),
+            'father_name' => $esc($row->father_name ?? null),
+            'father_phone' => $esc($row->father_phone ?? null),
+            'mother_name' => $esc($row->mother_name ?? null),
+            'mother_phone' => $esc($row->mother_phone ?? null),
         ];
     }
 
