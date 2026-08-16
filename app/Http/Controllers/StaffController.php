@@ -1058,6 +1058,10 @@ class StaffController extends Controller
         // Get filtered staff
         $staff = $this->getFilteredStaff($request);
 
+        $fmtDate = function ($value) {
+            return !empty($value) && $value != '1970-01-01' ? date('d/m/Y', strtotime($value)) : 'N/A';
+        };
+
         // Prepare data for export
         $exportData = [];
         $serialNumber = 1;
@@ -1067,17 +1071,39 @@ class StaffController extends Controller
                 'S/NO' => $serialNumber++,
                 'SP. NO' => $row->username ?? 'N/A',
                 'NAME' => $row->name ?? 'N/A',
+                'TI NO' => $row->ti_no ?? 'N/A',
                 'NIN' => $row->nin ?? 'N/A',
-                'DOB' => !empty($row->date_of_birth) && $row->date_of_birth != '1970-01-01' ? date('d/m/Y', strtotime($row->date_of_birth)) : 'N/A',
+                'GENDER' => $row->gender ?? 'N/A',
+                'MARITAL STATUS' => $row->marital_status ?? 'N/A',
+                'DOB' => $fmtDate($row->date_of_birth ?? null),
+                'NATIONALITY' => $row->nationality ?? 'N/A',
                 'STATE OF ORIGIN' => $row->state ?? 'N/A',
                 'LGA' => $row->lga ?? 'N/A',
-                'GENDER' => $row->gender ?? 'N/A',
-                'DATE OF APPT.' => !empty($row->date_of_first_appointment) && $row->date_of_first_appointment != '1970-01-01' ? date('d/m/Y', strtotime($row->date_of_first_appointment)) : 'N/A',
-                'DATE OF CONFIRMATION' => !empty($row->date_of_comfirmation) && $row->date_of_comfirmation != '1970-01-01' ? date('d/m/Y', strtotime($row->date_of_comfirmation)) : 'N/A',
+                'STAFF CATEGORY' => $row->staff_category ?? 'N/A',
+                'APPOINTMENT' => $row->appointment ?? 'N/A',
                 'CURRENT RANK' => $row->current_rank ?? $row->designation ?? 'N/A',
-                'DEPT/UNIT' => $row->unit ?? ($row->department ?? 'N/A'),
+                'RANK OF FIRST APPOINTMENT' => $row->rank_of_first_appointment ?? 'N/A',
+                'UNIT' => $row->unit ?? 'N/A',
+                'FACULTY' => $row->faculty ?? 'N/A',
+                'DEPARTMENT' => $row->department ?? 'N/A',
+                'DATE OF FIRST APPOINTMENT' => $fmtDate($row->date_of_first_appointment ?? null),
+                'DATE OF ASSUMPTION' => $fmtDate($row->date_of_asumption ?? null),
+                'DATE OF CONFIRMATION' => $fmtDate($row->date_of_comfirmation ?? null),
+                'DATE OF LAST PROMOTION' => $fmtDate($row->date_of_last_promotion ?? null),
+                'EMPLOYEE STATUS' => $row->employee_status ?? 'N/A',
+                'STAFF STATUS' => $row->staff_status ?? 'N/A',
                 'PHONE NUMBER' => $row->phone ?? 'N/A',
                 'E-MAIL' => $row->email ?? 'N/A',
+                'ADDRESS' => $row->address ?? 'N/A',
+                'NEXT OF KIN NAME' => $row->kin_name ?? 'N/A',
+                'NEXT OF KIN RELATIONSHIP' => $row->kin_relationship ?? 'N/A',
+                'NEXT OF KIN PHONE' => $row->kin_phone ?? 'N/A',
+                'NEXT OF KIN ADDRESS' => $row->kin_address ?? 'N/A',
+                'BANK NAME' => $row->bank_name ?? 'N/A',
+                'ACCOUNT NUMBER' => $row->account_number ?? 'N/A',
+                'BVN' => $row->bvn ?? 'N/A',
+                'PENSION NUMBER' => $row->pension_number ?? 'N/A',
+                'PROFILE STATUS' => $row->profile_status ?? ($row->profile_completion ? $row->profile_completion . '%' : 'N/A'),
             ];
         }
 

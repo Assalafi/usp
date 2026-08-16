@@ -798,17 +798,40 @@ function initSpSelect2(root) {
     if (typeof jQuery === 'undefined') return;
     var $root = root ? $(root) : $(document);
     $root.find('.sp-select2').not('.select2-hidden-accessible').each(function() {
-        $(this).select2({
-            placeholder: $(this).data('placeholder') || 'Select',
+        var $el = $(this);
+        var options = {
+            placeholder: $el.data('placeholder') || 'Select',
             allowClear: true,
-            width: '100%'
-        });
+            width: '100%',
+            dropdownAutoWidth: true
+        };
+        // When inside a modal, attach the dropdown to the modal container so it
+        // renders above the modal overlay and the search box receives focus properly.
+        var $modal = $el.closest('.modal');
+        if ($modal.length) {
+            options.dropdownParent = $modal;
+        }
+        $el.select2(options);
     });
+}
+
+// Destroy + rebuild a Select2 after its options change
+function rebuildSpSelect2($el, optionsHtml) {
+    if (typeof jQuery === 'undefined') return;
+    if ($el.hasClass('select2-hidden-accessible')) {
+        $el.select2('destroy');
+    }
+    $el.html(optionsHtml);
+    initSpSelect2($el);
 }
 
 // Initialize Select2
 $(document).ready(function() {
     initSpSelect2();
+    // Re-initialize Select2 inside the export modal whenever it opens
+    $('#exportModal').on('shown.bs.modal', function() {
+        initSpSelect2('#exportModal');
+    });
 });
 
 // Export modal cascading dropdowns
@@ -819,15 +842,16 @@ $(document).ready(function() {
         var deptSelect = $('#exportDepartment');
         var progSelect = $('#exportProgram');
 
-        deptSelect.empty().append('<option value="">All</option>');
-        progSelect.empty().append('<option value="">All</option>');
+        rebuildSpSelect2(deptSelect, '<option value="">All</option>');
+        rebuildSpSelect2(progSelect, '<option value="">All</option>');
 
         if (facultyCode) {
             $.get('/get-departments/' + facultyCode, function(data) {
+                var opts = '<option value="">All</option>';
                 $.each(data, function(key, value) {
-                    deptSelect.append('<option value="' + value.code + '">' + value.title + '</option>');
+                    opts += '<option value="' + value.code + '">' + value.title + '</option>';
                 });
-                initSpSelect2(deptSelect);
+                rebuildSpSelect2(deptSelect, opts);
             });
         }
     });
@@ -837,14 +861,15 @@ $(document).ready(function() {
         var deptCode = $(this).val();
         var progSelect = $('#exportProgram');
 
-        progSelect.empty().append('<option value="">All</option>');
+        rebuildSpSelect2(progSelect, '<option value="">All</option>');
 
         if (deptCode) {
             $.get('/get-programs/' + deptCode, function(data) {
+                var opts = '<option value="">All</option>';
                 $.each(data, function(key, value) {
-                    progSelect.append('<option value="' + value.code + '">' + value.title + '</option>');
+                    opts += '<option value="' + value.code + '">' + value.title + '</option>';
                 });
-                initSpSelect2(progSelect);
+                rebuildSpSelect2(progSelect, opts);
             });
         }
     });
