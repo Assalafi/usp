@@ -1023,7 +1023,7 @@ class StaffController extends Controller
                 'date_of_appointment' => !empty($row->date_of_first_appointment) && $row->date_of_first_appointment != '1970-01-01' ? date('d/m/Y', strtotime($row->date_of_first_appointment)) : 'N/A',
                 'date_of_confirmation' => !empty($row->date_of_comfirmation) && $row->date_of_comfirmation != '1970-01-01' ? date('d/m/Y', strtotime($row->date_of_comfirmation)) : 'N/A',
                 'current_rank' => $row->current_rank ?? $row->designation ?? 'N/A',
-                'dept_unit' => $row->unit ?? ($row->department ?? 'N/A'),
+                'dept_unit' => $row->unit ?? ($row->department_name ?? ($row->department ?? 'N/A')),
                 'phone' => $row->phone ?? 'N/A',
                 'email' => $row->email ?? 'N/A',
             ];
@@ -1084,8 +1084,8 @@ class StaffController extends Controller
                 'CURRENT RANK' => $row->current_rank ?? $row->designation ?? 'N/A',
                 'RANK OF FIRST APPOINTMENT' => $row->rank_of_first_appointment ?? 'N/A',
                 'UNIT' => $row->unit ?? 'N/A',
-                'FACULTY' => $row->faculty ?? 'N/A',
-                'DEPARTMENT' => $row->department ?? 'N/A',
+                'FACULTY' => $row->faculty_name ?? $row->faculty ?? 'N/A',
+                'DEPARTMENT' => $row->department_name ?? $row->department ?? 'N/A',
                 'DATE OF FIRST APPOINTMENT' => $fmtDate($row->date_of_first_appointment ?? null),
                 'DATE OF ASSUMPTION' => $fmtDate($row->date_of_asumption ?? null),
                 'DATE OF CONFIRMATION' => $fmtDate($row->date_of_comfirmation ?? null),
@@ -1143,44 +1143,51 @@ class StaffController extends Controller
      */
     private function getFilteredStaff(Request $request)
     {
-        $query = DB::table('staff');
+        $query = DB::table('staff')
+            ->leftJoin('faculty', 'staff.faculty', '=', 'faculty.code')
+            ->leftJoin('department', 'staff.department', '=', 'department.code')
+            ->select(
+                'staff.*',
+                'faculty.title as faculty_name',
+                'department.title as department_name'
+            );
 
         // Apply filters
         if ($request->filled('state')) {
-            $query->where('state', $request->input('state'));
+            $query->where('staff.state', $request->input('state'));
         }
         if ($request->filled('lga')) {
-            $query->where('lga', 'like', '%' . $request->input('lga') . '%');
+            $query->where('staff.lga', 'like', '%' . $request->input('lga') . '%');
         }
         if ($request->filled('gender')) {
-            $query->where('gender', $request->input('gender'));
+            $query->where('staff.gender', $request->input('gender'));
         }
         if ($request->filled('faculty')) {
-            $query->where('faculty', $request->input('faculty'));
+            $query->where('staff.faculty', $request->input('faculty'));
         }
         if ($request->filled('department')) {
-            $query->where('department', $request->input('department'));
+            $query->where('staff.department', $request->input('department'));
         }
         if ($request->filled('program')) {
-            $query->where('program', $request->input('program'));
+            $query->where('staff.program', $request->input('program'));
         }
         if ($request->filled('unit_id')) {
-            $query->where('unit_id', $request->input('unit_id'));
+            $query->where('staff.unit_id', $request->input('unit_id'));
         }
         if ($request->filled('designation_id')) {
-            $query->where('designation_id', $request->input('designation_id'));
+            $query->where('staff.designation_id', $request->input('designation_id'));
         }
         if ($request->filled('grade_id')) {
-            $query->where('grade_id', $request->input('grade_id'));
+            $query->where('staff.grade_id', $request->input('grade_id'));
         }
         if ($request->filled('step_id')) {
-            $query->where('step_id', $request->input('step_id'));
+            $query->where('staff.step_id', $request->input('step_id'));
         }
         if ($request->filled('profile_status')) {
             if ($request->input('profile_status') === 'Submitted') {
-                $query->where('profile_completion', 100);
+                $query->where('staff.profile_completion', 100);
             } elseif ($request->input('profile_status') === 'Incomplete') {
-                $query->where('profile_completion', '<', 100)->orWhereNull('profile_completion');
+                $query->where('staff.profile_completion', '<', 100)->orWhereNull('staff.profile_completion');
             }
         }
 
