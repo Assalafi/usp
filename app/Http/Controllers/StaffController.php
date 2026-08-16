@@ -41,7 +41,9 @@ class StaffController extends Controller
         if ($req->has('_token')) {
             $data = $req->all();
             unset($data['_token']);
-            $filteredData = array_filter($data);
+            $filteredData = array_filter($data, function ($v) {
+                return $v !== '' && $v !== 'all' && $v !== null;
+            });
             $query = DB::table($this->table);
             foreach ($filteredData as $key => $value) {
                 // Map old field names to new field names for filtering
@@ -1203,23 +1205,23 @@ class StaffController extends Controller
                 'department.title as department_name'
             );
 
-        // Apply filters
-        if ($request->filled('state')) {
+        // Apply filters (skip 'all' placeholder values from cascading selects)
+        if ($request->filled('state') && $request->input('state') !== 'all') {
             $query->where('staff.state', $request->input('state'));
         }
-        if ($request->filled('lga')) {
+        if ($request->filled('lga') && $request->input('lga') !== 'all') {
             $query->where('staff.lga', 'like', '%' . $request->input('lga') . '%');
         }
-        if ($request->filled('gender')) {
+        if ($request->filled('gender') && $request->input('gender') !== 'all') {
             $query->where('staff.gender', $request->input('gender'));
         }
-        if ($request->filled('faculty')) {
+        if ($request->filled('faculty') && $request->input('faculty') !== 'all') {
             $query->where('staff.faculty', $request->input('faculty'));
         }
-        if ($request->filled('department')) {
+        if ($request->filled('department') && $request->input('department') !== 'all') {
             $query->where('staff.department', $request->input('department'));
         }
-        if ($request->filled('program')) {
+        if ($request->filled('program') && $request->input('program') !== 'all') {
             $query->where('staff.program', $request->input('program'));
         }
         if ($request->filled('unit_id')) {

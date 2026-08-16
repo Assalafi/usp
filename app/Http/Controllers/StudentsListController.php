@@ -31,7 +31,9 @@ class StudentsListController extends Controller
         if ($req->has('_token')) {
             $data = $req->all();
             unset($data['_token']);
-            $filteredData = array_filter($data);
+            $filteredData = array_filter($data, function ($v) {
+                return $v !== '' && $v !== 'all' && $v !== null;
+            });
             $query = DB::table('students');
             foreach ($filteredData as $key => $value) {
                 $query->where($key, $value);

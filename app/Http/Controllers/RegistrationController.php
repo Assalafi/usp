@@ -1932,7 +1932,9 @@ class RegistrationController extends Controller
     {
         $data = $request->all();
         unset($data['_token'], $data['columns']);
-        $filteredData = array_filter($data);
+        $filteredData = array_filter($data, function ($v) {
+            return $v !== '' && $v !== 'all' && $v !== null;
+        });
 
         $query = DB::table('students')
             ->join('faculty', 'students.faculty', '=', 'faculty.code')
