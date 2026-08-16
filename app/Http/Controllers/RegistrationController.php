@@ -1931,7 +1931,7 @@ class RegistrationController extends Controller
     public function exportUsers(Request $request)
     {
         $data = $request->all();
-        unset($data['_token']);
+        unset($data['_token'], $data['columns']);
         $filteredData = array_filter($data);
 
         $query = DB::table('students')
@@ -1949,14 +1949,31 @@ class RegistrationController extends Controller
                 'students.level',
                 'students.session_of_entry',
                 'students.jamb_no',
+                'students.mode_of_entry',
                 'students.state_origin',
                 'students.lga_origin',
                 'students.country',
                 'students.marital_status',
+                'students.religion',
+                'students.nin',
+                'students.blood_group',
+                'students.genotype',
+                'students.highest_qualification',
+                'students.place_of_birth',
                 'students.contact_phone',
                 'students.contact_email',
+                'students.contact_address',
                 'students.kin_name',
-                'students.kin_phone'
+                'students.kin_phone',
+                'students.kin_address',
+                'students.kin_email',
+                'students.sponsor_type',
+                'students.sponsor_name',
+                'students.sponsor_phone',
+                'students.father_name',
+                'students.father_phone',
+                'students.mother_name',
+                'students.mother_phone'
             );
 
         foreach ($filteredData as $key => $value) {
@@ -1964,7 +1981,8 @@ class RegistrationController extends Controller
         }
 
         $record = $query->get();
-        return Excel::download(new UsersExport($record), 'student.xlsx');
+        $selectedColumns = $request->input('columns', []);
+        return Excel::download(new UsersExport($record, $selectedColumns), 'student.xlsx');
     }
 
     public function exportCourses(Request $request)

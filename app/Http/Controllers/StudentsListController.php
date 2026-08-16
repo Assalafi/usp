@@ -47,6 +47,7 @@ class StudentsListController extends Controller
             $data['sessions'] = DB::table('session')->orderBy('title', 'DESC')->get();
             $data['page'] = $this->page;
             $data['title'] = $this->title;
+            $data['exportColumns'] = \App\Exports\UsersExport::columns();
             return view('main',$data);
     }
 
