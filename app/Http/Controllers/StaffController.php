@@ -77,7 +77,50 @@ class StaffController extends Controller
         $data['session'] = DB::table('session')->where(['status' => '1'])->select('title')->orderBy('title', 'ASC')->get();
         $data['page'] = $this->page;
         $data['title'] = $this->title;
+        $data['exportColumns'] = $this->getExportColumns();
         return view('main', $data);
+    }
+
+    private function getExportColumns()
+    {
+        return [
+            'S/NO' => 'S/NO',
+            'SP. NO' => 'SP. No.',
+            'NAME' => 'Name',
+            'TI NO' => 'TI No.',
+            'NIN' => 'NIN',
+            'GENDER' => 'Gender',
+            'MARITAL STATUS' => 'Marital Status',
+            'DOB' => 'Date of Birth',
+            'NATIONALITY' => 'Nationality',
+            'STATE OF ORIGIN' => 'State of Origin',
+            'LGA' => 'LGA',
+            'STAFF CATEGORY' => 'Staff Category',
+            'APPOINTMENT' => 'Appointment',
+            'CURRENT RANK' => 'Current Rank',
+            'RANK OF FIRST APPOINTMENT' => 'Rank of First Appointment',
+            'UNIT' => 'Unit',
+            'FACULTY' => 'Faculty',
+            'DEPARTMENT' => 'Department',
+            'DATE OF FIRST APPOINTMENT' => 'Date of First Appointment',
+            'DATE OF ASSUMPTION' => 'Date of Assumption',
+            'DATE OF CONFIRMATION' => 'Date of Confirmation',
+            'DATE OF LAST PROMOTION' => 'Date of Last Promotion',
+            'EMPLOYEE STATUS' => 'Employee Status',
+            'STAFF STATUS' => 'Staff Status',
+            'PHONE NUMBER' => 'Phone Number',
+            'E-MAIL' => 'E-mail',
+            'ADDRESS' => 'Address',
+            'NEXT OF KIN NAME' => 'Next of Kin Name',
+            'NEXT OF KIN RELATIONSHIP' => 'Next of Kin Relationship',
+            'NEXT OF KIN PHONE' => 'Next of Kin Phone',
+            'NEXT OF KIN ADDRESS' => 'Next of Kin Address',
+            'BANK NAME' => 'Bank Name',
+            'ACCOUNT NUMBER' => 'Account Number',
+            'BVN' => 'BVN',
+            'PENSION NUMBER' => 'Pension Number',
+            'PROFILE STATUS' => 'Profile Status',
+        ];
     }
 
     public function create(Request $req)
@@ -1062,12 +1105,18 @@ class StaffController extends Controller
             return !empty($value) && $value != '1970-01-01' ? date('d/m/Y', strtotime($value)) : 'N/A';
         };
 
+        // Columns selected by the user (default: all columns)
+        $selectedColumns = $request->input('columns', []);
+        if (empty($selectedColumns)) {
+            $selectedColumns = array_keys($this->getExportColumns());
+        }
+
         // Prepare data for export
         $exportData = [];
         $serialNumber = 1;
 
         foreach ($staff as $row) {
-            $exportData[] = [
+            $fullRow = [
                 'S/NO' => $serialNumber++,
                 'SP. NO' => $row->username ?? 'N/A',
                 'NAME' => $row->name ?? 'N/A',
@@ -1105,6 +1154,8 @@ class StaffController extends Controller
                 'PENSION NUMBER' => $row->pension_number ?? 'N/A',
                 'PROFILE STATUS' => $row->profile_status ?? ($row->profile_completion ? $row->profile_completion . '%' : 'N/A'),
             ];
+
+            $exportData[] = array_intersect_key($fullRow, array_flip($selectedColumns));
         }
 
         // Generate filename with timestamp

@@ -745,6 +745,31 @@
                             </div>
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group mb-0">
+                                <label class="small font-weight-bold d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-list-check mr-1"></i> Columns to Export <small class="text-muted">(CSV only)</small></span>
+                                    <span>
+                                        <button type="button" class="btn btn-outline-primary btn-xs btn-sm" id="selectAllCols"><i class="fas fa-check-double"></i> Select All</button>
+                                        <button type="button" class="btn btn-outline-secondary btn-xs btn-sm" id="clearAllCols"><i class="fas fa-times"></i> Clear</button>
+                                    </span>
+                                </label>
+                                <div class="border rounded p-2" style="max-height:220px; overflow-y:auto; background:#fafafa;">
+                                    <div class="row">
+                                        @foreach ($exportColumns as $colKey => $colLabel)
+                                            <div class="col-md-4">
+                                                <label class="mb-1 d-flex align-items-center" style="font-size:12px; cursor:pointer;">
+                                                    <input type="checkbox" class="export-column mr-1" name="columns[]" value="{{ $colKey }}" checked>
+                                                    <span class="text-truncate">{{ $colLabel }}</span>
+                                                </label>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" onclick="$('#exportModal').modal('hide')">Cancel</button>
@@ -881,6 +906,14 @@ $(document).ready(function() {
         var action = format === 'excel' ? '/staff/export/excel' : '/staff/export/pdf';
         $(this).attr('action', action);
         this.submit();
+    });
+
+    // Select All / Clear All column checkboxes
+    $('#selectAllCols').on('click', function() {
+        $('.export-column').prop('checked', true);
+    });
+    $('#clearAllCols').on('click', function() {
+        $('.export-column').prop('checked', false);
     });
 });
 </script>
