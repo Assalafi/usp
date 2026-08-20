@@ -54,7 +54,7 @@ class HostelController extends Controller
         if ($request->pins > 0) {
             for ($i = 0; $i < $request->pins; $i++) {
                 $characters = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-                $pinn = substr(str_shuffle(str_repeat($characters, 12)), 0, 12);
+                $pinn = date('Y') . substr(str_shuffle(str_repeat($characters, 12)), 0, 8);
 
                 $dataToStore[] = ['pin' => $pinn, 'status' => 0, 'batch' => $batch, 'user' => 'System', 'time' => date('h:i:s'), 'created_at' => date('Y-m-d'), 'updated_at' => date('Y-m-d')];
             }
