@@ -918,6 +918,9 @@
                                                             <option value="NABTEB"
                                                                 {{ $ssceData && $ssceData->type == 'NABTEB' ? 'selected' : '' }}>
                                                                 NABTEB</option>
+                                                            <option value="NBAIS"
+                                                                {{ $ssceData && $ssceData->type == 'NBAIS' ? 'selected' : '' }}>
+                                                                NBAIS</option>
                                                         </select>
                                                     </div>
                                                     <div class="form-group">
@@ -926,7 +929,7 @@
                                                         <select class="form-control" id="ssce_year_1"
                                                             name="ssce_year_1" required>
                                                             <option value="">Select Year</option>
-                                                            @for ($year = date('Y'); $year >= 2015; $year--)
+                                                            @for ($year = date('Y'); $year >= 2000; $year--)
                                                                 <option value="{{ $year }}"
                                                                     {{ $ssceData && $ssceData->year == $year ? 'selected' : '' }}>
                                                                     {{ $year }}</option>
@@ -1722,9 +1725,7 @@
                                         @foreach ($documentTypes as $index => $docType)
                                             <div class="form-group mb-3 mb-md-4"
                                                 data-doc-type="{{ $docType['id'] }}"
-                                                @if(isset($docType['conditional']) && $docType['conditional']) 
-                                                    data-conditional="true"
-                                                @endif>
+                                                @if (isset($docType['conditional']) && $docType['conditional']) data-conditional="true" @endif>
                                                 <label
                                                     class="form-label {{ $docType['required'] ? 'required' : '' }}"
                                                     for="{{ $docType['id'] }}">{{ $docType['label'] }}</label>
@@ -1870,7 +1871,7 @@
                                 <i class="fas fa-times me-1"></i>Remove
                             </button>
                         </div>
-                        
+
                         <div class="form-row">
                             <div class="form-group">
                                 <label class="form-label required" for="ssce_type_2">SSCE Type</label>
@@ -1879,6 +1880,8 @@
                                     <option value="WAEC" {{ $ssceData && $ssceData->type == 'WAEC' ? 'selected' : '' }}>WAEC</option>
                                     <option value="NECO" {{ $ssceData && $ssceData->type == 'NECO' ? 'selected' : '' }}>NECO</option>
                                     <option value="NABTEB" {{ $ssceData && $ssceData->type == 'NABTEB' ? 'selected' : '' }}>NABTEB</option>
+                                    <option value="NBAIS" {{ $ssceData && $ssceData->type == 'NBAIS' ? 'selected' : '' }}>NBAIS</option>
+
                                 </select>
                             </div>
                             <div class="form-group">
@@ -1887,7 +1890,7 @@
                                     <option value="">Select Year</option>`;
 
                         let yearOptions = '';
-                        for (let year = currentYear; year >= 2015; year--) {
+                        for (let year = currentYear; year >= 2000; year--) {
                             yearOptions += `<option value="${year}">${year}</option>`;
                         }
 
@@ -1895,18 +1898,18 @@
                                 </select>
                             </div>
                         </div>
-                        
+
                         <div class="form-row">
                             <div class="form-group">
                                 <label class="form-label required" for="ssce_reg_number_2">SSCE Registration Number</label>
-                                <input type="text" class="form-control" id="ssce_reg_number_2" name="ssce_reg_number_2" 
-                                   placeholder="Enter SSCE registration number" 
+                                <input type="text" class="form-control" id="ssce_reg_number_2" name="ssce_reg_number_2"
+                                   placeholder="Enter SSCE registration number"
                                    value="{{ $ssceData ? $ssceData->number : '' }}" required>
                             </div>
                             <div class="form-group">
                                 <label class="form-label required" for="ssce_center_2">Examination Center</label>
-                                <input type="text" class="form-control" id="ssce_center_2" name="ssce_center_2" 
-                                   placeholder="Enter examination center" 
+                                <input type="text" class="form-control" id="ssce_center_2" name="ssce_center_2"
+                                   placeholder="Enter examination center"
                                    value="{{ $ssceData ? $ssceData->center_name : '' }}" required>
                             </div>
                         </div>
@@ -2010,7 +2013,7 @@
                         let secondSittingResultsHtml = `
                     <div class="results-sitting mt-4" data-sitting="2">
                         <h5 class="mb-3"><i class="fas fa-list me-1"></i>Second Sitting Results</h5>
-                        
+
                         <div class="row mb-3">
                             <div class="col-2 col-md-1"><label class="form-label text-center"><strong>S/N</strong></label></div>
                             <div class="col-6 col-md-8"><label class="form-label"><strong>Subject</strong></label></div>
@@ -2057,7 +2060,7 @@
                         if (sittingElement) {
                             sittingElement.remove();
                         }
-                        
+
                         // If removing the second sitting, hide and clear the second SSCE document upload
                         if (sittingNumber === 2) {
                             const secondSsceDocField = document.querySelector('[data-doc-type="ssce_result_2"]');
