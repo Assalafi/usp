@@ -5,8 +5,9 @@
     use App\Models\Student;
     use App\Models\Alumni;
     use Illuminate\Support\Facades\DB;
+    $fetching_session = \App\Http\Controllers\SystemSettingsController::getHostelFeesSession();
     $hostelFees = DB::table('invoices')
-        ->where(['status' => 'Paid', 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => '2025/2026'])
+        ->where(['status' => 'Paid', 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => $fetching_session])
         ->sum('amount');
     $schoolFees = DB::table('invoices')
         ->where(['status' => 'Paid', 'description' => 'UNIVERSITY OF MAIDUGURI-1000127 FEES', 'session' => '2025/2026'])
@@ -76,7 +77,7 @@
                     <div class="card theme-bg bitcoin-wallet">
                         <div class="card-block">
                             <h5 class="text-white mb-2">Paid Hostel PIN</h5>
-                            <h3 class="text-white mb-2 f-w-300">N{{ number_format($pin * 1000, 2) }}</h3>
+                            <h3 class="text-white mb-2 f-w-300">N{{ number_format($pin * 2000, 2) }}</h3>
                             <i class="fas fa-bed f-70 text-white"></i>
                         </div>
                     </div>
