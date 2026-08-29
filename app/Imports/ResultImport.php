@@ -100,6 +100,12 @@ class ResultImport implements ToCollection
                     $level = $rows->level;
                     $remark = 'PASS';
 
+                    // If the semester is RESET, cap the total at 50 so the
+                    // grading is computed against a maximum of 50 marks.
+                    if (strtoupper($this->semester) === 'RESET' && $total > 50) {
+                        $total = 50;
+                    }
+
                         //dd($total);
 
                     $gradings = DB::table('grading_system')
