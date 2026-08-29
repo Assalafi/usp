@@ -10,9 +10,9 @@
                         <h5>{{ strtoupper($page) }}</h5>
                     </div>
                     <div class="card-block">
-                        
+
                         <a href="#" class="btn btn-primary createAction" data-bs-toggle="modal" data-bs-target="#create"><i class="fas fa-plus"></i> {{ ('Add New') }}</a>
-                        
+
                     </div>
                 </div>
             </div>
@@ -42,7 +42,7 @@
                                         <td>{{ $row -> semester }}</td>
                                         <td>{{ $row -> session }}</td>
                                         <td>
-                                            
+
                                             @if ($row -> status == '1')
                                                 {{ 'ACTIVE' }}
                                             @else
@@ -90,6 +90,7 @@
                                                                     <option value="First">First Semester</option>
                                                                     <option value="Second">Second Semester</option>
                                                                     <option value="Third">Third Semester</option>
+                                                                    <option value="Reset">Reset Semester</option>
                                                                 </select>
                                                             </div>
                                                             <div class="form-group">
@@ -159,7 +160,7 @@
                 <div class="card-body">
                     <a href="#"><i class="fas fa-download"></i> Download Template</a>
                 </div>
-                
+
                 <form class="form-group" action="upload {{ $page }}" method="POST" enctype="multipart/form-data">
                     <div class="card-body">
                         <!-- Details View Start -->
@@ -174,7 +175,7 @@
                     </div>
                 </form>
             </div>
-            
+
         </div>
     </div>
 </div>
@@ -208,6 +209,7 @@
                                 <option value="First">First Semester</option>
                                 <option value="Second">Second Semester</option>
                                 <option value="Third">Third Semester</option>
+                                <option value="Reset">Reset Semester</option>
                             </select>
                         </div>
                         <!-- Details View End -->
