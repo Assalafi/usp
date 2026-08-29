@@ -263,12 +263,13 @@
                                                         </div>
                                                     @elseif($setting->key == 'current_semester')
                                                         <select class="form-control" name="{{ $setting->key }}">
-                                                            <option value="First"
-                                                                {{ $setting->value == 'First' ? 'selected' : '' }}>
-                                                                First Semester</option>
-                                                            <option value="Second"
-                                                                {{ $setting->value == 'Second' ? 'selected' : '' }}>
-                                                                Second Semester</option>
+                                                            @forelse ($semesters as $sem)
+                                                                <option value="{{ $sem }}" @if(strtoupper($setting->value) == strtoupper($sem)) selected @endif>
+                                                                    {{ ucfirst(strtolower($sem)) }} Semester</option>
+                                                            @empty
+                                                                <option value="FIRST" @if(strtoupper($setting->value) == 'FIRST') selected @endif>First Semester</option>
+                                                                <option value="SECOND" @if(strtoupper($setting->value) == 'SECOND') selected @endif>Second Semester</option>
+                                                            @endforelse
                                                         </select>
                                                     @elseif($setting->type == 'number')
                                                         <input type="number" class="form-control"

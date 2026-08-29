@@ -221,9 +221,7 @@
                                                                         name="semester" required>
                                                                         <option value="{{ $row->semester }}">Current:
                                                                             {{ $row->semester }}</option>
-                                                                        <option value="FIRST">FIRST</option>
-                                                                        <option value="SECOND">SECOND</option>
-                                                                        <option value="THIRD">THIRD</option>
+                                                                        @include('partials.semester_options', ['selectedSemester' => $row->semester])
                                                                     </select>
                                                                 </div>
                                                                 <div class="form-group">

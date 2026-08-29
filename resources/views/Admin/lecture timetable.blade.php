@@ -303,8 +303,7 @@
                                     <label for="semester">Semester<span>*</span></label>
                                     <select name="semester" class="form-control" id="semester" required>
                                         <option value="">Select Semester</option>
-                                        <option value="FIRST">FIRST</option>
-                                        <option value="SECOND">SECOND</option>
+                                        @include('partials.semester_options')
                                     </select>
                                 </div>
                                 <div class="form-group">

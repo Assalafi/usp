@@ -992,9 +992,7 @@
                         <label for="deleteSemester">Semester</label>
                         <select class="form-control" name="semester" id="deleteSemester">
                             <option value="">Select Semester</option>
-                            <option value="FIRST">FIRST</option>
-                            <option value="SECOND">SECOND</option>
-                            <option value="THIRD">THIRD</option>
+                            @include('partials.semester_options')
                         </select>
                     </div>
                     <div class="form-check mb-3">
@@ -1062,9 +1060,7 @@
                         <label for="statusSemester">Semester</label>
                         <select class="form-control" id="statusSemester" name="semester" required>
                             <option value="">Select Semester</option>
-                            <option value="FIRST">FIRST</option>
-                            <option value="SECOND">SECOND</option>
-                            <option value="THIRD">THIRD</option>
+                            @include('partials.semester_options')
                         </select>
                     </div>
                     <div class="form-group mt-3">

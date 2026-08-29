@@ -413,9 +413,7 @@
                                 <label for="semester">Semester<span>*</span></label>
                                 <select name="semester" class="form-control" id="semester" required>
                                     <option value="">Select Semester</option>
-                                    <option value="FIRST">FIRST</option>
-                                    <option value="SECOND">SECOND</option>
-                                    <option value="THIRD">THIRD</option>
+                                    @include('partials.semester_options')
                                 </select>
                             </div>
                             <div class="form-group">
@@ -567,9 +565,7 @@
                                 <label for="semester">Semester<span>*</span></label>
                                 <select name="semester" class="form-control" id="semester" required>
                                     <option value="">Select Semester</option>
-                                    <option value="FIRST">FIRST</option>
-                                    <option value="SECOND">SECOND</option>
-                                    <option value="THIRD">THIRD</option>
+                                    @include('partials.semester_options')
                                 </select>
                             </div>
                             <div class="form-group">
@@ -747,9 +743,7 @@
                             <label for="semester">Semester</label>
                             <select class="form-control" id="semester" name="semester" required>
                                 <option value="">Select Option</option>
-                                <option value="First">First Semester</option>
-                                <option value="Second">Second Semester</option>
-                                <option value="Third">Third Semester</option>
+                                @include('partials.semester_options')
                             </select>
                         </div>
                         <div class="form-group">
@@ -808,15 +802,13 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="form-group col-md-12">
-                            <label for="semester">Semester<span>*</span></label>
-                            <select name="semester" class="form-control" id="semester" required>
-                                <option value="">Select Semester</option>
-                                <option value="FIRST">FIRST</option>
-                                <option value="SECOND">SECOND</option>
-                                <option value="THIRD">THIRD</option>
-                            </select>
-                        </div>
+                            <div class="form-group col-md-12">
+                                <label for="semester">Semester<span>*</span></label>
+                                <select name="semester" class="form-control" id="semester" required>
+                                    <option value="">Select Semester</option>
+                                    @include('partials.semester_options')
+                                </select>
+                            </div>
                         <div class="form-group col-md-12">
                             <label for="session">Session*</label>
                             <select class="form-control" id="session" name="session" required>

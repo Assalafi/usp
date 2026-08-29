@@ -163,9 +163,7 @@
                                                                 <label for="semester">Semester</label>
                                                                 <select class="form-control" id="semester" name="semester" required>
                                                                     <option value="{{ $row -> semester }}">Select Option</option>
-                                                                    <option value="First">First Semester</option>
-                                                                    <option value="Second">Second Semester</option>
-                                                                    <option value="Third">Third Semester</option>
+                                                                    @include('partials.semester_options', ['selectedSemester' => $row->semester])
                                                                 </select>
                                                             </div>
                                                             <div class="form-group">
@@ -325,9 +323,7 @@
                             <label for="semester">Semester</label>
                             <select class="form-control" id="semester" name="semester" required>
                                 <option value="">Select Option</option>
-                                <option value="First">First Semester</option>
-                                <option value="Second">Second Semester</option>
-                                <option value="Third">Third Semester</option>
+                                @include('partials.semester_options')
                             </select>
                         </div>
                         <div class="form-group">

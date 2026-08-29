@@ -32,8 +32,7 @@ DEF789"></textarea>
                         <label for="statusSemester">Semester</label>
                         <select class="form-control" id="statusSemester" name="semester" required>
                             <option value="">Select Semester</option>
-                            <option value="FIRST">FIRST</option>
-                            <option value="SECOND">SECOND</option>
+                            @include('partials.semester_options')
                         </select>
                     </div>
                     <div class="form-group mt-3">
