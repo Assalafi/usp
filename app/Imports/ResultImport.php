@@ -100,9 +100,9 @@ class ResultImport implements ToCollection
                     $level = $rows->level;
                     $remark = 'PASS';
 
-                    // If the semester is RESET, cap the total at 50 so the
+                    // If the semester is RESIT, cap the total at 50 so the
                     // grading is computed against a maximum of 50 marks.
-                    if (strtoupper($this->semester) === 'RESET' && $total > 50) {
+                    if (strtoupper($this->semester) === 'RESIT' && $total > 50) {
                         $total = 50;
                     }
 

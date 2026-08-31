@@ -87,7 +87,7 @@
                                                                 <label for="semester">Semester</label>
                                                                 <select class="form-control" id="semester" name="semester" required>
                                                                     <option value="{{ $row->semester }}">Select Option</option>
-                                                                    @include('partials.semester_options', ['selectedSemester' => $row->semester, 'includeReset' => true])
+                                                                    @include('partials.semester_options', ['selectedSemester' => $row->semester, 'includeResit' => true])
                                                                 </select>
                                                             </div>
                                                             <div class="form-group">
@@ -203,7 +203,7 @@
                             <label for="semester">Semester</label>
                             <select class="form-control" id="semester" name="semester" required>
                                 <option value="">Select Option</option>
-                                @include('partials.semester_options', ['includeReset' => true])
+                                @include('partials.semester_options', ['includeResit' => true])
                             </select>
                         </div>
                         <!-- Details View End -->

@@ -1,6 +1,6 @@
 @php
     $selectedSemester = $selectedSemester ?? null;
-    $includeReset = $includeReset ?? false;
+    $includeResit = $includeResit ?? false;
 @endphp
 @forelse ($semesters as $sem)
     <option value="{{ $sem }}" @if((string)$selectedSemester === (string)$sem) selected @endif>{{ ucfirst(strtolower($sem)) }} Semester</option>
@@ -9,6 +9,6 @@
     <option value="SECOND" @if((string)$selectedSemester === 'SECOND') selected @endif>Second Semester</option>
     <option value="THIRD" @if((string)$selectedSemester === 'THIRD') selected @endif>Third Semester</option>
 @endforelse
-@if($includeReset)
-    <option value="Reset" @if((string)$selectedSemester === 'Reset') selected @endif>Reset Semester</option>
+@if($includeResit)
+    <option value="RESIT" @if((string)$selectedSemester === 'RESIT') selected @endif>Resit Semester</option>
 @endif
