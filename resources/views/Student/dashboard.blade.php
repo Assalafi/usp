@@ -31,17 +31,9 @@
         ->orderByDesc('updated_at')
         ->get();
     $resultCourses = $sessionResults->pluck('code')->filter()->unique()->count();
-    $resultUnits = (float) $sessionResults->sum(function ($result) {
-        return (float) ($result->unit ?? 0);
-    });
-    $resultPoints = (float) $sessionResults->sum(function ($result) {
-        return (float) ($result->ugp ?? 0);
-    });
-    $sessionCgpa = $resultUnits > 0 ? $resultPoints / $resultUnits : null;
     $lastResultUpdate = $sessionResults->first()->updated_at ?? null;
     $history = DB::table('session_history')->where(['username' => $studentId, 'session' => $currentSession])->first();
     $academicStatus = $history->status ?? 'In progress';
-    $historyCgpa = isset($history->cgpa) && is_numeric($history->cgpa) ? (float) $history->cgpa : null;
 
     $invoiceUsernames = collect([session('id'), $studentId])->filter()->unique()->values()->all();
     $invoices = DB::table('invoices')->whereIn('username', $invoiceUsernames)->where('session', $currentSession)->get();
@@ -93,7 +85,7 @@
                 <span class="ug-stat-icon"><i class="fas fa-chart-line"></i></span>
                 <span class="ug-stat-label">Current results</span>
                 <strong>{{ $resultCourses }}</strong>
-                <small>{{ $resultCourses ? 'Approved · ' . ($sessionCgpa !== null ? 'CGPA ' . number_format($sessionCgpa, 2) : 'current session') : 'Awaiting publication' }}</small>
+                <small>{{ $resultCourses ? 'Approved · current session' : 'Awaiting publication' }}</small>
             </a>
             <a class="ug-stat-card ug-stat-green" href="{{ url('/payment') }}">
                 <span class="ug-stat-icon"><i class="fas fa-wallet"></i></span>
@@ -104,8 +96,8 @@
             <div class="ug-stat-card ug-stat-orange">
                 <span class="ug-stat-icon"><i class="fas fa-graduation-cap"></i></span>
                 <span class="ug-stat-label">Academic standing</span>
-                <strong>{{ $historyCgpa !== null ? number_format($historyCgpa, 2) : '—' }}</strong>
-                <small>{{ ucfirst((string) $academicStatus) }}{{ $historyCgpa !== null ? ' CGPA' : '' }}</small>
+                <strong>{{ ucfirst((string) $academicStatus) }}</strong>
+                <small>Current session status</small>
             </div>
         </section>
 
