@@ -13,10 +13,6 @@
     $programCode = $student->program ?? session('program');
     $programTitle = $programCode ? DB::table('program')->where('code', $programCode)->value('title') : null;
     $level = $student->level ?? session('current_level') ?? session('level');
-    $faculty = $student->faculty ?? session('faculty');
-    $department = $student->department ?? session('department');
-    $facultyTitle = $faculty ? (DB::table('faculty')->where('code', $faculty)->value('title') ?: $faculty) : 'Not set';
-    $departmentTitle = $department ? (DB::table('department')->where('code', $department)->value('title') ?: $department) : 'Not set';
 
     $registeredCourses = DB::table('student_course_registration')
         ->where('username', $studentId)
@@ -79,6 +75,11 @@
                 @endif
                 <span class="ug-online-dot" title="Active student"></span>
             </div>
+            <div class="ug-welcome-academic">
+                <div><span>Current level</span><strong>{{ $level ? $level . ' Level' : 'Not set' }}</strong></div>
+                <div><span>Course of study</span><strong>{{ $programTitle ?: $programCode ?: 'Not set' }}</strong></div>
+                <a href="{{ url('/profile') }}" class="ug-welcome-profile"><i class="fas fa-user-edit"></i> View profile</a>
+            </div>
         </section>
 
         <section class="ug-stat-grid" aria-label="Academic summary">
@@ -109,24 +110,6 @@
         </section>
 
         <div class="ug-content-grid">
-            <section class="ug-panel ug-profile-panel">
-                <div class="ug-panel-heading">
-                    <div><span class="ug-kicker">Your academic profile</span><h2>Student overview</h2></div>
-                    <a href="{{ url('/profile') }}" class="ug-text-link">View profile <i class="fas fa-arrow-right"></i></a>
-                </div>
-                <div class="ug-profile-main">
-                    <div class="ug-profile-photo"><img src="{{ $photoUrl }}" alt="{{ $studentName }}"></div>
-                    <div class="ug-profile-name"><h3>{{ $studentName }}</h3><p>{{ $studentId }}</p></div>
-                </div>
-                <div class="ug-detail-grid">
-                    <div><span>Programme</span><strong>{{ $programTitle ?: $programCode ?: 'Not set' }}</strong></div>
-                    <div><span>Current level</span><strong>{{ $level ? $level . ' Level' : 'Not set' }}</strong></div>
-                    <div><span>Faculty</span><strong>{{ $facultyTitle }}</strong></div>
-                    <div><span>Department</span><strong>{{ $departmentTitle }}</strong></div>
-                </div>
-                <div class="ug-status-line"><span class="ug-status-dot"></span><span>Academic status</span><strong>{{ ucfirst((string) $academicStatus) }}</strong></div>
-            </section>
-
             <section class="ug-panel ug-activity-panel">
                 <div class="ug-panel-heading"><div><span class="ug-kicker">{{ $currentSession ?: 'Current session' }}</span><h2>What’s happening</h2></div></div>
                 <div class="ug-activity-list">
@@ -171,6 +154,14 @@
 <style>
     /* Use the portal primary colour consistently across the dashboard. */
     .ug-welcome-card{background:linear-gradient(120deg,#3EA1E4,#2f8fcf 68%,#267bb8);box-shadow:0 12px 28px rgba(62,161,228,.22)}
+    .ug-welcome-card{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(250px,.8fr);align-items:center}
+    .ug-welcome-academic{display:flex;align-items:center;gap:18px;position:relative;z-index:1}
+    .ug-welcome-academic>div{min-width:0}
+    .ug-welcome-academic span{display:block;font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.72);margin-bottom:3px}
+    .ug-welcome-academic strong{display:block;color:#fff;font-size:.82rem;max-width:175px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .ug-welcome-profile{display:inline-flex;align-items:center;gap:6px;padding:9px 11px;border:1px solid rgba(255,255,255,.48);border-radius:9px;color:#fff;font-size:.72rem;font-weight:700;text-decoration:none;white-space:nowrap}
+    .ug-welcome-profile:hover{background:rgba(255,255,255,.15);color:#fff}
+    .ug-content-grid{grid-template-columns:1fr}
     .ug-avatar-initials{color:#3EA1E4}
     .ug-stat-blue .ug-stat-icon{background:#3EA1E4}
     .ug-text-link,.ug-quick-grid a i{color:#258ac8}
@@ -193,7 +184,7 @@
     .ug-results-empty strong,.ug-results-empty small{display:block}
     .ug-results-empty strong{font-size:.8rem;color:#53647e}
     .ug-results-empty small{font-size:.7rem;margin-top:3px}
-    @media(max-width:600px){.ug-result-row{grid-template-columns:1fr auto;gap:4px 10px;padding:11px 0}.ug-result-context{grid-column:1;grid-row:2}.ug-result-total{grid-column:2;grid-row:2;text-align:right;color:#7b8aa0;font-size:.7rem}.ug-result-grade{grid-column:2;grid-row:1}.ug-approved-badge{font-size:.6rem;padding:5px 7px}}
+    @media(max-width:600px){.ug-welcome-card{grid-template-columns:minmax(0,1fr) auto;align-items:start}.ug-welcome-academic{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.35fr) auto;gap:9px;margin-top:15px;padding-top:13px;border-top:1px solid rgba(255,255,255,.2)}.ug-welcome-academic strong{font-size:.72rem;max-width:125px}.ug-welcome-profile{padding:8px 9px;font-size:.64rem;align-self:end}.ug-result-row{grid-template-columns:1fr auto;gap:4px 10px;padding:11px 0}.ug-result-context{grid-column:1;grid-row:2}.ug-result-total{grid-column:2;grid-row:2;text-align:right;color:#7b8aa0;font-size:.7rem}.ug-result-grade{grid-column:2;grid-row:1}.ug-approved-badge{font-size:.6rem;padding:5px 7px}}
 </style>
 
 {{-- Keep the existing safety prompt for students whose current level has not been confirmed. --}}
