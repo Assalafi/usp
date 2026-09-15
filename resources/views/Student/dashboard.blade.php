@@ -92,7 +92,7 @@
                 <span class="ug-stat-icon"><i class="fas fa-chart-line"></i></span>
                 <span class="ug-stat-label">Current results</span>
                 <strong>{{ $resultCourses }}</strong>
-                <small>{{ $resultCourses ? 'VC approved · ' . ($sessionCgpa !== null ? 'CGPA ' . number_format($sessionCgpa, 2) : 'current session') : 'Awaiting publication' }}</small>
+                <small>{{ $resultCourses ? 'Approved · ' . ($sessionCgpa !== null ? 'CGPA ' . number_format($sessionCgpa, 2) : 'current session') : 'Awaiting publication' }}</small>
             </a>
             <a class="ug-stat-card ug-stat-green" href="{{ url('/payment') }}">
                 <span class="ug-stat-icon"><i class="fas fa-wallet"></i></span>
@@ -131,7 +131,7 @@
                 <div class="ug-panel-heading"><div><span class="ug-kicker">{{ $currentSession ?: 'Current session' }}</span><h2>What’s happening</h2></div></div>
                 <div class="ug-activity-list">
                     <a href="{{ url('/student course registration') }}" class="ug-activity-item"><span class="ug-activity-icon blue"><i class="fas fa-layer-group"></i></span><span><strong>Course registration</strong><small>{{ $registeredCount ? $registeredCount . ' courses across ' . max(1, $registrationSemesters->count()) . ' semester(s)' : 'No courses registered yet' }}</small></span><i class="fas fa-chevron-right ug-chevron"></i></a>
-                    <a href="{{ url('/student-result') }}" class="ug-activity-item"><span class="ug-activity-icon purple"><i class="fas fa-file-signature"></i></span><span><strong>Approved results</strong><small>{{ $resultCourses ? $resultCourses . ' VC-approved course result(s)' : 'Results are not published yet' }}{{ $lastResultUpdate ? ' · Updated ' . date('d M Y', strtotime($lastResultUpdate)) : '' }}</small></span><i class="fas fa-chevron-right ug-chevron"></i></a>
+                    <a href="{{ url('/student-result') }}" class="ug-activity-item"><span class="ug-activity-icon purple"><i class="fas fa-file-signature"></i></span><span><strong>Approved results</strong><small>{{ $resultCourses ? $resultCourses . ' approved course result(s)' : 'Results are not published yet' }}{{ $lastResultUpdate ? ' · Updated ' . date('d M Y', strtotime($lastResultUpdate)) : '' }}</small></span><i class="fas fa-chevron-right ug-chevron"></i></a>
                     <a href="{{ url('/payment') }}" class="ug-activity-item"><span class="ug-activity-icon green"><i class="fas fa-receipt"></i></span><span><strong>Payments</strong><small>{{ $pendingPayments ? $formatMoney($pendingAmount) . ' pending' : 'No pending payments' }}</small></span><i class="fas fa-chevron-right ug-chevron"></i></a>
                 </div>
             </section>
@@ -140,7 +140,7 @@
         <section class="ug-panel ug-results-panel">
             <div class="ug-panel-heading">
                 <div><span class="ug-kicker">{{ $currentSession ?: 'Current session' }}</span><h2>Approved results</h2></div>
-                <span class="ug-approved-badge"><i class="fas fa-check-circle"></i> VC approved</span>
+                <span class="ug-approved-badge"><i class="fas fa-check-circle"></i> Approved</span>
             </div>
             @if ($sessionResults->isNotEmpty())
                 <div class="ug-result-list">
