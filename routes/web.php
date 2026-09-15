@@ -1387,6 +1387,7 @@ Route::get('/payment', [RegistrationController::class, 'payment']);
 Route::get('/make-payment', [RegistrationController::class, 'makePayment']);
 Route::get('/school-fees', [RegistrationController::class, 'schoolFees']);
 Route::get('/applicant-fees', [RegistrationController::class, 'applicantFees']);
+Route::post('/cancel-student-payment/{id}', [InvoicesController::class, 'cancelStudentPayment'])->name('student.payment.cancel');
 Route::get('/assign-courses', [RegistrationController::class, 'assignCourses']);
 Route::post('/add-student-course', [RegistrationController::class, 'add']);
 Route::post('/drop-student-course', [RegistrationController::class, 'drop']);

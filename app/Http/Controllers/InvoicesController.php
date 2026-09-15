@@ -761,6 +761,42 @@ class InvoicesController extends Controller
         return redirect()->back()->with('success', 'Record Delete!!!');
     }
 
+    /**
+     * Allow a logged-in undergraduate student to cancel only their own
+     * pending invoice. We keep the invoice as Cancelled for audit history
+     * instead of deleting the payment record permanently.
+     */
+    public function cancelStudentPayment(Request $request, $id)
+    {
+        if (!session()->has('log') || session('accType') !== 'Student') {
+            return redirect('/')->with('error', 'Unauthorized access');
+        }
+
+        $invoice = DB::table('invoices')
+            ->where('id', $id)
+            ->where('username', session('id'))
+            ->first();
+
+        if (!$invoice) {
+            return redirect('/payment')->with('error', 'Payment record not found.');
+        }
+
+        if ($invoice->status !== 'Pending') {
+            return redirect('/payment')->with('error', 'Only pending payments can be cancelled.');
+        }
+
+        DB::table('invoices')
+            ->where('id', $invoice->id)
+            ->where('username', session('id'))
+            ->where('status', 'Pending')
+            ->update([
+                'status' => 'Cancelled',
+                'updated_at' => now(),
+            ]);
+
+        return redirect('/payment')->with('success', 'Pending payment cancelled successfully. You can generate a new invoice when ready.');
+    }
+
     public function invoice($rrr)
     {
         if (!session()->has('log')) {
