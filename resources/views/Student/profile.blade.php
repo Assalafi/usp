@@ -1524,6 +1524,8 @@
         #profile-camera-video { display:block; width:100%; max-height:62vh; object-fit:cover; border-radius:12px; background:#112a3b; transform:scaleX(-1); }
         .sp-camera-dialog-actions { display:flex; gap:.6rem; margin-top:.7rem; }
         .sp-camera-dialog-actions .btn { flex:1; border-radius:9px; }
+        .sp-spinner { display:inline-block; width:1rem; height:1rem; margin-right:.4rem; vertical-align:-.15rem; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spSpin .7s linear infinite; }
+        @keyframes spSpin { to { transform:rotate(360deg); } }
         .student-profile-page .sp-media-grid { align-items:stretch; }
         .student-profile-page .sp-media-card { min-height:100%; padding:1.5rem; }
         .student-profile-page .sp-media-card:first-child { background:linear-gradient(180deg,#ffffff 0%,#f6fbff 100%); }
@@ -1667,6 +1669,8 @@
             const photoStatus = document.getElementById('photo-processing-status');
             const csrf = form?.querySelector('input[name="_token"]')?.value || '';
             const processUrl = @json(route('profile.photo.preview'));
+            const processButtonLabel = processButton?.innerHTML || '<i class="fas fa-wand-magic-sparkles"></i> Prepare this photo and show preview';
+            const currentButtonLabel = currentButton?.innerHTML || '<i class="fas fa-rotate"></i> Prepare my current photo';
 
             // Edit sections behave as a stacked accordion: each section's content
             // sits directly under its heading, with only one section open at a time.
@@ -1696,6 +1700,10 @@
             }
 
             const setPhotoStatus = (message, type = '') => { if (photoStatus) { photoStatus.className = 'sp-media-status ' + type; photoStatus.textContent = message; } };
+            const setPhotoBusy = (busy) => {
+                if (processButton) { processButton.disabled = busy; processButton.innerHTML = busy ? '<span class="sp-spinner" aria-hidden="true"></span> Preparing photo...' : processButtonLabel; }
+                if (currentButton) { currentButton.disabled = busy; currentButton.innerHTML = busy ? '<span class="sp-spinner" aria-hidden="true"></span> Preparing photo...' : currentButtonLabel; }
+            };
             let cameraStream = null;
             const closeCamera = () => { if (cameraStream) { cameraStream.getTracks().forEach(track => track.stop()); cameraStream = null; } if (cameraVideo) cameraVideo.srcObject = null; if (cameraModal) cameraModal.hidden = true; };
             openCameraButton?.addEventListener('click', async () => {
@@ -1721,14 +1729,15 @@
                 try {
                     const response = await fetch(processUrl, { method:'POST', body:payload, headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'} });
                     const data = await response.json();
-                    if (!response.ok) throw new Error(data.message || Object.values(data.errors || {}).flat()[0] || 'Photo processing failed.');
+                    const validationMessage = Object.values(data.errors || {}).flat().find(Boolean);
+                    if (!response.ok) throw new Error(validationMessage || data.message || 'We could not prepare this photo. Please choose a clear JPG or PNG image under 5 MB and try again.');
                     photoToken.value = data.token; picturePreview.src = data.preview; setPhotoStatus('Preview ready. Review it, then update your profile.', 'success');
-                } catch (error) { photoToken.value = ''; setPhotoStatus(error.message, 'error'); }
+                } catch (error) { photoToken.value = ''; setPhotoStatus(error.message || 'We could not prepare this photo. Please try another clear JPG or PNG image.', 'error'); }
                 finally { processButton && (processButton.disabled = false); currentButton && (currentButton.disabled = false); }
             };
             pictureInput?.addEventListener('change', function () { photoToken.value = ''; setPhotoStatus('Photo selected. Click “Process & preview” before saving.'); if (this.files[0]) picturePreview.src = URL.createObjectURL(this.files[0]); });
-            processButton?.addEventListener('click', () => processPhoto(false));
-            currentButton?.addEventListener('click', () => processPhoto(true));
+            processButton?.addEventListener('click', () => { setPhotoBusy(true); processPhoto(false).finally(() => setPhotoBusy(false)); });
+            currentButton?.addEventListener('click', () => { setPhotoBusy(true); processPhoto(true).finally(() => setPhotoBusy(false)); });
             pictureInput?.addEventListener('change', () => setPhotoStatus('Photo selected. Click the prepare button to see the result before saving.'));
 
             const canvas = document.getElementById('student-signature-canvas');
