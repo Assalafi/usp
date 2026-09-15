@@ -23,7 +23,21 @@ def unique_faces(faces):
     ordered = sorted([tuple(int(value) for value in face) for face in faces], key=lambda item: item[2] * item[3], reverse=True)
     result = []
     for face in ordered:
-        if all(iou(face, existing) < 0.35 for existing in result): result.append(face)
+        # Haar cascades often return several slightly shifted boxes for one face.
+        # Treat boxes with strong overlap or a nearly identical centre as one face.
+        fx, fy, fw, fh = face
+        fcx, fcy = fx + fw / 2.0, fy + fh / 2.0
+        duplicate = False
+        for existing in result:
+            ex, ey, ew, eh = existing
+            ecx, ecy = ex + ew / 2.0, ey + eh / 2.0
+            size_ratio = min(fw * fh, ew * eh) / max(fw * fh, ew * eh)
+            centre_distance = ((fcx - ecx) ** 2 + (fcy - ecy) ** 2) ** 0.5
+            duplicate = iou(face, existing) >= 0.45 or (size_ratio >= 0.55 and centre_distance <= max(fw, fh, ew, eh) * 0.30)
+            if duplicate:
+                break
+        if not duplicate:
+            result.append(face)
     return result
 
 def detect_single_face(bgr):
@@ -33,8 +47,13 @@ def detect_single_face(bgr):
     if not path: raise ValueError('Face detection is not configured on the server.')
     detector = cv2.CascadeClassifier(path)
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-    faces = unique_faces(detector.detectMultiScale(gray, scaleFactor=1.08, minNeighbors=5, minSize=(50, 50)))
-    if not faces: faces = unique_faces(detector.detectMultiScale(cv2.equalizeHist(gray), scaleFactor=1.05, minNeighbors=5, minSize=(50, 50)))
+    faces = unique_faces(detector.detectMultiScale(gray, scaleFactor=1.08, minNeighbors=6, minSize=(50, 50)))
+    if not faces: faces = unique_faces(detector.detectMultiScale(cv2.equalizeHist(gray), scaleFactor=1.05, minNeighbors=6, minSize=(50, 50)))
+    # Very small detections are usually texture/noise. Keep a second face only
+    # when it is substantial relative to the main detected face.
+    if len(faces) > 1:
+        largest_area = max(width * height for _, _, width, height in faces)
+        faces = [face for face in faces if face[2] * face[3] >= largest_area * 0.30]
     if len(faces) == 0: raise ValueError('No face was detected. Upload a clear, front-facing passport photograph.')
     if len(faces) > 1: raise ValueError('Multiple faces were detected. Upload a photo containing only the student.')
     return faces[0]
