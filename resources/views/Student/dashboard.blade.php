@@ -1,192 +1,200 @@
 @php
-    use App\Models\HostelPin;
-    $pin = HostelPin::select('pin', 'username')->where('username', session('id_number'))->first();
-    $payment = DB::table('hostel')->where('occupant', session('id_number'))->value('hostel_payment');
-    $myCourses = DB::table('student_course_registration')
-        ->select('code')
-        ->where(['username' => session('id_number')])
-        ->pluck('code');
-    $myLectureTimetable = DB::table('lecture_timetable')
-        ->whereIn('course', $myCourses)
-        ->where(['session' => session('system_session')])
-        ->get();
-    $days = [
-        'Mon' => 1,
-        'Tue' => 2,
-        'Wed' => 3,
-        'Thu' => 4,
-        'Fri' => 5,
-        'Sat' => 6,
-        'Sun' => 7,
-    ];
-    $days = $days[date('D')];
-    if ($days == 7) {
-        $tomorrow = 1;
-    } else {
-        $tomorrow = $days + 1;
-    }
-    function abbreviateMiddleName($name)
-    {
-        $nameParts = explode(' ', $name);
-        if (count($nameParts) === 3) {
-            $nameParts[1] = substr($nameParts[1], 0, 1) . '.';
-            $abbreviatedName = implode(' ', $nameParts);
-            return $abbreviatedName;
-        }
-        return $name;
-    }
-@endphp
-<div class="main-body">
-    <div class="page-wrapper">
-        <!-- [ Main Content ] start -->
-        <div class="row">
-            <div class="col-sm-12 col-lg-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>{{ DB::table('program')->where(['code' => session('program')])->value('title') }}
-                            ({{ session('program') }}) {{ session('current_level') }} Level |
-                            {{ session('system_session') }} Academic Session</h5>
-                    </div>
-                    <div class="card-body row">
-                        <h4>Today's Lecture</h4>
-                        @forelse ($myLectureTimetable->where('day_no', $days) as $row)
-                            @php
-                                $staffs = DB::table('course_allocation')
-                                    ->where(['course' => $row->course])
-                                    ->select('name')
-                                    ->orderBy('type', 'ASC')
-                                    ->get();
-                                $lecturer = '';
-                                foreach ($staffs as $staff) {
-                                    $lecturer .= abbreviateMiddleName($staff->name) . ' | ';
-                                }
-                            @endphp
-                            <div class="card-block col-md-4 shadow">
-                                <p>Course: {{ $row->course }}</p>
-                                <p>Hall: {{ $row->hall }} | Time: {{ date('h:i A', strtotime($row->start)) }} -
-                                    {{ date('h:i A', strtotime($row->end)) }} </p>
-                                <p>Lecturer: {{ $lecturer }}</p>
-                                <p>{{ $row->comment }}</p>
-                            </div>
-                        @empty
-                            <div class="card-block col-md-4">
-                                <p>You don't have lecture today!!!</p>
-                            </div>
-                        @endforelse
-                    </div>
-                    <div class="card-body row">
-                        <h4>Tomorrow's Lecture</h4>
-                        @forelse ($myLectureTimetable->where('day_no', $tomorrow) as $row)
-                            @php
-                                $staffs = DB::table('course_allocation')
-                                    ->where(['course' => $row->course])
-                                    ->select('name')
-                                    ->orderBy('type', 'ASC')
-                                    ->get();
-                                $lecturer = '';
-                                foreach ($staffs as $staff) {
-                                    $lecturer .= abbreviateMiddleName($staff->name) . ' | ';
-                                }
-                            @endphp
-                            <div class="card-block col-md-4 shadow">
-                                <p>Course: {{ $row->course }}</p>
-                                <p>Hall: {{ $row->hall }} | Time: {{ date('h:i A', strtotime($row->start)) }} -
-                                    {{ date('h:i A', strtotime($row->end)) }} </p>
-                                <p>Lecturer: {{ $lecturer }}</p>
-                                <p>{{ $row->comment }}</p>
-                            </div>
-                        @empty
-                            <div class="card-block col-md-4">
-                                <p>You don't have lecture tomorrow!!!</p>
-                            </div>
-                        @endforelse
+    use Illuminate\Support\Facades\DB;
+    use Illuminate\Support\Str;
 
-                    </div>
+    $student = DB::table('students')->where('username', session('id_number'))->first();
+    if (!$student && session('id')) {
+        $student = DB::table('students')->where('user_id', session('id'))->first();
+    }
+
+    $studentName = trim((string) ($student->fullname ?? session('username') ?? 'Student'));
+    $studentId = $student->username ?? session('id_number');
+    $currentSession = session('system_session') ?: DB::table('session')->where('status', '1')->value('title');
+    $currentSemester = session('system_semester') ?: DB::table('semester')->where('status', '1')->value('semester');
+    $programCode = $student->program ?? session('program');
+    $programTitle = $programCode ? DB::table('program')->where('code', $programCode)->value('title') : null;
+    $level = $student->level ?? session('current_level') ?? session('level');
+    $faculty = $student->faculty ?? session('faculty');
+    $department = $student->department ?? session('department');
+
+    $registeredCourses = DB::table('student_course_registration')
+        ->where('username', $studentId)
+        ->where('session', $currentSession)
+        ->get();
+    $registeredCount = $registeredCourses->count();
+    $registeredUnits = (float) $registeredCourses->sum(function ($course) {
+        return (float) ($course->unit ?? $course->units ?? 0);
+    });
+    $registrationSemesters = $registeredCourses->pluck('semester')->filter()->unique()->values();
+
+    $sessionResults = DB::table('results')
+        ->where('username', $studentId)
+        ->where('session', $currentSession)
+        ->where('approve', 'vc')
+        ->orderByDesc('updated_at')
+        ->get();
+    $resultCourses = $sessionResults->pluck('code')->filter()->unique()->count();
+    $resultUnits = (float) $sessionResults->sum(function ($result) {
+        return (float) ($result->unit ?? 0);
+    });
+    $resultPoints = (float) $sessionResults->sum(function ($result) {
+        return (float) ($result->ugp ?? 0);
+    });
+    $sessionCgpa = $resultUnits > 0 ? $resultPoints / $resultUnits : null;
+    $lastResultUpdate = $sessionResults->first()->updated_at ?? null;
+    $history = DB::table('session_history')->where(['username' => $studentId, 'session' => $currentSession])->first();
+    $academicStatus = $history->status ?? 'In progress';
+    $historyCgpa = isset($history->cgpa) && is_numeric($history->cgpa) ? (float) $history->cgpa : null;
+
+    $invoiceUsernames = collect([session('id'), $studentId])->filter()->unique()->values()->all();
+    $invoices = DB::table('invoices')->whereIn('username', $invoiceUsernames)->where('session', $currentSession)->get();
+    $paidAmount = (float) $invoices->where('status', 'Paid')->sum('amount');
+    $pendingAmount = (float) $invoices->where('status', 'Pending')->sum('amount');
+    $pendingPayments = $invoices->where('status', 'Pending')->count();
+
+    $courseCodes = $registeredCourses->pluck('code')->filter()->unique()->values();
+    $todayNumber = ['Mon' => 1, 'Tue' => 2, 'Wed' => 3, 'Thu' => 4, 'Fri' => 5, 'Sat' => 6, 'Sun' => 7][date('D')];
+    $tomorrowNumber = $todayNumber === 7 ? 1 : $todayNumber + 1;
+    $lectures = DB::table('lecture_timetable')
+        ->whereIn('course', $courseCodes->all())
+        ->where('session', $currentSession)
+        ->when($currentSemester, fn ($query) => $query->where('semester', $currentSemester))
+        ->orderBy('start')
+        ->get();
+    $allocationRows = $courseCodes->isEmpty()
+        ? collect()
+        : DB::table('course_allocation')->whereIn('course', $courseCodes->all())->orderBy('type')->get();
+    $lecturers = $allocationRows->groupBy('course')->map(function ($rows) {
+        return $rows->pluck('name')->filter()->unique()->implode(', ');
+    });
+
+    $photo = $student->picture ?? null;
+    $photoUrl = $photo ? asset('storage/picture/' . $photo) : asset('storage/picture/default.jpg');
+    $initials = collect(preg_split('/\s+/', $studentName))->filter()->take(2)->map(fn ($part) => strtoupper(substr($part, 0, 1)))->implode('');
+    $formatMoney = fn ($amount) => '₦' . number_format((float) $amount, 2);
+    $formatTime = function ($time) {
+        if (!$time) return 'Time TBA';
+        $timestamp = strtotime($time);
+        return $timestamp ? date('g:i A', $timestamp) : $time;
+    };
+    $lectureCard = function ($lecture) use ($lecturers, $formatTime) {
+        return [
+            'course' => $lecture->course,
+            'hall' => $lecture->hall ?: 'Venue TBA',
+            'time' => $formatTime($lecture->start) . ' – ' . $formatTime($lecture->end),
+            'lecturer' => $lecturers->get($lecture->course) ?: 'Lecturer TBA',
+            'comment' => $lecture->comment,
+        ];
+    };
+    $todayLectures = $lectures->where('day_no', $todayNumber)->map($lectureCard);
+    $tomorrowLectures = $lectures->where('day_no', $tomorrowNumber)->map($lectureCard);
+@endphp
+
+<div class="main-body ug-dashboard-page">
+    <div class="page-wrapper">
+        <section class="ug-welcome-card">
+            <div class="ug-welcome-copy">
+                <span class="ug-eyebrow"><i class="fas fa-star"></i> Student portal</span>
+                <h1>Welcome back, {{ Str::before($studentName, ' ') ?: $studentName }}.</h1>
+                <p>Stay on top of your {{ $currentSession ?: 'current' }} academic activities.</p>
+                <div class="ug-meta-row">
+                    <span><i class="fas fa-id-card"></i> {{ $studentId ?: 'Matric number not set' }}</span>
+                    <span><i class="fas fa-calendar-alt"></i> {{ $currentSession ?: 'Session unavailable' }}</span>
                 </div>
             </div>
+            <div class="ug-avatar-wrap">
+                @if ($photo)
+                    <img src="{{ $photoUrl }}" alt="{{ $studentName }}" class="ug-avatar">
+                @else
+                    <div class="ug-avatar ug-avatar-initials">{{ $initials ?: 'ST' }}</div>
+                @endif
+                <span class="ug-online-dot" title="Active student"></span>
+            </div>
+        </section>
+
+        <section class="ug-stat-grid" aria-label="Academic summary">
+            <a class="ug-stat-card ug-stat-blue" href="{{ url('/student course registration') }}">
+                <span class="ug-stat-icon"><i class="fas fa-book-open"></i></span>
+                <span class="ug-stat-label">Registered courses</span>
+                <strong>{{ $registeredCount }}</strong>
+                <small>{{ number_format($registeredUnits, 1) }} credit units</small>
+            </a>
+            <a class="ug-stat-card ug-stat-purple" href="{{ url('/student-result') }}">
+                <span class="ug-stat-icon"><i class="fas fa-chart-line"></i></span>
+                <span class="ug-stat-label">Current results</span>
+                <strong>{{ $resultCourses }}</strong>
+                <small>{{ $resultCourses ? 'Published by VC' : 'Awaiting publication' }}</small>
+            </a>
+            <a class="ug-stat-card ug-stat-green" href="{{ url('/payment') }}">
+                <span class="ug-stat-icon"><i class="fas fa-wallet"></i></span>
+                <span class="ug-stat-label">Paid this session</span>
+                <strong>{{ $formatMoney($paidAmount) }}</strong>
+                <small>{{ $pendingPayments ? $pendingPayments . ' pending payment(s)' : 'All payments up to date' }}</small>
+            </a>
+            <div class="ug-stat-card ug-stat-orange">
+                <span class="ug-stat-icon"><i class="fas fa-graduation-cap"></i></span>
+                <span class="ug-stat-label">Academic standing</span>
+                <strong>{{ $historyCgpa !== null ? number_format($historyCgpa, 2) : '—' }}</strong>
+                <small>{{ ucfirst((string) $academicStatus) }}{{ $historyCgpa !== null ? ' CGPA' : '' }}</small>
+            </div>
+        </section>
+
+        <div class="ug-content-grid">
+            <section class="ug-panel ug-profile-panel">
+                <div class="ug-panel-heading">
+                    <div><span class="ug-kicker">Your academic profile</span><h2>Student overview</h2></div>
+                    <a href="{{ url('/profile') }}" class="ug-text-link">View profile <i class="fas fa-arrow-right"></i></a>
+                </div>
+                <div class="ug-profile-main">
+                    <div class="ug-profile-photo"><img src="{{ $photoUrl }}" alt="{{ $studentName }}"></div>
+                    <div class="ug-profile-name"><h3>{{ $studentName }}</h3><p>{{ $studentId }}</p></div>
+                </div>
+                <div class="ug-detail-grid">
+                    <div><span>Programme</span><strong>{{ $programTitle ?: $programCode ?: 'Not set' }}</strong></div>
+                    <div><span>Current level</span><strong>{{ $level ? $level . ' Level' : 'Not set' }}</strong></div>
+                    <div><span>Faculty</span><strong>{{ $faculty ?: 'Not set' }}</strong></div>
+                    <div><span>Department</span><strong>{{ $department ?: 'Not set' }}</strong></div>
+                </div>
+                <div class="ug-status-line"><span class="ug-status-dot"></span><span>Academic status</span><strong>{{ ucfirst((string) $academicStatus) }}</strong></div>
+            </section>
+
+            <section class="ug-panel ug-activity-panel">
+                <div class="ug-panel-heading"><div><span class="ug-kicker">{{ $currentSession ?: 'Current session' }}</span><h2>What’s happening</h2></div></div>
+                <div class="ug-activity-list">
+                    <a href="{{ url('/student course registration') }}" class="ug-activity-item"><span class="ug-activity-icon blue"><i class="fas fa-layer-group"></i></span><span><strong>Course registration</strong><small>{{ $registeredCount ? $registeredCount . ' courses across ' . max(1, $registrationSemesters->count()) . ' semester(s)' : 'No courses registered yet' }}</small></span><i class="fas fa-chevron-right ug-chevron"></i></a>
+                    <a href="{{ url('/student-result') }}" class="ug-activity-item"><span class="ug-activity-icon purple"><i class="fas fa-file-signature"></i></span><span><strong>Results</strong><small>{{ $resultCourses ? $resultCourses . ' published course result(s)' : 'Results are not published yet' }}{{ $lastResultUpdate ? ' · Updated ' . date('d M Y', strtotime($lastResultUpdate)) : '' }}</small></span><i class="fas fa-chevron-right ug-chevron"></i></a>
+                    <a href="{{ url('/payment') }}" class="ug-activity-item"><span class="ug-activity-icon green"><i class="fas fa-receipt"></i></span><span><strong>Payments</strong><small>{{ $pendingPayments ? $formatMoney($pendingAmount) . ' pending' : 'No pending payments' }}</small></span><i class="fas fa-chevron-right ug-chevron"></i></a>
+                </div>
+            </section>
         </div>
-        <!-- [ Main Content ] end -->
+
+        <section class="ug-panel ug-lectures-panel">
+            <div class="ug-panel-heading"><div><span class="ug-kicker">{{ $currentSemester ?: 'Current semester' }} · {{ date('l, d M Y') }}</span><h2>Class schedule</h2></div><a href="{{ url('/my-lecture-timetable') }}" class="ug-text-link">Full timetable <i class="fas fa-arrow-right"></i></a></div>
+            <div class="ug-lecture-columns">
+                @foreach ([['Today', $todayLectures, 'fa-sun'], ['Tomorrow', $tomorrowLectures, 'fa-calendar-day']] as [$label, $items, $icon])
+                    <div class="ug-day-column"><h3><i class="fas {{ $icon }}"></i> {{ $label }}</h3>
+                        @forelse ($items as $lecture)
+                            <article class="ug-lecture-card"><div class="ug-lecture-time">{{ $lecture['time'] }}</div><div class="ug-lecture-info"><strong>{{ $lecture['course'] }}</strong><span><i class="fas fa-map-marker-alt"></i> {{ $lecture['hall'] }}</span><span><i class="fas fa-user-tie"></i> {{ $lecture['lecturer'] }}</span>@if ($lecture['comment'])<small>{{ $lecture['comment'] }}</small>@endif</div></article>
+                        @empty
+                            <div class="ug-empty-state"><i class="fas fa-mug-hot"></i><p>No lecture scheduled.</p><small>Use this time to revise or catch up.</small></div>
+                        @endforelse
+                    </div>
+                @endforeach
+            </div>
+        </section>
+
+        <section class="ug-quick-links"><span class="ug-kicker">Quick access</span><div class="ug-quick-grid"><a href="{{ url('/student course registration') }}"><i class="fas fa-book"></i><span>Courses</span></a><a href="{{ url('/student-result') }}"><i class="fas fa-chart-bar"></i><span>Results</span></a><a href="{{ url('/payment') }}"><i class="fas fa-credit-card"></i><span>Payments</span></a><a href="{{ url('/profile') }}"><i class="fas fa-user-edit"></i><span>Profile</span></a></div></section>
     </div>
 </div>
-{{-- Check if level_flag is 0, popup a modal to update the level --}}
+
+<style>
+    .ug-dashboard-page{background:#f5f7fb;min-height:calc(100vh - 70px);padding-bottom:2rem}.ug-dashboard-page .page-wrapper{max-width:1440px;margin:auto;padding:18px}.ug-welcome-card{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:24px 28px;border-radius:22px;background:linear-gradient(120deg,#0e4fcb,#143a92 65%,#263f9f);color:#fff;box-shadow:0 12px 28px rgba(16,68,161,.18);overflow:hidden;position:relative}.ug-welcome-card:after{content:"";position:absolute;width:260px;height:260px;border-radius:50%;right:-85px;top:-145px;background:rgba(255,255,255,.1)}.ug-welcome-copy{position:relative;z-index:1}.ug-eyebrow,.ug-kicker{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;opacity:.8}.ug-eyebrow i{margin-right:5px}.ug-welcome-card h1{font-size:clamp(1.45rem,3vw,2.15rem);margin:.45rem 0 .25rem;font-weight:700}.ug-welcome-card p{margin:0;color:rgba(255,255,255,.8)}.ug-meta-row{display:flex;flex-wrap:wrap;gap:.55rem 1rem;margin-top:1rem;font-size:.8rem;color:#dbe7ff}.ug-meta-row i{margin-right:.35rem}.ug-avatar-wrap{position:relative;z-index:1}.ug-avatar{width:76px;height:76px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.65);background:#e4edff}.ug-avatar-initials{display:grid;place-items:center;color:#0e4fcb;font-size:1.35rem;font-weight:800}.ug-online-dot{position:absolute;right:3px;bottom:5px;width:14px;height:14px;background:#35d17a;border:3px solid #fff;border-radius:50%}.ug-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0}.ug-stat-card{padding:17px 18px;border-radius:17px;background:#fff;box-shadow:0 5px 18px rgba(21,43,77,.06);border:1px solid #e8edf5;display:flex;flex-direction:column;gap:3px;text-decoration:none;color:#18243a;min-width:0}.ug-stat-card:hover{transform:translateY(-2px);box-shadow:0 9px 24px rgba(21,43,77,.1);color:#18243a}.ug-stat-icon{width:35px;height:35px;border-radius:10px;display:grid;place-items:center;margin-bottom:5px;color:#fff}.ug-stat-label{font-size:.77rem;color:#63708a}.ug-stat-card strong{font-size:1.35rem;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ug-stat-card small{font-size:.72rem;color:#7c8799}.ug-stat-blue .ug-stat-icon{background:#2176f3}.ug-stat-purple .ug-stat-icon{background:#7855dc}.ug-stat-green .ug-stat-icon{background:#20a66a}.ug-stat-orange .ug-stat-icon{background:#ee9343}.ug-content-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);gap:18px;margin-bottom:18px}.ug-panel{background:#fff;border:1px solid #e8edf5;border-radius:18px;box-shadow:0 5px 18px rgba(21,43,77,.05);padding:21px}.ug-panel-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:17px}.ug-panel h2{font-size:1.2rem;margin:3px 0 0;color:#17233a}.ug-text-link{font-size:.77rem;font-weight:700;color:#0e5bd6;text-decoration:none;white-space:nowrap}.ug-text-link i{margin-left:4px;font-size:.65rem}.ug-profile-main{display:flex;align-items:center;gap:13px;margin-bottom:18px}.ug-profile-photo{width:62px;height:62px;border-radius:14px;overflow:hidden;background:#edf2fa;flex:0 0 auto}.ug-profile-photo img{width:100%;height:100%;object-fit:cover}.ug-profile-name h3{font-size:1.04rem;margin:0 0 3px;color:#1d2b44}.ug-profile-name p{font-size:.78rem;margin:0;color:#72809a}.ug-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 18px}.ug-detail-grid div{min-width:0}.ug-detail-grid span{display:block;font-size:.7rem;color:#8090a8;margin-bottom:3px}.ug-detail-grid strong{display:block;font-size:.82rem;color:#26344c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ug-status-line{border-top:1px solid #eef1f6;margin-top:18px;padding-top:13px;display:flex;align-items:center;gap:7px;font-size:.75rem;color:#73819a}.ug-status-line strong{margin-left:auto;color:#1c9a61}.ug-status-dot{width:8px;height:8px;border-radius:50%;background:#26b873}.ug-activity-list{display:flex;flex-direction:column}.ug-activity-item{display:flex;align-items:center;gap:11px;padding:13px 0;border-bottom:1px solid #eef1f6;text-decoration:none;color:#22314b}.ug-activity-item:last-child{border-bottom:0;padding-bottom:0}.ug-activity-item:first-child{padding-top:0}.ug-activity-item strong,.ug-activity-item small{display:block}.ug-activity-item strong{font-size:.83rem}.ug-activity-item small{font-size:.71rem;color:#8190a7;margin-top:3px}.ug-activity-icon{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto}.ug-activity-icon.blue{background:#e7f0ff;color:#2169d5}.ug-activity-icon.purple{background:#f0eaff;color:#7751d0}.ug-activity-icon.green{background:#e3f8ef;color:#168957}.ug-chevron{margin-left:auto;color:#9aa6b8;font-size:.65rem}.ug-lectures-panel{margin-bottom:18px}.ug-lecture-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.ug-day-column h3{font-size:.88rem;margin:0 0 11px;color:#263650}.ug-day-column h3 i{color:#1d6ae1;margin-right:5px}.ug-lecture-card{display:flex;gap:12px;padding:13px;border:1px solid #e8edf5;border-left:3px solid #2674df;border-radius:12px;margin-bottom:9px;background:#fbfcff}.ug-lecture-time{font-size:.68rem;font-weight:700;color:#2869c8;min-width:83px;padding-top:2px}.ug-lecture-info{display:flex;flex-direction:column;gap:3px;min-width:0}.ug-lecture-info strong{font-size:.82rem;color:#25344e}.ug-lecture-info span,.ug-lecture-info small{font-size:.7rem;color:#7a889e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ug-lecture-info i{width:13px;color:#9aa8bc}.ug-empty-state{border:1px dashed #dbe3ef;border-radius:12px;padding:21px 12px;text-align:center;color:#94a1b4}.ug-empty-state i{font-size:1.35rem;color:#b1bfd1}.ug-empty-state p{font-size:.8rem;margin:7px 0 2px;color:#53647e}.ug-empty-state small{font-size:.7rem}.ug-quick-links{padding:0 3px}.ug-quick-links>.ug-kicker{display:block;color:#79879d;margin-bottom:10px}.ug-quick-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.ug-quick-grid a{display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 10px;border-radius:12px;background:#fff;border:1px solid #e8edf5;color:#31415d;text-decoration:none;font-size:.78rem;font-weight:700;box-shadow:0 4px 12px rgba(21,43,77,.04)}.ug-quick-grid a i{color:#1f6cdb}.ug-quick-grid a:hover{border-color:#b9d2fb;background:#f8fbff}@media(max-width:900px){.ug-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ug-content-grid{grid-template-columns:1fr}}@media(max-width:600px){.ug-dashboard-page .page-wrapper{padding:11px}.ug-welcome-card{padding:19px 17px;border-radius:17px}.ug-avatar{width:59px;height:59px}.ug-avatar-wrap{align-self:flex-start}.ug-welcome-card h1{font-size:1.35rem}.ug-welcome-card p{font-size:.75rem;max-width:245px}.ug-meta-row{font-size:.68rem;gap:.35rem .7rem}.ug-stat-grid{gap:9px;margin:12px 0}.ug-stat-card{padding:13px 12px;border-radius:13px}.ug-stat-card strong{font-size:1.05rem}.ug-stat-card small{font-size:.64rem}.ug-stat-label{font-size:.68rem}.ug-stat-icon{width:30px;height:30px;font-size:.78rem;border-radius:8px}.ug-panel{padding:16px 14px;border-radius:15px}.ug-panel-heading{margin-bottom:14px}.ug-panel h2{font-size:1.02rem}.ug-kicker{font-size:.63rem}.ug-profile-main{margin-bottom:15px}.ug-detail-grid{gap:11px 12px}.ug-detail-grid strong{font-size:.74rem}.ug-detail-grid span{font-size:.63rem}.ug-status-line{font-size:.68rem}.ug-lecture-columns{grid-template-columns:1fr;gap:17px}.ug-lecture-card{padding:11px 10px;gap:9px}.ug-lecture-time{min-width:72px;font-size:.62rem}.ug-lecture-info strong{font-size:.75rem}.ug-lecture-info span,.ug-lecture-info small{font-size:.64rem}.ug-quick-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.ug-quick-grid a{font-size:.71rem;padding:11px 7px}.ug-text-link{font-size:.67rem}}
+</style>
+
+{{-- Keep the existing safety prompt for students whose current level has not been confirmed. --}}
 @if (session('level_flag') == 0)
-    <!-- Level Update Modal -->
-    <div class="modal fade" id="levelUpdateModal" tabindex="-1" aria-labelledby="levelUpdateModalLabel"
-        aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title" id="levelUpdateModalLabel">
-                        <i class="fas fa-exclamation-triangle me-2"></i>Update Your Current Level
-                    </h5>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Your current level needs to be updated. Please select your correct academic level below.
-                    </div>
-                    <form id="levelUpdateForm" action="{{ route('update.student.level') }}" method="POST">
-                        @csrf
-                        <div class="mb-3">
-                            <label for="currentLevel" class="form-label fw-bold">Select Your Current Level:</label>
-                            <select class="form-select" id="currentLevel" name="level" required>
-                                <option value="">Choose your level...</option>
-                                <option value="100">100 Level (First Year)</option>
-                                <option value="200">200 Level (Second Year)</option>
-                                <option value="300">300 Level (Third Year)</option>
-                                <option value="400">400 Level (Fourth Year)</option>
-                                <option value="500">500 Level (Fifth Year)</option>
-                                <option value="600">600 Level (Sixth Year)</option>
-                                <option value="700">700 Level (Seventh Year)</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <small class="text-muted">
-                                <i class="fas fa-lightbulb me-1"></i>
-                                Select the level you are currently in for the {{ session('system_session') }} academic
-                                session.
-                            </small>
-                        </div>
-                        <div class="mb-3">
-                            <div class="alert alert-light border">
-                                <small class="text-muted">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    <strong>Note:</strong> You can change your level later by visiting your
-                                    <strong>Profile</strong> and updating it under the <strong>Academic
-                                        Section</strong>.
-                                </small>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-success" onclick="updateLevel()">
-                        <i class="fas fa-save me-2"></i>Update Level
-                    </button>
-                </div>
-            </div>
-        </div>
+    <div class="modal fade" id="levelUpdateModal" tabindex="-1" aria-labelledby="levelUpdateModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header bg-warning text-dark"><h5 class="modal-title" id="levelUpdateModalLabel"><i class="fas fa-exclamation-triangle me-2"></i>Update Your Current Level</h5></div><div class="modal-body"><div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>Your current level needs to be updated. Please select your correct academic level below.</div><form id="levelUpdateForm" action="{{ route('update.student.level') }}" method="POST">@csrf<div class="mb-3"><label for="currentLevel" class="form-label fw-bold">Select Your Current Level:</label><select class="form-select" id="currentLevel" name="level" required><option value="">Choose your level...</option>@foreach ([100,200,300,400,500,600,700] as $option)<option value="{{ $option }}">{{ $option }} Level</option>@endforeach</select></div><small class="text-muted">You can change this later from your profile.</small></form></div><div class="modal-footer"><button type="button" class="btn btn-success" onclick="updateLevel()"><i class="fas fa-save me-2"></i>Update Level</button></div></div></div>
     </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Show modal automatically when page loads
-            const levelModal = new bootstrap.Modal(document.getElementById('levelUpdateModal'));
-            levelModal.show();
-        });
-
-        function updateLevel() {
-            const form = document.getElementById('levelUpdateForm');
-            const levelSelect = document.getElementById('currentLevel');
-
-            if (!levelSelect.value) {
-                swal("Oops!!!", "Please select your current level before proceeding.", "warning");
-                return;
-            }
-
-            if (confirm('Are you sure ' + levelSelect.value + ' is your correct current level?')) {
-                form.submit();
-            }
-        }
-    </script>
+    <script>document.addEventListener('DOMContentLoaded',function(){new bootstrap.Modal(document.getElementById('levelUpdateModal')).show()});function updateLevel(){const f=document.getElementById('levelUpdateForm'),s=document.getElementById('currentLevel');if(!s.value){if(window.swal)swal('Oops!!!','Please select your current level before proceeding.','warning');return}if(confirm('Are you sure '+s.value+' is your correct current level?'))f.submit()}</script>
 @endif
