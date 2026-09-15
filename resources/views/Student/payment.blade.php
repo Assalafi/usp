@@ -4,7 +4,7 @@
 
     $student = DB::table('students')
         ->where('user_id', session('id'))
-        ->select('fullname', 'username', 'faculty', 'department', 'program', 'level_of_entry', 'session_of_entry')
+        ->select('fullname', 'username', 'faculty', 'department', 'program', 'level', 'level_of_entry', 'session_of_entry')
         ->first();
 
     $invoices = collect($data ?? [])->sortByDesc(function ($invoice) {
@@ -86,7 +86,7 @@
             <div class="payment-summary-grid mb-4">
                 <div class="payment-summary-card summary-primary">
                     <span class="summary-icon"><i class="fas fa-graduation-cap"></i></span>
-                    <div><small>Programme</small><strong>{{ $programTitle ?: $programCode ?: 'Not set' }}</strong><span>{{ $student->level_of_entry ?: 'Level not set' }} level</span></div>
+                    <div><small>Programme</small><strong>{{ $programTitle ?: $programCode ?: 'Not set' }}</strong><span>Current level: {{ $student->level ?: 'Not set' }}</span></div>
                 </div>
                 <div class="payment-summary-card summary-info">
                     <span class="summary-icon"><i class="fas fa-file-invoice-dollar"></i></span>

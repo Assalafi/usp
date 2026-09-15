@@ -1526,6 +1526,11 @@ class RegistrationController extends Controller
                 'update_profile' => 1
             ]
         );
+        // Keep the legacy users record aligned when the current level is
+        // changed from the profile page.
+        DB::table('users')->where('id', session('id'))->update([
+            'level' => $request->level,
+        ]);
         $request->session()->put('current_level', $request->level);
         $request->session()->put('level', $request->level);
         $request->session()->put('update_profile', 1);
@@ -1553,6 +1558,11 @@ class RegistrationController extends Controller
         Student::where('user_id', session('id'))->update([
             'level' => $request->level,
             'level_flag' => 1,
+        ]);
+        // Keep the legacy users record in sync for older pages that still read
+        // users.level while students.level remains the source of truth.
+        DB::table('users')->where('id', session('id'))->update([
+            'level' => $request->level,
         ]);
         $request->session()->put('level', $request->level);
         $request->session()->put('current_level', $request->level);

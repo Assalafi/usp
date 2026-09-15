@@ -5,6 +5,12 @@
         ->where(['code' => session('program')])
         ->select('courses')
         ->value('courses');
+    // Always read the current level from the student record. The login session
+    // may contain a legacy users.level value until the next login.
+    $studentCurrentLevel = (int) (Student::where('user_id', session('id'))->value('level')
+        ?? session('current_level')
+        ?? session('level')
+        ?? 0);
 @endphp
 
 <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -445,7 +451,7 @@ $availableCourses = DB::table('program_course_registration')
     ->join('course', 'program_course_registration.code', '=', 'course.code')
     ->where('program_course_registration.program', session('program'))
     ->where('program_course_registration.structure_id', session('structure_id'))
-    ->where('program_course_registration.level', '<=', session('level'))
+    ->where('program_course_registration.level', '<=', $studentCurrentLevel)
     ->select(
         'course.*',
         'program_course_registration.semester',
@@ -474,7 +480,7 @@ $coursesByLevel = $availableCourses->groupBy('level');
                                                 @foreach ($levels as $index => $level)
                                                     <li class="nav-item" role="presentation">
                                                         <button
-                                                            class="nav-link {{ $level == session('level') ? 'active' : '' }}"
+                                                            class="nav-link {{ (int) $level === $studentCurrentLevel ? 'active' : '' }}"
                                                             id="level-{{ $level }}-tab" data-bs-toggle="pill"
                                                             data-bs-target="#level-{{ $level }}"
                                                             type="button" role="tab">
@@ -489,7 +495,7 @@ $coursesByLevel = $availableCourses->groupBy('level');
                                             <!-- Level Tab Content -->
                                             <div class="tab-content" id="levelTabContent">
                                                 @foreach ($levels as $index => $level)
-                                                    <div class="tab-pane fade {{ $level == session('level') ? 'show active' : '' }}"
+                                                    <div class="tab-pane fade {{ (int) $level === $studentCurrentLevel ? 'show active' : '' }}"
                                                         id="level-{{ $level }}" role="tabpanel">
 
                                                         <!-- Mobile-friendly cards for small screens -->

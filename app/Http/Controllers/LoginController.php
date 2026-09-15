@@ -70,7 +70,10 @@ class LoginController extends Controller
                         $req->session()->put('program', $std->program);
                         $req->session()->put('faculty', $std->faculty);
                         $req->session()->put('current_level', $std->level);
-                        $req->session()->put('level', $row->level);
+                        // The student's current academic level is authoritative.
+                        // Do not restore the legacy users.level value here because
+                        // it can lag behind students.level after a level update.
+                        $req->session()->put('level', $std->level ?: $row->level);
                         $req->session()->put('duration', $std->duration);
                         $req->session()->put('level_flag', $std->level_flag);
                         $req->session()->put('structure_id', $std->structure_id);
