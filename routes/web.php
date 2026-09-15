@@ -1361,6 +1361,7 @@ Route::get('/download-admission-letter', [RegistrationController::class, 'downlo
 Route::get('/jamb-admitted', [RegistrationController::class, 'admitted'])->middleware('role');
 Route::post('/create-student', [RegistrationController::class, 'createStudent']);
 Route::post('/update-student', [RegistrationController::class, 'updateStudent']);
+Route::post('/profile/photo/preview', [RegistrationController::class, 'previewProfilePhoto'])->name('profile.photo.preview');
 Route::post('/update-profile', [RegistrationController::class, 'updateProfile']);
 Route::post('/delete-student', [RegistrationController::class, 'deleteStudent']);
 Route::post('/reset-student', [RegistrationController::class, 'resetStudent']);

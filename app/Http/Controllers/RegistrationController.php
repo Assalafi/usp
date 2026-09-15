@@ -17,6 +17,7 @@ use App\Models\Ssce;
 use App\Models\SsceResult;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\ProfilePhotoProcessor;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Http\Request;
@@ -24,6 +25,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\View;
 use Maatwebsite\Excel\Facades\Excel;
@@ -1449,31 +1453,132 @@ class RegistrationController extends Controller
         return redirect()->back()->with('success', 'Done!!!');
     }
 
+    /**
+     * Process a profile photo and return a short-lived preview token.
+     * The processed file is kept outside the student's permanent record until
+     * the profile form is submitted.
+     */
+    public function previewProfilePhoto(Request $request, ProfilePhotoProcessor $photoProcessor)
+    {
+        if (!session()->has('log')) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $request->validate([
+            'picture' => 'nullable|file|image|mimes:jpeg,jpg,png|max:5120',
+        ]);
+
+        $student = Student::where('user_id', session('id'))->firstOrFail();
+        $disk = Storage::disk('public');
+        $disk->makeDirectory('picture/previews');
+
+        // Remove abandoned previews so repeated attempts do not fill storage.
+        foreach ($disk->files('picture/previews') as $file) {
+            if ($disk->lastModified($file) < now()->subMinutes(30)->timestamp) {
+                $disk->delete($file);
+            }
+        }
+
+        $path = $request->hasFile('picture')
+            ? $photoProcessor->process($request->file('picture'), 'picture/previews')
+            : $photoProcessor->processStored($student->picture, 'picture/previews');
+
+        $token = Str::random(64);
+        Cache::put('student.photo-preview.' . $token, [
+            'student_id' => $student->id,
+            'user_id' => session('id'),
+            'path' => $path,
+        ], now()->addMinutes(15));
+
+        return response()->json([
+            'token' => $token,
+            'preview' => 'data:image/jpeg;base64,' . base64_encode($disk->get($path)),
+            'expires_in' => 900,
+        ]);
+    }
+
     public function updateProfile(Request $request)
     {
         if (!session()->has('log')) {
             return redirect('/');
         }
-            // return redirect()->back()->with('error', 'Temporary disabled!!!');
+
+        $request->validate([
+            'id' => 'required|uuid',
+            'jamb_no' => 'required|string|max:100',
+            'surname' => 'required|string|max:100',
+            'first_name' => 'required|string|max:100',
+            'gender' => 'required|string|max:20',
+            'date_of_birth' => 'required|date',
+            'place_of_birth' => 'required|string|max:150',
+            'country' => 'required|string|max:100',
+            'state_origin' => 'required|string|max:100',
+            'lga_origin' => 'required|string|max:100',
+            'marital_status' => 'required|string|max:50',
+            'maiden_name' => 'required|string|max:150',
+            'religion' => 'required|string|max:100',
+            'nin' => 'required|string|max:30',
+            'home_address' => 'required|string|max:500',
+            'home_phone' => 'required|string|max:30',
+            'home_email' => 'required|email|max:150',
+            'contact_address' => 'required|string|max:500',
+            'contact_phone' => 'required|string|max:30',
+            'kin_name' => 'required|string|max:150',
+            'kin_address' => 'required|string|max:500',
+            'kin_phone' => 'required|string|max:30',
+            'kin_email' => 'required|email|max:150',
+            'sponsor_type' => 'required|string|max:100',
+            'sponsor_name' => 'required|string|max:150',
+            'sponsor_address' => 'required|string|max:500',
+            'sponsor_phone' => 'required|string|max:30',
+            'mother_name' => 'required|string|max:150',
+            'mother_address' => 'required|string|max:500',
+            'mother_phone' => 'required|string|max:30',
+            'father_name' => 'required|string|max:150',
+            'father_address' => 'required|string|max:500',
+            'father_phone' => 'required|string|max:30',
+            'level' => 'required|string|max:20',
+            'picture' => 'nullable|file|image|mimes:jpeg,jpg,png|max:5120',
+            'processed_photo_token' => 'nullable|string|max:100',
+            'signiture' => 'nullable|file|image|mimes:png,jpeg,jpg|max:2048',
+        ]);
+
+        $student = Student::where('id', $request->id)
+            ->where('user_id', session('id'))
+            ->firstOrFail();
+
+        $pictureValue = null;
+        if ($request->filled('processed_photo_token')) {
+            $preview = Cache::pull('student.photo-preview.' . $request->processed_photo_token);
+            $disk = Storage::disk('public');
+            if (!$preview || $preview['student_id'] !== $student->id || $preview['user_id'] !== session('id') || !$disk->exists($preview['path'])) {
+                throw ValidationException::withMessages(['picture' => 'Your photo preview has expired. Process the photo again before saving.']);
+            }
+            $storedPath = 'picture/processed/' . Str::uuid() . '.jpg';
+            $disk->makeDirectory('picture/processed');
+            $disk->copy($preview['path'], $storedPath);
+            $pictureValue = 'processed/' . basename($storedPath);
+            $disk->delete($preview['path']);
+        } elseif ($request->hasFile('picture')) {
+            throw ValidationException::withMessages(['picture' => 'Process the selected photo and review the preview before saving.']);
+        }
+
         if ($request->file('signiture')) {
             $dot = $request->file('signiture')->getClientOriginalExtension();
             $request->file('signiture')->storeAs('signature', session('id') . '.' . $dot, 'public');
 
-            $applicant = Student::where(['id' => $request->id])->update([
+            Student::where(['id' => $student->id])->update([
                 'signiture' => session('id') . '.' . $dot
             ]);
         }
 
-        if ($request->file('picture')) {
-            $dot = $request->file('picture')->getClientOriginalExtension();
-            $request->file('picture')->storeAs('picture', session('id') . '.' . $dot, 'public');
-
-            $applicant = Student::where(['id' => $request->id])->update([
-                'picture' => session('id') . '.' . $dot
+        if ($pictureValue) {
+            Student::where(['id' => $student->id])->update([
+                'picture' => $pictureValue
             ]);
         }
 
-        Student::where('id', $request->id)->update(
+        Student::where('id', $student->id)->update(
             [
                 'user_id' => session('id'),
                 'last_name' => strtoupper($request->surname),
@@ -1485,7 +1590,7 @@ class RegistrationController extends Controller
                 'date_of_birth' => strtoupper($request->date_of_birth),
                 'place_of_birth' => strtoupper($request->place_of_birth),
                 'country' => strtoupper($request->country),
-                //'state_origin' => strtoupper($request->state_origin),
+                'state_origin' => strtoupper($request->state_origin),
                 'lga_origin' => $request->lga_origin,
                 'marital_status' => strtoupper($request->marital_status),
                 'maiden_name' => strtoupper($request->maiden_name),
