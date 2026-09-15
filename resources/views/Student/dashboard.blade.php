@@ -118,8 +118,6 @@
                     <a href="{{ url('/payment') }}" class="ug-activity-item"><span class="ug-activity-icon green"><i class="fas fa-receipt"></i></span><span><strong>Payments</strong><small>{{ $pendingPayments ? $formatMoney($pendingAmount) . ' pending' : 'No pending payments' }}</small></span><i class="fas fa-chevron-right ug-chevron"></i></a>
                 </div>
             </section>
-        </div>
-
         <section class="ug-panel ug-results-panel">
             <div class="ug-panel-heading">
                 <div><span class="ug-kicker">{{ $currentSession ?: 'Current session' }}</span><h2>Approved results</h2></div>
@@ -143,6 +141,7 @@
                 <div class="ug-results-empty"><i class="fas fa-question-circle"></i><div><strong>No approved results yet</strong><small>Published results for {{ $currentSession ?: 'this session' }} will appear here.</small></div></div>
             @endif
         </section>
+        </div>
 
         <section class="ug-quick-links"><span class="ug-kicker">Quick access</span><div class="ug-quick-grid"><a href="{{ url('/student course registration') }}"><i class="fas fa-book"></i><span>Courses</span></a><a href="{{ url('/student-result') }}"><i class="fas fa-chart-bar"></i><span>Results</span></a><a href="{{ url('/payment') }}"><i class="fas fa-credit-card"></i><span>Payments</span></a><a href="{{ url('/profile') }}"><i class="fas fa-user-edit"></i><span>Profile</span></a></div></section>
     </div>
@@ -161,7 +160,9 @@
     .ug-welcome-academic strong{display:block;color:#fff;font-size:.82rem;max-width:175px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .ug-welcome-profile{display:inline-flex;align-items:center;gap:6px;padding:9px 11px;border:1px solid rgba(255,255,255,.48);border-radius:9px;color:#fff;font-size:.72rem;font-weight:700;text-decoration:none;white-space:nowrap}
     .ug-welcome-profile:hover{background:rgba(255,255,255,.15);color:#fff}
-    .ug-content-grid{grid-template-columns:1fr}
+    .ug-content-grid{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);align-items:stretch}
+    .ug-activity-panel{order:2}.ug-results-panel{order:1}
+    .ug-welcome-academic{grid-column:2;grid-row:1}.ug-avatar-wrap{grid-column:3;grid-row:1;justify-self:end}
     .ug-avatar-initials{color:#3EA1E4}
     .ug-stat-blue .ug-stat-icon{background:#3EA1E4}
     .ug-text-link,.ug-quick-grid a i{color:#258ac8}
@@ -184,7 +185,8 @@
     .ug-results-empty strong,.ug-results-empty small{display:block}
     .ug-results-empty strong{font-size:.8rem;color:#53647e}
     .ug-results-empty small{font-size:.7rem;margin-top:3px}
-    @media(max-width:600px){.ug-welcome-card{grid-template-columns:minmax(0,1fr) auto;align-items:start}.ug-welcome-academic{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.35fr) auto;gap:9px;margin-top:15px;padding-top:13px;border-top:1px solid rgba(255,255,255,.2)}.ug-welcome-academic strong{font-size:.72rem;max-width:125px}.ug-welcome-profile{padding:8px 9px;font-size:.64rem;align-self:end}.ug-result-row{grid-template-columns:1fr auto;gap:4px 10px;padding:11px 0}.ug-result-context{grid-column:1;grid-row:2}.ug-result-total{grid-column:2;grid-row:2;text-align:right;color:#7b8aa0;font-size:.7rem}.ug-result-grade{grid-column:2;grid-row:1}.ug-approved-badge{font-size:.6rem;padding:5px 7px}}
+    @media(max-width:900px){.ug-content-grid{grid-template-columns:1fr}}
+    @media(max-width:600px){.ug-welcome-card{grid-template-columns:minmax(0,1fr) auto;align-items:start}.ug-welcome-academic{grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.35fr) auto;gap:9px;margin-top:15px;padding-top:13px;border-top:1px solid rgba(255,255,255,.2)}.ug-avatar-wrap{grid-column:2;grid-row:1}.ug-welcome-academic strong{font-size:.72rem;max-width:125px}.ug-welcome-profile{padding:8px 9px;font-size:.64rem;align-self:end}.ug-result-row{grid-template-columns:1fr auto;gap:4px 10px;padding:11px 0}.ug-result-context{grid-column:1;grid-row:2}.ug-result-total{grid-column:2;grid-row:2;text-align:right;color:#7b8aa0;font-size:.7rem}.ug-result-grade{grid-column:2;grid-row:1}.ug-approved-badge{font-size:.6rem;padding:5px 7px}}
 </style>
 
 {{-- Keep the existing safety prompt for students whose current level has not been confirmed. --}}
