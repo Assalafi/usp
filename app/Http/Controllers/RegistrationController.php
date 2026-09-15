@@ -1504,7 +1504,9 @@ class RegistrationController extends Controller
         }
 
         $request->validate([
-            'id' => 'required|uuid',
+            // Student IDs in the UG database include legacy formats as well as
+            // UUIDs; ownership is checked immediately below before updating.
+            'id' => 'required|string|max:100',
             'jamb_no' => 'required|string|max:100',
             'surname' => 'required|string|max:100',
             'first_name' => 'required|string|max:100',
