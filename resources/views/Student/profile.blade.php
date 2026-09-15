@@ -891,14 +891,26 @@
                                                 <div class="sp-photo-editor">
                                                     <div class="sp-photo-frame"><img id="profile-photo-preview" src="{{ asset('storage/picture/' . $row->picture) }}" alt="Profile photo preview"></div>
                                                     <div class="sp-photo-controls">
-                                                        <label for="picture" class="sp-upload-label"><i class="fas fa-upload"></i> Choose photo</label>
+                                                        <div class="sp-photo-source-actions">
+                                                            <label for="picture" class="sp-upload-label"><i class="fas fa-folder-open"></i> Choose a photo from device</label>
+                                                            <button type="button" class="btn btn-light sp-camera-button" id="open-profile-camera"><i class="fas fa-camera"></i> Take a photo with camera</button>
+                                                        </div>
                                                         <input type="file" class="d-none" id="picture" name="picture" accept="image/jpeg,image/png" capture="user">
                                                         <div class="sp-photo-actions">
-                                                            <button type="button" class="btn btn-primary" id="process-profile-photo"><i class="fas fa-wand-magic-sparkles"></i> Process &amp; preview</button>
-                                                            <button type="button" class="btn btn-light" id="process-current-photo"><i class="fas fa-rotate"></i> Reprocess current</button>
+                                                            <button type="button" class="btn btn-primary" id="process-profile-photo"><i class="fas fa-wand-magic-sparkles"></i> Prepare this photo and show preview</button>
+                                                            <button type="button" class="btn btn-light" id="process-current-photo"><i class="fas fa-rotate"></i> Prepare my current photo</button>
                                                         </div>
                                                         <div id="photo-processing-status" class="sp-media-status" role="status"></div>
                                                         <small class="sp-help">One face only. The background is cleaned, the image is cropped to the shoulders and saved below 200 KB. Review the preview before updating.</small>
+                                                    </div>
+                                                </div>
+                                                <div class="sp-camera-modal" id="profile-camera-modal" hidden>
+                                                    <div class="sp-camera-dialog" role="dialog" aria-modal="true" aria-labelledby="profile-camera-title">
+                                                        <div class="sp-camera-dialog-head"><h5 id="profile-camera-title">Take your profile photo</h5><button type="button" class="sp-camera-close" id="close-profile-camera" aria-label="Close camera">&times;</button></div>
+                                                        <video id="profile-camera-video" autoplay playsinline></video>
+                                                        <canvas id="profile-camera-canvas" hidden></canvas>
+                                                        <div id="profile-camera-status" class="sp-media-status"></div>
+                                                        <div class="sp-camera-dialog-actions"><button type="button" class="btn btn-primary" id="capture-profile-photo"><i class="fas fa-camera"></i> Take photo</button><button type="button" class="btn btn-light" id="cancel-profile-camera">Cancel</button></div>
                                                     </div>
                                                 </div>
                                             </section>
@@ -1484,6 +1496,11 @@
         .sp-photo-frame { width:150px; aspect-ratio:3/4; flex:0 0 auto; overflow:hidden; border-radius:12px; background:#f2f6f9; border:1px solid #dce7ef; display:grid; place-items:center; }
         .sp-photo-frame img { width:100%; height:100%; object-fit:cover; }
         .sp-photo-controls { min-width:0; flex:1; }
+        .sp-photo-editor { justify-content:center; align-items:center; }
+        .sp-photo-controls { max-width:430px; text-align:center; }
+        .sp-photo-source-actions { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:.6rem; }
+        .sp-photo-source-actions .sp-upload-label { margin:0; }
+        .sp-camera-button { border-radius:9px; font-size:.82rem; }
         .sp-upload-label { display:inline-flex; align-items:center; gap:.45rem; cursor:pointer; color:#167db7; font-weight:700; font-size:.9rem; margin-bottom:.7rem; }
         .sp-photo-actions { display:flex; flex-wrap:wrap; gap:.5rem; }
         .sp-photo-actions .btn { border-radius:9px; font-size:.82rem; }
@@ -1495,6 +1512,18 @@
         .sp-signature-actions { position:absolute; right:.55rem; top:.55rem; }
         .sp-upload-secondary { margin-top:.8rem; }
         .sp-existing-signature { max-width:170px; max-height:70px; object-fit:contain; display:block; margin-top:.5rem; border:1px solid #e1ebf3; border-radius:8px; }
+        .sp-signature-wrap { max-width:680px; margin-left:auto; margin-right:auto; }
+        .sp-media-card { text-align:center; }
+        .sp-media-heading { justify-content:center; text-align:left; }
+        .sp-camera-modal { position:fixed; inset:0; z-index:1080; display:grid; place-items:center; padding:1rem; background:rgba(11,35,53,.72); }
+        .sp-camera-modal[hidden] { display:none; }
+        .sp-camera-dialog { width:min(100%,520px); border-radius:18px; padding:1rem; background:#fff; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+        .sp-camera-dialog-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:.75rem; }
+        .sp-camera-dialog-head h5 { margin:0; color:#19384d; }
+        .sp-camera-close { border:0; background:transparent; color:#607584; font-size:1.7rem; line-height:1; }
+        #profile-camera-video { display:block; width:100%; max-height:62vh; object-fit:cover; border-radius:12px; background:#112a3b; transform:scaleX(-1); }
+        .sp-camera-dialog-actions { display:flex; gap:.6rem; margin-top:.7rem; }
+        .sp-camera-dialog-actions .btn { flex:1; border-radius:9px; }
         .student-profile-page #submit-profile-btn { border:0; border-radius:11px; min-height:48px; font-weight:700; background:#3ea1e4; box-shadow:0 7px 18px rgba(62,161,228,.28); }
         @media (max-width: 767.98px) {
             .student-profile-page { padding:.45rem; }
@@ -1502,6 +1531,7 @@
             .student-profile-page .card-body { padding:1rem; }
             .sp-media-grid { grid-template-columns:1fr; gap:.85rem; }
             .sp-photo-editor { flex-direction:column; }
+            .sp-photo-editor { align-items:center; }
             .sp-photo-frame { width:125px; }
             .sp-photo-actions .btn { flex:1 1 100%; }
             .student-profile-page .form-group.row { margin-bottom:.8rem; }
@@ -1610,6 +1640,14 @@
             const picturePreview = document.getElementById('profile-photo-preview');
             const processButton = document.getElementById('process-profile-photo');
             const currentButton = document.getElementById('process-current-photo');
+            const openCameraButton = document.getElementById('open-profile-camera');
+            const cameraModal = document.getElementById('profile-camera-modal');
+            const cameraVideo = document.getElementById('profile-camera-video');
+            const cameraCanvas = document.getElementById('profile-camera-canvas');
+            const captureButton = document.getElementById('capture-profile-photo');
+            const closeCameraButton = document.getElementById('close-profile-camera');
+            const cancelCameraButton = document.getElementById('cancel-profile-camera');
+            const cameraStatus = document.getElementById('profile-camera-status');
             const photoToken = document.getElementById('processed_photo_token');
             const photoStatus = document.getElementById('photo-processing-status');
             const csrf = form?.querySelector('input[name="_token"]')?.value || '';
@@ -1643,9 +1681,26 @@
             }
 
             const setPhotoStatus = (message, type = '') => { if (photoStatus) { photoStatus.className = 'sp-media-status ' + type; photoStatus.textContent = message; } };
+            let cameraStream = null;
+            const closeCamera = () => { if (cameraStream) { cameraStream.getTracks().forEach(track => track.stop()); cameraStream = null; } if (cameraVideo) cameraVideo.srcObject = null; if (cameraModal) cameraModal.hidden = true; };
+            openCameraButton?.addEventListener('click', async () => {
+                if (!navigator.mediaDevices?.getUserMedia) { setPhotoStatus('Your browser does not support camera access. Choose a photo from your device instead.', 'error'); return; }
+                cameraModal.hidden = false; cameraStatus.textContent = 'Allow camera access, then position your face in the frame.';
+                try { cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 1280 } }, audio: false }); cameraVideo.srcObject = cameraStream; }
+                catch (error) { cameraStatus.className = 'sp-media-status error'; cameraStatus.textContent = 'Camera access was not allowed. Choose a photo from your device instead.'; }
+            });
+            [closeCameraButton, cancelCameraButton].forEach(button => button?.addEventListener('click', closeCamera));
+            captureButton?.addEventListener('click', () => {
+                if (!cameraVideo?.videoWidth) { cameraStatus.className = 'sp-media-status error'; cameraStatus.textContent = 'Camera is still starting. Please try again.'; return; }
+                cameraCanvas.width = cameraVideo.videoWidth; cameraCanvas.height = cameraVideo.videoHeight; cameraCanvas.getContext('2d').drawImage(cameraVideo, 0, 0);
+                cameraCanvas.toBlob(blob => { const transfer = new DataTransfer(); transfer.items.add(new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' })); pictureInput.files = transfer.files; photoToken.value = ''; picturePreview.src = URL.createObjectURL(blob); setPhotoStatus('Photo taken. Click “Prepare this photo and show preview”.'); closeCamera(); }, 'image/jpeg', .92);
+            });
+            captureButton?.addEventListener('click', () => setTimeout(() => setPhotoStatus('Photo captured. Click the prepare button to see the result.'), 0));
             const processPhoto = async (useCurrent = false) => {
                 if (!useCurrent && (!pictureInput || !pictureInput.files.length)) { setPhotoStatus('Choose a photo first.', 'error'); pictureInput?.click(); return; }
                 const payload = new FormData(); payload.append('_token', csrf);
+                setPhotoStatus('Preparing photo. Please wait...');
+                setTimeout(() => setPhotoStatus('Preparing photo. Please wait...'), 0);
                 if (!useCurrent) payload.append('picture', pictureInput.files[0]);
                 processButton && (processButton.disabled = true); currentButton && (currentButton.disabled = true); setPhotoStatus('Processing photo…');
                 try {
@@ -1659,6 +1714,7 @@
             pictureInput?.addEventListener('change', function () { photoToken.value = ''; setPhotoStatus('Photo selected. Click “Process & preview” before saving.'); if (this.files[0]) picturePreview.src = URL.createObjectURL(this.files[0]); });
             processButton?.addEventListener('click', () => processPhoto(false));
             currentButton?.addEventListener('click', () => processPhoto(true));
+            pictureInput?.addEventListener('change', () => setPhotoStatus('Photo selected. Click the prepare button to see the result before saving.'));
 
             const canvas = document.getElementById('student-signature-canvas');
             const signatureInput = document.getElementById('signiture');
