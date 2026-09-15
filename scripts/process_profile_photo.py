@@ -92,8 +92,12 @@ def encode_under_limit(image, output_path, max_bytes):
     raise ValueError('The image could not be compressed below 200 KB without losing reasonable clarity.')
 
 def main():
-    parser = argparse.ArgumentParser(); parser.add_argument('--input', required=True); parser.add_argument('--output', required=True); parser.add_argument('--max-bytes', type=int, default=204800); args = parser.parse_args()
+    parser = argparse.ArgumentParser(); parser.add_argument('--input', required=True); parser.add_argument('--output', required=True); parser.add_argument('--max-bytes', type=int, default=204800); parser.add_argument('--model-root', default=''); args = parser.parse_args()
     try:
+        if args.model_root:
+            # rembg reads this when creating its session. Passing it explicitly
+            # prevents a fresh 179 MB download during a web request.
+            os.environ['U2NET_HOME'] = args.model_root
         with Image.open(args.input) as source: image = ImageOps.exif_transpose(source).convert('RGB')
         image.thumbnail((2400, 2400), Image.Resampling.LANCZOS); rgb = np.array(image); face = detect_single_face(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
         prepared = BytesIO(); image.save(prepared, format='PNG'); removed = remove(prepared.getvalue(), session=new_session('isnet-general-use'), alpha_matting=False)

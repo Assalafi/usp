@@ -21,10 +21,16 @@ class ProfilePhotoProcessor
         $scriptPath = base_path('scripts/process_profile_photo.py');
         $pythonBinary = is_file('/opt/pg-photo-venv/bin/python3') ? '/opt/pg-photo-venv/bin/python3' : 'python3';
 
-        $process = new Process([$pythonBinary, $scriptPath, '--input', $file->getRealPath(), '--output', $outputPath, '--max-bytes', (string) self::MAX_BYTES]);
-        $process->setEnv(['U2NET_HOME' => storage_path('app/ai-models')]);
-        $process->setTimeout(60);
-        $process->run();
+        $modelRoot = storage_path('app/ai-models');
+        $process = new Process([$pythonBinary, $scriptPath, '--input', $file->getRealPath(), '--output', $outputPath, '--max-bytes', (string) self::MAX_BYTES, '--model-root', $modelRoot]);
+        $process->setEnv(['U2NET_HOME' => $modelRoot]);
+        $process->setTimeout(120);
+        try {
+            $process->run();
+        } catch (\Throwable $exception) {
+            $disk->delete($relativePath);
+            throw ValidationException::withMessages(['picture' => 'Photo preparation took too long. Please choose a smaller, clear JPG or PNG image and try again.']);
+        }
 
         if (!$process->isSuccessful() || !is_file($outputPath)) {
             $disk->delete($relativePath);
