@@ -1700,9 +1700,9 @@
             }
 
             const setPhotoStatus = (message, type = '') => { if (photoStatus) { photoStatus.className = 'sp-media-status ' + type; photoStatus.textContent = message; } };
-            const setPhotoBusy = (busy) => {
-                if (processButton) { processButton.disabled = busy; processButton.innerHTML = busy ? '<span class="sp-spinner" aria-hidden="true"></span> Preparing photo...' : processButtonLabel; }
-                if (currentButton) { currentButton.disabled = busy; currentButton.innerHTML = busy ? '<span class="sp-spinner" aria-hidden="true"></span> Preparing photo...' : currentButtonLabel; }
+            const setPhotoBusy = (busy, source = null) => {
+                if (processButton) { processButton.disabled = busy; processButton.innerHTML = busy && source === 'selected' ? '<span class="sp-spinner" aria-hidden="true"></span> Preparing photo...' : processButtonLabel; }
+                if (currentButton) { currentButton.disabled = busy; currentButton.innerHTML = busy && source === 'current' ? '<span class="sp-spinner" aria-hidden="true"></span> Preparing photo...' : currentButtonLabel; }
             };
             let cameraStream = null;
             const closeCamera = () => { if (cameraStream) { cameraStream.getTracks().forEach(track => track.stop()); cameraStream = null; } if (cameraVideo) cameraVideo.srcObject = null; if (cameraModal) cameraModal.hidden = true; };
@@ -1736,8 +1736,8 @@
                 finally { processButton && (processButton.disabled = false); currentButton && (currentButton.disabled = false); }
             };
             pictureInput?.addEventListener('change', function () { photoToken.value = ''; setPhotoStatus('Photo selected. Click “Process & preview” before saving.'); if (this.files[0]) picturePreview.src = URL.createObjectURL(this.files[0]); });
-            processButton?.addEventListener('click', () => { setPhotoBusy(true); processPhoto(false).finally(() => setPhotoBusy(false)); });
-            currentButton?.addEventListener('click', () => { setPhotoBusy(true); processPhoto(true).finally(() => setPhotoBusy(false)); });
+            processButton?.addEventListener('click', () => { setPhotoBusy(true, 'selected'); processPhoto(false).finally(() => setPhotoBusy(false)); });
+            currentButton?.addEventListener('click', () => { setPhotoBusy(true, 'current'); processPhoto(true).finally(() => setPhotoBusy(false)); });
             pictureInput?.addEventListener('change', () => setPhotoStatus('Photo selected. Click the prepare button to see the result before saving.'));
 
             const canvas = document.getElementById('student-signature-canvas');
