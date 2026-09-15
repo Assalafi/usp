@@ -895,7 +895,7 @@
                                                             <label for="picture" class="sp-upload-label"><i class="fas fa-folder-open"></i> Choose a photo from device</label>
                                                             <button type="button" class="btn btn-light sp-camera-button" id="open-profile-camera"><i class="fas fa-camera"></i> Take a photo with camera</button>
                                                         </div>
-                                                        <input type="file" class="d-none" id="picture" name="picture" accept="image/jpeg,image/png" capture="user">
+                                                        <input type="file" class="d-none" id="picture" name="picture" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
                                                         <div class="sp-photo-actions">
                                                             <button type="button" class="btn btn-primary" id="process-profile-photo"><i class="fas fa-wand-magic-sparkles"></i> Prepare this photo and show preview</button>
                                                             <button type="button" class="btn btn-light" id="process-current-photo"><i class="fas fa-rotate"></i> Prepare my current photo</button>
@@ -1524,6 +1524,18 @@
         #profile-camera-video { display:block; width:100%; max-height:62vh; object-fit:cover; border-radius:12px; background:#112a3b; transform:scaleX(-1); }
         .sp-camera-dialog-actions { display:flex; gap:.6rem; margin-top:.7rem; }
         .sp-camera-dialog-actions .btn { flex:1; border-radius:9px; }
+        .student-profile-page .sp-media-grid { align-items:stretch; }
+        .student-profile-page .sp-media-card { min-height:100%; padding:1.5rem; }
+        .student-profile-page .sp-media-card:first-child { background:linear-gradient(180deg,#ffffff 0%,#f6fbff 100%); }
+        .student-profile-page .sp-photo-editor { flex-direction:column; width:100%; gap:1rem; }
+        .student-profile-page .sp-photo-frame { width:190px; height:245px; aspect-ratio:auto; border:6px solid #fff; outline:1px solid #d3e3ed; border-radius:16px; box-shadow:0 12px 28px rgba(30,87,119,.16); }
+        .student-profile-page .sp-photo-controls { width:100%; max-width:520px; }
+        .student-profile-page .sp-photo-source-actions { display:grid; grid-template-columns:1fr 1fr; gap:.65rem; }
+        .student-profile-page .sp-photo-source-actions .sp-upload-label, .student-profile-page .sp-camera-button { min-height:44px; justify-content:center; border:1px solid #d2e2ec; border-radius:10px; padding:.65rem .75rem; background:#fff; color:#1a739f; margin:0; }
+        .student-profile-page .sp-photo-source-actions .sp-upload-label:hover, .student-profile-page .sp-camera-button:hover { background:#eaf6fd; border-color:#8fc8e5; }
+        .student-profile-page .sp-photo-actions { display:grid; grid-template-columns:1fr 1fr; margin-top:.7rem; }
+        .student-profile-page .sp-photo-actions .btn { min-height:44px; }
+        .student-profile-page .sp-help { max-width:520px; margin-left:auto; margin-right:auto; }
         .student-profile-page #submit-profile-btn { border:0; border-radius:11px; min-height:48px; font-weight:700; background:#3ea1e4; box-shadow:0 7px 18px rgba(62,161,228,.28); }
         @media (max-width: 767.98px) {
             .student-profile-page { padding:.45rem; }
@@ -1532,6 +1544,9 @@
             .sp-media-grid { grid-template-columns:1fr; gap:.85rem; }
             .sp-photo-editor { flex-direction:column; }
             .sp-photo-editor { align-items:center; }
+            .student-profile-page .sp-media-card { padding:1rem .8rem; }
+            .student-profile-page .sp-photo-source-actions, .student-profile-page .sp-photo-actions { grid-template-columns:1fr; }
+            .student-profile-page .sp-photo-frame { width:165px; height:215px; }
             .sp-photo-frame { width:125px; }
             .sp-photo-actions .btn { flex:1 1 100%; }
             .student-profile-page .form-group.row { margin-bottom:.8rem; }
