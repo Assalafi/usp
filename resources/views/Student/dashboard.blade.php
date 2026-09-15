@@ -188,6 +188,23 @@
     @media(max-width:900px){.ug-content-grid{grid-template-columns:1fr}}
     @media(max-width:600px){.ug-welcome-card{grid-template-columns:minmax(0,1fr) auto;align-items:start}.ug-welcome-academic{grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.35fr) auto;gap:9px;margin-top:15px;padding-top:13px;border-top:1px solid rgba(255,255,255,.2)}.ug-avatar-wrap{grid-column:2;grid-row:1}.ug-welcome-academic strong{font-size:.72rem;max-width:125px}.ug-welcome-profile{padding:8px 9px;font-size:.64rem;align-self:end}.ug-result-row{grid-template-columns:1fr auto;gap:4px 10px;padding:11px 0}.ug-result-context{grid-column:1;grid-row:2}.ug-result-total{grid-column:2;grid-row:2;text-align:right;color:#7b8aa0;font-size:.7rem}.ug-result-grade{grid-column:2;grid-row:1}.ug-approved-badge{font-size:.6rem;padding:5px 7px}}
 </style>
+<style>
+    @media(max-width:600px){
+        .ug-welcome-card{grid-template-columns:minmax(0,1fr) 58px;column-gap:12px;row-gap:0;padding:18px 16px}
+        .ug-welcome-copy{min-width:0}
+        .ug-welcome-card h1{font-size:1.28rem;line-height:1.18;overflow-wrap:anywhere}
+        .ug-welcome-card p{line-height:1.35;max-width:none}
+        .ug-meta-row{display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-top:11px}
+        .ug-avatar-wrap{grid-column:2;grid-row:1;align-self:start}
+        .ug-avatar{width:56px;height:56px}
+        .ug-welcome-academic{grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:11px 14px;margin-top:15px;padding-top:13px}
+        .ug-welcome-academic>div{min-width:0}
+        .ug-welcome-academic>div:nth-child(2){grid-column:2}
+        .ug-welcome-academic span{font-size:.6rem}
+        .ug-welcome-academic strong{max-width:none;font-size:.72rem;line-height:1.25;white-space:normal;overflow:visible;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+        .ug-welcome-profile{grid-column:1/-1;grid-row:3;justify-content:center;width:100%;padding:8px 10px;margin-top:1px}
+    }
+</style>
 
 {{-- Keep the existing safety prompt for students whose current level has not been confirmed. --}}
 @if (session('level_flag') == 0)
