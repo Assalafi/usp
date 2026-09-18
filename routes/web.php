@@ -28,6 +28,7 @@ use App\Http\Controllers\AlumniController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentCourseRegistrationController;
+use App\Http\Controllers\StudentResultsController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\IdCardFeesController;
 use App\Models\ProgramCourseRegistration;
@@ -1170,6 +1171,7 @@ Route::get('/student-result', function (Request $req) {
     $data['page'] = 'results';
     return view('main', $data);
 });
+Route::get('/student-result/pdf', [StudentResultsController::class, 'downloadPdf'])->name('student.result.pdf');
 Route::get('grades by courses', function () {
     // return session('accType');
     if (!session()->has('log')) {
