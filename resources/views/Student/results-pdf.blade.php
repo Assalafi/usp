@@ -41,6 +41,16 @@
         .summary-value { display: block; color: #1765c6; font-size: 13px; font-weight: bold; margin-top: 2px; }
         .summary-value.official { color: #147a4a; }
         .summary-value.failed { color: #b42d3b; }
+        .grade-summary { width: 100%; border-collapse: separate; border-spacing: 5px 0; margin: 0 -5px 14px; }
+        .grade-summary td { width: 16.66%; border: 1px solid #dce8f2; border-radius: 5px; padding: 6px; text-align: center; }
+        .grade-summary .grade-label { display: block; font-size: 8px; font-weight: bold; }
+        .grade-summary .grade-count { display: block; font-size: 12px; font-weight: bold; margin-top: 2px; }
+        .grade-summary .grade-a { color: #137a46; background: #e8f7ee; border-color: #bce8ce; }
+        .grade-summary .grade-b { color: #2c5fb7; background: #e8f0ff; border-color: #c8d9fb; }
+        .grade-summary .grade-c { color: #a76700; background: #fff4dc; border-color: #f3d99a; }
+        .grade-summary .grade-d { color: #7042a8; background: #f2eaff; border-color: #dcc6f8; }
+        .grade-summary .grade-e { color: #b12f68; background: #ffeaf3; border-color: #f5c4d8; }
+        .grade-summary .grade-f { color: #b42d3b; background: #ffe8eb; border-color: #f2bdc5; }
         .section-title { color: #173d67; font-size: 11px; font-weight: bold; margin: 13px 0 6px; }
         .results-table { border: 1px solid #cfdeea; }
         .results-table thead { display: table-header-group; }
@@ -80,7 +90,7 @@
     <div class="student-panel">
         <table class="student-table">
             <tr><td class="label">Student</td><td class="value">{{ $studentName }}</td><td class="label">Matric number</td><td class="value">{{ $studentId }}</td></tr>
-            <tr><td class="label">Programme</td><td class="value">{{ $student->program ?? '-' }}</td><td class="label">Current level</td><td class="value">{{ $student->level ?? '-' }}</td></tr>
+            <tr><td class="label">Programme</td><td class="value">{{ $student->program_title ?? $student->program ?? '-' }}</td><td class="label">Current level</td><td class="value">{{ $student->level ?? '-' }}</td></tr>
         </table>
     </div>
 
@@ -92,6 +102,15 @@
             <td><span class="summary-label">Units</span><span class="summary-value">{{ $unitCount }}</span></td>
             <td><span class="summary-label">Passed</span><span class="summary-value official">{{ $passedCount }}</span></td>
             <td><span class="summary-label">Carryovers</span><span class="summary-value failed">{{ $failedCount }}</span></td>
+        </tr>
+    </table>
+
+    <div class="section-title">Grade summary</div>
+    <table class="grade-summary">
+        <tr>
+            @foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $grade)
+                <td class="grade-{{ strtolower($grade) }}"><span class="grade-label">Grade {{ $grade }}</span><span class="grade-count">{{ $gradeCounts[$grade] ?? 0 }}</span></td>
+            @endforeach
         </tr>
     </table>
 

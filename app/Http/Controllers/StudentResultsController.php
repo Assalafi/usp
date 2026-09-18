@@ -42,8 +42,9 @@ class StudentResultsController extends Controller
             ->get();
 
         $student = DB::table('students')
-            ->where('username', $studentId)
-            ->select('fullname', 'username', 'program', 'level')
+            ->leftJoin('program', 'students.program', '=', 'program.code')
+            ->where('students.username', $studentId)
+            ->select('students.fullname', 'students.username', 'students.program', 'program.title as program_title', 'students.level')
             ->first();
 
         $historyQuery = DB::table('session_history')->where('username', $studentId);
