@@ -110,13 +110,16 @@
         @if ($courseFlag == 1 || strpos((string) session('faculty'), '.PG') !== false)
             <div class="ug-course-shell">
                 <div class="ug-course-hero">
-                    <div>
-                        <span class="ug-eyebrow"><i class="fas fa-graduation-cap"></i> Plan your session</span>
-                        <h1>Choose your courses</h1>
-                        <p>Start with your current level, add any outstanding courses, and save your registration when you are ready.</p>
+                    <div class="ug-hero-copy">
+                        <span class="ug-hero-icon"><i class="fas fa-book-open"></i></span>
+                        <div>
+                            <span class="ug-eyebrow">Student academic record</span>
+                            <h1>Register for this session</h1>
+                            <p>Select your current-level courses and add any carryover courses you still need.</p>
+                        </div>
                     </div>
                     <div class="ug-session-picker">
-                        <label for="registrationSession">Session</label>
+                        <label for="registrationSession">Working session</label>
                         <form action="{{ url('/student course registration') }}" method="GET">
                             <select id="registrationSession" name="session" onchange="this.form.submit()">
                                 @foreach ($sessions as $sessionRow)
@@ -237,11 +240,11 @@
                                     $levelCourses = $courseLevels[$level];
                                     $isCurrentLevel = (int) $level === $studentCurrentLevel;
                                 @endphp
-                                <div class="ug-level-section {{ $isCurrentLevel ? 'current-level' : 'carryover-level' }}">
-                                    <div class="ug-level-heading">
+                                <details class="ug-level-section {{ $isCurrentLevel ? 'current-level' : 'carryover-level' }}" {{ $isCurrentLevel ? 'open' : '' }}>
+                                    <summary class="ug-level-heading">
                                         <div><span class="ug-level-number">{{ $level }}</span><div><h3>{{ $isCurrentLevel ? 'Your current level' : 'Carryover courses from ' . $level . ' level' }}</h3><p>{{ $levelCourses->count() }} course{{ $levelCourses->count() === 1 ? '' : 's' }} to choose from</p></div></div>
                                         <label class="ug-select-all"><input type="checkbox" class="select-level" data-level="{{ $level }}"><span>Select all</span></label>
-                                    </div>
+                                    </summary>
                                     <div class="ug-course-grid">
                                         @foreach ($levelCourses as $course)
                                             @php
@@ -263,7 +266,7 @@
                                             </article>
                                         @endforeach
                                     </div>
-                                </div>
+                                </details>
                             @endforeach
 
                             <div class="ug-save-bar">
@@ -297,6 +300,8 @@
     @media (max-width:767px){.ug-course-page{padding:10px;background:#f6f8fb}.ug-course-hero{border-radius:15px;padding:20px 16px;display:block}.ug-course-hero h1{font-size:1.65rem}.ug-course-hero p{font-size:.85rem}.ug-session-picker{margin-top:17px}.ug-course-stats{grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0}.ug-course-stats>div{padding:10px;gap:8px}.ug-stat-icon{width:32px;height:32px;font-size:.85rem}.ug-course-stats strong{font-size:1rem}.ug-course-stats small{font-size:.68rem}.ug-course-tabs{margin:10px 0}.ug-tab{font-size:.78rem;padding:11px 7px}.ug-tab i{margin-right:3px}.ug-panel{border-radius:14px;padding:15px 12px}.ug-panel-heading{display:block;margin-bottom:17px}.ug-panel-heading h2{font-size:1.15rem}.ug-panel-heading p{font-size:.8rem;margin-bottom:12px}.ug-outline-button,.ug-clear-button{font-size:.75rem;padding:8px 10px}.ug-registered-list,.ug-course-grid{grid-template-columns:1fr}.ug-unregister-toolbar{display:block;padding:10px}.ug-unregister-actions{justify-content:flex-start;margin-top:9px}.ug-unregister-actions .ug-danger-button{font-size:.7rem;padding:7px 8px}.ug-registered-card{grid-template-columns:auto 1fr;column-gap:10px;padding:12px 12px 12px 42px}.ug-registered-check{left:13px;top:14px}.ug-course-actions{grid-column:1/-1;align-items:flex-start;gap:8px;flex-wrap:wrap}.ug-semester-form{width:100%;justify-content:space-between}.ug-semester-form select{flex:1;max-width:none}.ug-level-heading{align-items:flex-start}.ug-level-heading h3{font-size:.92rem}.ug-select-all{font-size:.72rem}.ug-select-card{padding:12px}.ug-save-bar{bottom:6px;align-items:stretch}.ug-save-bar .ug-primary-button{font-size:.78rem;padding:9px}.ug-help-note,.ug-carryover-note{font-size:.77rem;padding:10px}.ug-regenerate-form .ug-outline-button{width:100%}}
     .ug-level-section.carryover-level .ug-level-number{background:#fff4dd;color:#a56800}
     .ug-unregister-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#f8fafc;border:1px solid #e5ebf3;border-radius:11px;padding:10px 12px;margin:-4px 0 16px}.ug-unregister-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.ug-unregister-actions>span{font-size:.75rem;color:#7b899c}.ug-danger-button{border:1px solid #f0c5c9;border-radius:8px;background:#fff;color:#b23f4b;padding:7px 10px;font-size:.75rem;font-weight:700;cursor:pointer}.ug-danger-button:hover{background:#fff3f4}.ug-danger-button:disabled{opacity:.45;cursor:not-allowed}.ug-danger-button.subtle{background:#fff7f7}.ug-registered-card{position:relative;padding-left:42px}.ug-registered-check{position:absolute;left:14px;top:15px;cursor:pointer}.ug-registered-check input{position:absolute;opacity:0}.ug-registered-check span{display:block;width:19px;height:19px;border:2px solid #c6d3e2;border-radius:5px;background:#fff}.ug-registered-check input:checked+span{background:#b23f4b;border-color:#b23f4b;box-shadow:inset 0 0 0 4px #fff}
+    .ug-course-hero{background:#fff;color:#19365e;border:1px solid #e2eaf4;border-left:5px solid #3ea1e4;box-shadow:0 8px 24px rgba(29,61,103,.07);align-items:center}.ug-hero-copy{display:flex;align-items:center;gap:15px}.ug-hero-icon{width:48px;height:48px;display:grid;place-items:center;border-radius:14px;background:#e9f4ff;color:#1971c7;font-size:1.3rem;flex:0 0 auto}.ug-course-hero .ug-eyebrow{color:#477398;opacity:1}.ug-course-hero h1{color:#183b64}.ug-course-hero p{color:#637990;opacity:1}.ug-course-hero .ug-session-picker{background:#f3f8fe;border-color:#d9e7f5}.ug-course-hero .ug-session-picker label{color:#58728d;opacity:1}.ug-course-hero .ug-session-picker select{border:1px solid #d2e0ee}
+    .ug-level-section{border:1px solid #e4ebf3;border-radius:13px;padding:0 14px;margin-bottom:12px;background:#fff}.ug-level-heading{list-style:none;padding:13px 0;margin:0;border:0;cursor:pointer}.ug-level-heading::-webkit-details-marker{display:none}.ug-level-heading:after{content:'+';width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#eff5fb;color:#3370a9;font-weight:700}.ug-level-section[open]>.ug-level-heading:after{content:'−';background:#e8f3ff;color:#1769ce}.ug-level-section[open]{border-color:#cddff2;box-shadow:0 4px 14px rgba(44,111,192,.06)}.ug-level-section .ug-course-grid{padding:0 0 15px}.ug-level-section .ug-level-heading>div{min-width:0}
 </style>
 
 <script>
@@ -309,6 +314,16 @@
         const saveCount = document.getElementById('saveCount');
         const saveUnits = document.getElementById('saveUnits');
         const savePlural = document.getElementById('savePlural');
+        const levelSections = Array.from(document.querySelectorAll('.ug-level-section'));
+
+        // Keep the level list easy to scan: opening one level closes the others.
+        levelSections.forEach(section => {
+            section.addEventListener('toggle', function () {
+                if (!this.open) return;
+                levelSections.forEach(other => { if (other !== this) other.open = false; });
+            });
+            section.querySelector('.select-level')?.addEventListener('click', event => event.stopPropagation());
+        });
 
         function updateSummary() {
             const selected = choices.filter((input) => input.checked);
