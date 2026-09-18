@@ -109,17 +109,6 @@
     <div class="page-wrapper">
         @if ($courseFlag == 1 || strpos((string) session('faculty'), '.PG') !== false)
             <div class="ug-course-shell">
-                <div class="ug-course-hero">
-                    <div class="ug-hero-copy">
-                        <span class="ug-hero-icon"><i class="fas fa-book-open"></i></span>
-                        <div>
-                            <span class="ug-eyebrow">Student academic record</span>
-                            <h1>Register for this session</h1>
-                            <p>Select your current-level courses and add any carryover courses you still need.</p>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="ug-course-stats" aria-label="Registration summary">
                     <div class="ug-session-stat"><span class="ug-stat-icon blue"><i class="fas fa-calendar-alt"></i></span><div class="ug-session-stat-content"><small>Registration session</small><form action="{{ url('/student course registration') }}" method="GET"><select id="registrationSession" name="session" onchange="this.form.submit()" aria-label="Choose registration session">@foreach ($sessions as $sessionRow) @php $sessionTitle = $sessionRow->title ?? $sessionRow->session ?? ''; @endphp @if ($sessionTitle !== '')<option value="{{ $sessionTitle }}" {{ $selectedSession == $sessionTitle ? 'selected' : '' }}>{{ $sessionTitle }}{{ $selectedSession == $sessionTitle && $sessionTitle == session('system_session') ? ' (Current)' : '' }}</option>@endif @endforeach</select></form></div></div>
                     <div><span class="ug-stat-icon blue"><i class="fas fa-book"></i></span><span><strong id="registeredCount">{{ $registeredCourses->count() }}</strong><small>Registered</small></span></div>
@@ -164,22 +153,17 @@
                                                 @php $canChangeSemester = (string) ($course->change_semester ?? '0') === '1'; @endphp
                                                 <article class="ug-registered-card">
                                                     <label class="ug-registered-check" title="Select {{ $course->code }}"><input type="checkbox" class="registered-choice" value="{{ $course->id }}"><span></span></label>
-                                                    <div class="ug-course-code">{{ $course->code }}</div>
-                                                    <div class="ug-course-name">{{ $course->title ?: 'Course title unavailable' }}</div>
-                                                    <div class="ug-course-meta"><span>{{ $course->unit }} unit{{ (int) $course->unit === 1 ? '' : 's' }}</span><span>{{ $course->level }} level</span><span class="ug-type {{ strtoupper($course->type) === 'CORE' ? 'core' : 'elective' }}">{{ ucfirst(strtolower($course->type)) }}</span></div>
+                                                    <div class="ug-registered-main"><strong class="ug-course-code">{{ $course->code }}</strong><small class="ug-course-name">{{ $course->title ?: 'Course title unavailable' }}</small></div>
                                                     <div class="ug-course-actions">
                                                         @if ($canChangeSemester)
                                                             <form action="{{ url('/change-semester') }}" method="POST" class="ug-semester-form">
                                                                 @csrf
                                                                 <input type="hidden" name="id" value="{{ $course->id }}">
-                                                                <label for="semester-{{ $course->id }}">Semester</label>
                                                                 <select id="semester-{{ $course->id }}" name="semester" onchange="this.form.submit()" aria-label="Change semester for {{ $course->code }}">
                                                                     <option value="FIRST" {{ $course->semester === 'FIRST' ? 'selected' : '' }}>First</option>
                                                                     <option value="SECOND" {{ $course->semester === 'SECOND' ? 'selected' : '' }}>Second</option>
                                                                 </select>
                                                             </form>
-                                                        @else
-                                                            <span class="ug-fixed-semester"><i class="fas fa-calendar-check"></i> {{ $semesterLabel }}</span>
                                                         @endif
                                                         <button type="button" class="ug-delete-button" onclick="removeRegisteredCourse('{{ $course->id }}', '{{ $course->code }}')" aria-label="Remove {{ $course->code }}"><i class="fas fa-trash-alt"></i><span>Remove</span></button>
                                                     </div>
@@ -289,6 +273,10 @@
     .ug-course-hero{background:#fff;color:#19365e;border:1px solid #e2eaf4;border-left:5px solid #3ea1e4;box-shadow:0 8px 24px rgba(29,61,103,.07);align-items:center}.ug-hero-copy{display:flex;align-items:center;gap:15px}.ug-hero-icon{width:48px;height:48px;display:grid;place-items:center;border-radius:14px;background:#e9f4ff;color:#1971c7;font-size:1.3rem;flex:0 0 auto}.ug-course-hero .ug-eyebrow{color:#477398;opacity:1}.ug-course-hero h1{color:#183b64}.ug-course-hero p{color:#637990;opacity:1}.ug-course-stats{grid-template-columns:repeat(5,minmax(0,1fr))}.ug-session-stat{min-width:0}.ug-session-stat-content{min-width:0;flex:1}.ug-session-stat-content small{white-space:nowrap}.ug-session-stat-content form{margin-top:3px}.ug-session-stat-content select{width:100%;border:1px solid #d4e1ee;border-radius:7px;background:#f8fbfe;color:#24578e;font-size:.78rem;font-weight:700;padding:5px 7px}.ug-session-stat .ug-stat-icon{background:#e9f4ff;color:#1971c7}
     .ug-level-section{border:1px solid #e4ebf3;border-radius:13px;padding:0 14px;margin-bottom:12px;background:#fff}.ug-level-heading{list-style:none;padding:13px 0;margin:0;border:0;cursor:pointer}.ug-level-heading::-webkit-details-marker{display:none}.ug-level-heading:after{content:'+';width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#eff5fb;color:#3370a9;font-weight:700}.ug-level-section[open]>.ug-level-heading:after{content:'−';background:#e8f3ff;color:#1769ce}.ug-level-section[open]{border-color:#cddff2;box-shadow:0 4px 14px rgba(44,111,192,.06)}.ug-level-section .ug-course-grid{padding:0 0 15px}.ug-level-section .ug-level-heading>div{min-width:0}
     @media (max-width:767px){.ug-course-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.ug-session-stat{grid-column:1/-1}.ug-session-stat-content select{min-height:34px}.ug-hero-copy{align-items:flex-start}.ug-hero-icon{width:40px;height:40px;font-size:1.05rem}}
+    /* Saved courses use the same compact code-and-title treatment as Results > Course grades. */
+    .ug-registered-card{display:flex;align-items:center;gap:11px;min-height:55px;padding:9px 11px 9px 42px;grid-template-columns:none;column-gap:0;row-gap:0}
+    .ug-registered-main{min-width:0;flex:1}.ug-registered-main .ug-course-code{display:block;grid-row:auto;font-size:.78rem;line-height:1.15}.ug-registered-main .ug-course-name{display:block;margin-top:3px;color:#71849a;font-size:.67rem;font-weight:400;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ug-course-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto;grid-column:auto;border-top:0;padding:0;margin:0}.ug-semester-form{display:flex;align-items:center;gap:0}.ug-semester-form select{font-size:.7rem;padding:5px 7px;min-width:70px}.ug-delete-button{font-size:.7rem;padding:5px 0}.ug-delete-button i{margin-right:3px}
+    @media (max-width:767px){.ug-registered-card{display:flex;align-items:center;min-height:53px;padding:9px 9px 9px 42px}.ug-registered-main .ug-course-code{font-size:.75rem}.ug-registered-main .ug-course-name{font-size:.63rem}.ug-course-actions{gap:6px}.ug-semester-form select{min-width:64px;font-size:.66rem;padding:5px}.ug-delete-button{font-size:0}.ug-delete-button i{font-size:.78rem;margin:0}}
 </style>
 
 <script>
