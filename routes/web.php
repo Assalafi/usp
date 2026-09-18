@@ -1127,13 +1127,20 @@ Route::get('/student-result', function (Request $req) {
     if (!session()->has('log')) {
         return redirect('/');
     }
-    if ($req->has('_token')) {
-        $data['data'] = DB::table('results')->where(['username' => session('id_number'), 'session' => $req->session, 'approve' => 'vc'])->orderBy('level', 'ASC')->orderBy('semester', 'ASC')->orderBy('code', 'ASC')->get();
-    } else {
-        $data['data'] = DB::table('results')->where(['username' => session('id_number'), 'session' => session('system_session'), 'approve' => 'vc'])->orderBy('level', 'ASC')->orderBy('semester', 'ASC')->orderBy('code', 'ASC')->get();
-    }
+    $selectedSession = $req->input('session', session('system_session'));
+    $data['data'] = DB::table('results')
+        ->where(['username' => session('id_number'), 'session' => $selectedSession, 'approve' => 'vc'])
+        ->orderBy('level', 'ASC')
+        ->orderBy('semester', 'ASC')
+        ->orderBy('code', 'ASC')
+        ->get();
 
     $data['sessions'] = DB::table('session')->select('title')->orderBy('title', 'ASC')->get();
+    $data['selectedSession'] = $selectedSession;
+    $data['student'] = DB::table('students')
+        ->where('username', session('id_number'))
+        ->select('fullname', 'username', 'program', 'level')
+        ->first();
     $data['page'] = 'results';
     return view('main', $data);
 });
