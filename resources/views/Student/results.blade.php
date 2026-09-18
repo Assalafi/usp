@@ -11,15 +11,15 @@
     $displaySession = $selectedSession ?? request('session', session('system_session'));
     $isAllSessions = strtolower((string) $displaySession) === 'all';
     $displaySessionLabel = $isAllSessions ? 'All sessions' : $displaySession;
-    $cgpaValue = is_numeric($cgpa ?? null) && (float) $cgpa > 0 ? number_format((float) $cgpa, 2) : '—';
-    $statusLabel = $academicStatus ?? null;
+    $historyCgpaValue = is_numeric($historyCgpa ?? null) ? number_format((float) $historyCgpa, 2) : '—';
+    $calculatedCgpaValue = is_numeric($calculatedCgpa ?? null) ? number_format((float) $calculatedCgpa, 2) : '—';
 @endphp
 
 <div class="main-body ug-results-page">
     <div class="page-wrapper">
         <div class="ug-results-shell">
             <div class="ug-results-filter-bar">
-                <div><span class="ug-results-kicker">{{ $studentName }}</span><strong>{{ $displaySessionLabel }}</strong></div>
+                <div class="ug-results-identity"><div class="ug-identity-name"><span class="ug-results-kicker">{{ $studentName }}</span><strong>{{ $displaySessionLabel }}</strong></div><div class="ug-cgpa-summary"><div><small>Recorded CGPA</small><b>{{ $historyCgpaValue }}</b></div><div><small>Calculated CGPA</small><b>{{ $calculatedCgpaValue }}</b></div></div></div>
                 <form class="ug-results-session" action="{{ url('/student-result') }}" method="GET">
                     <label for="resultSession">Academic session</label>
                     <select id="resultSession" name="session" onchange="this.form.submit()" aria-label="Choose academic session">
@@ -30,7 +30,6 @@
                             </option>
                         @endforeach
                     </select>
-                    <div class="ug-session-standing"><div><small>{{ $isAllSessions ? 'Cumulative CGPA' : 'CGPA after session' }}</small><strong>{{ $cgpaValue }}</strong><span>/ 5.00</span></div>@if ($statusLabel)<div><small>Status</small><b>{{ ucfirst(strtolower($statusLabel)) }}</b></div>@endif</div>
                 </form>
             </div>
 
@@ -50,7 +49,7 @@
                     <div class="ug-course-grade-list" id="courseGradeList">
                         @foreach ($studentResults as $result)
                             @php $compactGrade = strtoupper((string) ($result->grade ?? '')); $compactTone = $compactGrade === 'F' ? 'fail' : (in_array($compactGrade, ['A', 'B', 'C', 'D', 'E']) ? 'pass' : 'pending'); @endphp
-                            <div class="ug-course-grade-row" data-course-grade data-search-text="{{ strtolower(($result->code ?? '') . ' ' . ($result->title ?? '')) }}"><span><strong>{{ $result->code }}</strong><small>{{ $result->title ?? 'Course result' }}{{ $isAllSessions && !empty($result->session) ? ' · ' . $result->session : '' }}</small></span><b class="ug-grade {{ $compactTone }}">{{ $compactGrade ?: '—' }}</b></div>
+                            <div class="ug-course-grade-row" data-course-grade data-search-text="{{ strtolower(($result->code ?? '') . ' ' . ($result->course_title ?? $result->title ?? '')) }}"><span><strong>{{ $result->code }}</strong><small>{{ $result->course_title ?? $result->title ?? 'Course result' }}{{ $isAllSessions && !empty($result->session) ? ' · ' . $result->session : '' }}</small></span><b class="ug-grade {{ $compactTone }} grade-{{ strtolower($compactGrade ?: 'pending') }}">{{ $compactGrade ?: '—' }}</b></div>
                         @endforeach
                     </div>
                 </section>
@@ -73,10 +72,10 @@
                                                 @php
                                                     $grade = strtoupper((string) ($result->grade ?? ''));
                                                     $gradeTone = $grade === 'F' ? 'fail' : (in_array($grade, ['A', 'B', 'C', 'D', 'E']) ? 'pass' : 'pending');
-                                                    $searchText = strtolower(($result->code ?? '') . ' ' . ($result->title ?? ''));
+                                                    $searchText = strtolower(($result->code ?? '') . ' ' . ($result->course_title ?? $result->title ?? ''));
                                                 @endphp
                                                 <article class="ug-result-card" data-result-card data-search-text="{{ $searchText }}">
-                                                    <div class="ug-result-card-top"><div><strong class="ug-result-code">{{ $result->code }}</strong><span class="ug-result-title">{{ $result->title ?? 'Course result' }}</span></div><span class="ug-grade {{ $gradeTone }}">{{ $grade ?: '—' }}</span></div>
+                                                    <div class="ug-result-card-top"><div><strong class="ug-result-code">{{ $result->code }}</strong><span class="ug-result-title">{{ $result->course_title ?? $result->title ?? 'Course result' }}</span></div><span class="ug-grade {{ $gradeTone }} grade-{{ strtolower($grade ?: 'pending') }}">{{ $grade ?: '—' }}</span></div>
                                                     <div class="ug-result-marks"><div><small>CA</small><strong>{{ $result->ca ?? '—' }}</strong></div><div><small>Exam</small><strong>{{ $result->exam ?? '—' }}</strong></div><div class="total"><small>Total</small><strong>{{ $result->total ?? '—' }}</strong></div></div>
                                                     <div class="ug-result-meta"><span><i class="fas fa-cubes"></i> {{ $result->unit ?? '—' }} unit{{ (float) ($result->unit ?? 0) === 1.0 ? '' : 's' }}</span><span><i class="fas fa-calendar"></i> {{ $semester ?: 'Semester not specified' }}</span>@if ($isAllSessions && !empty($result->session))<span><i class="fas fa-clock"></i> {{ $result->session }}</span>@endif<span class="ug-approved"><i class="fas fa-shield-check"></i> Approved</span></div>
                                                 </article>
@@ -106,6 +105,17 @@
     .ug-results-filter-bar{display:flex;align-items:center;justify-content:space-between;gap:15px;background:#fff;border:1px solid #e1eaf3;border-radius:13px;padding:12px 15px;margin-bottom:12px}.ug-results-filter-bar>div{min-width:0}.ug-results-filter-bar strong,.ug-results-filter-bar .ug-results-kicker{display:block}.ug-results-filter-bar strong{color:#27496e;font-size:.95rem;margin-top:3px}.ug-results-filter-bar .ug-results-kicker{font-size:.68rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ug-results-filter-bar .ug-results-session{min-width:205px;padding:8px 10px}.ug-session-standing{display:flex;align-items:center;gap:14px;border-top:1px solid #dbe8f3;margin-top:8px;padding-top:8px}.ug-session-standing>div{display:flex;align-items:baseline;gap:4px}.ug-session-standing small{color:#66809a;font-size:.61rem;text-transform:uppercase;letter-spacing:.04em}.ug-session-standing strong{color:#1765c6;font-size:1.1rem}.ug-session-standing span{color:#7d91a5;font-size:.65rem}.ug-session-standing b{color:#16834b;font-size:.72rem}.ug-results-toolbar-actions{display:flex;align-items:center;gap:8px}.ug-results-toolbar-actions .ug-results-print{background:#eaf4ff;border-color:#d3e6f6;color:#1765c6;padding:7px 10px;font-size:.74rem}.ug-result-layer{background:#fff;border:1px solid #e2eaf3;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 5px 16px rgba(29,61,103,.04)}.ug-layer-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.ug-layer-heading>div{display:flex;align-items:center;gap:10px}.ug-layer-number{width:28px;height:28px;display:grid;place-items:center;border-radius:8px;background:#eaf4ff;color:#1765c6;font-size:.78rem;font-weight:800;flex:0 0 auto}.ug-layer-heading h2{margin:0;color:#27496e;font-size:1rem}.ug-layer-heading p{margin:3px 0 0;color:#8493a7;font-size:.72rem}.ug-layer-total{color:#7890a7;font-size:.72rem;font-weight:700;white-space:nowrap}.ug-grade-chips{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}.ug-grade-chip{border:1px solid #e4ebf3;border-radius:10px;padding:9px;text-align:center}.ug-grade-chip>span,.ug-grade-chip>strong,.ug-grade-chip>small{display:block}.ug-grade-chip>span{font-size:.75rem;font-weight:800;color:#41617e}.ug-grade-chip>strong{font-size:1rem;color:#1f456c;margin:2px 0}.ug-grade-chip>small{font-size:.62rem;color:#8493a7}.ug-grade-chip.grade-a,.ug-grade-chip.grade-b{background:#f0fbf5}.ug-grade-chip.grade-c,.ug-grade-chip.grade-d,.ug-grade-chip.grade-e{background:#f5f9fd}.ug-grade-chip.grade-f{background:#fff5f5}.ug-grade-chip.grade-f>span,.ug-grade-chip.grade-f>strong{color:#be4d59}.ug-grade-footer{display:flex;gap:14px;flex-wrap:wrap;border-top:1px solid #edf2f7;margin-top:13px;padding-top:10px;color:#71869b;font-size:.7rem}.ug-grade-footer i{color:#3d8ebd;margin-right:4px}.ug-course-grade-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.ug-course-grade-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid #e7edf3;border-radius:9px;padding:9px 10px}.ug-course-grade-row>span{min-width:0}.ug-course-grade-row strong,.ug-course-grade-row small{display:block}.ug-course-grade-row strong{font-size:.78rem;color:#1765c6}.ug-course-grade-row small{font-size:.67rem;color:#71849a;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ug-detail-layer{padding-bottom:5px}.ug-detail-layer #resultGroups{margin:0 -16px -5px}.ug-detail-layer .ug-result-level{border-left:0;border-right:0;border-bottom:0;border-radius:0;margin-bottom:0}.ug-detail-layer .ug-result-level:first-child{border-top:1px solid #edf2f7}.ug-detail-layer .ug-result-level summary{padding-left:16px;padding-right:16px}
     @media (max-width:767px){.ug-results-page{padding:9px}.ug-results-context{margin-bottom:9px}.ug-result-layer{padding:12px;border-radius:12px;margin-bottom:9px}.ug-layer-heading{margin-bottom:11px}.ug-layer-heading h2{font-size:.92rem}.ug-layer-heading p{font-size:.67rem}.ug-layer-number{width:25px;height:25px;font-size:.7rem}.ug-layer-total{font-size:.66rem}.ug-grade-chips{grid-template-columns:repeat(3,1fr);gap:6px}.ug-grade-chip{padding:7px 4px}.ug-grade-chip>span{font-size:.7rem}.ug-grade-chip>strong{font-size:.9rem}.ug-grade-chip>small{font-size:.57rem}.ug-grade-footer{gap:8px;font-size:.63rem}.ug-course-grade-list{grid-template-columns:1fr;gap:6px}.ug-course-grade-row{padding:8px 9px}.ug-course-grade-row strong{font-size:.75rem}.ug-course-grade-row small{font-size:.63rem}.ug-detail-layer #resultGroups{margin:0 -12px -5px}.ug-detail-layer .ug-result-level summary{padding-left:12px;padding-right:12px}}
     @media (max-width:767px){.ug-results-filter-bar{display:block;padding:11px 12px;margin-bottom:9px}.ug-results-filter-bar .ug-results-session{margin-top:10px;min-width:0}.ug-session-standing{justify-content:space-between}.ug-results-toolbar-actions{display:block}.ug-results-toolbar-actions .ug-results-search{margin-top:10px}.ug-results-toolbar-actions .ug-results-print{width:100%;margin-top:8px}}
+    /* The identity bar keeps the official and calculated CGPA beside the student's name. */
+    .ug-results-identity{display:flex;align-items:center;gap:20px;min-width:0;flex:1}.ug-identity-name{min-width:150px}.ug-cgpa-summary{display:flex;align-items:stretch;gap:8px}.ug-cgpa-summary>div{display:flex;align-items:center;gap:8px;border-left:1px solid #e6edf4;padding-left:12px}.ug-cgpa-summary small{display:block;color:#8394a7;font-size:.62rem;line-height:1.2}.ug-cgpa-summary b{display:block;color:#1765c6;font-size:1.05rem;line-height:1}.ug-cgpa-summary>div:first-child b{color:#147a4a}
+    /* Distinct, accessible grade colors used consistently in the summary and every course row. */
+    .ug-grade-chip.grade-a,.ug-grade.grade-a{background:#e8f7ee;border-color:#bce8ce;color:#137a46}.ug-grade-chip.grade-a>span,.ug-grade-chip.grade-a>strong{color:#137a46}
+    .ug-grade-chip.grade-b,.ug-grade.grade-b{background:#e8f0ff;border-color:#c8d9fb;color:#2c5fb7}.ug-grade-chip.grade-b>span,.ug-grade-chip.grade-b>strong{color:#2c5fb7}
+    .ug-grade-chip.grade-c,.ug-grade.grade-c{background:#fff4dc;border-color:#f3d99a;color:#a76700}.ug-grade-chip.grade-c>span,.ug-grade-chip.grade-c>strong{color:#a76700}
+    .ug-grade-chip.grade-d,.ug-grade.grade-d{background:#f2eaff;border-color:#dcc6f8;color:#7042a8}.ug-grade-chip.grade-d>span,.ug-grade-chip.grade-d>strong{color:#7042a8}
+    .ug-grade-chip.grade-e,.ug-grade.grade-e{background:#ffeaf3;border-color:#f5c4d8;color:#b12f68}.ug-grade-chip.grade-e>span,.ug-grade-chip.grade-e>strong{color:#b12f68}
+    .ug-grade-chip.grade-f,.ug-grade.grade-f{background:#ffe8eb;border-color:#f2bdc5;color:#b42d3b}.ug-grade-chip.grade-f>span,.ug-grade-chip.grade-f>strong{color:#b42d3b}
+    .ug-grade.grade-pending{background:#eef3f8;border-color:#d9e3ec;color:#71839a}
+    @media (max-width:767px){.ug-results-identity{display:block}.ug-cgpa-summary{margin-top:10px;gap:6px}.ug-cgpa-summary>div{flex:1;padding-left:9px}.ug-cgpa-summary>div:first-child{border-left:0;padding-left:0}.ug-cgpa-summary small{font-size:.58rem}.ug-cgpa-summary b{font-size:.95rem}.ug-results-filter-bar .ug-results-session{width:100%}}
 </style>
 
 <script>

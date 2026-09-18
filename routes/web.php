@@ -1129,15 +1129,17 @@ Route::get('/student-result', function (Request $req) {
     }
     $selectedSession = $req->input('session', session('system_session'));
     $resultsQuery = DB::table('results')
-        ->where(['username' => session('id_number'), 'approve' => 'vc']);
+        ->leftJoin('course', 'results.code', '=', 'course.code')
+        ->where(['results.username' => session('id_number'), 'results.approve' => 'vc']);
     if (strtolower((string) $selectedSession) !== 'all') {
-        $resultsQuery->where('session', $selectedSession);
+        $resultsQuery->where('results.session', $selectedSession);
     }
     $data['data'] = $resultsQuery
-        ->orderBy('session', 'DESC')
-        ->orderBy('level', 'ASC')
-        ->orderBy('semester', 'ASC')
-        ->orderBy('code', 'ASC')
+        ->select('results.*', 'course.title as course_title')
+        ->orderBy('results.session', 'DESC')
+        ->orderBy('results.level', 'ASC')
+        ->orderBy('results.semester', 'ASC')
+        ->orderBy('results.code', 'ASC')
         ->get();
 
     $data['sessions'] = DB::table('session')->select('title')->orderBy('title', 'ASC')->get();
@@ -1155,8 +1157,11 @@ Route::get('/student-result', function (Request $req) {
     $cgpaResults = $cgpaQuery->get(['unit', 'ugp']);
     $cgpaUnits = $cgpaResults->sum(fn ($result) => (float) ($result->unit ?? 0));
     $cgpaPoints = $cgpaResults->sum(fn ($result) => (float) ($result->ugp ?? 0));
-    $cgpa = $cgpaUnits > 0 ? $cgpaPoints / $cgpaUnits : (float) ($history->cgpa ?? 0);
-    $data['cgpa'] = $cgpa;
+    $calculatedCgpa = $cgpaUnits > 0 ? $cgpaPoints / $cgpaUnits : 0.0;
+    $historyCgpa = is_numeric($history->cgpa ?? null) ? (float) $history->cgpa : null;
+    $data['cgpa'] = $historyCgpa !== null ? $historyCgpa : $calculatedCgpa;
+    $data['historyCgpa'] = $historyCgpa;
+    $data['calculatedCgpa'] = $calculatedCgpa;
     $data['academicStatus'] = $history->status ?? null;
     $data['student'] = DB::table('students')
         ->where('username', session('id_number'))
