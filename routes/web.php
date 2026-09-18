@@ -1142,6 +1142,22 @@ Route::get('/student-result', function (Request $req) {
 
     $data['sessions'] = DB::table('session')->select('title')->orderBy('title', 'ASC')->get();
     $data['selectedSession'] = $selectedSession;
+    $historyQuery = DB::table('session_history')->where('username', session('id_number'));
+    if (strtolower((string) $selectedSession) !== 'all') {
+        $historyQuery->where('session', $selectedSession);
+    }
+    $history = $historyQuery->orderBy('session', 'DESC')->first();
+    $cgpaQuery = DB::table('results')
+        ->where(['username' => session('id_number'), 'approve' => 'vc']);
+    if (strtolower((string) $selectedSession) !== 'all') {
+        $cgpaQuery->where('session', '<=', $selectedSession);
+    }
+    $cgpaResults = $cgpaQuery->get(['unit', 'ugp']);
+    $cgpaUnits = $cgpaResults->sum(fn ($result) => (float) ($result->unit ?? 0));
+    $cgpaPoints = $cgpaResults->sum(fn ($result) => (float) ($result->ugp ?? 0));
+    $cgpa = $cgpaUnits > 0 ? $cgpaPoints / $cgpaUnits : (float) ($history->cgpa ?? 0);
+    $data['cgpa'] = $cgpa;
+    $data['academicStatus'] = $history->status ?? null;
     $data['student'] = DB::table('students')
         ->where('username', session('id_number'))
         ->select('fullname', 'username', 'program', 'level')
