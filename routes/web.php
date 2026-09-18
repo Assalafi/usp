@@ -1128,8 +1128,13 @@ Route::get('/student-result', function (Request $req) {
         return redirect('/');
     }
     $selectedSession = $req->input('session', session('system_session'));
-    $data['data'] = DB::table('results')
-        ->where(['username' => session('id_number'), 'session' => $selectedSession, 'approve' => 'vc'])
+    $resultsQuery = DB::table('results')
+        ->where(['username' => session('id_number'), 'approve' => 'vc']);
+    if (strtolower((string) $selectedSession) !== 'all') {
+        $resultsQuery->where('session', $selectedSession);
+    }
+    $data['data'] = $resultsQuery
+        ->orderBy('session', 'DESC')
         ->orderBy('level', 'ASC')
         ->orderBy('semester', 'ASC')
         ->orderBy('code', 'ASC')
