@@ -285,46 +285,70 @@ class StudentCourseRegistrationController extends Controller
 
     public function registerMyCourses(Request $req)
     {
-        // dd($req->all());
         if (!session()->has('log')) {
             return redirect('/');
         }
-        // get the array of selected courses (merge mobile and desktop, remove duplicates)
-        $mobileCourses = $req->input('courses', []);
-        $desktopCourses = $req->input('desktop_courses', []);
-        $allCourses = array_merge($mobileCourses, $desktopCourses);
-        $selectedCourses = array_unique($allCourses);
 
-        $session = $req->input('session');
+        $selectedCourses = array_values(array_unique(array_merge(
+            $req->input('courses', []),
+            $req->input('desktop_courses', [])
+        )));
+        $session = $req->input('session', session('system_session'));
         $username = session('id_number');
         if (empty($selectedCourses)) {
             return redirect()->back()->with('error', 'No courses selected!!!');
         }
 
-        // delete existing courses for this session
-        StudentCourseRegistration::where(['username' => $username, 'session' => $session])->delete();
+        $courseQuery = DB::table('program_course_registration')
+            ->where('program', session('program'));
+        if (session('structure_id')) {
+            $courseQuery->where('structure_id', session('structure_id'));
+        }
+        $programmeCourses = $courseQuery->get()->keyBy(function ($course) {
+            return $course->code . '|' . $course->level;
+        });
 
+        $rows = [];
         foreach ($selectedCourses as $row) {
             $courseJson = json_decode($row);
+            if (!$courseJson || empty($courseJson->code) || empty($courseJson->level)) {
+                continue;
+            }
 
-            $semester = $courseJson->semester;
-            $type = $courseJson->type;
-            $code = $courseJson->code;
-            $unit = $courseJson->unit;
-            $level = $courseJson->level;
+            $course = $programmeCourses->get($courseJson->code . '|' . $courseJson->level);
+            if (!$course) {
+                continue;
+            }
 
-            // create new course registration
-            StudentCourseRegistration::create([
+            $semester = strtoupper((string) ($courseJson->semester ?? $course->semester));
+            $canChangeSemester = (string) ($course->change_semester ?? '0') === '1';
+            if (!$canChangeSemester || !in_array($semester, ['FIRST', 'SECOND'], true)) {
+                $semester = $course->semester;
+            }
+
+            $rows[] = [
                 'username' => $username,
                 'session' => $session,
                 'semester' => $semester,
-                'type' => $type,
-                'code' => $code,
-                'unit' => $unit,
-                'level' => $level,
-            ]);
+                'type' => $course->type,
+                'code' => $course->code,
+                'unit' => $course->unit,
+                'level' => $course->level,
+            ];
         }
-        return redirect()->back()->with('success', $session . ' Courses Registered!!!');
+
+        if (empty($rows)) {
+            return redirect()->back()->with('error', 'We could not validate the selected courses. Please refresh the page and try again.');
+        }
+
+        DB::transaction(function () use ($username, $session, $rows) {
+            StudentCourseRegistration::where(['username' => $username, 'session' => $session])->delete();
+            foreach ($rows as $row) {
+                StudentCourseRegistration::create($row);
+            }
+        });
+
+        return redirect()->back()->with('success', $session . ' courses registered successfully.');
     }
 
     public function registerCoursesNewStudentt(Request $req)
@@ -734,11 +758,36 @@ class StudentCourseRegistrationController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
-        $id = DB::table('student_course_registration')->where('id', $req->id)->update([
-            'semester' => $req->semester
+
+        $req->validate([
+            'id' => ['required'],
+            'semester' => ['required', 'in:FIRST,SECOND'],
         ]);
 
-        return redirect()->back()->with('success', 'Record Updated!!!');
+        $registration = StudentCourseRegistration::where('id', $req->id)
+            ->where('username', session('id_number'))
+            ->first();
+
+        if (!$registration) {
+            return redirect()->back()->with('error', 'That course registration could not be found.');
+        }
+
+        $courseQuery = DB::table('program_course_registration')
+            ->where('program', session('program'))
+            ->where('code', $registration->code)
+            ->where('level', $registration->level);
+        if (session('structure_id')) {
+            $courseQuery->where('structure_id', session('structure_id'));
+        }
+        $programmeCourse = $courseQuery->first();
+
+        if (!$programmeCourse || (string) ($programmeCourse->change_semester ?? '0') !== '1') {
+            return redirect()->back()->with('error', 'The semester for this course is fixed by your programme.');
+        }
+
+        $registration->update(['semester' => $req->semester]);
+
+        return redirect()->back()->with('success', 'The course semester was updated successfully.');
     }
 
     public function delete(Request $req)

@@ -1,1104 +1,319 @@
 @php
     use App\Models\Student;
     use Illuminate\Support\Facades\DB;
-    $course_flag = DB::table('program')
-        ->where(['code' => session('program')])
-        ->select('courses')
+
+    $courseFlag = DB::table('program')
+        ->where('code', session('program'))
         ->value('courses');
-    // Always read the current level from the student record. The login session
-    // may contain a legacy users.level value until the next login.
+
     $studentCurrentLevel = (int) (Student::where('user_id', session('id'))->value('level')
+        ?? Student::where('username', session('id_number'))->value('level')
         ?? session('current_level')
         ?? session('level')
         ?? 0);
+
+    $selectedSession = request('session', session('system_session'));
+
+    $registeredCourses = DB::table('student_course_registration as scr')
+        ->join('course', 'scr.code', '=', 'course.code')
+        ->leftJoin('program_course_registration as pcr', function ($join) {
+            $join->on('scr.code', '=', 'pcr.code')
+                ->whereColumn('scr.level', 'pcr.level')
+                ->where('pcr.program', session('program'))
+                ->where('pcr.structure_id', session('structure_id'));
+        })
+        ->where('scr.username', session('id_number'))
+        ->where('scr.session', $selectedSession)
+        ->select(
+            'scr.*',
+            'course.title',
+            'pcr.change_semester',
+            'pcr.type as programme_type'
+        )
+        ->orderBy('scr.level')
+        ->orderBy('scr.semester')
+        ->orderBy('scr.code')
+        ->get();
+
+    $availableCourses = DB::table('program_course_registration as pcr')
+        ->join('course', 'pcr.code', '=', 'course.code')
+        ->where('pcr.program', session('program'))
+        ->where('pcr.structure_id', session('structure_id'))
+        ->where('pcr.level', '<=', $studentCurrentLevel)
+        ->select(
+            'course.code',
+            'course.title',
+            'course.unit',
+            'pcr.semester',
+            'pcr.type',
+            'pcr.level',
+            'pcr.elective',
+            'pcr.change_semester'
+        )
+        ->orderBy('pcr.level')
+        ->orderBy('pcr.semester')
+        ->orderBy('pcr.type')
+        ->orderBy('course.code')
+        ->get();
+
+    $registeredCodes = $registeredCourses->pluck('code')->all();
+    $courseLevels = $availableCourses->groupBy('level');
+    $levels = $courseLevels->keys()->sort()->values();
+    $sessions = DB::table('session')->orderBy('title', 'desc')->get();
 @endphp
 
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
-<!-- Start Content-->
-<div class="main-body">
+<div class="main-body ug-course-page">
     <div class="page-wrapper">
-        @if ($course_flag == 1 || strpos(session('faculty'), '.PG') !== false)
-
-            <!-- Session Selection - Mobile Optimized -->
-            <div class="row mb-4">
-                <div class="col-12 col-md-12">
-                    <div class="card">
-                        <div class="card-body p-3">
-                            <div class="row text-center g-3">
-                                <div class="col-4">
-                                    <h4 class="text-primary mb-1 fs-5 fs-md-4" id="totalCourses">0</h4>
-                                    <small class="text-muted d-block">Total Courses</small>
-                                </div>
-                                <div class="col-4">
-                                    <h4 class="text-success mb-1 fs-5 fs-md-4" id="firstSemesterCount">0</h4>
-                                    <small class="text-muted d-block">First</small>
-                                </div>
-                                <div class="col-4">
-                                    <h4 class="text-info mb-1 fs-5 fs-md-4" id="secondSemesterCount">0</h4>
-                                    <small class="text-muted d-block">Second</small>
-                                </div>
-                            </div>
-                        </div>
+        @if ($courseFlag == 1 || strpos((string) session('faculty'), '.PG') !== false)
+            <div class="ug-course-shell">
+                <div class="ug-course-hero">
+                    <div>
+                        <span class="ug-eyebrow"><i class="fas fa-graduation-cap"></i> Academic registration</span>
+                        <h1>Course registration</h1>
+                        <p>Select your courses carefully, then save once. You can review or remove them later.</p>
                     </div>
-                </div>
-            </div>
-
-            <!-- Tab Navigation -->
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <ul class="nav nav-tabs card-header-tabs" id="courseRegistrationTabs" role="tablist">
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link active" id="registered-tab" data-bs-toggle="tab"
-                                        data-bs-target="#registered-courses" type="button" role="tab">
-                                        <i class="fas fa-list me-2"></i>Registered
-                                    </button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="register-tab" data-bs-toggle="tab"
-                                        data-bs-target="#register-courses" type="button" role="tab">
-                                        <i class="fas fa-plus-circle me-2"></i>Register
-                                    </button>
-                                </li>
-                                <li class="nav-item" style="width: 33%;">
-                                    <form action="/student course registration" method="GET"
-                                        style="padding: 5px;margin: 0%;">
-                                        <select name="session" class="form-select" onchange="this.form.submit()"
-                                            style="width: 100%;">
-                                            @php
-                                                // Get current system session and extract year
-                                                $currentSession = session('system_session');
-                                                $currentYear = (int) substr($currentSession, 0, 4);
-                                                $endYear = 2005;
-
-                                                // Generate sessions from current year down to 2005/2006
-                                                $sessions = [];
-                                                for ($year = $currentYear; $year >= $endYear; $year--) {
-                                                    $nextYear = $year + 1;
-                                                    $sessionValue = $year . '/' . $nextYear;
-                                                    $sessions[] = $sessionValue;
-                                                }
-                                            @endphp
-
-                                            @foreach ($sessions as $index => $sessionValue)
-                                                <option value="{{ $sessionValue }}"
-                                                    {{ request('session', session('system_session')) == $sessionValue ? 'selected' : '' }}>
-                                                    {{ $sessionValue }}{{ $index == 0 ? ' (Current)' : '' }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </form>
-                                </li>
-                            </ul>
-                        </div>
-                        <div class="card-body">
-                            <div class="tab-content" id="courseRegistrationTabContent">
-
-                                <!-- Registered Courses Tab -->
-                                <div class="tab-pane fade show active" id="registered-courses" role="tabpanel">
-                                    @php
-                                        // Get ALL registered courses for this student (all levels) ordered by level, semester, type
-                                        $allRegisteredCourses = DB::table('student_course_registration as scr')
-                                            ->join('course', 'scr.code', '=', 'course.code')
-                                            ->join('program_course_registration as pcr', function ($join) {
-                                                $join
-                                                    ->on('scr.code', '=', 'pcr.code')
-                                                    ->where('pcr.program', session('program'))
-                                                    ->where('pcr.structure_id', session('structure_id'));
-                                            })
-                                            ->where('scr.username', session('id_number'))
-                                            ->where('scr.session', request('session', session('system_session')))
-                                            ->select('scr.*', 'course.title', 'pcr.level', 'pcr.type')
-                                            ->orderBy('pcr.level')
-                                            ->orderBy('scr.semester')
-                                            ->orderBy('pcr.type')
-                                            ->orderBy('scr.code')
-                                            ->get();
-
-                                        $coursesBySemester = $allRegisteredCourses->groupBy('semester');
-                                        $semesters = ['FIRST', 'SECOND'];
-                                    @endphp
-
-                                    @if (count($allRegisteredCourses) > 0)
-                                        <!-- Semester Tabs Navigation -->
-                                        <ul class="nav nav-pills nav-fill mb-4" id="semesterTabs" role="tablist">
-                                            @foreach ($semesters as $index => $semester)
-                                                @if (isset($coursesBySemester[$semester]) && count($coursesBySemester[$semester]) > 0)
-                                                    <li class="nav-item" role="presentation">
-                                                        <button class="nav-link {{ $index == 0 ? 'active' : '' }}"
-                                                            id="semester-{{ $semester }}-tab" data-bs-toggle="pill"
-                                                            data-bs-target="#semester-{{ $semester }}"
-                                                            type="button" role="tab">
-                                                            {{ $semester }}
-                                                            <span
-                                                                class="badge bg-light text-dark ms-2">{{ count($coursesBySemester[$semester]) }}</span>
-                                                        </button>
-                                                    </li>
-                                                @endif
-                                            @endforeach
-                                        </ul>
-
-                                        <!-- Bulk Actions -->
-                                        <div class="row mb-3">
-                                            <div class="col-12">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                        <button type="button" class="btn btn-outline-danger"
-                                                            id="bulkRemoveBtn" style="display: none;"
-                                                            onclick="bulkRemoveCourses()">
-                                                            <i class="fas fa-trash me-2"></i>Remove Selected (<span
-                                                                id="selectedCount">0</span>)
-                                                        </button>
-                                                    </div>
-                                                    <div>
-                                                        <button type="button" class="btn btn-outline-secondary btn-sm"
-                                                            id="clearAllBtn" style="display: none;"
-                                                            onclick="clearAllSelections()">
-                                                            <i class="fas fa-times me-1"></i>Clear All
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Semester Tab Content -->
-                                        <div class="tab-content" id="semesterTabContent">
-                                            @foreach ($semesters as $index => $semester)
-                                                @if (isset($coursesBySemester[$semester]) && count($coursesBySemester[$semester]) > 0)
-                                                    <div class="tab-pane fade {{ $index == 0 ? 'show active' : '' }}"
-                                                        id="semester-{{ $semester }}" role="tabpanel">
-                                                        <!-- Mobile-friendly cards for small screens -->
-                                                        <div class="d-md-none">
-                                                            @php $sn = 1; @endphp
-                                                            @foreach ($coursesBySemester[$semester] as $course)
-                                                                @php
-                                                                    $change = DB::table('program_course_registration')
-                                                                        ->where([
-                                                                            'program' => session('program'),
-                                                                            'structure_id' => session('structure_id'),
-                                                                            'code' => $course->code,
-                                                                        ])
-                                                                        ->value('change_semester');
-                                                                @endphp
-                                                                <div
-                                                                    class="card mb-3 border-start border-primary border-3">
-                                                                    <div class="card-body p-3">
-                                                                        <div
-                                                                            class="d-flex justify-content-between align-items-start mb-2">
-                                                                            <div class="form-check">
-                                                                                <input
-                                                                                    class="form-check-input bulk-select-checkbox"
-                                                                                    type="checkbox"
-                                                                                    value="{{ $course->id }}"
-                                                                                    id="bulk_{{ $course->id }}">
-                                                                                <label class="form-check-label"
-                                                                                    for="bulk_{{ $course->id }}">
-                                                                                    <h6
-                                                                                        class="mb-1 text-primary fw-bold">
-                                                                                        {{ $course->code }}</h6>
-                                                                                    <p class="mb-1 small">
-                                                                                        {{ $course->title ?: 'Course Title' }}
-                                                                                    </p>
-                                                                                </label>
-                                                                            </div>
-                                                                            <span
-                                                                                class="badge bg-dark">{{ $course->level }}L</span>
-                                                                        </div>
-                                                                        <div class="row g-2 mb-2">
-                                                                            <div class="col-3">
-                                                                                <small
-                                                                                    class="text-muted d-block">Units</small>
-                                                                                <span
-                                                                                    class="badge bg-info">{{ $course->unit }}</span>
-                                                                            </div>
-                                                                            <div class="col-3">
-                                                                                <small
-                                                                                    class="text-muted d-block">Semester</small>
-                                                                                @if ($change == 1)
-                                                                                    <button
-                                                                                        class="btn btn-outline-info btn-sm p-1"
-                                                                                        type="button"
-                                                                                        data-bs-toggle="modal"
-                                                                                        data-bs-target="#update{{ $course->id }}">
-                                                                                        {{ $course->semester }} <i
-                                                                                            class="fas fa-edit"></i>
-                                                                                    </button>
-                                                                                @else
-                                                                                    <span
-                                                                                        class="badge bg-secondary">{{ $course->semester }}</span>
-                                                                                @endif
-                                                                            </div>
-                                                                            <div class="col-3">
-                                                                                <small
-                                                                                    class="text-muted d-block">Type</small>
-                                                                                <span
-                                                                                    class="badge {{ $course->type == 'CORE' ? 'bg-success' : 'bg-warning' }}">
-                                                                                    {{ $course->type }}
-                                                                                </span>
-                                                                            </div>
-                                                                            <div class="col-3">
-                                                                                <small
-                                                                                    class="text-muted d-block">Action</small>
-                                                                                <button
-                                                                                    class="btn btn-outline-danger btn-sm"
-                                                                                    onclick="removeCourse('{{ $course->id }}')">
-                                                                                    <i class="fas fa-trash"></i>
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-
-                                                                @if ($change == 1)
-                                                                    <!-- Change Semester Modal -->
-                                                                    <div id="update{{ $course->id }}"
-                                                                        class="modal fade" tabindex="-1"
-                                                                        role="dialog">
-                                                                        <div class="modal-dialog modal-sm"
-                                                                            role="document">
-                                                                            <div class="modal-content">
-                                                                                <div class="modal-header">
-                                                                                    <h5 class="modal-title">Change
-                                                                                        Semester</h5>
-                                                                                    <button type="button"
-                                                                                        class="btn-close"
-                                                                                        data-bs-dismiss="modal"></button>
-                                                                                </div>
-                                                                                <form action="change-semester"
-                                                                                    method="POST">
-                                                                                    <div class="modal-body">
-                                                                                        @csrf
-                                                                                        <input type="hidden"
-                                                                                            name="id"
-                                                                                            value="{{ $course->id }}">
-                                                                                        <div class="mb-3">
-                                                                                            <label
-                                                                                                class="form-label fw-bold">Select
-                                                                                                New Semester:</label>
-                                                                                            <select class="form-select"
-                                                                                                name="semester"
-                                                                                                required>
-                                                                                                <option
-                                                                                                    value="{{ $course->semester }}">
-                                                                                                    Current:
-                                                                                                    {{ $course->semester }}
-                                                                                                </option>
-                                                                                                <option value="FIRST">
-                                                                                                    First Semester
-                                                                                                </option>
-                                                                                                <option value="SECOND">
-                                                                                                    Second Semester
-                                                                                                </option>
-                                                                                            </select>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    <div class="modal-footer">
-                                                                                        <button type="button"
-                                                                                            class="btn btn-secondary"
-                                                                                            data-bs-dismiss="modal">Cancel</button>
-                                                                                        <button type="submit"
-                                                                                            class="btn btn-primary">Save
-                                                                                            Changes</button>
-                                                                                    </div>
-                                                                                </form>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                @endif
-                                                            @endforeach
-                                                        </div>
-
-                                                        <!-- Desktop table for larger screens -->
-                                                        <div class="d-none d-md-block">
-                                                            <div class="table-responsive">
-                                                                <table class="table table-striped">
-                                                                    <thead class="table-primary">
-                                                                        <tr>
-                                                                            <th width="50">
-                                                                                <div class="form-check">
-                                                                                    <input class="form-check-input"
-                                                                                        type="checkbox"
-                                                                                        id="selectAllSemester{{ $semester }}">
-                                                                                    <label class="form-check-label"
-                                                                                        for="selectAllSemester{{ $semester }}">All</label>
-                                                                                </div>
-                                                                            </th>
-                                                                            <th>Course Code</th>
-                                                                            <th>Course Title</th>
-                                                                            <th>Units</th>
-                                                                            <th>Level</th>
-                                                                            <th>Semester</th>
-                                                                            <th>Type</th>
-                                                                            <th>Action</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody>
-                                                                        @php $sn = 1; @endphp
-                                                                        @foreach ($coursesBySemester[$semester] as $course)
-                                                                            @php
-                                                                                $change = DB::table(
-                                                                                    'program_course_registration',
-                                                                                )
-                                                                                    ->where([
-                                                                                        'program' => session('program'),
-                                                                                        'structure_id' => session(
-                                                                                            'structure_id',
-                                                                                        ),
-                                                                                        'code' => $course->code,
-                                                                                    ])
-                                                                                    ->value('change_semester');
-                                                                            @endphp
-                                                                            <tr>
-                                                                                <td>
-                                                                                    <div class="form-check">
-                                                                                        <input
-                                                                                            class="form-check-input bulk-select-checkbox"
-                                                                                            type="checkbox"
-                                                                                            value="{{ $course->id }}"
-                                                                                            id="bulk_desktop_{{ $course->id }}">
-                                                                                    </div>
-                                                                                </td>
-                                                                                <td>
-                                                                                    <strong
-                                                                                        class="text-primary">{{ $course->code }}</strong>
-                                                                                </td>
-                                                                                <td>{{ $course->title ?: 'Course Title' }}
-                                                                                </td>
-                                                                                <td>
-                                                                                    <span
-                                                                                        class="badge bg-info">{{ $course->unit }}</span>
-                                                                                </td>
-                                                                                <td>
-                                                                                    <span
-                                                                                        class="badge bg-dark">{{ $course->level }}L</span>
-                                                                                </td>
-                                                                                <td>
-                                                                                    @if ($change == 1)
-                                                                                        <button
-                                                                                            class="btn btn-outline-info btn-sm"
-                                                                                            type="button"
-                                                                                            data-bs-toggle="modal"
-                                                                                            data-bs-target="#update{{ $course->id }}">
-                                                                                            {{ $course->semester }} <i
-                                                                                                class="fas fa-edit ms-1"></i>
-                                                                                        </button>
-                                                                                    @else
-                                                                                        <span
-                                                                                            class="badge bg-secondary">{{ $course->semester }}</span>
-                                                                                    @endif
-                                                                                </td>
-                                                                                <td>
-                                                                                    <span
-                                                                                        class="badge {{ $course->type == 'CORE' ? 'bg-success' : 'bg-warning' }}">
-                                                                                        {{ $course->type }}
-                                                                                    </span>
-                                                                                </td>
-                                                                                <td>
-                                                                                    <button
-                                                                                        class="btn btn-outline-danger btn-sm"
-                                                                                        onclick="removeCourse('{{ $course->id }}')">
-                                                                                        <i class="fas fa-trash"></i>
-                                                                                    </button>
-                                                                                </td>
-                                                                            </tr>
-                                                                        @endforeach
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                @endif
-                                            @endforeach
-                                        </div>
-
-                                        <!-- Action Buttons -->
-                                        <div class="row mt-4">
-                                            @if (session('student_session') == session('system_session') || strpos(session('faculty'), '.PG') !== false)
-                                                <div class="col-md-6 mb-3">
-                                                    <form action="create {{ $page }}" method="POST">
-                                                        @csrf
-                                                        <input type="hidden" value="new" name="register">
-                                                        <button type="submit" class="btn btn-warning btn-lg w-100">
-                                                            <i class="fas fa-redo me-2"></i>Regenerate Core Courses
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            @endif
-                                            <div class="col-md-6 mb-3">
-                                                <button class="btn btn-info btn-sm w-100" data-bs-toggle="modal"
-                                                    data-bs-target="#printModal">
-                                                    <i class="fas fa-print me-2"></i>Print Course Registration
-                                                </button>
-                                            </div>
-                                        </div>
-                                    @else
-                                        <div class="text-center py-5">
-                                            <i class="fas fa-book-open fa-3x text-muted mb-3"></i>
-                                            <h5 class="text-muted">No courses registered yet</h5>
-                                            <p class="text-muted">Switch to the "Register Courses" tab to select
-                                                courses</p>
-                                        </div>
+                    <div class="ug-session-picker">
+                        <label for="registrationSession">Session</label>
+                        <form action="{{ url('/student course registration') }}" method="GET">
+                            <select id="registrationSession" name="session" onchange="this.form.submit()">
+                                @foreach ($sessions as $sessionRow)
+                                    @php $sessionTitle = $sessionRow->title ?? $sessionRow->session ?? ''; @endphp
+                                    @if ($sessionTitle !== '')
+                                        <option value="{{ $sessionTitle }}" {{ $selectedSession == $sessionTitle ? 'selected' : '' }}>
+                                            {{ $sessionTitle }}{{ $selectedSession == $sessionTitle && $sessionTitle == session('system_session') ? ' (Current)' : '' }}
+                                        </option>
                                     @endif
-                                </div>
-
-                                <!-- Register Courses Tab -->
-                                <div class="tab-pane fade" id="register-courses" role="tabpanel">
-                                    @php
-                                        // Get all available courses and group by level (only up to student's current level)
-$availableCourses = DB::table('program_course_registration')
-    ->join('course', 'program_course_registration.code', '=', 'course.code')
-    ->where('program_course_registration.program', session('program'))
-    ->where('program_course_registration.structure_id', session('structure_id'))
-    ->where('program_course_registration.level', '<=', $studentCurrentLevel)
-    ->select(
-        'course.*',
-        'program_course_registration.semester',
-        'program_course_registration.type',
-        'program_course_registration.level',
-    )
-    ->orderBy('program_course_registration.level')
-    ->orderBy('program_course_registration.semester')
-    ->orderBy('program_course_registration.type')
-    ->orderBy('course.code')
-    ->get();
-
-$registeredCourses = collect($data)->pluck('code')->toArray();
-$coursesByLevel = $availableCourses->groupBy('level');
-                                        $levels = $coursesByLevel->keys()->sortDesc();
-                                    @endphp
-
-                                    <form id="courseRegistrationForm" action="/register-my-courses" method="POST">
-                                        @csrf
-                                        <input type="hidden" name="session"
-                                            value="{{ request('session', session('system_session')) }}">
-
-                                        @if (count($levels) > 0)
-                                            <!-- Level Tabs Navigation -->
-                                            <ul class="nav nav-pills nav-fill mb-4" id="levelTabs" role="tablist">
-                                                @foreach ($levels as $index => $level)
-                                                    <li class="nav-item" role="presentation">
-                                                        <button
-                                                            class="nav-link {{ (int) $level === $studentCurrentLevel ? 'active' : '' }}"
-                                                            id="level-{{ $level }}-tab" data-bs-toggle="pill"
-                                                            data-bs-target="#level-{{ $level }}"
-                                                            type="button" role="tab">
-                                                            {{ $level }} Level
-                                                            <span
-                                                                class="badge bg-light text-dark ms-2">{{ count($coursesByLevel[$level]) }}</span>
-                                                        </button>
-                                                    </li>
-                                                @endforeach
-                                            </ul>
-
-                                            <!-- Level Tab Content -->
-                                            <div class="tab-content" id="levelTabContent">
-                                                @foreach ($levels as $index => $level)
-                                                    <div class="tab-pane fade {{ (int) $level === $studentCurrentLevel ? 'show active' : '' }}"
-                                                        id="level-{{ $level }}" role="tabpanel">
-
-                                                        <!-- Mobile-friendly cards for small screens -->
-                                                        <div class="d-md-none">
-                                                            <div class="mb-3">
-                                                                <div class="form-check">
-                                                                    <input
-                                                                        class="form-check-input select-all-level-mobile"
-                                                                        type="checkbox"
-                                                                        id="selectAllLevel{{ $level }}Mobile"
-                                                                        data-level="{{ $level }}">
-                                                                    <label class="form-check-label fw-bold"
-                                                                        for="selectAllLevel{{ $level }}Mobile">
-                                                                        Select All {{ $level }} Level Courses
-                                                                    </label>
-                                                                </div>
-                                                            </div>
-
-                                                            @foreach ($coursesByLevel[$level] as $course)
-                                                                <div
-                                                                    class="card mb-3 border-start border-success border-3">
-                                                                    <div class="card-body p-3">
-                                                                        <div class="form-check mb-2">
-                                                                            <input
-                                                                                class="form-check-input course-checkbox-mobile course-checkbox-level-{{ $level }}"
-                                                                                type="checkbox" name="courses[]"
-                                                                                value="{{ json_encode(['code' => $course->code, 'semester' => $course->semester, 'type' => $course->type, 'unit' => $course->unit, 'level' => $level]) }}"
-                                                                                id="mobile_course_{{ $course->code }}"
-                                                                                data-units="{{ $course->unit }}"
-                                                                                data-level="{{ $level }}"
-                                                                                {{ in_array($course->code, $registeredCourses) ? 'checked' : '' }}>
-                                                                            <label
-                                                                                class="form-check-label fw-bold text-primary"
-                                                                                for="mobile_course_{{ $course->code }}">
-                                                                                {{ $course->code }}
-                                                                            </label>
-                                                                        </div>
-                                                                        <div class="mb-2">
-                                                                            <p class="mb-1 small">{{ $course->title }}
-                                                                            </p>
-                                                                        </div>
-                                                                        <div class="row g-2">
-                                                                            <div class="col-4">
-                                                                                <small
-                                                                                    class="text-muted d-block">Units</small>
-                                                                                <span
-                                                                                    class="badge bg-info">{{ $course->unit }}</span>
-                                                                            </div>
-                                                                            <div class="col-4">
-                                                                                <small
-                                                                                    class="text-muted d-block">Semester</small>
-                                                                                <span
-                                                                                    class="badge bg-secondary">{{ $course->semester }}</span>
-                                                                            </div>
-                                                                            <div class="col-4">
-                                                                                <small
-                                                                                    class="text-muted d-block">Type</small>
-                                                                                <span
-                                                                                    class="badge {{ $course->type == 'CORE' ? 'bg-success' : 'bg-warning' }}">
-                                                                                    {{ $course->type }}
-                                                                                </span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            @endforeach
-                                                        </div>
-
-                                                        <!-- Desktop table for larger screens -->
-                                                        <div class="d-none d-md-block">
-                                                            <div class="table-responsive">
-                                                                <table class="table table-hover">
-                                                                    <thead class="table-success">
-                                                                        <tr>
-                                                                            <th width="50">
-                                                                                <div class="form-check">
-                                                                                    <input
-                                                                                        class="form-check-input select-all-level"
-                                                                                        type="checkbox"
-                                                                                        id="selectAllLevel{{ $level }}"
-                                                                                        data-level="{{ $level }}">
-                                                                                    <label class="form-check-label"
-                                                                                        for="selectAllLevel{{ $level }}">All</label>
-                                                                                </div>
-                                                                            </th>
-                                                                            <th>Course Code</th>
-                                                                            <th>Course Title</th>
-                                                                            <th>Units</th>
-                                                                            <th>Semester</th>
-                                                                            <th>Type</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody>
-                                                                        @foreach ($coursesByLevel[$level] as $course)
-                                                                            <tr class="course-row">
-                                                                                <td>
-                                                                                    <div class="form-check">
-                                                                                        <input
-                                                                                            class="form-check-input course-checkbox course-checkbox-level-{{ $level }}"
-                                                                                            type="checkbox"
-                                                                                            name="desktop_courses[]"
-                                                                                            value="{{ json_encode(['code' => $course->code, 'semester' => $course->semester, 'type' => $course->type, 'unit' => $course->unit, 'level' => $level]) }}"
-                                                                                            id="course_{{ $course->code }}"
-                                                                                            data-units="{{ $course->unit }}"
-                                                                                            data-level="{{ $level }}"
-                                                                                            {{ in_array($course->code, $registeredCourses) ? 'checked' : '' }}>
-                                                                                    </div>
-                                                                                </td>
-                                                                                <td>
-                                                                                    <strong
-                                                                                        class="text-primary">{{ $course->code }}</strong>
-                                                                                </td>
-                                                                                <td>{{ $course->title }}</td>
-                                                                                <td>
-                                                                                    <span
-                                                                                        class="badge bg-info">{{ $course->unit }}</span>
-                                                                                </td>
-                                                                                <td>
-                                                                                    <span
-                                                                                        class="badge bg-secondary">{{ $course->semester }}</span>
-                                                                                </td>
-                                                                                <td>
-                                                                                    <span
-                                                                                        class="badge {{ $course->type == 'CORE' ? 'bg-success' : 'bg-warning' }}">
-                                                                                        {{ $course->type }}
-                                                                                    </span>
-                                                                                </td>
-                                                                            </tr>
-                                                                        @endforeach
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                @endforeach
-                                            </div>
-
-                                            <!-- Action Buttons -->
-                                            <div
-                                                class="d-flex flex-column flex-md-row justify-content-between align-items-center mt-4 gap-2">
-                                                <div>
-                                                    <button type="button"
-                                                        class="btn btn-outline-secondary btn-sm px-4 w-100 w-md-auto"
-                                                        onclick="clearAllCourses()">
-                                                        <i class="fas fa-times me-1"></i>Clear All Selected
-                                                    </button>
-                                                </div>
-                                                <div>
-                                                    <button type="submit"
-                                                        class="btn btn-success btn-sm px-4 w-100 w-md-auto">
-                                                        <i class="fas fa-save me-2"></i>Register Selected Courses
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        @else
-                                            <div class="text-center py-5">
-                                                <i class="fas fa-book-open fa-3x text-muted mb-3"></i>
-                                                <h5 class="text-muted">No courses available for registration</h5>
-                                                <p class="text-muted">Please contact your academic advisor</p>
-                                            </div>
-                                        @endif
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Print Modal -->
-            <div id="printModal" class="modal fade" tabindex="-1" role="dialog">
-                <div class="modal-dialog modal-md" role="document">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Print Course Registration</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <form action="/get-registered-courses" method="GET">
-                            <div class="modal-body">
-                                @csrf
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Select Session to Print:</label>
-                                    <select class="form-select" name="session" required>
-                                        <option value="">Choose session...</option>
-                                        @php
-                                            // Get current system session and extract year
-                                            $currentSession = session('system_session');
-                                            $currentYear = (int) substr($currentSession, 0, 4);
-                                            $endYear = 2005;
-
-                                            // Generate sessions from current year down to 2005/2006
-                                            $sessions = [];
-                                            for ($year = $currentYear; $year >= $endYear; $year--) {
-                                                $nextYear = $year + 1;
-                                                $sessionValue = $year . '/' . $nextYear;
-                                                $sessions[] = $sessionValue;
-                                            }
-                                        @endphp
-
-                                        @foreach ($sessions as $index => $sessionValue)
-                                            <option value="{{ $sessionValue }}"
-                                                {{ request('session', session('system_session')) == $sessionValue ? 'selected' : '' }}>
-                                                {{ $sessionValue }}{{ $index == 0 ? ' (Current)' : '' }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary"
-                                    data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-success">
-                                    <i class="fas fa-print me-2"></i>Generate Print
-                                </button>
-                            </div>
+                                @endforeach
+                            </select>
                         </form>
                     </div>
                 </div>
+
+                <div class="ug-course-stats" aria-label="Registration summary">
+                    <div><span class="ug-stat-icon blue"><i class="fas fa-book"></i></span><span><strong id="registeredCount">{{ $registeredCourses->count() }}</strong><small>Registered</small></span></div>
+                    <div><span class="ug-stat-icon green"><i class="fas fa-check-circle"></i></span><span><strong id="selectedCount">0</strong><small>Selected now</small></span></div>
+                    <div><span class="ug-stat-icon amber"><i class="fas fa-layer-group"></i></span><span><strong id="selectedUnits">0</strong><small>Selected units</small></span></div>
+                    <div><span class="ug-stat-icon purple"><i class="fas fa-calendar-alt"></i></span><span><strong>{{ $studentCurrentLevel ?: '—' }}</strong><small>Current level</small></span></div>
+                </div>
+
+                <div class="ug-course-tabs" role="tablist" aria-label="Course registration sections">
+                    <button class="ug-tab active" type="button" data-target="registeredPanel" aria-selected="true"><i class="fas fa-list-check"></i> My registered courses</button>
+                    <button class="ug-tab" type="button" data-target="selectPanel" aria-selected="false"><i class="fas fa-plus-circle"></i> Select courses</button>
+                </div>
+
+                <section id="registeredPanel" class="ug-panel" role="tabpanel">
+                    <div class="ug-panel-heading">
+                        <div>
+                            <h2>Your registered courses</h2>
+                            <p>{{ $registeredCourses->count() ? 'These are the courses currently saved for ' . $selectedSession . '.' : 'You have not registered any courses for this session yet.' }}</p>
+                        </div>
+                        @if ($registeredCourses->count())
+                            <button type="button" class="ug-outline-button" data-bs-toggle="modal" data-bs-target="#printModal"><i class="fas fa-file-pdf"></i> Print / download</button>
+                        @endif
+                    </div>
+
+                    @if ($registeredCourses->count())
+                        <div class="ug-semester-sections">
+                            @foreach (['FIRST' => 'First semester', 'SECOND' => 'Second semester'] as $semesterCode => $semesterLabel)
+                                @php $semesterCourses = $registeredCourses->where('semester', $semesterCode); @endphp
+                                @if ($semesterCourses->count())
+                                    <div class="ug-semester-block">
+                                        <div class="ug-semester-heading"><span>{{ $semesterLabel }}</span><b>{{ $semesterCourses->count() }} course{{ $semesterCourses->count() === 1 ? '' : 's' }}</b></div>
+                                        <div class="ug-registered-list">
+                                            @foreach ($semesterCourses as $course)
+                                                @php $canChangeSemester = (string) ($course->change_semester ?? '0') === '1'; @endphp
+                                                <article class="ug-registered-card">
+                                                    <div class="ug-course-code">{{ $course->code }}</div>
+                                                    <div class="ug-course-name">{{ $course->title ?: 'Course title unavailable' }}</div>
+                                                    <div class="ug-course-meta"><span>{{ $course->unit }} unit{{ (int) $course->unit === 1 ? '' : 's' }}</span><span>{{ $course->level }} level</span><span class="ug-type {{ strtoupper($course->type) === 'CORE' ? 'core' : 'elective' }}">{{ ucfirst(strtolower($course->type)) }}</span></div>
+                                                    <div class="ug-course-actions">
+                                                        @if ($canChangeSemester)
+                                                            <form action="{{ url('/change-semester') }}" method="POST" class="ug-semester-form">
+                                                                @csrf
+                                                                <input type="hidden" name="id" value="{{ $course->id }}">
+                                                                <label for="semester-{{ $course->id }}">Semester</label>
+                                                                <select id="semester-{{ $course->id }}" name="semester" onchange="this.form.submit()" aria-label="Change semester for {{ $course->code }}">
+                                                                    <option value="FIRST" {{ $course->semester === 'FIRST' ? 'selected' : '' }}>First</option>
+                                                                    <option value="SECOND" {{ $course->semester === 'SECOND' ? 'selected' : '' }}>Second</option>
+                                                                </select>
+                                                            </form>
+                                                        @else
+                                                            <span class="ug-fixed-semester"><i class="fas fa-calendar-check"></i> {{ $semesterLabel }}</span>
+                                                        @endif
+                                                        <button type="button" class="ug-delete-button" onclick="removeRegisteredCourse('{{ $course->id }}', '{{ $course->code }}')" aria-label="Remove {{ $course->code }}"><i class="fas fa-trash-alt"></i><span>Remove</span></button>
+                                                    </div>
+                                                </article>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
+                        @if (session('student_session') == session('system_session') || strpos((string) session('faculty'), '.PG') !== false)
+                            <form action="{{ url('/create ' . $page) }}" method="POST" class="ug-regenerate-form">
+                                @csrf
+                                <input type="hidden" name="register" value="new">
+                                <button type="submit" class="ug-outline-button"><i class="fas fa-rotate"></i> Regenerate core courses</button>
+                            </form>
+                        @endif
+                    @else
+                        <div class="ug-empty-state"><span><i class="fas fa-book-open"></i></span><h3>No courses registered yet</h3><p>Open “Select courses” to choose the courses you want to register for this session.</p><button type="button" class="ug-primary-button" data-target="selectPanel"><i class="fas fa-plus"></i> Select courses</button></div>
+                    @endif
+                </section>
+
+                <section id="selectPanel" class="ug-panel" role="tabpanel" hidden>
+                    <div class="ug-panel-heading">
+                        <div>
+                            <h2>Select your courses</h2>
+                            <p>Tick a course to add it. Courses marked “Choose semester” may be taken in either semester.</p>
+                        </div>
+                        <button type="button" class="ug-clear-button" id="clearCourses"><i class="fas fa-rotate-left"></i> Clear selection</button>
+                    </div>
+
+                    @if ($levels->count())
+                        <form id="courseRegistrationForm" action="{{ url('/register-my-courses') }}" method="POST">
+                            @csrf
+                            <input type="hidden" name="session" value="{{ $selectedSession }}">
+                            <div class="ug-help-note"><i class="fas fa-circle-info"></i><span>Start with your current level. You may also select outstanding courses from earlier levels. Your choices are saved when you click <strong>Save registration</strong>.</span></div>
+
+                            @foreach ($levels as $level)
+                                @php $levelCourses = $courseLevels[$level]; @endphp
+                                <div class="ug-level-section">
+                                    <div class="ug-level-heading">
+                                        <div><span class="ug-level-number">{{ $level }}</span><div><h3>{{ $level }} level courses</h3><p>{{ $levelCourses->count() }} available course{{ $levelCourses->count() === 1 ? '' : 's' }}</p></div></div>
+                                        <label class="ug-select-all"><input type="checkbox" class="select-level" data-level="{{ $level }}"><span>Select all</span></label>
+                                    </div>
+                                    <div class="ug-course-grid">
+                                        @foreach ($levelCourses as $course)
+                                            @php
+                                                $courseData = ['code' => $course->code, 'semester' => $course->semester, 'type' => $course->type, 'unit' => $course->unit, 'level' => $course->level];
+                                                $changeAllowed = (string) ($course->change_semester ?? '0') === '1';
+                                            @endphp
+                                            <article class="ug-select-card {{ in_array($course->code, $registeredCodes) ? 'is-registered' : '' }}">
+                                                <label class="ug-course-select-label">
+                                                    <input type="checkbox" class="course-choice" name="courses[]" value="{{ json_encode($courseData) }}" data-level="{{ $level }}" data-code="{{ $course->code }}" data-unit="{{ $course->unit }}" {{ in_array($course->code, $registeredCodes) ? 'checked' : '' }}>
+                                                    <span class="ug-checkmark"><i class="fas fa-check"></i></span>
+                                                    <span class="ug-course-main"><strong>{{ $course->code }}</strong><span>{{ $course->title ?: 'Course title unavailable' }}</span></span>
+                                                </label>
+                                                <div class="ug-select-meta"><span class="ug-unit-pill">{{ $course->unit }} unit{{ (int) $course->unit === 1 ? '' : 's' }}</span><span class="ug-type {{ strtoupper($course->type) === 'CORE' ? 'core' : 'elective' }}">{{ ucfirst(strtolower($course->type)) }}</span></div>
+                                                @if ($changeAllowed)
+                                                    <label class="ug-change-semester"><span><i class="fas fa-calendar-alt"></i> Choose semester</span><select class="course-semester" data-code="{{ $course->code }}" aria-label="Semester for {{ $course->code }}"><option value="FIRST" {{ $course->semester === 'FIRST' ? 'selected' : '' }}>First semester</option><option value="SECOND" {{ $course->semester === 'SECOND' ? 'selected' : '' }}>Second semester</option></select></label>
+                                                @else
+                                                    <div class="ug-fixed-choice"><i class="fas fa-calendar-check"></i> {{ ucfirst(strtolower($course->semester)) }} semester</div>
+                                                @endif
+                                            </article>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endforeach
+
+                            <div class="ug-save-bar">
+                                <div><strong><span id="saveCount">0</span> course<span id="savePlural">s</span> selected</strong><span><span id="saveUnits">0</span> total units</span></div>
+                                <button type="submit" class="ug-primary-button" id="saveRegistration"><i class="fas fa-save"></i> Save registration</button>
+                            </div>
+                        </form>
+                    @else
+                        <div class="ug-empty-state"><span><i class="fas fa-book-open"></i></span><h3>No courses are available</h3><p>Please contact your department if you believe this is incorrect.</p></div>
+                    @endif
+                </section>
+            </div>
+
+            <div id="printModal" class="modal fade" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title"><i class="fas fa-file-pdf text-danger me-2"></i>Print course registration</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><form action="{{ url('/get-registered-courses') }}" method="GET"><div class="modal-body"><label class="form-label" for="printSession">Choose session</label><select id="printSession" class="form-select" name="session" required>@foreach ($sessions as $sessionRow) @php $sessionTitle = $sessionRow->title ?? $sessionRow->session ?? ''; @endphp @if ($sessionTitle !== '')<option value="{{ $sessionTitle }}" {{ $selectedSession == $sessionTitle ? 'selected' : '' }}>{{ $sessionTitle }}</option>@endif @endforeach</select></div><div class="modal-footer"><button type="button" class="ug-clear-button" data-bs-dismiss="modal">Cancel</button><button type="submit" class="ug-primary-button"><i class="fas fa-download"></i> Generate PDF</button></div></form></div></div>
             </div>
         @else
-            <div class="text-center py-5">
-                <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                <h4>Course Registration Not Available</h4>
-                <p class="text-muted">Course registration is not enabled for your program at this time.</p>
-            </div>
+            <div class="ug-course-shell"><div class="ug-empty-state"><span class="warning"><i class="fas fa-lock"></i></span><h3>Course registration is not available</h3><p>Your programme is not enabled for online course registration at this time.</p></div></div>
         @endif
     </div>
 </div>
 
-<!-- Custom CSS -->
 <style>
-    .course-row:hover {
-        background-color: #f8f9fa;
-    }
-
-    .course-checkbox:checked+label {
-        font-weight: bold;
-    }
-
-    .table th {
-        border-top: none;
-        font-weight: 600;
-    }
-
-    .badge {
-        font-size: 0.75em;
-    }
-
-    .nav-tabs .nav-link {
-        color: #495057;
-        border: 1px solid transparent;
-    }
-
-    .nav-tabs .nav-link.active {
-        color: #495057;
-        background-color: #fff;
-        border-color: #dee2e6 #dee2e6 #fff;
-    }
-
-    @media (max-width: 768px) {
-        .btn-group {
-            flex-direction: column;
-            width: 100%;
-        }
-
-        .btn-group .btn {
-            margin: 2px 0;
-        }
-
-        .card-body {
-            padding: 1rem !important;
-        }
-
-        .table-responsive {
-            font-size: 0.875rem;
-        }
-
-        .badge {
-            font-size: 0.7em;
-        }
-
-        .btn-sm {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-        }
-
-        .nav-tabs .nav-link {
-            padding: 0.5rem 0.75rem;
-            font-size: 0.875rem;
-        }
-
-        .fs-5 {
-            font-size: 1.1rem !important;
-        }
-    }
+    .ug-course-page{background:#f4f7fb;min-height:calc(100vh - 70px);padding:clamp(12px,2vw,28px)}
+    .ug-course-shell{max-width:1180px;margin:0 auto}
+    .ug-course-hero{background:linear-gradient(125deg,#1457c5,#3ea1e4);color:#fff;border-radius:20px;padding:clamp(20px,4vw,36px);display:flex;align-items:flex-end;justify-content:space-between;gap:24px;box-shadow:0 12px 30px rgba(28,88,173,.18)}
+    .ug-eyebrow{font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.82}.ug-course-hero h1{font-size:clamp(1.65rem,3vw,2.35rem);margin:8px 0 6px;font-weight:800}.ug-course-hero p{margin:0;opacity:.88;max-width:610px}.ug-session-picker{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);padding:12px 14px;border-radius:14px;min-width:190px}.ug-session-picker label{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;opacity:.8}.ug-session-picker select{width:100%;border:0;border-radius:8px;background:#fff;color:#17325c;padding:9px 10px;font-weight:700}
+    .ug-course-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}.ug-course-stats>div{background:#fff;border:1px solid #e5ebf3;border-radius:14px;padding:14px;display:flex;align-items:center;gap:10px;min-width:0}.ug-course-stats strong,.ug-course-stats small{display:block}.ug-course-stats strong{font-size:1.2rem;color:#19365e}.ug-course-stats small{font-size:.75rem;color:#72829a;margin-top:2px}.ug-stat-icon{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto}.ug-stat-icon.blue{background:#e8f1ff;color:#2765cb}.ug-stat-icon.green{background:#e7f8ef;color:#16834b}.ug-stat-icon.amber{background:#fff4dc;color:#ad6a00}.ug-stat-icon.purple{background:#f0eaff;color:#7046bf}
+    .ug-course-tabs{display:flex;gap:8px;background:#fff;border:1px solid #e5ebf3;padding:6px;border-radius:14px;margin:16px 0}.ug-tab{border:0;background:transparent;color:#64758d;border-radius:10px;padding:12px 18px;font-weight:700;cursor:pointer;flex:1}.ug-tab.active{background:#eaf3ff;color:#155cc6}.ug-tab i{margin-right:7px}.ug-panel{background:#fff;border:1px solid #e5ebf3;border-radius:18px;padding:clamp(16px,3vw,28px);box-shadow:0 8px 22px rgba(29,61,103,.04)}.ug-panel[hidden]{display:none}.ug-panel-heading{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:22px}.ug-panel-heading h2{font-size:1.3rem;margin:0 0 4px;color:#19365e}.ug-panel-heading p{margin:0;color:#72829a;font-size:.9rem}.ug-outline-button,.ug-clear-button,.ug-primary-button{border-radius:10px;border:1px solid #dbe5f0;background:#fff;color:#2a5c9d;padding:10px 14px;font-weight:700;white-space:nowrap;cursor:pointer}.ug-primary-button{background:#1769ce;border-color:#1769ce;color:#fff;box-shadow:0 5px 13px rgba(23,105,206,.2)}.ug-clear-button{color:#677991}.ug-outline-button:hover,.ug-clear-button:hover{background:#f2f6fb}.ug-primary-button:hover{background:#0f58b2;color:#fff}.ug-semester-block{margin-bottom:22px}.ug-semester-heading{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #edf1f6;padding:0 2px 9px;margin-bottom:10px;color:#274c7b}.ug-semester-heading span{font-weight:800}.ug-semester-heading b{font-size:.78rem;color:#8291a6;font-weight:600}.ug-registered-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ug-registered-card{border:1px solid #e4ebf3;border-radius:13px;padding:14px;display:grid;grid-template-columns:auto 1fr auto;column-gap:13px;row-gap:5px;align-items:center}.ug-course-code{font-weight:800;color:#145dc2;grid-row:span 2}.ug-course-name{color:#2d3e55;font-weight:600;font-size:.9rem}.ug-course-meta{grid-column:2/-1;color:#8391a4;font-size:.76rem;display:flex;gap:10px;flex-wrap:wrap}.ug-type{font-size:.68rem;font-weight:700;border-radius:20px;padding:3px 7px;text-transform:capitalize}.ug-type.core{background:#e5f7ed;color:#15864e}.ug-type.elective{background:#fff3dc;color:#a26500}.ug-course-actions{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #f0f3f7;padding-top:9px;margin-top:5px}.ug-semester-form{display:flex;align-items:center;gap:8px}.ug-semester-form label{font-size:.76rem;color:#76869a}.ug-semester-form select{border:1px solid #cbd9e9;border-radius:7px;padding:5px 7px;color:#24578e;font-weight:700;background:#f9fbfd}.ug-fixed-semester{font-size:.78rem;color:#708197}.ug-delete-button{border:0;background:transparent;color:#bf4c58;font-size:.77rem;font-weight:700;cursor:pointer}.ug-delete-button i{margin-right:4px}.ug-regenerate-form{margin-top:10px}.ug-empty-state{text-align:center;padding:48px 16px;color:#72829a}.ug-empty-state>span{width:58px;height:58px;display:grid;place-items:center;background:#eaf3ff;color:#3472c6;border-radius:50%;margin:0 auto 14px;font-size:1.5rem}.ug-empty-state>span.warning{background:#fff3dc;color:#a76c0d}.ug-empty-state h3{color:#2d4a6b;margin:0 0 7px;font-size:1.1rem}.ug-empty-state p{max-width:460px;margin:0 auto 17px;font-size:.9rem}
+    .ug-help-note{display:flex;align-items:flex-start;gap:10px;background:#f0f6ff;color:#486888;border-radius:11px;padding:12px 14px;font-size:.84rem;margin-bottom:22px}.ug-help-note i{color:#2771ce;margin-top:2px}.ug-level-section{margin-bottom:25px}.ug-level-heading{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e9eef5;padding-bottom:10px;margin-bottom:12px}.ug-level-heading>div{display:flex;align-items:center;gap:10px}.ug-level-number{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;background:#e9f2ff;color:#1762c8;font-weight:800}.ug-level-heading h3{margin:0;color:#27496e;font-size:1rem}.ug-level-heading p{margin:2px 0 0;color:#8493a7;font-size:.77rem}.ug-select-all{font-size:.8rem;color:#426487;display:flex;align-items:center;gap:7px;cursor:pointer}.ug-select-all input{accent-color:#1769ce;width:16px;height:16px}.ug-course-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.ug-select-card{border:1px solid #e1e9f2;border-radius:13px;padding:14px;transition:.18s;background:#fff}.ug-select-card:has(.course-choice:checked){border-color:#5594e2;background:#f7fbff;box-shadow:0 3px 12px rgba(44,111,192,.08)}.ug-select-card.is-registered{border-left:3px solid #3ea1e4}.ug-course-select-label{display:flex;align-items:flex-start;gap:10px;cursor:pointer}.ug-course-select-label input{position:absolute;opacity:0}.ug-checkmark{width:21px;height:21px;display:grid;place-items:center;border:2px solid #c6d3e2;color:#fff;border-radius:6px;flex:0 0 auto;margin-top:1px}.ug-checkmark i{display:none;font-size:.72rem}.course-choice:checked+.ug-checkmark{background:#1769ce;border-color:#1769ce}.course-choice:checked+.ug-checkmark i{display:block}.ug-course-main{display:flex;flex-direction:column;gap:3px;min-width:0}.ug-course-main strong{color:#1c60bd}.ug-course-main span{color:#41546a;font-size:.84rem;line-height:1.3}.ug-select-meta{display:flex;gap:7px;align-items:center;margin:10px 0 8px 31px}.ug-unit-pill{font-size:.7rem;background:#eef4fa;color:#55708c;border-radius:20px;padding:4px 8px;font-weight:700}.ug-change-semester{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid #eef2f7;padding-top:9px;margin-left:31px;font-size:.75rem;color:#426487}.ug-change-semester select{border:1px solid #cbd9e9;border-radius:7px;padding:5px 6px;color:#24578e;background:#fff;font-size:.75rem;max-width:145px}.ug-fixed-choice{border-top:1px solid #eef2f7;padding-top:9px;margin-left:31px;font-size:.75rem;color:#8190a3}.ug-save-bar{position:sticky;bottom:10px;margin-top:20px;background:#172f50;color:#fff;border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 22px rgba(20,48,81,.2);z-index:2}.ug-save-bar>div{display:flex;flex-direction:column;gap:2px;font-size:.78rem}.ug-save-bar strong{font-size:.92rem}.ug-save-bar>div>span{color:#b9cce2}.modal-content{border:0;border-radius:16px}.modal-header{border-bottom:1px solid #edf1f6}.modal-footer{border-top:1px solid #edf1f6}
+    @media (max-width:767px){.ug-course-page{padding:10px;background:#f6f8fb}.ug-course-hero{border-radius:15px;padding:20px 16px;display:block}.ug-course-hero h1{font-size:1.65rem}.ug-course-hero p{font-size:.85rem}.ug-session-picker{margin-top:17px}.ug-course-stats{grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0}.ug-course-stats>div{padding:10px;gap:8px}.ug-stat-icon{width:32px;height:32px;font-size:.85rem}.ug-course-stats strong{font-size:1rem}.ug-course-stats small{font-size:.68rem}.ug-course-tabs{margin:10px 0}.ug-tab{font-size:.78rem;padding:11px 7px}.ug-tab i{margin-right:3px}.ug-panel{border-radius:14px;padding:15px 12px}.ug-panel-heading{display:block;margin-bottom:17px}.ug-panel-heading h2{font-size:1.15rem}.ug-panel-heading p{font-size:.8rem;margin-bottom:12px}.ug-outline-button,.ug-clear-button{font-size:.75rem;padding:8px 10px}.ug-registered-list,.ug-course-grid{grid-template-columns:1fr}.ug-registered-card{grid-template-columns:auto 1fr;column-gap:10px;padding:12px}.ug-course-actions{grid-column:1/-1;align-items:flex-start;gap:8px;flex-wrap:wrap}.ug-semester-form{width:100%;justify-content:space-between}.ug-semester-form select{flex:1;max-width:none}.ug-level-heading{align-items:flex-start}.ug-level-heading h3{font-size:.92rem}.ug-select-all{font-size:.72rem}.ug-select-card{padding:12px}.ug-save-bar{bottom:6px;align-items:stretch}.ug-save-bar .ug-primary-button{font-size:.78rem;padding:9px}.ug-help-note{font-size:.77rem;padding:10px}.ug-regenerate-form .ug-outline-button{width:100%}}
 </style>
 
-<!-- JavaScript -->
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const selectAllCheckbox = document.getElementById('selectAll');
-        const courseCheckboxes = document.querySelectorAll('.course-checkbox');
-        const totalCoursesSpan = document.getElementById('totalCourses');
-        const firstSemesterCountSpan = document.getElementById('firstSemesterCount');
-        const secondSemesterCountSpan = document.getElementById('secondSemesterCount');
+    document.addEventListener('DOMContentLoaded', function () {
+        const tabs = document.querySelectorAll('.ug-tab');
+        const panels = document.querySelectorAll('.ug-panel');
+        const choices = Array.from(document.querySelectorAll('.course-choice'));
+        const count = document.getElementById('selectedCount');
+        const units = document.getElementById('selectedUnits');
+        const saveCount = document.getElementById('saveCount');
+        const saveUnits = document.getElementById('saveUnits');
+        const savePlural = document.getElementById('savePlural');
 
-        // Update counters
-        function updateCounters() {
-            // Count registered courses by semester from the page data
-            const firstSemesterTab = document.getElementById('semester-FIRST');
-            const secondSemesterTab = document.getElementById('semester-SECOND');
-
-            let totalRegistered = 0;
-            let firstSemesterTotal = 0;
-            let secondSemesterTotal = 0;
-
-            // Count FIRST semester courses (count unique courses, not checkboxes)
-            if (firstSemesterTab) {
-                const firstSemesterCourses = firstSemesterTab.querySelectorAll(
-                    '.d-md-none .bulk-select-checkbox');
-                firstSemesterTotal = firstSemesterCourses.length;
-                totalRegistered += firstSemesterTotal;
-            }
-
-            // Count SECOND semester courses (count unique courses, not checkboxes)
-            if (secondSemesterTab) {
-                const secondSemesterCourses = secondSemesterTab.querySelectorAll(
-                    '.d-md-none .bulk-select-checkbox');
-                secondSemesterTotal = secondSemesterCourses.length;
-                totalRegistered += secondSemesterTotal;
-            }
-
-            // Update display
-            totalCoursesSpan.textContent = totalRegistered;
-            firstSemesterCountSpan.textContent = firstSemesterTotal;
-            secondSemesterCountSpan.textContent = secondSemesterTotal;
-        }
-
-        // Select All functionality (legacy - may not exist in level-based tabs)
-        if (selectAllCheckbox) {
-            selectAllCheckbox.addEventListener('change', function() {
-                courseCheckboxes.forEach(checkbox => {
-                    checkbox.checked = this.checked;
-                });
-                updateCounters();
+        function updateSummary() {
+            const selected = choices.filter((input) => input.checked);
+            const totalUnits = selected.reduce((sum, input) => sum + Number(input.dataset.unit || 0), 0);
+            if (count) count.textContent = selected.length;
+            if (units) units.textContent = totalUnits;
+            if (saveCount) saveCount.textContent = selected.length;
+            if (saveUnits) saveUnits.textContent = totalUnits;
+            if (savePlural) savePlural.textContent = selected.length === 1 ? '' : 's';
+            document.querySelectorAll('.ug-select-card').forEach(card => {
+                const checkbox = card.querySelector('.course-choice');
+                card.classList.toggle('is-selected', checkbox && checkbox.checked);
             });
         }
 
-        // Individual checkbox change (legacy - kept for compatibility)
-        courseCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                updateCounters();
-
-                // Update select all checkbox state (count only desktop checkboxes to avoid double counting)
-                const checkedCount = document.querySelectorAll(
-                        '.d-none .course-checkbox:checked')
-                    .length;
-                const totalDesktopCheckboxes = document.querySelectorAll(
-                    '.d-none .course-checkbox').length;
-                if (selectAllCheckbox) {
-                    selectAllCheckbox.checked = checkedCount === totalDesktopCheckboxes;
-                    selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount <
-                        totalDesktopCheckboxes;
-                }
+        function showPanel(target) {
+            panels.forEach(panel => panel.hidden = panel.id !== target);
+            tabs.forEach(tab => {
+                const active = tab.dataset.target === target;
+                tab.classList.toggle('active', active);
+                tab.setAttribute('aria-selected', active ? 'true' : 'false');
             });
-        });
-
-        // Level-based Select All functionality
-        const selectAllLevelCheckboxes = document.querySelectorAll('.select-all-level');
-        const selectAllLevelMobileCheckboxes = document.querySelectorAll('.select-all-level-mobile');
-
-        // Desktop level select all
-        selectAllLevelCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                const level = this.dataset.level;
-                const levelCheckboxes = document.querySelectorAll(
-                    `.course-checkbox-level-${level}`);
-
-                levelCheckboxes.forEach(courseCheckbox => {
-                    courseCheckbox.checked = this.checked;
-                });
-                updateCounters();
-            });
-        });
-
-        // Mobile level select all
-        selectAllLevelMobileCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                const level = this.dataset.level;
-                const levelCheckboxes = document.querySelectorAll(
-                    `.course-checkbox-level-${level}`);
-
-                levelCheckboxes.forEach(courseCheckbox => {
-                    courseCheckbox.checked = this.checked;
-                });
-                updateCounters();
-            });
-        });
-
-        // Sync mobile and desktop checkboxes
-        function syncCheckboxes(sourceCheckbox) {
-            const courseCode = sourceCheckbox.id.replace('mobile_course_', '').replace('course_', '');
-            const mobileCheckbox = document.getElementById(`mobile_course_${courseCode}`);
-            const desktopCheckbox = document.getElementById(`course_${courseCode}`);
-
-            if (mobileCheckbox && desktopCheckbox) {
-                mobileCheckbox.checked = sourceCheckbox.checked;
-                desktopCheckbox.checked = sourceCheckbox.checked;
-            }
+            if (target === 'selectPanel') updateSummary();
         }
+        tabs.forEach(tab => tab.addEventListener('click', () => showPanel(tab.dataset.target)));
+        document.querySelectorAll('[data-target="selectPanel"]').forEach(button => button.addEventListener('click', () => showPanel('selectPanel')));
+        choices.forEach(input => input.addEventListener('change', updateSummary));
 
-        // Add sync listeners to all course checkboxes
-        document.querySelectorAll('.course-checkbox, .course-checkbox-mobile').forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                syncCheckboxes(this);
-                updateCounters();
+        document.querySelectorAll('.select-level').forEach(master => {
+            master.addEventListener('change', function () {
+                choices.filter(input => input.dataset.level === this.dataset.level).forEach(input => input.checked = this.checked);
+                updateSummary();
             });
         });
-
-        // Individual checkbox changes (both desktop and mobile)
-        const allCourseCheckboxes = document.querySelectorAll('.course-checkbox, .course-checkbox-mobile');
-        allCourseCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                updateCounters();
-
-                // Update the corresponding level select all checkbox (count only mobile to avoid double counting)
-                const level = this.dataset.level;
-                const levelCheckboxesMobile = document.querySelectorAll(
-                    `.d-md-none .course-checkbox-level-${level}`);
-                const checkedLevelCount = document.querySelectorAll(
-                    `.d-md-none .course-checkbox-level-${level}:checked`).length;
-
-                // Update desktop level select all
-                const levelSelectAll = document.getElementById(`selectAllLevel${level}`);
-                if (levelSelectAll) {
-                    levelSelectAll.checked = checkedLevelCount === levelCheckboxesMobile.length;
-                    levelSelectAll.indeterminate = checkedLevelCount > 0 && checkedLevelCount <
-                        levelCheckboxesMobile.length;
-                }
-
-                // Update mobile level select all
-                const levelSelectAllMobile = document.getElementById(
-                    `selectAllLevel${level}Mobile`);
-                if (levelSelectAllMobile) {
-                    levelSelectAllMobile.checked = checkedLevelCount === levelCheckboxesMobile
-                        .length;
-                    levelSelectAllMobile.indeterminate = checkedLevelCount > 0 &&
-                        checkedLevelCount < levelCheckboxesMobile.length;
-                }
-            });
+        document.getElementById('clearCourses')?.addEventListener('click', function () {
+            choices.forEach(input => input.checked = false);
+            document.querySelectorAll('.select-level').forEach(input => { input.checked = false; input.indeterminate = false; });
+            updateSummary();
         });
 
-        // Clear All Courses function
-        window.clearAllCourses = function() {
-            allCourseCheckboxes.forEach(checkbox => {
-                checkbox.checked = false;
-            });
-
-            // Reset all level select all checkboxes
-            selectAllLevelCheckboxes.forEach(checkbox => {
-                checkbox.checked = false;
-                checkbox.indeterminate = false;
-            });
-            selectAllLevelMobileCheckboxes.forEach(checkbox => {
-                checkbox.checked = false;
-                checkbox.indeterminate = false;
-            });
-
-            updateCounters();
-        };
-
-        // Bulk selection functionality
-        const bulkSelectCheckboxes = document.querySelectorAll('.bulk-select-checkbox');
-        const bulkRemoveBtn = document.getElementById('bulkRemoveBtn');
-        const selectedCountSpan = document.getElementById('selectedCount');
-
-        // Update bulk remove button visibility and count
-        function updateBulkRemoveButton() {
-            // Count all bulk select checkboxes (both mobile and desktop)
-            const selectedCheckboxes = document.querySelectorAll('.bulk-select-checkbox:checked');
-            const count = selectedCheckboxes.length;
-            const clearAllBtn = document.getElementById('clearAllBtn');
-
-            if (count > 0) {
-                bulkRemoveBtn.style.display = 'inline-block';
-                clearAllBtn.style.display = 'inline-block';
-                selectedCountSpan.textContent = count;
-            } else {
-                bulkRemoveBtn.style.display = 'none';
-                clearAllBtn.style.display = 'none';
+        document.getElementById('courseRegistrationForm')?.addEventListener('submit', function (event) {
+            const selected = choices.filter(input => input.checked);
+            if (!selected.length) {
+                event.preventDefault();
+                alert('Please select at least one course before saving your registration.');
+                return;
             }
-        }
-
-        // Add event listeners to bulk select checkboxes
-        bulkSelectCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', updateBulkRemoveButton);
-        });
-
-        // Semester select all functionality
-        const semesterSelectAllCheckboxes = document.querySelectorAll('[id^="selectAllSemester"]');
-        semesterSelectAllCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                const semester = this.id.replace('selectAllSemester', '');
-                // Count only mobile checkboxes to avoid double counting
-                const semesterCheckboxes = document.querySelectorAll(
-                    `#semester-${semester} .d-md-none .bulk-select-checkbox`);
-
-                // Also update desktop checkboxes to keep them in sync
-                const desktopCheckboxes = document.querySelectorAll(
-                    `#semester-${semester} .d-none .bulk-select-checkbox`);
-
-                semesterCheckboxes.forEach(cb => {
-                    cb.checked = this.checked;
-                });
-                desktopCheckboxes.forEach(cb => {
-                    cb.checked = this.checked;
-                });
-                updateBulkRemoveButton();
-            });
-        });
-
-        // Bulk remove function
-        window.bulkRemoveCourses = function() {
-            // Get all selected checkboxes (both mobile and desktop)
-            const selectedCheckboxes = document.querySelectorAll('.bulk-select-checkbox:checked');
-            const courseIds = Array.from(selectedCheckboxes).map(cb => cb.value);
-
-            // Remove duplicates (in case both mobile and desktop are checked)
-            const uniqueCourseIds = [...new Set(courseIds)];
-
-            if (uniqueCourseIds.length === 0) return;
-
-            if (confirm(
-                    `Are you sure you want to remove ${uniqueCourseIds.length} selected course(s) from your registration?`
-                )) {
-                // Create form and submit
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '/delete-my-course';
-
-                const csrfToken = document.querySelector('meta[name="csrf-token"]');
-                if (csrfToken) {
-                    const csrfInput = document.createElement('input');
-                    csrfInput.type = 'hidden';
-                    csrfInput.name = '_token';
-                    csrfInput.value = csrfToken.getAttribute('content');
-                    form.appendChild(csrfInput);
+            selected.forEach(input => {
+                const semester = document.querySelector(`.course-semester[data-code="${CSS.escape(input.dataset.code)}"]`);
+                if (semester) {
+                    const course = JSON.parse(input.value);
+                    course.semester = semester.value;
+                    input.value = JSON.stringify(course);
                 }
-
-                uniqueCourseIds.forEach(id => {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = 'ids[]';
-                    input.value = id;
-                    form.appendChild(input);
-                });
-
-                document.body.appendChild(form);
-                form.submit();
-            }
-        };
-
-        // Clear all selections function
-        window.clearAllSelections = function() {
-            bulkSelectCheckboxes.forEach(checkbox => {
-                checkbox.checked = false;
             });
-            semesterSelectAllCheckboxes.forEach(checkbox => {
-                checkbox.checked = false;
-            });
-            updateBulkRemoveButton();
+            const saveButton = document.getElementById('saveRegistration');
+            if (saveButton) { saveButton.disabled = true; saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; }
+        });
+        window.removeRegisteredCourse = function (id, code) {
+            if (!confirm(`Remove ${code} from your registration?`)) return;
+            const form = document.createElement('form'); form.method = 'POST'; form.action = '{{ url('/delete-my-course') }}';
+            form.innerHTML = `<input type="hidden" name="_token" value="{{ csrf_token() }}"><input type="hidden" name="id" value="${id}">`;
+            document.body.appendChild(form); form.submit();
         };
-
-        // Remove course function
-        window.removeCourse = function(courseId) {
-            if (confirm('Are you sure you want to remove this course from your registration?')) {
-                // Create form and submit
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '/delete-my-course';
-
-                const csrfToken = document.querySelector('meta[name="csrf-token"]');
-                if (csrfToken) {
-                    const csrfInput = document.createElement('input');
-                    csrfInput.type = 'hidden';
-                    csrfInput.name = '_token';
-                    csrfInput.value = csrfToken.getAttribute('content');
-                    form.appendChild(csrfInput);
-                }
-
-                const idInput = document.createElement('input');
-                idInput.type = 'hidden';
-                idInput.name = 'id';
-                idInput.value = courseId;
-                form.appendChild(idInput);
-
-                document.body.appendChild(form);
-                form.submit();
-            }
-        };
-
-        // Initialize counters and bulk button
-        updateCounters();
-        updateBulkRemoveButton();
+        updateSummary();
     });
 </script>
