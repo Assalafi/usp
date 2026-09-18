@@ -1153,7 +1153,7 @@ Route::get('/student-result', function (Request $req) {
     $cgpaQuery = DB::table('results')
         ->where(['username' => session('id_number'), 'approve' => 'vc']);
     if (strtolower((string) $selectedSession) !== 'all') {
-        $cgpaQuery->where('session', '<=', $selectedSession);
+        $cgpaQuery->where('session', $selectedSession);
     }
     $cgpaResults = $cgpaQuery->get(['unit', 'ugp']);
     $cgpaUnits = $cgpaResults->sum(fn ($result) => (float) ($result->unit ?? 0));

@@ -19,7 +19,7 @@
     <div class="page-wrapper">
         <div class="ug-results-shell">
             <div class="ug-results-filter-bar">
-                <div class="ug-results-identity"><div class="ug-identity-name"><span class="ug-results-kicker">{{ $studentName }}</span><strong>{{ $displaySessionLabel }}</strong></div><div class="ug-cgpa-summary"><div><small>Recorded CGPA</small><b>{{ $historyCgpaValue }}</b></div><div><small>Calculated CGPA</small><b>{{ $calculatedCgpaValue }}</b></div></div></div>
+                <div class="ug-results-identity"><div class="ug-identity-name"><span class="ug-results-kicker">{{ $studentName }}</span><strong>{{ $displaySessionLabel }}</strong></div><div class="ug-cgpa-summary"><div><small>Recorded CGPA</small><b>{{ $historyCgpaValue }}</b></div><div><small>{{ $isAllSessions ? 'Calculated CGPA' : 'Current-session CGPA' }}</small><b>{{ $calculatedCgpaValue }}</b></div></div></div>
                 <form class="ug-results-session" action="{{ url('/student-result') }}" method="GET">
                     <label for="resultSession">Academic session</label>
                     <select id="resultSession" name="session" onchange="this.form.submit()" aria-label="Choose academic session">

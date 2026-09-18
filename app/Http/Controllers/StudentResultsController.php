@@ -56,7 +56,7 @@ class StudentResultsController extends Controller
         $cgpaQuery = DB::table('results')
             ->where(['username' => $studentId, 'approve' => 'vc']);
         if (!$isAllSessions) {
-            $cgpaQuery->where('session', '<=', $selectedSession);
+            $cgpaQuery->where('session', $selectedSession);
         }
         $cgpaResults = $cgpaQuery->get(['unit', 'ugp']);
         $cgpaUnits = $cgpaResults->sum(fn ($result) => (float) ($result->unit ?? 0));

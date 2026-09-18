@@ -97,7 +97,7 @@
     <table class="summary-table">
         <tr>
             <td><span class="summary-label">Official CGPA</span><span class="summary-value official">{{ $recordedCgpa }}</span></td>
-            <td><span class="summary-label">Calculated CGPA</span><span class="summary-value">{{ $calculatedCgpaValue }}</span></td>
+            <td><span class="summary-label">{{ $isAllSessions ? 'Calculated CGPA' : 'Session CGPA' }}</span><span class="summary-value">{{ $calculatedCgpaValue }}</span></td>
             <td><span class="summary-label">Courses</span><span class="summary-value">{{ $courseCount }}</span></td>
             <td><span class="summary-label">Units</span><span class="summary-value">{{ $unitCount }}</span></td>
             <td><span class="summary-label">Passed</span><span class="summary-value official">{{ $passedCount }}</span></td>
