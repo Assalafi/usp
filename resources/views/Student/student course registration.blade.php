@@ -139,7 +139,6 @@
                             <div class="ug-unregister-actions">
                                 <span id="registeredSelectionCount">0 selected</span>
                                 <button type="button" class="ug-danger-button" id="unregisterSelected" disabled><i class="fas fa-trash-alt"></i> Unregister selected</button>
-                                <button type="button" class="ug-danger-button subtle" id="unregisterAll"><i class="fas fa-trash"></i> Unregister all</button>
                             </div>
                         </div>
                         <div class="ug-semester-sections">
@@ -277,6 +276,7 @@
     .ug-registered-card{display:flex;align-items:center;gap:11px;min-height:55px;padding:9px 11px 9px 42px;grid-template-columns:none;column-gap:0;row-gap:0}
     .ug-registered-main{min-width:0;flex:1}.ug-registered-main .ug-course-code{display:block;grid-row:auto;font-size:.78rem;line-height:1.15}.ug-registered-main .ug-course-name{display:block;margin-top:3px;color:#71849a;font-size:.67rem;font-weight:400;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ug-course-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto;grid-column:auto;border-top:0;padding:0;margin:0}.ug-semester-form{display:flex;align-items:center;gap:0}.ug-semester-form select{font-size:.7rem;padding:5px 7px;min-width:70px}.ug-delete-button{font-size:.7rem;padding:5px 0}.ug-delete-button i{margin-right:3px}
     @media (max-width:767px){.ug-registered-card{display:flex;align-items:center;min-height:53px;padding:9px 9px 9px 42px}.ug-registered-main .ug-course-code{font-size:.75rem}.ug-registered-main .ug-course-name{font-size:.63rem}.ug-course-actions{gap:6px}.ug-semester-form select{min-width:64px;font-size:.66rem;padding:5px}.ug-delete-button{font-size:0}.ug-delete-button i{font-size:.78rem;margin:0}}
+    .ug-registered-card{background:#fbfdff;transition:border-color .18s ease,box-shadow .18s ease,background .18s ease}.ug-registered-card:hover{border-color:#a9cde9;box-shadow:0 4px 14px rgba(44,111,192,.08)}.ug-registered-card:has(.registered-choice:checked){background:#fff8f8;border-color:#edc2c7}.ug-registered-main .ug-course-code{letter-spacing:.01em}.ug-course-actions .ug-semester-form select{border-color:#c9dbea;background:#fff}.ug-delete-button{border-radius:7px}.ug-delete-button:hover{background:#fff0f1;color:#a72f3d}
 </style>
 
 <script>
@@ -367,7 +367,6 @@
         const registeredChoices = Array.from(document.querySelectorAll('.registered-choice'));
         const selectAllRegistered = document.getElementById('selectAllRegistered');
         const unregisterSelected = document.getElementById('unregisterSelected');
-        const unregisterAll = document.getElementById('unregisterAll');
         const registeredSelectionCount = document.getElementById('registeredSelectionCount');
 
         function updateRegisteredSelection() {
@@ -404,10 +403,6 @@
         unregisterSelected?.addEventListener('click', function () {
             const ids = registeredChoices.filter(input => input.checked).map(input => input.value);
             if (confirm(`Unregister ${ids.length} selected course${ids.length === 1 ? '' : 's'}?`)) submitUnregister(ids);
-        });
-        unregisterAll?.addEventListener('click', function () {
-            const ids = registeredChoices.map(input => input.value);
-            if (ids.length && confirm('Unregister every course saved for this session?')) submitUnregister(ids);
         });
         updateRegisteredSelection();
         updateSummary();
