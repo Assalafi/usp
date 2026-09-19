@@ -73,7 +73,7 @@
 
 </head>
 
-<body class="portal-login">
+<body>
 
 
 
@@ -90,33 +90,28 @@
             <!-- Start Content-->
             <div class="card">
                 <div class="card-body text-center">
-                    <div class="mb-4 portal-login-brand">
+                    <div class="mb-4">
                         {{-- <i class="feather icon-unlock auth-icon"></i> --}}
                         <img src="{{ asset('uploads/logo.png') }}" alt="logo" width="100">
                         <br>
                         <h4 style="font-family: algerian; color: #008ed6">UNIVERSITY OF MAIDUGURI</h4>
                         <h5 style="font-family: algerian">(UNIMAID PORTAL)</h5>
                     </div>
-                    <h3 class="portal-login-title">Sign in to the UNIMAID Portal</h3>
-                    <p class="text-muted small mb-3">Students, staff, administrators and applicants use the same sign-in page.</p>
+                    <h3 class="mb-4">Login</h3>
 
                     <!-- Form Start -->
                     <form method="POST" action="auth">
                         @csrf
-                        <div class="portal-input">
-                            <i class="fas fa-user" aria-hidden="true"></i>
+                        <div class="input-group mb-3">
                             <input id="email" type="text" class="form-control" name="email"
                                 value="{{ old('email') }}" required autocomplete="email" placeholder="Username"
                                 autofocus>
                         </div>
-                        <div class="portal-input">
-                            <i class="fas fa-lock" aria-hidden="true"></i>
+                        <div class="input-group mb-4">
                             <input id="password" type="password" class="form-control" name="password" required
                                 autocomplete="current-password" placeholder="Password">
                         </div>
-                        <button type="submit" class="btn btn-primary portal-submit shadow-2 mb-3" name="submit">
-                            <i class="fas fa-sign-in-alt mr-1" aria-hidden="true"></i> Sign in
-                        </button>
+                        <input type="submit" class="btn btn-primary shadow-2 mb-4" name="submit" value="Login">
                     </form>
                     <!-- Form End -->
 
@@ -134,9 +129,16 @@
                             </a>
                         </p> --}}
                     <br>
-                    <p class="mb-0 portal-support">
-                        Forgot your password? Contact portal support via WhatsApp
-                        <a href="tel:+2347036982856"><strong>07036982856</strong></a>.
+                    <p class="mb-0 text-muted">
+                        Forgot Password? click
+                        <a href="#">
+                            here
+                        </a>
+                    </p>
+                    <br>
+                    <p class="mb-0 text-muted">
+                        For any inquiries or assistance, contact us via WhatsApp <a
+                            href="tel:+2347036982856"><strong>07036982856</strong></a>.
                     </p>
                 </div>
             </div>
