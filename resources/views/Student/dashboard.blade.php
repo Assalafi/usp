@@ -32,18 +32,7 @@
         ->get();
     $resultCourses = $sessionResults->pluck('code')->filter()->unique()->count();
     $lastResultUpdate = $sessionResults->first()->updated_at ?? null;
-    $history = DB::table('session_history')->where(['username' => $studentId, 'session' => $currentSession])->first();
-    $academicStatus = $history->status ?? 'In progress';
-    // session_history is the official source for the student's cumulative CGPA.
-    // If it has not been created yet, show the current session's calculated value
-    // from approved results so the card remains useful while results are being
-    // published.
-    $historyCgpa = is_numeric($history->cgpa ?? null) ? (float) $history->cgpa : null;
-    $resultUnits = (float) $sessionResults->sum(fn ($result) => (float) ($result->unit ?? 0));
-    $resultPoints = (float) $sessionResults->sum(fn ($result) => (float) ($result->ugp ?? 0));
-    $calculatedCgpa = $resultUnits > 0 ? $resultPoints / $resultUnits : null;
-    $cgpa = $historyCgpa ?? $calculatedCgpa;
-    $cgpaDisplay = $cgpa === null ? '—' : number_format($cgpa, 2);
+    $academicStatus = 'IN PROGRESS';
 
     $invoiceUsernames = collect([session('id'), $studentId])->filter()->unique()->values()->all();
     $invoices = DB::table('invoices')->whereIn('username', $invoiceUsernames)->where('session', $currentSession)->get();
@@ -106,8 +95,8 @@
             <div class="ug-stat-card ug-stat-orange">
                 <span class="ug-stat-icon"><i class="fas fa-graduation-cap"></i></span>
                 <span class="ug-stat-label">Academic standing</span>
-                <strong>{{ ucfirst((string) $academicStatus) }}</strong>
-                <small class="ug-standing-meta"><span>CGPA: <b>{{ $cgpaDisplay }}</b></span><span>Current session status</span></small>
+                <strong>{{ $academicStatus }}</strong>
+                <small>Current session status</small>
             </div>
         </section>
 
@@ -187,7 +176,6 @@
     .ug-results-empty strong,.ug-results-empty small{display:block}
     .ug-results-empty strong{font-size:.8rem;color:#53647e}
     .ug-results-empty small{font-size:.7rem;margin-top:3px}
-    .ug-standing-meta{display:flex;align-items:center;flex-wrap:wrap;gap:4px 7px}.ug-standing-meta span+span:before{content:'·';margin-right:7px;color:#b8a08b}.ug-standing-meta b{color:#b96820;font-weight:800}
     @media(max-width:900px){.ug-content-grid{grid-template-columns:1fr}}
     @media(max-width:600px){.ug-welcome-card{grid-template-columns:minmax(0,1fr) auto;align-items:start}.ug-welcome-academic{grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.35fr) auto;gap:9px;margin-top:15px;padding-top:13px;border-top:1px solid rgba(255,255,255,.2)}.ug-avatar-wrap{grid-column:2;grid-row:1}.ug-welcome-academic strong{font-size:.72rem;max-width:125px}.ug-welcome-profile{padding:8px 9px;font-size:.64rem;align-self:end}.ug-result-row{grid-template-columns:1fr auto;gap:4px 10px;padding:11px 0}.ug-result-context{grid-column:1;grid-row:2}.ug-result-total{grid-column:2;grid-row:2;text-align:right;color:#7b8aa0;font-size:.7rem}.ug-result-grade{grid-column:2;grid-row:1}.ug-approved-badge{font-size:.6rem;padding:5px 7px}}
 </style>
