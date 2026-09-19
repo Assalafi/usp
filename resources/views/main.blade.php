@@ -17,7 +17,7 @@
     @include('css')
 </head>
 
-<body class="">
+<body class="portal-shell portal-shell--{{ \Illuminate\Support\Str::slug((string) session('accType', 'guest')) }}">
     <!-- [ Pre-loader ] start -->
     <div class="loader-bg">
         <div class="loader-track">
@@ -49,7 +49,7 @@
 
     <!-- [ Header ] start -->
     <header class="navbar pcoded-header navbar-expand-lg navbar-light headerpos-fixed header-lightblue">
-        <div class="m-header">
+            <div class="m-header portal-mobile-header">
             <a class="mobile-menu" id="mobile-collapse1" href="#!"><span></span></a>
             <a href="#" class="b-brand">
                 <div class="b-bg">
@@ -71,11 +71,24 @@
             </ul>
 
             <!-- [ Auth Nav ] start -->
-            <ul class="navbar-nav ms-auto">
-
-                <!-- Notification -->
-
-                <!-- Profile -->
+            <ul class="navbar-nav ms-auto portal-topbar-actions">
+                <li><span class="portal-role-badge">{{ session('accType', 'Portal') }}</span></li>
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle portal-user-menu" data-toggle="dropdown" aria-expanded="false">
+                        <i class="feather icon-user"></i>
+                        <span class="portal-user-name">{{ session('username', 'Account') }}</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right">
+                        @if (session('accType') === 'Student')
+                            <a class="dropdown-item" href="/profile"><i class="feather icon-user"></i>My profile</a>
+                        @elseif (session('accType') === 'Staff')
+                            <a class="dropdown-item" href="/staff-profile"><i class="feather icon-user"></i>My profile</a>
+                        @endif
+                        <a class="dropdown-item" href="/update password"><i class="feather icon-lock"></i>Change password</a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item text-danger" href="/logout"><i class="feather icon-log-out"></i>Sign out</a>
+                    </div>
+                </li>
             </ul>
             <!-- [ Auth Nav ] end -->
 
