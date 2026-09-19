@@ -77,73 +77,55 @@
 
 
 
-    <div class="auth-wrapper">
-        @if (isset($setting))
-            @if (is_file('uploads/setting/pic.jpg'))
-                <a href="#" class="auth-logo">
-                    <img src="{{ asset('uploads/setting/pic.jpg') }}" alt="logo">
-                </a>
-            @endif
-        @endif
+    <main class="portal-login-shell">
+        <section class="portal-login-intro" aria-label="Portal introduction">
+            <div class="portal-login-mark"><img src="{{ asset('uploads/logo.png') }}" alt="University of Maiduguri logo"></div>
+            <p class="portal-login-overline">University of Maiduguri</p>
+            <h1>UNIMAID<br>Portal</h1>
+            <p class="portal-login-tagline">Secure access to your university services.</p>
+            <div class="portal-login-line" aria-hidden="true"></div>
+            <small>Use your registered username and password to continue.</small>
+        </section>
 
-        <div class="auth-content">
-            <!-- Start Content-->
-            <div class="card">
-                <div class="card-body text-center">
-                    <div class="mb-4 portal-login-brand">
-                        {{-- <i class="feather icon-unlock auth-icon"></i> --}}
-                        <img src="{{ asset('uploads/logo.png') }}" alt="logo" width="100">
-                        <br>
-                        <h4 style="font-family: algerian; color: #008ed6">UNIVERSITY OF MAIDUGURI</h4>
-                        <h5 style="font-family: algerian">(UNIMAID PORTAL)</h5>
-                    </div>
-                    <h3 class="portal-login-title">Sign in to the UNIMAID Portal</h3>
-                    <p class="text-muted small mb-3">Students, staff, administrators and applicants use the same sign-in page.</p>
-
-                    <!-- Form Start -->
-                    <form method="POST" action="auth">
-                        @csrf
-                        <div class="portal-input">
-                            <i class="fas fa-user" aria-hidden="true"></i>
-                            <input id="email" type="text" class="form-control" name="email"
-                                value="{{ old('email') }}" required autocomplete="email" placeholder="Username"
-                                autofocus>
-                        </div>
-                        <div class="portal-input">
-                            <i class="fas fa-lock" aria-hidden="true"></i>
-                            <input id="password" type="password" class="form-control" name="password" required
-                                autocomplete="current-password" placeholder="Password">
-                        </div>
-                        <button type="submit" class="btn btn-primary portal-submit shadow-2 mb-3" name="submit">
-                            <i class="fas fa-sign-in-alt mr-1" aria-hidden="true"></i> Sign in
-                        </button>
-                    </form>
-                    <!-- Form End -->
-
-                    <div class="alert alert-success shadow-sm"
-                        style="border-left: 5px solid #006400; text-align: left; font-size: 14px;">
-                        <strong><i class="fas fa-exchange-alt mr-1"></i> Inter-University Transfer:</strong>
-                        Seeking transfer to the University of Maiduguri?
-                        <a href="/inter-university-transfer/register" class="font-weight-bold">Click here to apply</a>.
-                    </div>
-
-                    {{-- <p class="mb-0 text-muted">
-                            Validate your PIN
-                            <a href="validate H-Pin">
-                                here
-                            </a>
-                        </p> --}}
-                    <br>
-                    <p class="mb-0 portal-support">
-                        Forgot your password? Contact portal support via WhatsApp
-                        <a href="tel:+2347036982856"><strong>07036982856</strong></a>.
-                    </p>
-                </div>
+        <section class="portal-login-panel">
+            <div class="portal-login-panel-head">
+                <span class="portal-login-mini-mark"><img src="{{ asset('uploads/logo.png') }}" alt=""></span>
+                <span>UNIMAID Portal</span>
             </div>
-            <!-- End Content-->
+            <div class="portal-login-form-head">
+                <span class="portal-login-kicker">Welcome back</span>
+                <h2>Sign in</h2>
+                <p>Enter your details to continue.</p>
+            </div>
 
-        </div>
-    </div>
+            <form method="POST" action="auth" class="portal-login-form">
+                @csrf
+                <label for="email">Username</label>
+                <div class="portal-input">
+                    <i class="fas fa-user" aria-hidden="true"></i>
+                    <input id="email" type="text" class="form-control" name="email"
+                        value="{{ old('email') }}" required autocomplete="username" placeholder="Enter your username"
+                        autofocus>
+                </div>
+                <label for="password">Password</label>
+                <div class="portal-input portal-password-input">
+                    <i class="fas fa-lock" aria-hidden="true"></i>
+                    <input id="password" type="password" class="form-control" name="password" required
+                        autocomplete="current-password" placeholder="Enter your password">
+                    <button type="button" class="portal-password-toggle" aria-label="Show password" data-password-toggle="password"><i class="fas fa-eye"></i></button>
+                </div>
+                <button type="submit" class="btn btn-primary portal-submit" name="submit">
+                    Sign in <i class="fas fa-arrow-right ml-1" aria-hidden="true"></i>
+                </button>
+            </form>
+
+            <div class="portal-login-help">
+                <span>Need help signing in?</span>
+                <a href="tel:+2347036982856">Contact support</a>
+            </div>
+            <a href="/inter-university-transfer/register" class="portal-transfer-link"><i class="fas fa-exchange-alt" aria-hidden="true"></i> Inter-University Transfer application</a>
+        </section>
+    </main>
     <!-- Required Js -->
     <script src="{{ asset('dashboard/plugins/jquery/js/jquery.min.js') }}"></script>
     <script src="{{ asset('dashboard/plugins/popper/js/popper.min.js') }}"></script>
@@ -194,6 +176,26 @@
             swal("", "{{ session('info') }}", "info");
         </script>
     @endif
+    <script>
+        document.querySelectorAll('[data-password-toggle]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const input = document.getElementById(this.dataset.passwordToggle);
+                const icon = this.querySelector('i');
+                if (!input) return;
+                const showing = input.type === 'text';
+                input.type = showing ? 'password' : 'text';
+                this.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+                if (icon) icon.className = showing ? 'fas fa-eye' : 'fas fa-eye-slash';
+            });
+        });
+
+        document.querySelector('.portal-login-form')?.addEventListener('submit', function () {
+            const button = this.querySelector('button[type="submit"]');
+            if (!button || button.disabled) return;
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>Signing in...';
+        });
+    </script>
 </body>
 
 </html>
