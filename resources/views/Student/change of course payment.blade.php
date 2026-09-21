@@ -414,6 +414,7 @@ $(document).ready(function() {
             var paymentEngine = RmPaymentEngine.init({
                 key: "{{ env('REMITA_PUBLIC_KEY') }}",
                 processRrr: true,
+                channels: 'card,bank,branch,ussd,qr,ibank,paywithremita,buyoncredit,wallet,phonenumber,transfer,enaira',
                 transactionId: Math.floor(Math.random() * 1101233),
                 extendedData: { customFields: [{ name: "rrr", value: rrr }] },
                 onSuccess: function(response) {

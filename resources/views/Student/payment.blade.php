@@ -291,6 +291,7 @@
                 const engine = window.RmPaymentEngine.init({
                     key: publicKey,
                     processRrr: true,
+                    channels: 'card,bank,branch,ussd,qr,ibank,paywithremita,buyoncredit,wallet,phonenumber,transfer,enaira',
                     transactionId: 'UG-' + Date.now() + '-' + Math.floor(Math.random() * 100000),
                     extendedData: { customFields: [{ name: 'rrr', value: rrr }] },
                     onSuccess: function () {
