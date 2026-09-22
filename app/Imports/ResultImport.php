@@ -170,6 +170,7 @@ class ResultImport implements ToCollection
                                 'username' => $id,
                                 'code' => $this->course,
                                 'session' => $this->session,
+                                'semester' => $this->semester,
                             ])
                             ->where('approve', '!=', 'system')
                             ->first();
