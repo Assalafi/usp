@@ -20,6 +20,59 @@ use Dompdf\Options;
 
 class HostelController extends Controller
 {
+    /**
+     * Determine whether the currently signed-in undergraduate may reserve a
+     * hostel bed. This is intentionally evaluated before a reservation is
+     * created; an existing reservation must never be blocked from generating
+     * its payment invoice.
+     */
+    private function hostelEligibility(?string $idNumber): array
+    {
+        $duration = (int) session('duration');
+        $level = (int) (session('current_level') ?? 0);
+        $faculty = strtoupper(trim((string) session('faculty')));
+        $idPrefix = (int) substr((string) $idNumber, 0, 2);
+        $reasons = [];
+
+        if ($duration === 4) {
+            if ($idPrefix < 20) {
+                $reasons[] = 'Your ID number must start with 20 or higher for a 4-year programme.';
+            }
+            if ($level >= 400) {
+                $reasons[] = 'Your current level must be below 400 for a 4-year programme.';
+            }
+        } elseif ($duration === 5) {
+            if ($idPrefix < 19) {
+                $reasons[] = 'Your ID number must start with 19 or higher for a 5-year programme.';
+            }
+            if ($level >= 500) {
+                $reasons[] = 'Your current level must be below 500 for a 5-year programme.';
+            }
+        } elseif ($duration === 6 && $faculty === 'VET') {
+            if ($idPrefix < 18) {
+                $reasons[] = 'Your ID number must start with 18 or higher for a VET programme.';
+            }
+            if ($level >= 600) {
+                $reasons[] = 'Your current level must be below 600 for a VET programme.';
+            }
+        } elseif ($duration === 6) {
+            if ($idPrefix < 22) {
+                $reasons[] = 'Your ID number must start with 22 or higher for a 6-year programme.';
+            }
+            if ($level >= 400) {
+                $reasons[] = 'Your current level must be below 400 for a 6-year programme.';
+            }
+        } else {
+            $reasons[] = 'Your programme is not currently eligible for hostel accommodation.';
+        }
+
+        return [
+            'eligible' => $reasons === [],
+            'message' => 'You cannot apply for hostel accommodation at this time.',
+            'reasons' => $reasons,
+        ];
+    }
+
     public function downloadPDF($fileName)
     {
         $filePath = storage_path('app/public/pdf/' . $fileName);
@@ -159,6 +212,9 @@ class HostelController extends Controller
         $flag = 0;
         $isStudent = session('accType') == 'Student';
         $studentId = session('id_number');
+        $eligibility = $isStudent
+            ? $this->hostelEligibility($studentId)
+            : ['eligible' => true, 'message' => '', 'reasons' => []];
         $data['hostelApplicationOpen'] = (string) SystemSettingsController::get('hostel_application_status', '1') === '1';
         $data['hostelClosedMessage'] = SystemSettingsController::get(
             'hostel_closed_message',
@@ -166,6 +222,7 @@ class HostelController extends Controller
         );
         $data['hostelAnnouncement'] = SystemSettingsController::get('hostel_announcement', '');
         $data['hostelPins'] = collect();
+        $data['eligibility'] = $eligibility;
 
         $check = DB::table('hostel')->select('id', 'occupant', 'amount')->where('occupant', $studentId)->first();
         $data['data'] = DB::table('hostel')->select('id', 'hall', 'block', 'room', 'bed', 'occupant', 'payment_method', 'hostel_payment')->where('occupant', $studentId)->get();
@@ -175,7 +232,7 @@ class HostelController extends Controller
         // same hall request from many students arriving together.
         if (session('accType') == 'Admin') {
             $data['hall'] = DB::table('hostel')->select('hall')->groupBy('hall')->orderBy('hall', 'asc')->get();
-        } elseif ($isStudent && !$check && $data['hostelApplicationOpen']) {
+        } elseif ($isStudent && !$check && $data['hostelApplicationOpen'] && $eligibility['eligible']) {
             $bedType = session('system_session') == session('student_session') ? 2 : 0;
             $gender = session('gender');
             $hallCacheKey = 'hostel:available-halls:' . sha1((string) $gender . '|' . $bedType);
@@ -226,8 +283,12 @@ class HostelController extends Controller
             $flag = 3;
         }
 
-        if ($isStudent && !$check && !$data['hostelApplicationOpen']) {
-            $flag = 4;
+        if ($isStudent && !$check) {
+            if (!$data['hostelApplicationOpen']) {
+                $flag = 4;
+            } elseif (!$eligibility['eligible']) {
+                $flag = 5;
+            }
         }
         //dd($flag);
         $data['page'] = 'apply hostel';
@@ -345,6 +406,16 @@ class HostelController extends Controller
         }
         if (session('id_number') == null || session('id_number') == '') {
             return redirect()->back()->with('error', 'Get ID Number Before Applying for Hostel');
+        }
+        if (session('accType') == 'Student') {
+            $eligibility = $this->hostelEligibility(session('id_number'));
+            if (!$eligibility['eligible']) {
+                $message = $eligibility['message'];
+                if (!empty($eligibility['reasons'])) {
+                    $message .= ' ' . implode(' ', $eligibility['reasons']);
+                }
+                return redirect()->back()->with('error', $message);
+            }
         }
         $pin = DB::table('hostel_pin')->select('id', 'username')->where('username', session('id_number'))->first();
         if (!$pin) {

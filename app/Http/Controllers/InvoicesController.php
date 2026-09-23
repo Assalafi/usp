@@ -408,12 +408,6 @@ class InvoicesController extends Controller
             $description = env('REMITA_HOSTEL_DESCRIPTION');
             $serviceTypeId = env('REMITA_HOSTEL_KEY');
             $amount = DB::table('hostel')->where('occupant', session('id_number'))->select('amount')->value('amount');
-            $p_level = DB::table('program')->where('code', $row->program)->value('duration');
-            $p_level = $p_level * 100;
-            // return $p_level.$row -> level;
-            if ($row->level >= $p_level) {
-                return redirect()->back()->with('error', 'Graduated or Spilling Students are not ELIGIBLE for Bed Space!!!');
-            }
             if ($amount > 0) {
             } else {
                 return redirect()->back()->with('error', 'No Bed Space Reservation Assign to Your ID NO.');

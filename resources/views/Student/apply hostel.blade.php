@@ -1,64 +1,5 @@
 @php
-    $flagO = $flag;
-
-    // Keep the existing eligibility rules, but present their result in a clearer interface.
-    function apply($idNumber)
-    {
-        $duration = session('duration');
-        $level = session('current_level');
-        $faculty = session('faculty');
-        $idPrefix = (int) substr($idNumber, 0, 2);
-        $reasons = [];
-
-        if ($duration == 4 && $idPrefix >= 20 && $level < 400) {
-            return true;
-        }
-        if ($duration == 5 && $idPrefix >= 19 && $level < 500) {
-            return true;
-        }
-        if ($duration == 6 && $idPrefix >= 22 && $level < 400) {
-            return true;
-        }
-        if ($duration == 6 && $idPrefix >= 18 && $level < 600 && $faculty == 'VET') {
-            return true;
-        }
-
-        if ($duration == 4) {
-            if ($idPrefix < 20) {
-                $reasons[] = 'Your ID number must start with 20 or higher for a 4-year programme.';
-            }
-            if ($level >= 400) {
-                $reasons[] = 'Your level must be below 400 for a 4-year programme.';
-            }
-        } elseif ($duration == 5) {
-            if ($idPrefix < 19) {
-                $reasons[] = 'Your ID number must start with 19 or higher for a 5-year programme.';
-            }
-            if ($level >= 500) {
-                $reasons[] = 'Your level must be below 500 for a 5-year programme.';
-            }
-        } elseif ($duration == 6) {
-            if ($idPrefix < 22) {
-                $reasons[] = 'Your ID number must start with 22 or higher for a 6-year programme.';
-            }
-            if ($level >= 400) {
-                $reasons[] = 'Your level must be below 400 for a 6-year programme.';
-            }
-        } else {
-            $reasons[] = 'Your programme is not currently eligible for hostel accommodation.';
-        }
-
-        return [
-            'eligible' => false,
-            'message' => 'You cannot apply for hostel accommodation at this time.',
-            'reasons' => $reasons,
-        ];
-    }
-
-    $check = apply(session('id_number'));
-    if (isset($check['eligible'])) {
-        $flag = $flagO;
-    }
+    $eligibilityCheck = $eligibility ?? ['eligible' => true, 'message' => '', 'reasons' => []];
     $hostelPins = $hostelPins ?? collect();
     $hostelPin = $hostelPins->first();
     $studentId = session('id_number');
@@ -295,7 +236,7 @@
     @elseif ($flag == 4)
         <section class="ug-hostel-card"><div class="ug-hostel-card__head"><div><h2>Hostel applications are closed</h2></div><span class="ug-hostel-status ug-hostel-status--neutral">Closed</span></div><div class="ug-hostel-card__body"><div class="ug-hostel-empty"><i class="fas fa-lock" aria-hidden="true"></i><div>{{ $hostelClosedMessage }}</div></div><div class="ug-hostel-note"><strong>PIN status</strong>@if ($hostelPin) Your hostel PIN has been validated, but reservations are currently closed.@else You need a validated hostel PIN before applying when the window reopens.@endif</div></div></section>
     @elseif ($flag == 5)
-        <section class="ug-hostel-alert"><h3>{{ $check['message'] }}</h3><ul>@foreach ($check['reasons'] as $reason)<li>{{ $reason }}</li>@endforeach</ul></section>
+        <section class="ug-hostel-alert"><h3>{{ $eligibilityCheck['message'] }}</h3><ul>@foreach ($eligibilityCheck['reasons'] as $reason)<li>{{ $reason }}</li>@endforeach</ul></section>
     @endif
 
     <section class="ug-hostel-footer-notices" aria-label="Hostel guidance">
