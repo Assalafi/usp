@@ -293,15 +293,11 @@
             <section class="ug-hostel-card"><div class="ug-hostel-success"><div class="ug-hostel-success__icon"><i class="fas fa-check" aria-hidden="true"></i></div><h2>Your hostel permit is ready</h2><p>Your payment has been recorded. Download your permit and keep it available when you move into the hostel.</p></div><div class="ug-hostel-card__body"><div class="ug-hostel-location"><div class="ug-hostel-location__item"><small>Hall</small><strong>{{ $row->hall }}</strong></div><div class="ug-hostel-location__item"><small>Block</small><strong>{{ $row->block }}</strong></div><div class="ug-hostel-location__item"><small>Room / bed</small><strong>{{ $row->room }} / {{ $row->bed }}</strong></div></div><div class="ug-hostel-meta"><div class="ug-hostel-meta__row"><span>Reference</span><strong>00{{ $row->id }}</strong></div></div><a class="ug-hostel-button ug-hostel-button--primary ug-hostel-button--block" href="{{ url('print-permit/'.$row->id) }}"><i class="fas fa-download" aria-hidden="true"></i> Download hostel permit</a></div></section>
         @endforeach
     @elseif ($flag == 4)
-        <section class="ug-hostel-card"><div class="ug-hostel-card__head"><div><h2>Hostel applications are closed</h2><p>Please check back later for the next application window.</p></div><span class="ug-hostel-status ug-hostel-status--neutral">Closed</span></div><div class="ug-hostel-card__body"><div class="ug-hostel-empty"><i class="fas fa-lock" aria-hidden="true"></i><div><strong>New reservations are not being accepted</strong><br>{{ $hostelClosedMessage }}</div></div><div class="ug-hostel-note"><strong>PIN status</strong>@if ($hostelPin) Your hostel PIN has been validated, but reservations are currently closed.@else You need a validated hostel PIN before applying when the window reopens.@endif</div></div></section>
+        <section class="ug-hostel-card"><div class="ug-hostel-card__head"><div><h2>Hostel applications are closed</h2></div><span class="ug-hostel-status ug-hostel-status--neutral">Closed</span></div><div class="ug-hostel-card__body"><div class="ug-hostel-empty"><i class="fas fa-lock" aria-hidden="true"></i><div>{{ $hostelClosedMessage }}</div></div><div class="ug-hostel-note"><strong>PIN status</strong>@if ($hostelPin) Your hostel PIN has been validated, but reservations are currently closed.@else You need a validated hostel PIN before applying when the window reopens.@endif</div></div></section>
     @elseif ($flag == 5)
         <section class="ug-hostel-alert"><h3>{{ $check['message'] }}</h3><ul>@foreach ($check['reasons'] as $reason)<li>{{ $reason }}</li>@endforeach</ul></section>
     @endif
 
-    <div class="ug-hostel-footer-notices">
-        <div class="ug-hostel-note"><strong><i class="fas fa-clock" aria-hidden="true"></i> Keep your reservation active</strong>Unpaid reservations may be revoked after one week. Payment alone is not enough; verify and collect your permit within the stated period.</div>
-        <div class="ug-hostel-note"><strong><i class="fas fa-shield-alt" aria-hidden="true"></i> Use your allocation responsibly</strong>Hostel bed spaces and permits are personal and cannot be sold or transferred. Report suspicious activity to Hostel Management or Student Affairs.</div>
-    </div>
 </main>
 
 <script>
