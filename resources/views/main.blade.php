@@ -184,25 +184,39 @@
                         session()->put('links', $links);
                         //dd($links);
 
-                        $positions = DB::table('staff')
-                            ->select('appointment')
-                            ->where('username', session('username'))
-                            ->value('appointment');
-                        if ($positions) {
-                            $datas = DB::table('rolls')
-                                ->where(['link' => $links, 'username' => $positions])
-                                ->select('page', 'action', 'faculty')
-                                ->get();
-
-                            $getAllFaculty = DB::table('rolls')
-                                ->select('faculty')
-                                ->where(['link' => $links, 'username' => $positions])
-                                ->pluck('faculty');
-                            $ch = DB::table('rolls')
-                                ->where(['link' => $links, 'username' => $positions])
-                                ->select('id')
-                                ->value('id');
-                            if ($ch > 0) {
+                        // Students and administrators do not use staff roll permissions.
+                        // Avoid three unnecessary permission queries on every high-traffic
+                        // student page request.
+                        $datas = collect();
+                        $getAllFaculty = collect();
+                        if (!in_array(session('accType'), ['Student', 'Admin'], true)) {
+                            $positions = DB::table('staff')
+                                ->select('appointment')
+                                ->where('username', session('username'))
+                                ->value('appointment');
+                            if ($positions) {
+                                $datas = DB::table('rolls')
+                                    ->where(['link' => $links, 'username' => $positions])
+                                    ->select('page', 'action', 'faculty')
+                                    ->get();
+                                $getAllFaculty = DB::table('rolls')
+                                    ->select('faculty')
+                                    ->where(['link' => $links, 'username' => $positions])
+                                    ->pluck('faculty');
+                                $ch = DB::table('rolls')
+                                    ->where(['link' => $links, 'username' => $positions])
+                                    ->select('id')
+                                    ->value('id');
+                                if ($ch <= 0) {
+                                    $datas = DB::table('rolls')
+                                        ->where(['link' => $links, 'username' => session('username')])
+                                        ->select('page', 'action', 'faculty')
+                                        ->get();
+                                    $getAllFaculty = DB::table('rolls')
+                                        ->select('faculty')
+                                        ->where(['link' => $links, 'username' => session('username')])
+                                        ->pluck('faculty');
+                                }
                             } else {
                                 $datas = DB::table('rolls')
                                     ->where(['link' => $links, 'username' => session('username')])
@@ -213,15 +227,6 @@
                                     ->where(['link' => $links, 'username' => session('username')])
                                     ->pluck('faculty');
                             }
-                        } else {
-                            $datas = DB::table('rolls')
-                                ->where(['link' => $links, 'username' => session('username')])
-                                ->select('page', 'action', 'faculty')
-                                ->get();
-                            $getAllFaculty = DB::table('rolls')
-                                ->select('faculty')
-                                ->where(['link' => $links, 'username' => session('username')])
-                                ->pluck('faculty');
                         }
                     @endphp
                     @forelse ($datas as $roll)

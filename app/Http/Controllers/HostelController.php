@@ -8,6 +8,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\PinImport;
 use App\Models\HostelPin;
@@ -156,44 +157,77 @@ class HostelController extends Controller
             return redirect('/');
         }
         $flag = 0;
+        $isStudent = session('accType') == 'Student';
+        $studentId = session('id_number');
+        $data['hostelApplicationOpen'] = (string) SystemSettingsController::get('hostel_application_status', '1') === '1';
+        $data['hostelClosedMessage'] = SystemSettingsController::get(
+            'hostel_closed_message',
+            'Hostel applications are currently closed. Please check back later or contact Student Affairs.'
+        );
+        $data['hostelAnnouncement'] = SystemSettingsController::get('hostel_announcement', '');
+        $data['hostelPins'] = collect();
+
+        $check = DB::table('hostel')->select('id', 'occupant', 'amount')->where('occupant', $studentId)->first();
+        $data['data'] = DB::table('hostel')->select('id', 'hall', 'block', 'room', 'bed', 'occupant', 'payment_method', 'hostel_payment')->where('occupant', $studentId)->get();
+
+        // Do not scan the availability table when the student already has a
+        // reservation or applications are closed. The short cache absorbs the
+        // same hall request from many students arriving together.
         if (session('accType') == 'Admin') {
             $data['hall'] = DB::table('hostel')->select('hall')->groupBy('hall')->orderBy('hall', 'asc')->get();
-        } else if (session('accType') == 'Student') {
-            if (session('system_session') == session('student_session')) {
-                $data['hall'] = DB::table('hostel')->select('hall')->where(['flag' => 0, 'bed_type' => 2, 'status' => 0, 'gender' => session('gender')])->groupBy('hall')->orderBy('hall', 'asc')->get();
-            } else {
-                $data['hall'] = DB::table('hostel')->select('hall')->where(['flag' => 0, 'bed_type' => 0, 'status' => 0, 'gender' => session('gender')])->groupBy('hall')->orderBy('hall', 'asc')->get();
-            }
+        } elseif ($isStudent && !$check && $data['hostelApplicationOpen']) {
+            $bedType = session('system_session') == session('student_session') ? 2 : 0;
+            $gender = session('gender');
+            $hallCacheKey = 'hostel:available-halls:' . sha1((string) $gender . '|' . $bedType);
+            $data['hall'] = Cache::remember($hallCacheKey, now()->addSeconds(5), function () use ($gender, $bedType) {
+                return DB::table('hostel')
+                    ->select('hall')
+                    ->where(['flag' => 0, 'bed_type' => $bedType, 'status' => 0, 'gender' => $gender])
+                    ->groupBy('hall')
+                    ->orderBy('hall', 'asc')
+                    ->get();
+            });
+        } else {
+            $data['hall'] = collect();
         }
-        $check = DB::table('hostel')->select('id', 'occupant', 'amount')->where('occupant', session('id_number'))->first();
-        $data['data'] = DB::table('hostel')->select('id', 'hall', 'block', 'room', 'bed', 'occupant', 'payment_method')->where('occupant', session('id_number'))->get();
+
+        if ($isStudent) {
+            $pinCacheKey = 'hostel:pins:' . sha1((string) $studentId);
+            $data['hostelPins'] = Cache::remember($pinCacheKey, now()->addSeconds(30), function () use ($studentId) {
+                return DB::table('hostel_pin')
+                    ->select('id', 'username', 'pin', 'status', 'batch')
+                    ->where('username', $studentId)
+                    ->orderBy('id')
+                    ->get();
+            });
+        }
+
         if ($check) {
             // get amount
             $amount = $check->amount;
             $flag = 1;
 
-
-        $fetching_session = \App\Http\Controllers\SystemSettingsController::getHostelFeesSession();
-        $data['invoice'] = DB::table('invoices')->where(['username' => session('id'), 'description' => 'HOSTEL-MAINTENANCE/FEES', 'amount' => $amount, 'session' => $fetching_session])->get();
-        $checks = DB::table('invoices')->where(['username' => session('id'), 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => $fetching_session, 'amount' => $amount])->first();
-        if ($checks && $check) {
-            $flag = 2;
-            $status = 'Pending';
-            $run = DB::table('invoices')->select('rrr', 'status')->where(['username' => session('id'), 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => $fetching_session, 'amount' => $amount])->get();
-            $data['invoice'] = DB::table('invoices')->where(['username' => session('id'), 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => $fetching_session, 'amount' => $amount])->get();
-            foreach ($run as $row) {
-                $data['rrr'] = $row->rrr;
-                $status = $row->status;
+            $fetching_session = SystemSettingsController::getHostelFeesSession();
+            $data['invoice'] = DB::table('invoices')
+                ->where([
+                    'username' => session('id'),
+                    'description' => 'HOSTEL-MAINTENANCE/FEES',
+                    'amount' => $amount,
+                    'session' => $fetching_session,
+                ])
+                ->get();
+            if ($data['invoice']->isNotEmpty()) {
+                $flag = 2;
+                $data['rrr'] = $data['invoice']->last()->rrr;
             }
-            // if($status == 'Paid'){
-            //     $flag = 3;
-            // }
         }
 
-        }
-        $payment = DB::table('hostel')->select('hostel_payment')->where('occupant', session('id_number'))->value('hostel_payment');
-        if ($payment == 1) {
+        if ($data['data']->contains(fn ($row) => (string) $row->hostel_payment === '1')) {
             $flag = 3;
+        }
+
+        if ($isStudent && !$check && !$data['hostelApplicationOpen']) {
+            $flag = 4;
         }
         //dd($flag);
         $data['page'] = 'apply hostel';
@@ -207,14 +241,23 @@ class HostelController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
+        if (session('accType') == 'Student' && (string) SystemSettingsController::get('hostel_application_status', '1') !== '1') {
+            return '<option value="">Hostel applications are closed</option>';
+        }
         if (session('accType') == 'Admin') {
             $data = DB::table('hostel')->select('block')->where(['hall' => $request->hall])->groupBy('block')->orderBy('block', 'asc')->get();
         } else if (session('accType') == 'Student') {
-            if (session('system_session') == session('student_session')) {
-                $data = DB::table('hostel')->select('block')->where(['flag' => 0, 'status' => 0, 'gender' => session('gender'), 'hall' => $request->hall, 'bed_type' => 2])->groupBy('block')->orderBy('block', 'asc')->get();
-            } else {
-                $data = DB::table('hostel')->select('block')->where(['flag' => 0, 'status' => 0, 'gender' => session('gender'), 'hall' => $request->hall, 'bed_type' => 0])->groupBy('block')->orderBy('block', 'asc')->get();
-            }
+            $bedType = session('system_session') == session('student_session') ? 2 : 0;
+            $gender = session('gender');
+            $cacheKey = 'hostel:blocks:' . sha1((string) $gender . '|' . $bedType . '|' . $request->hall);
+            $data = Cache::remember($cacheKey, now()->addSeconds(5), function () use ($gender, $bedType, $request) {
+                return DB::table('hostel')
+                    ->select('block')
+                    ->where(['flag' => 0, 'status' => 0, 'gender' => $gender, 'hall' => $request->hall, 'bed_type' => $bedType])
+                    ->groupBy('block')
+                    ->orderBy('block', 'asc')
+                    ->get();
+            });
         }
 
         $add = '<option value="">Select Block</option>';
@@ -230,14 +273,23 @@ class HostelController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
+        if (session('accType') == 'Student' && (string) SystemSettingsController::get('hostel_application_status', '1') !== '1') {
+            return '<option value="">Hostel applications are closed</option>';
+        }
         if (session('accType') == 'Admin') {
             $data = DB::table('hostel')->select('room')->where(['hall' => $request->hall, 'block' => $request->block])->groupBy('room')->orderBy('room', 'asc')->get();
         } else if (session('accType') == 'Student') {
-            if (session('system_session') == session('student_session')) {
-                $data = DB::table('hostel')->select('room')->where(['flag' => 0, 'status' => 0, 'gender' => session('gender'), 'hall' => $request->hall, 'block' => $request->block, 'bed_type' => 2])->groupBy('room')->orderBy('room', 'asc')->get();
-            } else {
-                $data = DB::table('hostel')->select('room')->where(['flag' => 0, 'status' => 0, 'gender' => session('gender'), 'hall' => $request->hall, 'block' => $request->block, 'bed_type' => 0])->groupBy('room')->orderBy('room', 'asc')->get();
-            }
+            $bedType = session('system_session') == session('student_session') ? 2 : 0;
+            $gender = session('gender');
+            $cacheKey = 'hostel:rooms:' . sha1((string) $gender . '|' . $bedType . '|' . $request->hall . '|' . $request->block);
+            $data = Cache::remember($cacheKey, now()->addSeconds(5), function () use ($gender, $bedType, $request) {
+                return DB::table('hostel')
+                    ->select('room')
+                    ->where(['flag' => 0, 'status' => 0, 'gender' => $gender, 'hall' => $request->hall, 'block' => $request->block, 'bed_type' => $bedType])
+                    ->groupBy('room')
+                    ->orderBy('room', 'asc')
+                    ->get();
+            });
         }
 
         $add = '<option value="">Select Room</option>';
@@ -253,14 +305,23 @@ class HostelController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
+        if (session('accType') == 'Student' && (string) SystemSettingsController::get('hostel_application_status', '1') !== '1') {
+            return '<option value="">Hostel applications are closed</option>';
+        }
         if (session('accType') == 'Admin') {
             $data = DB::table('hostel')->select('bed')->where(['hall' => $request->hall, 'block' => $request->block, 'room' => $request->room])->groupBy('bed')->orderBy('bed', 'asc')->get();
         } else if (session('accType') == 'Student') {
-            if (session('system_session') == session('student_session')) {
-                $data = DB::table('hostel')->select('bed')->where(['flag' => 0, 'status' => 0, 'gender' => session('gender'), 'hall' => $request->hall, 'block' => $request->block, 'room' => $request->room, 'bed_type' => 2])->groupBy('bed')->orderBy('bed', 'asc')->get();
-            } else {
-                $data = DB::table('hostel')->select('bed')->where(['flag' => 0, 'status' => 0, 'gender' => session('gender'), 'hall' => $request->hall, 'block' => $request->block, 'room' => $request->room, 'bed_type' => 0])->groupBy('bed')->orderBy('bed', 'asc')->get();
-            }
+            $bedType = session('system_session') == session('student_session') ? 2 : 0;
+            $gender = session('gender');
+            $cacheKey = 'hostel:beds:' . sha1((string) $gender . '|' . $bedType . '|' . $request->hall . '|' . $request->block . '|' . $request->room);
+            $data = Cache::remember($cacheKey, now()->addSeconds(5), function () use ($gender, $bedType, $request) {
+                return DB::table('hostel')
+                    ->select('bed')
+                    ->where(['flag' => 0, 'status' => 0, 'gender' => $gender, 'hall' => $request->hall, 'block' => $request->block, 'room' => $request->room, 'bed_type' => $bedType])
+                    ->groupBy('bed')
+                    ->orderBy('bed', 'asc')
+                    ->get();
+            });
         }
 
         $add = '<option value="">Select Bed</option>';
@@ -276,6 +337,12 @@ class HostelController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
+        if (session('accType') == 'Student' && (string) SystemSettingsController::get('hostel_application_status', '1') !== '1') {
+            return redirect()->back()->with('error', SystemSettingsController::get(
+                'hostel_closed_message',
+                'Hostel applications are currently closed. Please check back later.'
+            ));
+        }
         if (session('id_number') == null || session('id_number') == '') {
             return redirect()->back()->with('error', 'Get ID Number Before Applying for Hostel');
         }
@@ -283,8 +350,9 @@ class HostelController extends Controller
         if (!$pin) {
             return redirect()->back()->with('error', 'You need to have PIN before Applying');
         }
+        $updated = 0;
         if (session('system_session') == session('student_session') && (session('system_session') != '' && session('system_session') != null)) {
-            DB::table('hostel')->where(['hall' => $request->hall, 'block' => $request->block, 'room' => $request->room, 'bed' => $request->bed, 'status' => 0, 'bed_type' => 2])->update([
+            $updated = DB::table('hostel')->where(['hall' => $request->hall, 'block' => $request->block, 'room' => $request->room, 'bed' => $request->bed, 'status' => 0, 'bed_type' => 2])->update([
                 'occupant' => session('id_number'),
                 'status' => 1,
             ]);
@@ -293,10 +361,13 @@ class HostelController extends Controller
             if ($check) {
                 return redirect()->back()->with('error', 'You Cannot have MULTIPLE bed space');
             }
-            DB::table('hostel')->where(['hall' => $request->hall, 'block' => $request->block, 'room' => $request->room, 'bed' => $request->bed, 'status' => 0, 'bed_type' => 0])->update([
+            $updated = DB::table('hostel')->where(['hall' => $request->hall, 'block' => $request->block, 'room' => $request->room, 'bed' => $request->bed, 'status' => 0, 'bed_type' => 0])->update([
                 'occupant' => session('id_number'),
                 'status' => 1,
             ]);
+        }
+        if ($updated !== 1) {
+            return redirect()->back()->with('error', 'Sorry, that bed space was just taken. Please choose another one.');
         }
         $check = DB::table('hostel')->select('id', 'occupant')->where('occupant', session('id_number'))->first();
         if ($check) {

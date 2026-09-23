@@ -170,6 +170,55 @@
                                         </ul>
                                     </div>
                                 </div>
+                            @elseif($currentCategory == 'hostel')
+                                <!-- Hostel Settings -->
+                                <div class="alert alert-info mb-4">
+                                    <i class="fas fa-building me-2"></i>
+                                    <strong>Hostel application control:</strong> Open or close new bed-space
+                                    reservations without changing existing hostel allocations.
+                                </div>
+
+                                <div class="row">
+                                    @foreach ($settings as $setting)
+                                        <div class="col-md-{{ in_array($setting->key, ['hostel_closed_message', 'hostel_announcement']) ? '12' : '6' }} mb-4">
+                                            <div class="card border-info h-100">
+                                                <div class="card-body">
+                                                    <label class="form-label fw-bold">
+                                                        <i class="fas fa-{{ $setting->key == 'hostel_application_status' ? 'toggle-on' : ($setting->key == 'hostel_announcement' ? 'bullhorn' : 'comment-alt') }} me-1 text-info"></i>
+                                                        {{ $setting->label }}
+                                                    </label>
+                                                    @if ($setting->type == 'boolean')
+                                                        <div class="form-check form-switch mt-2">
+                                                            <input class="form-check-input" type="checkbox"
+                                                                id="{{ $setting->key }}" name="{{ $setting->key }}"
+                                                                value="1"
+                                                                {{ $setting->value == '1' ? 'checked' : '' }}>
+                                                            <label class="form-check-label" for="{{ $setting->key }}">
+                                                                <span class="badge {{ $setting->value == '1' ? 'bg-success' : 'bg-danger' }} fs-6">
+                                                                    {{ $setting->value == '1' ? 'OPEN' : 'CLOSED' }}
+                                                                </span>
+                                                            </label>
+                                                        </div>
+                                                    @else
+                                                        <textarea class="form-control mt-2" name="{{ $setting->key }}" rows="3">{{ $setting->value }}</textarea>
+                                                    @endif
+                                                    <small class="text-muted mt-2 d-block">{{ $setting->description }}</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+
+                                <div class="card bg-light mt-2">
+                                    <div class="card-body">
+                                        <h6><i class="fas fa-info-circle me-2"></i>What happens when applications are closed?</h6>
+                                        <ul class="mb-0 small">
+                                            <li>Students cannot start a new bed-space reservation.</li>
+                                            <li>Existing reservations, payments and permits remain available.</li>
+                                            <li>Students receive the message written above.</li>
+                                        </ul>
+                                    </div>
+                                </div>
                             @elseif($currentCategory == 'fees')
                                 <!-- Fee Settings -->
                                 <div class="alert alert-info mb-4">

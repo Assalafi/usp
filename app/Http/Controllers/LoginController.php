@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cache;
 
 class LoginController extends Controller
 {
@@ -211,6 +212,10 @@ class LoginController extends Controller
             return redirect('/');
         }
         $data['page'] = 'validate hostel pin';
+        $data['hostelPins'] = HostelPin::where('username', session('id_number'))
+            ->orderBy('id')
+            ->get();
+        $data['hostelPin'] = $data['hostelPins']->first();
         return view('main', $data);
         // return view('validate hostel pin', $data);
     }
@@ -225,16 +230,28 @@ class LoginController extends Controller
     {
         $user = User::where('id', session('id'))->first();
         if ($user) {
+            $studentId = session('id_number');
+            if (!$studentId) {
+                return redirect()->back()->with('error', 'Your student ID could not be found in this session. Please sign in again.');
+            }
+
+            // A student may have only one active validation. This also handles
+            // older duplicate records safely instead of assigning another PIN.
+            if (HostelPin::where('username', $studentId)->exists()) {
+                return redirect()->back()->with('info', 'A hostel PIN is already validated for your account.');
+            }
+
             $pin = HostelPin::where('pin', $req->password)->first();
             if ($pin) {
                 if ($pin['username'] == 'Awaiting') {
-                    $exist = HostelPin::where('username', $req->email)->first();
+                    $exist = HostelPin::where('username', $studentId)->first();
                     if ($exist) {
                         return redirect()->back()->with('error', "You can't Have Multiple PIN");
                     }
                     HostelPin::where('id', $pin['id'])->update([
-                        'username' => $req->email,
+                        'username' => $studentId,
                     ]);
+                    Cache::forget('hostel:pins:' . sha1((string) $studentId));
                     User::where('id', session('id'))->update([
                         'gender' => strtoupper($req->gender),
                     ]);

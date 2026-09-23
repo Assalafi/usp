@@ -26,6 +26,7 @@ class SystemSettingsController extends Controller
             'fees' => ['icon' => 'fas fa-money-bill', 'title' => 'Fee Settings', 'color' => 'success'],
             'security' => ['icon' => 'fas fa-shield-alt', 'title' => 'Security Settings', 'color' => 'danger'],
             'academic' => ['icon' => 'fas fa-graduation-cap', 'title' => 'Academic Settings', 'color' => 'primary'],
+            'hostel' => ['icon' => 'fas fa-building', 'title' => 'Hostel Settings', 'color' => 'info'],
             'recruitment' => ['icon' => 'fas fa-user-tie', 'title' => 'Recruitment Portal', 'color' => 'info'],
             'institution' => ['icon' => 'fas fa-university', 'title' => 'Institution Settings', 'color' => 'info'],
             'payment' => ['icon' => 'fas fa-credit-card', 'title' => 'Payment Gateway', 'color' => 'warning'],
@@ -316,6 +317,11 @@ class SystemSettingsController extends Controller
                 'default_staff_password' => 'staff@2026',
                 'password_min_length' => '8',
                 'session_timeout' => '120',
+            ],
+            'hostel' => [
+                'hostel_application_status' => '1',
+                'hostel_closed_message' => 'Hostel applications are currently closed. Please check back later or contact Student Affairs.',
+                'hostel_announcement' => '',
             ],
         ];
 
