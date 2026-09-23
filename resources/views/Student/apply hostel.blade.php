@@ -298,6 +298,13 @@
         <section class="ug-hostel-alert"><h3>{{ $check['message'] }}</h3><ul>@foreach ($check['reasons'] as $reason)<li>{{ $reason }}</li>@endforeach</ul></section>
     @endif
 
+    <section class="ug-hostel-footer-notices" aria-label="Hostel guidance">
+        <div class="ug-hostel-note">
+            <strong>Use your allocation responsibly</strong>
+            Hostel bed spaces and permits are personal and cannot be sold or transferred. Report suspicious activity to Hostel Management or Student Affairs.
+        </div>
+    </section>
+
 </main>
 
 <script>
