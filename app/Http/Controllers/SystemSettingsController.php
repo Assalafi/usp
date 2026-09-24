@@ -66,7 +66,7 @@ class SystemSettingsController extends Controller
 
         // These are the only elements needed by the hostel text editor. Strip
         // everything else before rendering the content to students.
-        $html = strip_tags($html, '<p><br><strong><b><em><i><u><ol><ul><li><blockquote><h2><h3><h4><a>');
+        $html = strip_tags($html, '<p><div><br><strong><b><em><i><u><ol><ul><li><blockquote><h2><h3><h4><a>');
         $html = preg_replace('/\s+on[a-z0-9_-]+\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $html) ?? $html;
 
         // Remove arbitrary attributes and keep only safe, external link URLs.
@@ -82,6 +82,9 @@ class SystemSettingsController extends Controller
                     if (preg_match('/(?:^|;)\s*text-align\s*:\s*(left|center|right|justify)\s*(?:;|$)/i', $style, $alignmentMatch)) {
                         $alignment = strtolower($alignmentMatch[1]);
                     }
+                }
+                if ($alignment === '' && preg_match('/\balign\s*=\s*(?:"(left|center|right|justify)"|\'(left|center|right|justify)\'|([^\s>]+))/i', $match[2], $alignMatch)) {
+                    $alignment = strtolower($alignMatch[1] ?? $alignMatch[2] ?? $alignMatch[3] ?? '');
                 }
 
                 return '<' . $tag . ($alignment !== '' ? ' style="text-align: ' . $alignment . ';"' : '') . '>';
