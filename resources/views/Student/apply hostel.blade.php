@@ -93,6 +93,13 @@
     .ug-hostel-announcement__icon { display: grid; width: 36px; height: 36px; flex: 0 0 36px; place-items: center; border-radius: 11px; background: #d9f0fc; color: var(--ug-blue-dark); }
     .ug-hostel-announcement strong { display: block; margin-bottom: .25rem; color: var(--ug-ink); font-size: .9rem; }
     .ug-hostel-announcement__body { min-width: 0; font-size: .86rem; line-height: 1.6; white-space: normal; overflow-wrap: anywhere; }
+    .ug-hostel-announcement__content { max-height: 6.9rem; overflow: hidden; position: relative; transition: max-height .25s ease; }
+    .ug-hostel-announcement__content.is-expanded { max-height: none; }
+    .ug-hostel-announcement__content.is-collapsed::after { content: ''; position: absolute; right: 0; bottom: 0; left: 0; height: 2.1rem; pointer-events: none; background: linear-gradient(to bottom, rgba(248,252,255,0), #f8fcff); }
+    .ug-hostel-announcement__content p:last-child, .ug-hostel-announcement__content h2:last-child, .ug-hostel-announcement__content h3:last-child, .ug-hostel-announcement__content h4:last-child, .ug-hostel-announcement__content ul:last-child, .ug-hostel-announcement__content ol:last-child { margin-bottom: 0; }
+    .ug-hostel-announcement__toggle { display: none; align-items: center; gap: .35rem; margin-top: .55rem; border: 0; padding: 0; background: transparent; color: var(--ug-blue-dark); font: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; }
+    .ug-hostel-announcement__toggle:hover { color: #0b5688; text-decoration: underline; }
+    .ug-hostel-announcement__toggle.is-visible { display: inline-flex; }
     .ug-hostel-empty { display: flex; align-items: flex-start; gap: .8rem; padding: 1rem; border: 1px dashed #cbdde9; border-radius: 13px; background: var(--ug-soft); color: #526d82; }
     .ug-hostel-empty i { margin-top: .15rem; color: var(--ug-blue); }
 
@@ -157,7 +164,13 @@
     @if (trim((string) ($hostelAnnouncement ?? '')) !== '')
         <section class="ug-hostel-announcement" aria-label="Hostel announcement">
             <span class="ug-hostel-announcement__icon"><i class="fas fa-bullhorn" aria-hidden="true"></i></span>
-            <div class="ug-hostel-announcement__body"><strong>Hostel announcement</strong>{!! $hostelAnnouncement !!}</div>
+            <div class="ug-hostel-announcement__body">
+                <strong>Hostel announcement</strong>
+                <div class="ug-hostel-announcement__content is-collapsed" data-announcement-content>{!! $hostelAnnouncement !!}</div>
+                <button type="button" class="ug-hostel-announcement__toggle" data-announcement-toggle aria-expanded="false">
+                    <span data-announcement-toggle-label>Read more</span><i class="fas fa-chevron-down" aria-hidden="true"></i>
+                </button>
+            </div>
         </section>
     @endif
 
@@ -259,6 +272,36 @@
         const bed = document.getElementById('ug-hostel-bed');
         const status = document.getElementById('ug-hostel-status');
         const csrf = page.querySelector('input[name="_token"]')?.value || '';
+
+        const announcementContent = page.querySelector('[data-announcement-content]');
+        const announcementToggle = page.querySelector('[data-announcement-toggle]');
+        const announcementToggleLabel = page.querySelector('[data-announcement-toggle-label]');
+        if (announcementContent && announcementToggle) {
+            const updateAnnouncementToggle = () => {
+                if (announcementContent.classList.contains('is-expanded')) {
+                    announcementToggle.classList.add('is-visible');
+                    announcementToggle.hidden = false;
+                    return;
+                }
+                announcementContent.classList.add('is-collapsed');
+                announcementContent.classList.remove('is-expanded');
+                const needsToggle = announcementContent.scrollHeight > announcementContent.clientHeight + 2;
+                announcementToggle.classList.toggle('is-visible', needsToggle);
+                announcementToggle.hidden = !needsToggle;
+            };
+
+            announcementToggle.addEventListener('click', () => {
+                const expanded = announcementContent.classList.toggle('is-expanded');
+                announcementContent.classList.toggle('is-collapsed', !expanded);
+                announcementToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                if (announcementToggleLabel) announcementToggleLabel.textContent = expanded ? 'Show less' : 'Read more';
+                const icon = announcementToggle.querySelector('i');
+                if (icon) icon.className = expanded ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
+            });
+
+            updateAnnouncementToggle();
+            window.addEventListener('resize', updateAnnouncementToggle);
+        }
 
         const resetSelect = (select, label) => {
             if (!select) return;
