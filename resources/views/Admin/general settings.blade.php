@@ -200,8 +200,37 @@
                                                             </label>
                                                         </div>
                                                     @else
-                                                        <textarea class="form-control mt-2" name="{{ $setting->key }}" rows="3" data-rich-editor="true">{{ $setting->value }}</textarea>
-                                                        <small class="text-muted d-block mt-2"><i class="fas fa-pen me-1"></i>Use the editor to format this message with headings, emphasis, lists and links.</small>
+                                                        @php($richValue = \App\Http\Controllers\SystemSettingsController::sanitizeRichText($setting->value))
+                                                        <div class="hostel-rich-editor mt-2" data-rich-editor-wrapper>
+                                                            <div class="hostel-rich-toolbar" role="toolbar" aria-label="Text formatting tools">
+                                                                <select class="hostel-rich-format" data-rich-format aria-label="Text style">
+                                                                    <option value="p">Paragraph</option>
+                                                                    <option value="h2">Heading</option>
+                                                                    <option value="h3">Small heading</option>
+                                                                </select>
+                                                                <span class="hostel-rich-divider" aria-hidden="true"></span>
+                                                                <button type="button" data-command="bold" title="Bold" aria-label="Bold"><i class="fas fa-bold"></i></button>
+                                                                <button type="button" data-command="italic" title="Italic" aria-label="Italic"><i class="fas fa-italic"></i></button>
+                                                                <button type="button" data-command="underline" title="Underline" aria-label="Underline"><i class="fas fa-underline"></i></button>
+                                                                <button type="button" data-command="strikeThrough" title="Strikethrough" aria-label="Strikethrough"><i class="fas fa-strikethrough"></i></button>
+                                                                <span class="hostel-rich-divider" aria-hidden="true"></span>
+                                                                <button type="button" data-command="justifyLeft" title="Align left" aria-label="Align left"><i class="fas fa-align-left"></i></button>
+                                                                <button type="button" data-command="justifyCenter" title="Align center" aria-label="Align center"><i class="fas fa-align-center"></i></button>
+                                                                <button type="button" data-command="justifyRight" title="Align right" aria-label="Align right"><i class="fas fa-align-right"></i></button>
+                                                                <button type="button" data-command="justifyFull" title="Justify" aria-label="Justify"><i class="fas fa-align-justify"></i></button>
+                                                                <span class="hostel-rich-divider" aria-hidden="true"></span>
+                                                                <button type="button" data-command="insertUnorderedList" title="Bulleted list" aria-label="Bulleted list"><i class="fas fa-list-ul"></i></button>
+                                                                <button type="button" data-command="insertOrderedList" title="Numbered list" aria-label="Numbered list"><i class="fas fa-list-ol"></i></button>
+                                                                <button type="button" data-command="createLink" title="Insert link" aria-label="Insert link"><i class="fas fa-link"></i></button>
+                                                                <button type="button" data-command="removeFormat" title="Clear formatting" aria-label="Clear formatting"><i class="fas fa-eraser"></i></button>
+                                                                <span class="hostel-rich-divider" aria-hidden="true"></span>
+                                                                <button type="button" data-command="undo" title="Undo" aria-label="Undo"><i class="fas fa-undo"></i></button>
+                                                                <button type="button" data-command="redo" title="Redo" aria-label="Redo"><i class="fas fa-redo"></i></button>
+                                                            </div>
+                                                            <div class="hostel-rich-surface" data-rich-surface contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true">{!! $richValue !!}</div>
+                                                            <textarea class="d-none" name="{{ $setting->key }}" data-rich-source>{{ $richValue }}</textarea>
+                                                        </div>
+                                                        <small class="text-muted d-block mt-2"><i class="fas fa-pen me-1"></i>Format the message with headings, emphasis, lists, links and left, centre, right or justified alignment.</small>
                                                     @endif
                                                     <small class="text-muted mt-2 d-block">{{ $setting->description }}</small>
                                                 </div>
@@ -613,53 +642,140 @@
 
 @if ($currentCategory == 'hostel')
     <style>
-        .hostel-rich-editor .ck-editor__editable_inline,
-        textarea[data-rich-editor] + .ck-editor .ck-editor__editable_inline {
-            min-height: 155px;
+        .hostel-rich-editor {
+            overflow: hidden;
+            border: 1px solid #d6e2eb;
+            border-radius: .5rem;
+            background: #fff;
         }
 
-        textarea[data-rich-editor] + .ck-editor {
-            margin-top: .5rem;
+        .hostel-rich-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: .2rem;
+            padding: .45rem;
+            border-bottom: 1px solid #d6e2eb;
+            background: #f7fafc;
+        }
+
+        .hostel-rich-toolbar button,
+        .hostel-rich-format {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 2.1rem;
+            height: 2rem;
+            border: 1px solid transparent;
+            border-radius: .3rem;
+            background: transparent;
+            color: #39566b;
+            cursor: pointer;
+        }
+
+        .hostel-rich-toolbar button:hover,
+        .hostel-rich-toolbar button:focus,
+        .hostel-rich-format:focus {
+            border-color: #8fc5e3;
+            background: #eaf6fd;
+            color: #126d9f;
+            outline: none;
+        }
+
+        .hostel-rich-format {
+            min-width: 8.5rem;
+            justify-content: flex-start;
+            padding: 0 .45rem;
+            background: #fff;
+        }
+
+        .hostel-rich-divider {
+            width: 1px;
+            height: 1.4rem;
+            margin: 0 .2rem;
+            background: #d6e2eb;
+        }
+
+        .hostel-rich-surface {
+            min-height: 155px;
+            padding: .85rem 1rem;
+            color: #243b4d;
+            line-height: 1.6;
+            outline: none;
+        }
+
+        .hostel-rich-surface:focus {
+            box-shadow: inset 0 0 0 2px rgba(62, 161, 228, .2);
+        }
+
+        .hostel-rich-surface p,
+        .hostel-rich-surface h2,
+        .hostel-rich-surface h3,
+        .hostel-rich-surface blockquote {
+            margin: 0 0 .55rem;
+        }
+
+        .hostel-rich-surface ul,
+        .hostel-rich-surface ol {
+            margin: .25rem 0 .65rem;
+            padding-left: 1.4rem;
+        }
+
+        .hostel-rich-surface blockquote {
+            border-left: 3px solid #9bcfe9;
+            padding-left: .8rem;
+            color: #587284;
         }
 
         @media (max-width: 576px) {
-            textarea[data-rich-editor] + .ck-editor .ck-toolbar {
-                flex-wrap: wrap;
+            .hostel-rich-toolbar {
+                gap: .1rem;
+            }
+
+            .hostel-rich-toolbar button {
+                min-width: 1.95rem;
             }
         }
     </style>
-    <script src="{{ asset('dashboard/plugins/ckeditor/js/ckeditor.js') }}"></script>
     <script>
         (function () {
             function initialiseHostelEditors() {
-                if (typeof ClassicEditor === 'undefined') return;
+                document.querySelectorAll('[data-rich-editor-wrapper]').forEach(function (wrapper) {
+                    var surface = wrapper.querySelector('[data-rich-surface]');
+                    var source = wrapper.querySelector('[data-rich-source]');
+                    if (!surface || !source) return;
 
-                document.querySelectorAll('textarea[data-rich-editor]').forEach(function (textarea) {
-                    ClassicEditor.create(textarea, {
-                        toolbar: {
-                            items: [
-                                'heading', '|', 'bold', 'italic', 'link',
-                                'bulletedList', 'numberedList', 'blockQuote',
-                                'undo', 'redo'
-                            ],
-                            shouldNotGroupWhenFull: true
-                        },
-                        heading: {
-                            options: [
-                                { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
-                                { model: 'heading2', view: 'h2', title: 'Heading', class: 'ck-heading_heading2' },
-                                { model: 'heading3', view: 'h3', title: 'Small heading', class: 'ck-heading_heading3' }
-                            ]
-                        },
-                        link: { addTargetToExternalLinks: true, defaultProtocol: 'https://' }
-                    }).then(function (editor) {
-                        var sync = function () { textarea.value = editor.getData(); };
-                        editor.model.document.on('change:data', sync);
-                        textarea.closest('form').addEventListener('submit', sync, true);
-                        sync();
-                    }).catch(function (error) {
-                        console.error('Unable to initialise hostel text editor', error);
+                    var sync = function () { source.value = surface.innerHTML; };
+                    var focusSurface = function () { surface.focus(); };
+
+                    wrapper.querySelectorAll('[data-command]').forEach(function (button) {
+                        button.addEventListener('mousedown', function (event) { event.preventDefault(); });
+                        button.addEventListener('click', function () {
+                            var command = button.getAttribute('data-command');
+                            focusSurface();
+                            if (command === 'createLink') {
+                                var url = window.prompt('Enter the link address', 'https://');
+                                if (url) document.execCommand(command, false, url.trim());
+                            } else {
+                                document.execCommand(command, false, null);
+                            }
+                            sync();
+                        });
                     });
+
+                    var format = wrapper.querySelector('[data-rich-format]');
+                    if (format) {
+                        format.addEventListener('change', function () {
+                            focusSurface();
+                            document.execCommand('formatBlock', false, '<' + format.value + '>');
+                            sync();
+                        });
+                    }
+
+                    surface.addEventListener('input', sync);
+                    var form = wrapper.closest('form');
+                    if (form) form.addEventListener('submit', sync, true);
+                    sync();
                 });
             }
 

@@ -76,7 +76,15 @@ class SystemSettingsController extends Controller
                 return '<br>';
             }
             if ($tag !== 'a') {
-                return '<' . $tag . '>';
+                $alignment = '';
+                if (preg_match('/\bstyle\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))/i', $match[2], $styleMatch)) {
+                    $style = $styleMatch[1] ?? $styleMatch[2] ?? $styleMatch[3] ?? '';
+                    if (preg_match('/(?:^|;)\s*text-align\s*:\s*(left|center|right|justify)\s*(?:;|$)/i', $style, $alignmentMatch)) {
+                        $alignment = strtolower($alignmentMatch[1]);
+                    }
+                }
+
+                return '<' . $tag . ($alignment !== '' ? ' style="text-align: ' . $alignment . ';"' : '') . '>';
             }
 
             $href = '';
