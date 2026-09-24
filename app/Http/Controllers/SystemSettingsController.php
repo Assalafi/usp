@@ -57,6 +57,45 @@ class SystemSettingsController extends Controller
     /**
      * Update settings
      */
+    public static function sanitizeRichText($value): string
+    {
+        $html = trim((string) $value);
+        if ($html === '') {
+            return '';
+        }
+
+        // These are the only elements needed by the hostel text editor. Strip
+        // everything else before rendering the content to students.
+        $html = strip_tags($html, '<p><br><strong><b><em><i><u><ol><ul><li><blockquote><h2><h3><h4><a>');
+        $html = preg_replace('/\s+on[a-z0-9_-]+\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $html) ?? $html;
+
+        // Remove arbitrary attributes and keep only safe, external link URLs.
+        $html = preg_replace_callback('/<([a-z][a-z0-9]*)\b([^>]*)>/i', function (array $match): string {
+            $tag = strtolower($match[1]);
+            if ($tag === 'br') {
+                return '<br>';
+            }
+            if ($tag !== 'a') {
+                return '<' . $tag . '>';
+            }
+
+            $href = '';
+            if (preg_match('/\bhref\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))/i', $match[2], $hrefMatch)) {
+                $href = trim($hrefMatch[1] ?? $hrefMatch[2] ?? $hrefMatch[3] ?? '');
+            }
+
+            if ($href !== ''
+                && preg_match('/^(?:https?:\/\/|mailto:|\/|#)/i', $href)
+                && !preg_match('/^(?:javascript|data|vbscript):/i', $href)) {
+                return '<a href="' . htmlspecialchars($href, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '" target="_blank" rel="noopener noreferrer">';
+            }
+
+            return '<a>';
+        }, $html) ?? $html;
+
+        return trim($html);
+    }
+
     public function update(Request $request)
     {
         if (!session()->has('log') || session('accType') != 'Admin') {
@@ -81,6 +120,9 @@ class SystemSettingsController extends Controller
         }
         
         foreach ($settings as $key => $value) {
+            if (in_array($key, ['hostel_closed_message', 'hostel_announcement'], true)) {
+                $value = self::sanitizeRichText($value);
+            }
             DB::table('system_settings')
                 ->where('key', $key)
                 ->update([
@@ -207,6 +249,10 @@ class SystemSettingsController extends Controller
 
         $key = $request->input('key');
         $value = $request->input('value');
+
+        if (in_array($key, ['hostel_closed_message', 'hostel_announcement'], true)) {
+            $value = self::sanitizeRichText($value);
+        }
 
         DB::table('system_settings')
             ->where('key', $key)

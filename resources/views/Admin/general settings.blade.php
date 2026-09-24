@@ -200,7 +200,8 @@
                                                             </label>
                                                         </div>
                                                     @else
-                                                        <textarea class="form-control mt-2" name="{{ $setting->key }}" rows="3">{{ $setting->value }}</textarea>
+                                                        <textarea class="form-control mt-2" name="{{ $setting->key }}" rows="3" data-rich-editor="true">{{ $setting->value }}</textarea>
+                                                        <small class="text-muted d-block mt-2"><i class="fas fa-pen me-1"></i>Use the editor to format this message with headings, emphasis, lists and links.</small>
                                                     @endif
                                                     <small class="text-muted mt-2 d-block">{{ $setting->description }}</small>
                                                 </div>
@@ -609,6 +610,67 @@
         </div>
     </div>
 </div>
+
+@if ($currentCategory == 'hostel')
+    <style>
+        .hostel-rich-editor .ck-editor__editable_inline,
+        textarea[data-rich-editor] + .ck-editor .ck-editor__editable_inline {
+            min-height: 155px;
+        }
+
+        textarea[data-rich-editor] + .ck-editor {
+            margin-top: .5rem;
+        }
+
+        @media (max-width: 576px) {
+            textarea[data-rich-editor] + .ck-editor .ck-toolbar {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+    <script src="{{ asset('dashboard/plugins/ckeditor/js/ckeditor.js') }}"></script>
+    <script>
+        (function () {
+            function initialiseHostelEditors() {
+                if (typeof ClassicEditor === 'undefined') return;
+
+                document.querySelectorAll('textarea[data-rich-editor]').forEach(function (textarea) {
+                    ClassicEditor.create(textarea, {
+                        toolbar: {
+                            items: [
+                                'heading', '|', 'bold', 'italic', 'link',
+                                'bulletedList', 'numberedList', 'blockQuote',
+                                'undo', 'redo'
+                            ],
+                            shouldNotGroupWhenFull: true
+                        },
+                        heading: {
+                            options: [
+                                { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
+                                { model: 'heading2', view: 'h2', title: 'Heading', class: 'ck-heading_heading2' },
+                                { model: 'heading3', view: 'h3', title: 'Small heading', class: 'ck-heading_heading3' }
+                            ]
+                        },
+                        link: { addTargetToExternalLinks: true, defaultProtocol: 'https://' }
+                    }).then(function (editor) {
+                        var sync = function () { textarea.value = editor.getData(); };
+                        editor.model.document.on('change:data', sync);
+                        textarea.closest('form').addEventListener('submit', sync, true);
+                        sync();
+                    }).catch(function (error) {
+                        console.error('Unable to initialise hostel text editor', error);
+                    });
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initialiseHostelEditors);
+            } else {
+                initialiseHostelEditors();
+            }
+        })();
+    </script>
+@endif
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

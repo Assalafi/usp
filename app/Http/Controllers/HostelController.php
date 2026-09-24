@@ -216,11 +216,11 @@ class HostelController extends Controller
             ? $this->hostelEligibility($studentId)
             : ['eligible' => true, 'message' => '', 'reasons' => []];
         $data['hostelApplicationOpen'] = (string) SystemSettingsController::get('hostel_application_status', '1') === '1';
-        $data['hostelClosedMessage'] = SystemSettingsController::get(
+        $data['hostelClosedMessage'] = SystemSettingsController::sanitizeRichText(SystemSettingsController::get(
             'hostel_closed_message',
             'Hostel applications are currently closed. Please check back later or contact Student Affairs.'
-        );
-        $data['hostelAnnouncement'] = SystemSettingsController::get('hostel_announcement', '');
+        ));
+        $data['hostelAnnouncement'] = SystemSettingsController::sanitizeRichText(SystemSettingsController::get('hostel_announcement', ''));
         $data['hostelPins'] = collect();
         $data['eligibility'] = $eligibility;
 

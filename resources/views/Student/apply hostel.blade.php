@@ -157,7 +157,7 @@
     @if (trim((string) ($hostelAnnouncement ?? '')) !== '')
         <section class="ug-hostel-announcement" aria-label="Hostel announcement">
             <span class="ug-hostel-announcement__icon"><i class="fas fa-bullhorn" aria-hidden="true"></i></span>
-            <div class="ug-hostel-announcement__body"><strong>Hostel announcement</strong>{!! nl2br(e($hostelAnnouncement)) !!}</div>
+            <div class="ug-hostel-announcement__body"><strong>Hostel announcement</strong>{!! $hostelAnnouncement !!}</div>
         </section>
     @endif
 
@@ -234,7 +234,7 @@
             <section class="ug-hostel-card"><div class="ug-hostel-success"><div class="ug-hostel-success__icon"><i class="fas fa-check" aria-hidden="true"></i></div><h2>Your hostel permit is ready</h2><p>Your payment has been recorded. Download your permit and keep it available when you move into the hostel.</p></div><div class="ug-hostel-card__body"><div class="ug-hostel-location"><div class="ug-hostel-location__item"><small>Hall</small><strong>{{ $row->hall }}</strong></div><div class="ug-hostel-location__item"><small>Block</small><strong>{{ $row->block }}</strong></div><div class="ug-hostel-location__item"><small>Room / bed</small><strong>{{ $row->room }} / {{ $row->bed }}</strong></div></div><div class="ug-hostel-meta"><div class="ug-hostel-meta__row"><span>Reference</span><strong>00{{ $row->id }}</strong></div></div><a class="ug-hostel-button ug-hostel-button--primary ug-hostel-button--block" href="{{ url('print-permit/'.$row->id) }}"><i class="fas fa-download" aria-hidden="true"></i> Download hostel permit</a></div></section>
         @endforeach
     @elseif ($flag == 4)
-        <section class="ug-hostel-card"><div class="ug-hostel-card__head"><div><h2>Hostel applications are closed</h2></div><span class="ug-hostel-status ug-hostel-status--neutral">Closed</span></div><div class="ug-hostel-card__body"><div class="ug-hostel-empty"><i class="fas fa-lock" aria-hidden="true"></i><div>{{ $hostelClosedMessage }}</div></div><div class="ug-hostel-note"><strong>PIN status</strong>@if ($hostelPin) Your hostel PIN has been validated, but reservations are currently closed.@else You need a validated hostel PIN before applying when the window reopens.@endif</div></div></section>
+        <section class="ug-hostel-card"><div class="ug-hostel-card__head"><div><h2>Hostel applications are closed</h2></div><span class="ug-hostel-status ug-hostel-status--neutral">Closed</span></div><div class="ug-hostel-card__body"><div class="ug-hostel-empty"><i class="fas fa-lock" aria-hidden="true"></i><div>{!! $hostelClosedMessage !!}</div></div><div class="ug-hostel-note"><strong>PIN status</strong>@if ($hostelPin) Your hostel PIN has been validated, but reservations are currently closed.@else You need a validated hostel PIN before applying when the window reopens.@endif</div></div></section>
     @elseif ($flag == 5)
         <section class="ug-hostel-alert"><h3>{{ $eligibilityCheck['message'] }}</h3><ul>@foreach ($eligibilityCheck['reasons'] as $reason)<li>{{ $reason }}</li>@endforeach</ul></section>
     @endif
