@@ -200,7 +200,9 @@
                                                             </label>
                                                         </div>
                                                     @else
-                                                        @php($richValue = \App\Http\Controllers\SystemSettingsController::sanitizeRichText($setting->value))
+                                                        @php
+                                                            $richValue = \App\Http\Controllers\SystemSettingsController::sanitizeRichText($setting->value);
+                                                        @endphp
                                                         <div class="hostel-rich-editor mt-2" data-rich-editor-wrapper>
                                                             <div class="hostel-rich-toolbar" role="toolbar" aria-label="Text formatting tools">
                                                                 <select class="hostel-rich-format" data-rich-format aria-label="Text style">
