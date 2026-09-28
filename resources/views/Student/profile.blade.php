@@ -5,8 +5,137 @@
     $data = Student::where('user_id', session('id'))->get();
     $lgas = DB::table('locals')->where('state_id', 8)->orderBy('local_name', 'ASC')->get();
     $editMode = request('mode') === 'edit' || $errors->any();
+    $applicantDocuments = collect($applicantDocuments ?? []);
+    $studentDocuments = collect($studentDocuments ?? []);
+    // Student uploads override the original applicant upload for the same type.
+    $documentRecords = $applicantDocuments->merge($studentDocuments)->keyBy('doc_type');
+    $bankOptions = [
+        'ACCESS BANK PLC' => '044',
+        'CITIBANK NIGERIA LIMITED' => '023',
+        'ECOBANK NIGERIA PLC' => '050',
+        'FIDELITY BANK PLC' => '070',
+        'FIRST BANK OF NIGERIA LIMITED' => '011',
+        'FIRST CITY MONUMENT BANK PLC' => '214',
+        'GUARANTY TRUST BANK PLC' => '058',
+        'HERITAGE BANK PLC' => '030',
+        'JAIZ BANK PLC' => '301',
+        'KEYSTONE BANK LIMITED' => '082',
+        'KUDA MICROFINANCE BANK' => '50211',
+        'POLARIS BANK PLC' => '076',
+        'PROVIDUS BANK PLC' => '101',
+        'STANBIC IBTC BANK PLC' => '221',
+        'STANDARD CHARTERED BANK NIGERIA LIMITED' => '068',
+        'STERLING BANK PLC' => '232',
+        'TAJ BANK LIMITED' => '302',
+        'UNION BANK OF NIGERIA PLC' => '032',
+        'UNITED BANK FOR AFRICA PLC' => '033',
+        'WEMA BANK PLC' => '035',
+        'ZENITH BANK PLC' => '057',
+        'GLOBUS BANK LIMITED' => '103',
+        'OPTIMUS BANK' => '526',
+        'MONIEPOINT MFB' => '50515',
+        'PALMPAY' => '999991',
+        'OPAY' => '999992',
+    ];
 @endphp
 @foreach ($data as $row)
+@php
+    $passportDocument = $documentRecords->get('passport_photo');
+    $profilePhotoUrl = $row->picture
+        ? asset('storage/picture/' . $row->picture)
+        : ($passportDocument ? asset('storage/' . $passportDocument->file_path) : asset('uploads/profile.jpg'));
+    $legacyBank = $siwesBankDetails ?? null;
+    $bankName = $row->bank_name ?: ($legacyBank->bank_name ?? '');
+    $bankCode = $row->bank_code ?: ($legacyBank->bank_code ?? '');
+    $accountNumber = $row->account_number ?: ($legacyBank->account_number ?? '');
+    $sortCode = $row->sort_code ?: ($legacyBank->sort_code ?? '');
+    $isProfileValueFilled = static function ($value, bool $date = false): bool {
+        $normalized = trim((string) $value);
+        return $normalized !== '' && (!$date || $normalized !== '1970-01-01');
+    };
+    $profileRequiredGroups = [
+        'Bio-data' => [
+            'JAMB number' => $row->jamb_no,
+            'Surname' => $row->last_name,
+            'First name' => $row->first_name,
+            'Gender' => $row->gender,
+            'Date of birth' => [$row->date_of_birth, true],
+            'Place of birth' => $row->place_of_birth,
+            'Country / nationality' => $row->country,
+            'State of origin' => $row->state_origin,
+            'LGA of origin' => $row->lga_origin,
+            'Marital status' => $row->marital_status,
+            'Maiden name' => $row->maiden_name,
+            'Religion' => $row->religion,
+            'NIN' => $row->nin,
+        ],
+        'Contact & address' => [
+            'Home address' => $row->home_address,
+            'Home phone' => $row->home_phone,
+            'Home email' => $row->home_email,
+            'Contact address' => $row->contact_address,
+            'Contact phone' => $row->contact_phone,
+        ],
+        'Next of kin & sponsor' => [
+            'Next of kin name' => $row->kin_name,
+            'Next of kin address' => $row->kin_address,
+            'Next of kin phone' => $row->kin_phone,
+            'Next of kin email' => $row->kin_email,
+            'Sponsor type' => $row->sponsor_type,
+            'Sponsor name' => $row->sponsor_name,
+            'Sponsor address' => $row->sponsor_address,
+            'Sponsor phone' => $row->sponsor_phone,
+        ],
+        'Parent information' => [
+            'Mother name' => $row->mother_name,
+            'Mother address' => $row->mother_address,
+            'Mother phone' => $row->mother_phone,
+            'Father name' => $row->father_name,
+            'Father address' => $row->father_address,
+            'Father phone' => $row->father_phone,
+        ],
+        'Admission' => [
+            'Current level' => $row->level,
+        ],
+        'Documents' => [
+            'JAMB result' => $documentRecords->has('jamb_result'),
+            'SSCE result (1st sitting)' => $documentRecords->has('ssce_result'),
+            'Birth certificate' => $documentRecords->has('birth_certificate'),
+            'NIN document' => $documentRecords->has('nin_document'),
+            'Passport photograph' => !empty($row->picture) || $documentRecords->has('passport_photo'),
+            'Digital signature' => !empty($row->signiture) || $documentRecords->has('signiture'),
+        ],
+    ];
+    if (in_array(strtoupper((string) $row->mode_of_entry), ['DE', 'DIRECT ENTRY'], true)) {
+        $profileRequiredGroups['Documents']['Direct entry certificate'] = $documentRecords->has('direct_entry_cert');
+    }
+
+    $profileMissingFields = [];
+    $profileTotalRequired = 0;
+    $profileFilledRequired = 0;
+    foreach ($profileRequiredGroups as $section => $fields) {
+        $missing = [];
+        foreach ($fields as $label => $value) {
+            $profileTotalRequired++;
+            $isFilled = is_array($value)
+                ? $isProfileValueFilled($value[0], (bool) ($value[1] ?? false))
+                : (is_bool($value) ? $value : $isProfileValueFilled($value));
+            if ($isFilled) {
+                $profileFilledRequired++;
+            } else {
+                $missing[] = $label;
+            }
+        }
+        if ($missing) {
+            $profileMissingFields[$section] = $missing;
+        }
+    }
+    $profileCompletionPercent = $profileTotalRequired > 0
+        ? (int) round(($profileFilledRequired / $profileTotalRequired) * 100)
+        : 0;
+    $profileIsComplete = empty($profileMissingFields);
+    $profileProgressColor = $profileIsComplete ? '#198754' : ($profileCompletionPercent >= 70 ? '#d97706' : '#dc3545');
+@endphp
     <!-- Start Content-->
     <div class="main-body student-profile-page">
         <div class="page-wrapper">
@@ -18,7 +147,7 @@
                         <div class="card-body pb-0">
                             <div class="media user-about-block align-items-center mt-0 mb-3">
                                 <div class="position-relative d-inline-block">
-                                    <img src="{{ asset('storage/picture/' . $row->picture) }}"
+                                    <img src="{{ $profilePhotoUrl }}"
                                         class="img-radius img-fluid wid-80" alt="{{ __('field_photo') }}">
                                     @if (session('activeProfile') == 1)
                                         <div class="certificated-badge">
@@ -199,6 +328,39 @@
                 @csrf
                 <input type="hidden" name="id" value="{{ $row->id }}">
                 <input type="hidden" name="processed_photo_token" id="processed_photo_token" value="">
+                <section class="sp-completion-card" aria-labelledby="profile-completion-title">
+                    <div class="sp-completion-head">
+                        <div>
+                            <span class="sp-completion-kicker"><i class="fas fa-chart-line" aria-hidden="true"></i> Profile progress</span>
+                            <h3 id="profile-completion-title">{{ $profileIsComplete ? 'Profile complete' : 'Profile in progress' }}</h3>
+                            <p>{{ $profileIsComplete ? 'All required information and documents are available.' : 'Complete the remaining items below, then save your profile.' }}</p>
+                        </div>
+                        <strong class="sp-completion-percent" style="color:{{ $profileProgressColor }}">{{ $profileCompletionPercent }}%</strong>
+                    </div>
+                    <div class="sp-completion-track" role="progressbar" aria-valuenow="{{ $profileCompletionPercent }}" aria-valuemin="0" aria-valuemax="100" aria-label="Profile completion">
+                        <span style="width:{{ $profileCompletionPercent }}%; background:{{ $profileProgressColor }}"></span>
+                    </div>
+                    @if (!$profileIsComplete)
+                        <div class="sp-completion-missing">
+                            <h4><i class="fas fa-circle-exclamation" aria-hidden="true"></i> Remaining required items</h4>
+                            <p>Open the section that contains an item below and fill it in.</p>
+                            <div class="sp-completion-groups">
+                                @foreach ($profileMissingFields as $section => $fields)
+                                    <div class="sp-completion-group">
+                                        <strong><i class="fas fa-folder-open" aria-hidden="true"></i> {{ $section }}</strong>
+                                        <ul>
+                                            @foreach ($fields as $field)
+                                                <li>{{ $field }}</li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @else
+                        <div class="sp-completion-complete"><i class="fas fa-circle-check" aria-hidden="true"></i> All required profile items are complete.</div>
+                    @endif
+                </section>
                 @if ($errors->any())
                     <div class="alert alert-danger border-0 shadow-sm" role="alert">
                         <strong>Please review the highlighted fields.</strong>
@@ -217,32 +379,37 @@
                                     <li class="nav-item">
                                         <a class="nav-link active" id="pills-bio_data-tab" data-bs-toggle="pill"
                                             href="#pills-bio_data" role="tab" aria-controls="pills-bio_data"
-                                            aria-selected="true">{{ __('bio-data') }}</a>
+                                            aria-selected="true"><i class="fas fa-id-card me-1" aria-hidden="true"></i>{{ __('bio-data') }}</a>
                                     </li>
                                     <li class="nav-item">
                                         <a class="nav-link" id="pills-admission-tab" data-bs-toggle="pill"
                                             href="#pills-admission" role="tab" aria-controls="pills-admission"
-                                            aria-selected="true">{{ __('Admission') }}</a>
+                                            aria-selected="true"><i class="fas fa-graduation-cap me-1" aria-hidden="true"></i>{{ __('Admission') }}</a>
                                     </li>
                                     <li class="nav-item">
                                         <a class="nav-link" id="pills-address-tab" data-bs-toggle="pill"
                                             href="#pills-address" role="tab" aria-controls="pills-address"
-                                            aria-selected="true">{{ __('address') }}</a>
+                                            aria-selected="true"><i class="fas fa-location-dot me-1" aria-hidden="true"></i>{{ __('address') }}</a>
                                     </li>
                                     <li class="nav-item">
                                         <a class="nav-link" id="pills-sponsor-tab" data-bs-toggle="pill"
                                             href="#pills-sponsor" role="tab" aria-controls="pills-sponsor"
-                                            aria-selected="true">{{ __('next of kin & sponsor') }}</a>
+                                            aria-selected="true"><i class="fas fa-handshake me-1" aria-hidden="true"></i>{{ __('next of kin & sponsor') }}</a>
                                     </li>
                                     <li class="nav-item">
                                         <a class="nav-link" id="pills-parent-tab" data-bs-toggle="pill"
                                             href="#pills-parent" role="tab" aria-controls="pills-parent"
-                                            aria-selected="true">{{ __('parent') }}</a>
+                                            aria-selected="true"><i class="fas fa-users me-1" aria-hidden="true"></i>{{ __('parent') }}</a>
                                     </li>
                                     <li class="nav-item">
-                                        <a class="nav-link" id="pills-signature-tab" data-bs-toggle="pill"
-                                            href="#pills-signature" role="tab" aria-controls="pills-signature"
-                                            aria-selected="true">{{ __('Picture/signature') }}</a>
+                                        <a class="nav-link" id="pills-bank-details-tab" data-bs-toggle="pill"
+                                            href="#pills-bank-details" role="tab" aria-controls="pills-bank-details"
+                                            aria-selected="false"><i class="fas fa-building-columns me-1" aria-hidden="true"></i>{{ __('Bank details') }}</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="pills-documents-tab" data-bs-toggle="pill"
+                                            href="#pills-documents" role="tab" aria-controls="pills-documents"
+                                            aria-selected="true"><i class="fas fa-file-lines me-1" aria-hidden="true"></i>{{ __('Documents') }}</a>
                                     </li>
                                 </ul>
                                 <div class="tab-content" id="pills-tabContent">
@@ -265,7 +432,7 @@
                                                     <div class="col-sm-9">
                                                         <input type="text" class="form-control" id="username"
                                                             name="username" placeholder="Student ID"
-                                                            value="{{ $username }}" disabled required>
+                                                            value="{{ $username }}" disabled>
                                                     </div>
                                                 </div>
                                                 <div class="form-group row">
@@ -568,7 +735,7 @@
                                                         <input type="text" class="form-control" id="faculty"
                                                             name="faculty" placeholder="Faculty"
                                                             value="{{ DB::table('faculty')->where('code', $row->faculty)->value('title') }}"
-                                                            disabled required>
+                                                            disabled>
                                                     </div>
                                                 </div>
                                                 <div class="form-group row">
@@ -578,7 +745,7 @@
                                                         <input type="text" class="form-control" id="department"
                                                             name="department" placeholder="Department"
                                                             value="{{ DB::table('department')->where('code', $row->department)->value('title') }}"
-                                                            disabled required>
+                                                            disabled>
                                                     </div>
                                                 </div>
                                                 <div class="form-group row">
@@ -588,7 +755,7 @@
                                                         <input type="text" class="form-control" id="program"
                                                             name="program" placeholder="Program"
                                                             value="{{ DB::table('program')->where('code', $row->program)->value('title') }}"
-                                                            disabled required>
+                                                            disabled>
                                                     </div>
                                                 </div>
                                                 <div class="form-group row">
@@ -610,7 +777,7 @@
                                                         Entry<sup>*</sup></label>
                                                     <div class="col-sm-9">
                                                         <select class="form-control" id="session_of_entry"
-                                                            name="session_of_entry" disabled required>
+                                                            name="session_of_entry" disabled>
                                                             <option value="{{ $row->session_of_entry }}">
                                                                 {{ $row->session_of_entry }}</option>
                                                         </select>
@@ -880,16 +1047,53 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="tab-pane fade" id="pills-signature" role="tabpanel"
-                                        aria-labelledby="pills-signature-tab">
+                                    <div class="tab-pane fade" id="pills-bank-details" role="tabpanel"
+                                        aria-labelledby="pills-bank-details-tab">
+                                        <section class="sp-bank-panel">
+                                            <div class="sp-bank-heading">
+                                                <span class="sp-bank-icon"><i class="fas fa-building-columns"></i></span>
+                                                <div>
+                                                    <h5>Bank details</h5>
+                                                    <p>Use the same bank information collected in SIWES. These details help the University identify the correct account when a payment or approved refund is processed.</p>
+                                                </div>
+                                            </div>
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label for="profile-bank-name" class="form-label">Bank name</label>
+                                                    <select class="form-select" id="profile-bank-name" name="bank_name" data-bank-code-target="profile-bank-code">
+                                                        <option value="">Select your bank</option>
+                                                        @foreach ($bankOptions as $name => $code)
+                                                            <option value="{{ $name }}" data-code="{{ $code }}" {{ strtoupper((string) $bankName) === $name ? 'selected' : '' }}>{{ $name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label for="profile-bank-code" class="form-label">Bank code</label>
+                                                    <input type="text" class="form-control bg-light" id="profile-bank-code" name="bank_code" value="{{ $bankCode }}" readonly>
+                                                    <small class="form-text text-muted">Filled automatically from the selected bank.</small>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label for="profile-account-number" class="form-label">Account number</label>
+                                                    <input type="text" class="form-control" id="profile-account-number" name="account_number" value="{{ $accountNumber }}" inputmode="numeric" maxlength="40" autocomplete="off">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label for="profile-sort-code" class="form-label">Sort code <span class="text-muted fw-normal">(optional)</span></label>
+                                                    <input type="text" class="form-control" id="profile-sort-code" name="sort_code" value="{{ $sortCode }}" maxlength="40" autocomplete="off">
+                                                </div>
+                                            </div>
+                                            <div class="sp-bank-note"><i class="fas fa-circle-info"></i> Check the account number carefully before saving. You can update these details later from this tab.</div>
+                                        </section>
+                                    </div>
+                                    <div class="tab-pane fade" id="pills-documents" role="tabpanel"
+                                        aria-labelledby="pills-documents-tab">
                                         <div class="sp-media-grid">
                                             <section class="sp-media-card">
                                                 <div class="sp-media-heading">
                                                     <span class="sp-media-icon"><i class="fas fa-camera"></i></span>
-                                                    <div><h5>Profile photograph</h5><p>Use a clear, front-facing passport photograph.</p></div>
+                                                    <div><h5>Passport photograph <span class="text-danger">*</span></h5><p>Use a clear, front-facing passport photograph.</p></div>
                                                 </div>
                                                 <div class="sp-photo-editor">
-                                                    <div class="sp-photo-frame"><img id="profile-photo-preview" src="{{ asset('storage/picture/' . $row->picture) }}" alt="Profile photo preview"></div>
+                                                    <div class="sp-photo-frame"><img id="profile-photo-preview" src="{{ $profilePhotoUrl }}" alt="Profile photo preview"></div>
                                                     <div class="sp-photo-controls">
                                                         <div class="sp-photo-source-actions">
                                                             <label for="picture" class="sp-upload-label"><i class="fas fa-folder-open"></i> Choose a photo from device</label>
@@ -917,20 +1121,113 @@
                                             <section class="sp-media-card">
                                                 <div class="sp-media-heading">
                                                     <span class="sp-media-icon"><i class="fas fa-signature"></i></span>
-                                                    <div><h5>Digital signature</h5><p>Draw your signature or upload a transparent image.</p></div>
+                                                    <div><h5>Digital signature <span class="text-danger">*</span></h5><p>Draw your signature or upload a transparent image.</p></div>
                                                 </div>
                                                 <div class="sp-signature-wrap">
                                                     <canvas id="student-signature-canvas" width="800" height="300" aria-label="Signature drawing area"></canvas>
                                                     <div class="sp-signature-actions"><button type="button" class="btn btn-light btn-sm" id="clear-student-signature"><i class="fas fa-eraser"></i> Clear</button></div>
                                                 </div>
                                                 <label for="signiture" class="sp-upload-label sp-upload-secondary"><i class="fas fa-file-arrow-up"></i> Upload signature image</label>
-                                                <input type="file" class="d-none" id="signiture" name="signiture" accept="image/png,image/jpeg">
+                                                <input type="file" class="d-none" id="signiture" name="signiture" accept="image/png,image/jpeg" @if (!$row->signiture) required @endif>
                                                 <small class="sp-help">Sign inside the box using your finger or mouse. Your signature appears on official documents and ID cards.</small>
                                                 @if ($row->signiture)
                                                     <img class="sp-existing-signature" src="{{ asset('storage/signature/' . $row->signiture) }}" alt="Current signature">
                                                 @endif
                                             </section>
                                         </div>
+                                        @php
+                                            $profileDocumentTypes = [
+                                                [
+                                                    'id' => 'jamb_result',
+                                                    'label' => 'JAMB Result',
+                                                    'required' => true,
+                                                    'description' => 'Upload your JAMB result slip.',
+                                                ],
+                                                [
+                                                    'id' => 'ssce_result',
+                                                    'label' => 'SSCE Result (1st Sitting)',
+                                                    'required' => true,
+                                                    'description' => 'Upload your WAEC, NECO, NABTEB, or NBAIS result.',
+                                                ],
+                                                [
+                                                    'id' => 'ssce_result_2',
+                                                    'label' => 'SSCE Result (2nd Sitting)',
+                                                    'required' => false,
+                                                    'description' => 'Optional second sitting result.',
+                                                ],
+                                                [
+                                                    'id' => 'birth_certificate',
+                                                    'label' => 'Birth Certificate',
+                                                    'required' => true,
+                                                    'description' => 'Upload your birth certificate or declaration of age.',
+                                                ],
+                                                [
+                                                    'id' => 'nin_document',
+                                                    'label' => 'NIN Document',
+                                                    'required' => true,
+                                                    'description' => 'Upload your NIN slip or official NIN document.',
+                                                ],
+                                            ];
+
+                                            if (in_array(strtoupper((string) $row->mode_of_entry), ['DE', 'DIRECT ENTRY'], true)) {
+                                                $profileDocumentTypes[] = [
+                                                    'id' => 'direct_entry_cert',
+                                                    'label' => 'Direct Entry Certificate',
+                                                    'required' => true,
+                                                    'description' => 'Upload your Direct Entry qualification certificate.',
+                                                ];
+                                            }
+                                        @endphp
+                                        <section class="sp-documents-panel">
+                                            <div class="sp-documents-heading">
+                                                <div>
+                                                    <span class="sp-media-icon"><i class="fas fa-folder-open"></i></span>
+                                                    <h5>Academic and identity documents</h5>
+                                                </div>
+                                                <p>Upload clear PDF, JPG, or PNG files. Each file must be 400 KB or smaller.</p>
+                                            </div>
+                                            <div class="sp-document-list">
+                                                @foreach ($profileDocumentTypes as $documentType)
+                                                    @php
+                                                        $documentRecord = $documentRecords->get($documentType['id']);
+                                                    @endphp
+                                                    <div class="sp-document-card">
+                                                        <div class="sp-document-card-head">
+                                                            <div>
+                                                                <label for="student_doc_{{ $documentType['id'] }}" class="sp-document-label">
+                                                                    {{ $documentType['label'] }}
+                                                                    @if ($documentType['required']) <span class="text-danger">*</span> @endif
+                                                                </label>
+                                                                <small>{{ $documentType['description'] }}</small>
+                                                            </div>
+                                                            @if ($documentRecord)
+                                                                <span class="sp-document-status is-uploaded"><i class="fas fa-check-circle"></i> Uploaded</span>
+                                                            @else
+                                                                <span class="sp-document-status is-missing"><i class="fas fa-circle-exclamation"></i> Not uploaded</span>
+                                                            @endif
+                                                        </div>
+                                                        <input type="file"
+                                                            class="sp-document-input"
+                                                            id="student_doc_{{ $documentType['id'] }}"
+                                                            name="{{ $documentType['id'] }}"
+                                                            accept=".pdf,.jpg,.jpeg,.png"
+                                                            data-document-label="{{ $documentType['label'] }}"
+                                                            data-max-size="400"
+                                                            @if ($documentType['required'] && !$documentRecord) required @endif>
+                                                        <div class="sp-document-file-note" id="student_doc_note_{{ $documentType['id'] }}">
+                                                            @if ($documentRecord)
+                                                                <a href="{{ asset('storage/' . $documentRecord->file_path) }}" target="_blank" rel="noopener">
+                                                                    <i class="fas fa-eye"></i>
+                                                                    {{ $documentRecord->original_name ?: 'View current document' }}
+                                                                </a>
+                                                            @else
+                                                                No file selected yet.
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </section>
                                     </div>
                                 </div>
                             </div>
@@ -1044,7 +1341,7 @@
                             status.className = 'sp-media-status error';
                             status.textContent = 'Process the selected photo and review the preview before saving.';
                         }
-                        document.getElementById('pills-signature-tab')?.click();
+                        document.getElementById('pills-documents-tab')?.click();
                         return false;
                     }
                     // If all validations pass, submit the form
@@ -1138,34 +1435,30 @@
          * Adds a field to the invalid fields list
          */
         function addInvalidField(field, invalidFields, reason) {
-            // Get the field label
-            let fieldLabel = '';
-            const labelElement = field.closest('.form-group').querySelector('label');
-            if (labelElement) {
-                // Extract clean label text: remove asterisk, normalize spaces
-                fieldLabel = labelElement.textContent
-                    .replace(/\s*\*\s*$/, '') // Remove asterisk at end
-                    .replace(/\s+/g, ' ') // Normalize multiple spaces
-                    .replace(/\s*:\s*$/, '') // Remove any trailing colon
-                    .trim();
-            } else {
-                // Use field name or ID if label not found, make it human readable
-                fieldLabel = (field.name || field.id || '')
-                    .replace(/_/g, ' ') // Convert underscore to space
-                    .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-                    .replace(/\s+/g, ' ') // Normalize multiple spaces
-                    .trim();
-                // Capitalize the first letter
-                fieldLabel = fieldLabel.charAt(0).toUpperCase() + fieldLabel.slice(1);
+            // A field can be checked twice (HTML required + label asterisk).
+            // Keep one clear entry per field instead of repeating it.
+            const fieldId = field.id || field.name || '';
+            if (invalidFields.some(item => item.id === fieldId && item.reason === reason)) return;
+
+            // Prefer the label explicitly linked to this field. Falling back to
+            // the nearest form-group prevents document fields from inheriting
+            // the first label in the whole form (for example, Student ID).
+            let labelElement = null;
+            if (field.id) {
+                labelElement = document.querySelector('label[for="' + field.id.replace(/"/g, '\\"') + '"]');
+            }
+            if (!labelElement) {
+                labelElement = field.closest('.form-group')?.querySelector('label');
             }
 
-            invalidFields.push({
-                label: fieldLabel,
-                id: field.id,
-                reason: reason
-            });
-        }
+            let fieldLabel = labelElement
+                ? labelElement.textContent.replace(/\s+/g, ' ').replace(/\*/g, '').replace(/[.:]\s*$/, '').trim()
+                : (field.getAttribute('data-document-label') || field.name || field.id || 'This field')
+                    .replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').replace(/\s+/g, ' ').trim();
+            fieldLabel = fieldLabel.charAt(0).toUpperCase() + fieldLabel.slice(1);
 
+            invalidFields.push({ label: fieldLabel, id: fieldId, reason: reason });
+        }
         /**
          * Marks a field as invalid with custom styling and feedback message
          */
@@ -1273,7 +1566,8 @@
                 title.textContent = 'Validation Error';
 
                 const closeX = document.createElement('span');
-                closeX.textContent = '×';
+                closeX.textContent = '\u00D7';
+                closeX.setAttribute('aria-label', 'Close validation message');
                 closeX.style.cursor = 'pointer';
                 closeX.style.fontSize = '24px';
                 closeX.style.fontWeight = 'bold';
@@ -1292,7 +1586,7 @@
 
                 // Add validation message
                 const messageBox = document.createElement('div');
-                messageBox.textContent = 'The form contains incomplete or invalid fields:';
+                messageBox.textContent = 'Please complete or correct the following fields:';
                 messageBox.style.marginBottom = '10px';
                 content.appendChild(messageBox);
 
@@ -1327,7 +1621,7 @@
 
                 // Add footer note
                 const note = document.createElement('div');
-                note.textContent = 'Click on any field to navigate directly to it.';
+                note.textContent = 'Select an item to open that field. Required items are marked clearly.';
                 note.style.fontSize = '12px';
                 note.style.fontStyle = 'italic';
                 note.style.marginTop = '10px';
@@ -1617,8 +1911,53 @@
         .student-profile-page .sp-editor-card > .nav-pills .sp-accordion-item > .tab-pane.show { display:block; }
         .student-profile-page .sp-editor-card > .nav-pills .sp-accordion-item > .tab-pane > .row { margin-left:-.45rem; margin-right:-.45rem; }
         .student-profile-page .sp-editor-card > .nav-pills .sp-accordion-item > .tab-pane .form-group.row { margin-left:0; margin-right:0; border-bottom:1px solid #f0f4f7; }
+        .student-profile-page .sp-completion-card { margin-bottom:1.1rem; padding:1.05rem 1.15rem; border:1px solid #e1edf4; border-radius:15px; background:linear-gradient(135deg,#f9fcff,#f1f8fc); box-shadow:0 5px 18px rgba(32,75,102,.05); }
+        .student-profile-page .sp-completion-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; }
+        .student-profile-page .sp-completion-kicker { display:inline-flex; align-items:center; gap:.35rem; color:#177bb4; font-size:.7rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+        .student-profile-page .sp-completion-head h3 { margin:.2rem 0 .15rem; color:#18364b; font-size:1.05rem; font-weight:800; }
+        .student-profile-page .sp-completion-head p { margin:0; color:#718693; font-size:.78rem; }
+        .student-profile-page .sp-completion-percent { font-size:1.45rem; line-height:1; }
+        .student-profile-page .sp-completion-track { height:10px; margin-top:.9rem; overflow:hidden; border-radius:99px; background:#dfeaf0; }
+        .student-profile-page .sp-completion-track span { display:block; height:100%; border-radius:inherit; transition:width .35s ease; }
+        .student-profile-page .sp-completion-missing { margin-top:1rem; padding:.85rem .9rem; border:1px solid #f2d58c; border-radius:11px; background:#fffaf0; }
+        .student-profile-page .sp-completion-missing h4 { margin:0; color:#8a5a00; font-size:.86rem; font-weight:800; }
+        .student-profile-page .sp-completion-missing p { margin:.3rem 0 .7rem; color:#8a6b32; font-size:.75rem; }
+        .student-profile-page .sp-completion-groups { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
+        .student-profile-page .sp-completion-group { padding:.65rem .7rem; border:1px solid #f4e4b8; border-radius:9px; background:#fff; }
+        .student-profile-page .sp-completion-group strong { color:#6b4b08; font-size:.75rem; }
+        .student-profile-page .sp-completion-group strong i { margin-right:.25rem; }
+        .student-profile-page .sp-completion-group ul { margin:.35rem 0 0 1rem; padding:0; color:#8a6b32; font-size:.73rem; line-height:1.55; }
+        .student-profile-page .sp-completion-complete { margin-top:1rem; padding:.65rem .75rem; border-radius:9px; color:#176b43; background:#eaf8f0; font-size:.78rem; font-weight:700; }        .student-profile-page .sp-bank-panel { margin-top:1.25rem; padding:1.15rem; border:1px solid #e5eef5; border-radius:14px; background:linear-gradient(180deg,#fbfdff,#f6fbfe); }
+        .student-profile-page .sp-bank-heading { display:flex; align-items:flex-start; gap:.75rem; margin-bottom:1.1rem; }
+        .student-profile-page .sp-bank-heading h5 { margin:0; color:#18364b; font-size:1rem; font-weight:800; }
+        .student-profile-page .sp-bank-heading p { margin:.2rem 0 0; color:#708594; font-size:.78rem; line-height:1.5; }
+        .student-profile-page .sp-bank-icon { display:inline-flex; width:2.25rem; height:2.25rem; align-items:center; justify-content:center; flex:0 0 2.25rem; border-radius:10px; color:#177bb4; background:#e7f5fc; }
+        .student-profile-page .sp-bank-note { margin-top:1rem; padding:.7rem .8rem; border-radius:10px; background:#eef8fd; color:#426a7e; font-size:.76rem; }
+        .student-profile-page .sp-bank-note i { margin-right:.35rem; color:#177bb4; }
+        .student-profile-page .sp-documents-panel { margin-top:1.25rem; padding:1.1rem; border:1px solid #e5eef5; border-radius:14px; background:#fbfdff; }
+        .student-profile-page .sp-documents-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:.9rem; }
+        .student-profile-page .sp-documents-heading > div { display:flex; align-items:center; gap:.65rem; }
+        .student-profile-page .sp-documents-heading h5 { margin:0; color:#18364b; font-size:1rem; font-weight:800; }
+        .student-profile-page .sp-documents-heading p { margin:.15rem 0 0; color:#708594; font-size:.78rem; }
+        .student-profile-page .sp-document-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.8rem; }
+        .student-profile-page .sp-document-card { padding:.9rem; border:1px solid #e3edf3; border-radius:12px; background:#fff; }
+        .student-profile-page .sp-document-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:.55rem; margin-bottom:.65rem; }
+        .student-profile-page .sp-document-label { display:block; margin:0; color:#2b4a5d; font-size:.84rem; font-weight:800; }
+        .student-profile-page .sp-document-card-head small { display:block; margin-top:.18rem; color:#7d8f9c; font-size:.7rem; line-height:1.35; }
+        .student-profile-page .sp-document-status { white-space:nowrap; border-radius:999px; padding:.28rem .48rem; font-size:.63rem; font-weight:700; }
+        .student-profile-page .sp-document-status.is-uploaded { color:#24764f; background:#eaf8f0; }
+        .student-profile-page .sp-document-status.is-missing { color:#9a6b1c; background:#fff6df; }
+        .student-profile-page .sp-document-input { width:100%; padding:.48rem .55rem; border:1px dashed #bcd2df; border-radius:9px; background:#f8fbfd; color:#496779; font-size:.76rem; }
+        .student-profile-page .sp-document-file-note { margin-top:.45rem; color:#718693; font-size:.7rem; overflow-wrap:anywhere; }
+        .student-profile-page .sp-document-file-note a { color:#177bb4; font-weight:700; text-decoration:none; }
+        .student-profile-page .sp-document-file-note a:hover { text-decoration:underline; }
         @media (max-width:767.98px) {
             .student-profile-page .sp-profile-grid { margin-left:0; margin-right:0; }
+            .student-profile-page .sp-completion-head { gap:.7rem; }
+            .student-profile-page .sp-completion-percent { font-size:1.2rem; }
+            .student-profile-page .sp-completion-groups { grid-template-columns:1fr; }            .student-profile-page .sp-documents-heading { display:block; }
+            .student-profile-page .sp-documents-heading p { margin-top:.55rem; }
+            .student-profile-page .sp-document-list { grid-template-columns:1fr; }
             .student-profile-page .sp-card-edit-action { margin-top:.55rem; }
             .student-profile-page .sp-edit-intro { align-items:flex-start; flex-direction:column; margin:.9rem 0 .6rem; gap:.55rem; }
             .student-profile-page .sp-edit-actions { width:100%; justify-content:space-between; }
@@ -1671,6 +2010,15 @@
             const processUrl = @json(route('profile.photo.preview'));
             const processButtonLabel = processButton?.innerHTML || '<i class="fas fa-wand-magic-sparkles"></i> Prepare this photo and show preview';
             const currentButtonLabel = currentButton?.innerHTML || '<i class="fas fa-rotate"></i> Prepare my current photo';
+            const bankSelect = document.getElementById('profile-bank-name');
+            const bankCodeField = document.getElementById('profile-bank-code');
+            const updateProfileBankCode = () => {
+                if (!bankSelect || !bankCodeField) return;
+                const option = bankSelect.options[bankSelect.selectedIndex];
+                bankCodeField.value = option?.dataset?.code || '';
+            };
+            bankSelect?.addEventListener('change', updateProfileBankCode);
+            updateProfileBankCode();
 
             // Edit sections behave as a stacked accordion: each section's content
             // sits directly under its heading, with only one section open at a time.
@@ -1740,6 +2088,24 @@
             currentButton?.addEventListener('click', () => { setPhotoBusy(true, 'current'); processPhoto(true).finally(() => setPhotoBusy(false)); });
             pictureInput?.addEventListener('change', () => setPhotoStatus('Photo selected. Click the prepare button to see the result before saving.'));
 
+            document.querySelectorAll('.sp-document-input').forEach(function (input) {
+                input.addEventListener('change', function () {
+                    const file = this.files && this.files[0];
+                    const note = document.getElementById('student_doc_note_' + this.id.replace('student_doc_', ''));
+                    const label = this.getAttribute('data-document-label') || 'Document';
+                    if (!file || !note) return;
+
+                    if (file.size > 400 * 1024) {
+                        this.value = '';
+                        note.textContent = label + ' is larger than 400 KB. Please choose a smaller file.';
+                        note.className = 'sp-document-file-note text-danger';
+                        return;
+                    }
+
+                    note.className = 'sp-document-file-note text-success';
+                    note.textContent = 'New file selected: ' + file.name + ' (' + Math.max(1, Math.round(file.size / 1024)) + ' KB)';
+                });
+            });
             const canvas = document.getElementById('student-signature-canvas');
             const signatureInput = document.getElementById('signiture');
             const clearSignature = document.getElementById('clear-student-signature');

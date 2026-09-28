@@ -5,7 +5,7 @@
     $recordedCgpa = is_numeric($historyCgpa ?? null) ? number_format((float) $historyCgpa, 2) : '-';
     $calculatedCgpaValue = is_numeric($calculatedCgpa ?? null) ? number_format((float) $calculatedCgpa, 2) : '-';
     $courseCount = $results->count();
-    $unitCount = $results->sum(fn ($result) => (float) ($result->unit ?? 0));
+    $unitCount = $results->sum(fn ($result) => (float) ($result->course_unit ?? $result->unit ?? 0));
     $passedCount = $results->filter(fn ($result) => !empty($result->grade) && strtoupper((string) $result->grade) !== 'F')->count();
     $failedCount = $results->filter(fn ($result) => strtoupper((string) ($result->grade ?? '')) === 'F')->count();
 @endphp
@@ -96,8 +96,8 @@
 
     <table class="summary-table">
         <tr>
-            <td><span class="summary-label">Official CGPA</span><span class="summary-value official">{{ $recordedCgpa }}</span></td>
-            <td><span class="summary-label">{{ $isAllSessions ? 'Calculated CGPA' : 'Session CGPA' }}</span><span class="summary-value">{{ $calculatedCgpaValue }}</span></td>
+            <td><span class="summary-label">{{ $isAllSessions ? 'Official CGPA' : 'Official GPA' }}</span><span class="summary-value official">{{ $recordedCgpa }}</span></td>
+            <td><span class="summary-label">{{ $isAllSessions ? 'Calculated CGPA' : 'Session GPA' }}</span><span class="summary-value">{{ $calculatedCgpaValue }}</span></td>
             <td><span class="summary-label">Courses</span><span class="summary-value">{{ $courseCount }}</span></td>
             <td><span class="summary-label">Units</span><span class="summary-value">{{ $unitCount }}</span></td>
             <td><span class="summary-label">Passed</span><span class="summary-value official">{{ $passedCount }}</span></td>
@@ -132,7 +132,7 @@
                     <td class="number">{{ $result->ca ?? '-' }}</td>
                     <td class="number">{{ $result->exam ?? '-' }}</td>
                     <td class="number">{{ $result->total ?? '-' }}</td>
-                    <td class="number">{{ $result->unit ?? '-' }}</td>
+                    <td class="number">{{ $result->course_unit ?? ($result->unit ?? '-') }}</td>
                     <td class="grade {{ $gradeClass }}">{{ $grade ?: '-' }}</td>
                     <td class="approved">Approved</td>
                 </tr>
@@ -142,6 +142,6 @@
         </tbody>
     </table>
 
-    <div class="note">This document contains approved results currently published on the University of Maiduguri student portal. The official CGPA is taken from the session history record; the calculated CGPA is provided for comparison.</div>
+    <div class="note">This document contains approved results currently published on the University of Maiduguri student portal. The official {{ $isAllSessions ? 'CGPA' : 'GPA' }} is taken from the session history record; the calculated {{ $isAllSessions ? 'CGPA' : 'GPA' }} is provided for comparison.</div>
 </body>
 </html>

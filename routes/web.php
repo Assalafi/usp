@@ -33,8 +33,10 @@ use App\Http\Controllers\UsersController;
 use App\Http\Controllers\IdCardFeesController;
 use App\Models\ProgramCourseRegistration;
 use App\Models\Student;
+use App\Models\StudentDocument;
 use App\Models\StudentCourseRegistration;
 use App\Models\User;
+use App\Models\DocumentUpload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -715,7 +717,28 @@ Route::get('/profile', function () {
     if (!session()->has('log')) {
         return redirect('/');
     }
-    return view('main', ['page' => 'profile']);
+
+    $userId = session('id');
+    $student = Student::where('user_id', $userId)->first();
+    $studentDocuments = $student
+        ? StudentDocument::where('user_id', $userId)->get()->keyBy('doc_type')
+        : collect();
+
+    // Students who previously submitted SIWES details may have bank data in
+    // the legacy SIWES record. Pass it as a fallback while the profile table
+    // remains the primary source for new and edited bank details.
+    $siwesBankDetails = $student && $student->username
+        ? DB::table('siwes')->where('username', $student->username)->first()
+        : null;
+
+    // Applicants who have already become students keep their original
+    // application documents. They remain available in the profile editor
+    // until the student replaces them with a student document.
+    $applicantDocuments = DocumentUpload::where('user_id', $userId)
+        ->get()
+        ->keyBy('doc_type');
+
+    return view('main', compact('studentDocuments', 'applicantDocuments', 'siwesBankDetails') + ['page' => 'profile']);
 });
 Route::get('id card/{id}', function ($id) {
     if (!session()->has('log')) {
@@ -765,20 +788,7 @@ Route::get('program-courses/{id}', function ($id) {
     }
     return view('pdf/program registered courses', ['id' => $id]);
 });
-Route::get('/student-details-pdf', function () {
-    if (!session()->has('log')) {
-        return redirect('/');
-    }
-
-    $id = DB::table('students')->where(['user_id' => session('id')])->select('id')->value('id');
-
-    if (strpos(session('username'), 'PG') !== false) {
-        return view('pdf/pg student info', ['id' => $id]);
-    } else {
-        return view('pdf/student info', ['id' => $id]);
-    }
-    // return view('pdf/student info', ['id' => $id]);
-});
+Route::get('/student-details-pdf', [RegistrationController::class, 'downloadStudentBioDataPdf']);
 Route::get('print-result-pdf/{code}/{ses1}/{ses2}', function ($code, $ses1, $ses2) {
     if (!session()->has('log')) {
         return redirect('/');
@@ -1136,7 +1146,7 @@ Route::get('/student-result', function (Request $req) {
         $resultsQuery->where('results.session', $selectedSession);
     }
     $data['data'] = $resultsQuery
-        ->select('results.*', 'course.title as course_title')
+        ->select('results.*', 'course.title as course_title', 'course.unit as course_unit')
         ->orderBy('results.session', 'DESC')
         ->orderBy('results.level', 'ASC')
         ->orderBy('results.semester', 'ASC')
@@ -1151,12 +1161,13 @@ Route::get('/student-result', function (Request $req) {
     }
     $history = $historyQuery->orderBy('session', 'DESC')->first();
     $cgpaQuery = DB::table('results')
-        ->where(['username' => session('id_number'), 'approve' => 'vc']);
+        ->leftJoin('course', 'results.code', '=', 'course.code')
+        ->where(['results.username' => session('id_number'), 'results.approve' => 'vc']);
     if (strtolower((string) $selectedSession) !== 'all') {
         $cgpaQuery->where('session', $selectedSession);
     }
-    $cgpaResults = $cgpaQuery->get(['unit', 'ugp']);
-    $cgpaUnits = $cgpaResults->sum(fn ($result) => (float) ($result->unit ?? 0));
+    $cgpaResults = $cgpaQuery->get(['course.unit as course_unit', 'results.ugp']);
+    $cgpaUnits = $cgpaResults->sum(fn ($result) => (float) ($result->course_unit ?? 0));
     $cgpaPoints = $cgpaResults->sum(fn ($result) => (float) ($result->ugp ?? 0));
     $calculatedCgpa = $cgpaUnits > 0 ? $cgpaPoints / $cgpaUnits : 0.0;
     $historyCgpa = is_numeric($history->cgpa ?? null) ? (float) $history->cgpa : null;

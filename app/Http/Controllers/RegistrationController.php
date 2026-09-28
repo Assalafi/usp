@@ -16,6 +16,7 @@ use App\Models\Jamb;
 use App\Models\Ssce;
 use App\Models\SsceResult;
 use App\Models\Student;
+use App\Models\StudentDocument;
 use App\Models\User;
 use App\Services\ProfilePhotoProcessor;
 use Dompdf\Dompdf;
@@ -1479,9 +1480,16 @@ class RegistrationController extends Controller
             }
         }
 
+        $storedPicture = $student->picture;
+        if (!$storedPicture) {
+            $storedPicture = DocumentUpload::where('user_id', session('id'))
+                ->where('doc_type', 'passport_photo')
+                ->value('file_path');
+        }
+
         $path = $request->hasFile('picture')
             ? $photoProcessor->process($request->file('picture'), 'picture/previews')
-            : $photoProcessor->processStored($student->picture, 'picture/previews');
+            : $photoProcessor->processStored($storedPicture, 'picture/previews');
 
         $token = Str::random(64);
         Cache::put('student.photo-preview.' . $token, [
@@ -1497,6 +1505,235 @@ class RegistrationController extends Controller
         ]);
     }
 
+    /**
+     * Generate the student's information-rich biodata PDF. The current
+     * session's registered courses are included when they exist.
+     */
+    public function downloadStudentBioDataPdf()
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        $student = Student::where('user_id', session('id'))->first();
+        if (!$student) {
+            return redirect('/profile')->with('error', 'Student profile could not be found.');
+        }
+
+        $identity = strtoupper((string) ($student->username ?: session('username')));
+        if (str_contains($identity, 'PG') || str_contains(strtoupper((string) session('faculty')), '.PG')) {
+            return view('pdf/pg student info', ['id' => $student->id]);
+        }
+
+        $toDataUri = static function (?string $path): ?string {
+            if (!$path || !is_file($path) || !is_readable($path)) {
+                return null;
+            }
+
+            $mime = @mime_content_type($path) ?: 'image/jpeg';
+            return 'data:' . $mime . ';base64,' . base64_encode((string) file_get_contents($path));
+        };
+
+        $photoData = null;
+        $photoCandidates = [];
+        if (!empty($student->picture)) {
+            $photoCandidates[] = public_path('storage/picture/' . $student->picture);
+            $photoCandidates[] = public_path('storage/' . $student->picture);
+        }
+
+        $applicantDocuments = DocumentUpload::where('user_id', session('id'))->get()->keyBy('doc_type');
+        $studentDocuments = StudentDocument::where('user_id', session('id'))->get()->keyBy('doc_type');
+        $documentRecords = $applicantDocuments->merge($studentDocuments)->keyBy('doc_type');
+
+        foreach (['passport_photo', 'passport_photograph'] as $passportType) {
+            $passportPath = $documentRecords->get($passportType)?->file_path;
+            if ($passportPath) {
+                $photoCandidates[] = public_path('storage/' . $passportPath);
+            }
+        }
+        foreach ($photoCandidates as $candidate) {
+            $photoData = $toDataUri($candidate);
+            if ($photoData) {
+                break;
+            }
+        }
+
+        $signatureData = !empty($student->signiture)
+            ? $toDataUri(public_path('storage/signature/' . $student->signiture))
+            : null;
+
+        $programRow = DB::table('program')->where('code', $student->program)->first();
+        $programTitle = $programRow?->title ?: $student->program;
+        $facultyTitle = DB::table('faculty')->where('code', $student->faculty)->value('title') ?: $student->faculty;
+        $departmentTitle = DB::table('department')->where('code', $student->department)->value('title') ?: $student->department;
+        $siwesBank = $student->username
+            ? DB::table('siwes')->where('username', $student->username)->first()
+            : null;
+
+        $bankDetails = [
+            ['label' => 'Bank name', 'value' => $student->bank_name ?: ($siwesBank->bank_name ?? 'Not provided')],
+            ['label' => 'Bank code', 'value' => $student->bank_code ?: ($siwesBank->bank_code ?? 'Not provided')],
+            ['label' => 'Account number', 'value' => $student->account_number ?: ($siwesBank->account_number ?? 'Not provided')],
+            ['label' => 'Sort code', 'value' => $student->sort_code ?: ($siwesBank->sort_code ?? 'Not provided')],
+        ];
+
+        $formatDate = static function ($value): string {
+            if (empty($value) || $value === '1970-01-01') {
+                return 'Not provided';
+            }
+            try {
+                return \Carbon\Carbon::parse($value)->format('d/m/Y');
+            } catch (\Throwable $e) {
+                return (string) $value;
+            }
+        };
+
+        $fullName = trim(implode(' ', array_filter([
+            $student->first_name,
+            $student->last_name,
+            $student->other_name,
+        ])));
+        $currentSession = (string) (session('system_session') ?: '');
+        $currentCourses = collect();
+        if ($currentSession !== '' && $student->username) {
+            $currentCourses = DB::table('student_course_registration')
+                ->where('username', $student->username)
+                ->where('session', $currentSession)
+                ->orderBy('level')
+                ->orderBy('semester')
+                ->orderBy('code')
+                ->get();
+
+            $courseCodes = $currentCourses->pluck('code')->filter()->unique()->values();
+            $courseTitles = $courseCodes->isNotEmpty()
+                ? DB::table('course')->whereIn('code', $courseCodes)->pluck('title', 'code')
+                : collect();
+            $currentCourses->each(function ($course) use ($courseTitles) {
+                $course->course_title = $courseTitles[$course->code] ?? $course->code;
+            });
+        }
+        $courseGroups = $currentCourses->groupBy(function ($course) {
+            return strtoupper(trim((string) ($course->semester ?: 'OTHER')));
+        });
+
+        $documentLabels = [
+            'jamb_result' => 'JAMB result',
+            'ssce_result' => 'SSCE result (1st sitting)',
+            'ssce_result_2' => 'SSCE result (2nd sitting)',
+            'birth_certificate' => 'Birth certificate',
+            'nin_document' => 'NIN document',
+            'direct_entry_cert' => 'Direct Entry certificate',
+        ];
+        $documentChecklist = [];
+        foreach ($documentLabels as $type => $label) {
+            $documentChecklist[] = [
+                'label' => $label,
+                'uploaded' => $documentRecords->has($type),
+            ];
+        }
+        $documentChecklist[] = ['label' => 'Passport photograph', 'uploaded' => (bool) $photoData];
+        $documentChecklist[] = ['label' => 'Digital signature', 'uploaded' => (bool) $signatureData];
+
+        $hostel = $student->username
+            ? DB::table('hostel')->where('occupant', $student->username)->orderByDesc('id')->first()
+            : null;
+
+        $sections = [
+            'Personal information' => [
+                ['label' => 'Full name', 'value' => $fullName ?: 'Not provided'],
+                ['label' => 'Student ID', 'value' => $student->username ?: 'Not provided'],
+                ['label' => 'JAMB number', 'value' => $student->jamb_no ?: 'Not provided'],
+                ['label' => 'Gender', 'value' => $student->gender ?: 'Not provided'],
+                ['label' => 'Date of birth', 'value' => $formatDate($student->date_of_birth)],
+                ['label' => 'Marital status', 'value' => $student->marital_status ?: 'Not provided'],
+                ['label' => 'Religion', 'value' => $student->religion ?: 'Not provided'],
+                ['label' => 'Nationality', 'value' => $student->country ?: 'Not provided'],
+                ['label' => 'State of origin', 'value' => $student->state_origin ?: 'Not provided'],
+                ['label' => 'LGA of origin', 'value' => $student->lga_origin ?: 'Not provided'],
+                ['label' => 'NIN', 'value' => $student->nin ?: 'Not provided'],
+                ['label' => 'Blood group', 'value' => $student->blood_group ?: 'Not provided'],
+                ['label' => 'Genotype', 'value' => $student->genotype ?: 'Not provided'],
+            ],
+            'Academic information' => [
+                ['label' => 'Faculty', 'value' => $facultyTitle ?: 'Not provided'],
+                ['label' => 'Department', 'value' => $departmentTitle ?: 'Not provided'],
+                ['label' => 'Programme', 'value' => $programTitle ?: 'Not provided'],
+                ['label' => 'Award', 'value' => $programRow?->award ?: 'Not provided'],
+                ['label' => 'Mode of entry', 'value' => $student->mode_of_entry ?: 'Not provided'],
+                ['label' => 'Entry session', 'value' => $student->session_of_entry ?: 'Not provided'],
+                ['label' => 'Level at entry', 'value' => $student->level_of_entry ?: 'Not provided'],
+                ['label' => 'Current level', 'value' => $student->level ?: 'Not provided'],
+                ['label' => 'Programme duration', 'value' => $student->duration ? $student->duration . ' years' : 'Not provided'],
+                ['label' => 'Registration date', 'value' => $formatDate($student->created_at)],
+            ],
+            'Contact information' => [
+                ['label' => 'Phone', 'value' => $student->contact_phone ?: 'Not provided'],
+                ['label' => 'Email', 'value' => $student->contact_email ?: 'Not provided'],
+                ['label' => 'Current address', 'value' => $student->contact_address ?: 'Not provided'],
+                ['label' => 'Permanent phone', 'value' => $student->home_phone ?: 'Not provided'],
+                ['label' => 'Permanent email', 'value' => $student->home_email ?: 'Not provided'],
+                ['label' => 'Permanent address', 'value' => $student->home_address ?: 'Not provided'],
+            ],
+            'Parent and sponsor information' => [
+                ['label' => 'Father', 'value' => $student->father_name ?: 'Not provided'],
+                ['label' => 'Father phone', 'value' => $student->father_phone ?: 'Not provided'],
+                ['label' => 'Father address', 'value' => $student->father_address ?: 'Not provided'],
+                ['label' => 'Mother', 'value' => $student->mother_name ?: 'Not provided'],
+                ['label' => 'Mother phone', 'value' => $student->mother_phone ?: 'Not provided'],
+                ['label' => 'Mother address', 'value' => $student->mother_address ?: 'Not provided'],
+                ['label' => 'Sponsor type', 'value' => $student->sponsor_type ?: 'Not provided'],
+                ['label' => 'Sponsor name', 'value' => $student->sponsor_name ?: 'Not provided'],
+                ['label' => 'Sponsor phone', 'value' => $student->sponsor_phone ?: 'Not provided'],
+                ['label' => 'Sponsor address', 'value' => $student->sponsor_address ?: 'Not provided'],
+            ],
+            'Next of kin' => [
+                ['label' => 'Name', 'value' => $student->kin_name ?: 'Not provided'],
+                ['label' => 'Phone', 'value' => $student->kin_phone ?: 'Not provided'],
+                ['label' => 'Email', 'value' => $student->kin_email ?: 'Not provided'],
+                ['label' => 'Address', 'value' => $student->kin_address ?: 'Not provided'],
+            ],
+        ];
+
+        $logoData = $toDataUri(public_path('uploads/logo.png'));
+        $html = View::make('pdf.student-bio-data', [
+            'student' => $student,
+            'fullName' => $fullName,
+            'logoData' => $logoData,
+            'photoData' => $photoData,
+            'signatureData' => $signatureData,
+            'sections' => $sections,
+            'bankDetails' => $bankDetails,
+            'documentChecklist' => $documentChecklist,
+            'hostel' => $hostel,
+            'currentSession' => $currentSession,
+            'courseGroups' => $courseGroups,
+            'currentCourseCount' => $currentCourses->count(),
+            'facultyTitle' => $facultyTitle,
+            'departmentTitle' => $departmentTitle,
+            'programTitle' => $programTitle,
+        ])->render();
+
+        $options = new Options();
+        $options->set([
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => true,
+            'defaultFont' => 'Arial',
+            'chroot' => [public_path(), storage_path('app/public'), base_path()],
+            'tempDir' => storage_path('app/dompdf'),
+            'fontCache' => storage_path('fonts'),
+            'fontDir' => storage_path('fonts'),
+        ]);
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $filename = 'student_biodata_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $student->username ?: $student->id) . '.pdf';
+        return response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+        ]);
+    }
     public function updateProfile(Request $request)
     {
         if (!session()->has('log')) {
@@ -1543,11 +1780,24 @@ class RegistrationController extends Controller
             'picture' => 'nullable|file|image|mimes:jpeg,jpg,png|max:5120',
             'processed_photo_token' => 'nullable|string|max:100',
             'signiture' => 'nullable|file|image|mimes:png,jpeg,jpg|max:2048',
+            'jamb_result' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:400',
+            'ssce_result' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:400',
+            'ssce_result_2' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:400',
+            'birth_certificate' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:400',
+            'direct_entry_cert' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:400',
+            'nin_document' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:400',
+            // Bank details follow the same fields used by the SIWES form.
+            'bank_name' => 'nullable|string|max:255',
+            'bank_code' => 'nullable|string|max:20',
+            'account_number' => 'nullable|string|max:40',
+            'sort_code' => 'nullable|string|max:40',
         ]);
 
         $student = Student::where('id', $request->id)
             ->where('user_id', session('id'))
             ->firstOrFail();
+
+        $this->ensureRequiredStudentDocuments($request, $student);
 
         $pictureValue = null;
         if ($request->filled('processed_photo_token')) {
@@ -1613,6 +1863,10 @@ class RegistrationController extends Controller
                 'contact_address' => strtoupper($request->contact_address),
                 'contact_phone' => strtoupper($request->contact_phone),
                 'contact_email' => strtolower($request->contact_email),
+                'bank_name' => $request->filled('bank_name') ? strtoupper(trim($request->bank_name)) : null,
+                'bank_code' => $request->filled('bank_code') ? trim($request->bank_code) : null,
+                'account_number' => $request->filled('account_number') ? trim($request->account_number) : null,
+                'sort_code' => $request->filled('sort_code') ? trim($request->sort_code) : null,
                 'kin_name' => strtoupper($request->kin_name),
                 'kin_address' => strtoupper($request->kin_address),
                 'kin_phone' => strtoupper($request->kin_phone),
@@ -1633,6 +1887,22 @@ class RegistrationController extends Controller
                 'update_profile' => 1
             ]
         );
+
+        $this->saveStudentDocuments($request, $student);
+
+        // Keep the legacy SIWES record aligned when it already exists. We do
+        // not create a SIWES application from the profile page; students who
+        // have not started SIWES still retain their bank details on students.
+        if ($student->username && DB::table('siwes')->where('username', $student->username)->exists()) {
+            DB::table('siwes')->where('username', $student->username)->update([
+                'bank_name' => $request->filled('bank_name') ? strtoupper(trim($request->bank_name)) : null,
+                'bank_code' => $request->filled('bank_code') ? trim($request->bank_code) : null,
+                'account_number' => $request->filled('account_number') ? trim($request->account_number) : null,
+                'sort_code' => $request->filled('sort_code') ? trim($request->sort_code) : null,
+                'updated_at' => now(),
+            ]);
+        }
+
         // Keep the legacy users record aligned when the current level is
         // changed from the profile page.
         DB::table('users')->where('id', session('id'))->update([
@@ -1655,6 +1925,113 @@ class RegistrationController extends Controller
 
         // return redirect('student-details-pdf');
         return redirect()->back()->with('success', 'Profile Updated Successfully!!!');
+    }
+
+    private function ensureRequiredStudentDocuments(Request $request, Student $student): void
+    {
+        $storedTypes = StudentDocument::where('user_id', session('id'))
+            ->pluck('doc_type')
+            ->all();
+        $applicantTypes = DocumentUpload::where('user_id', session('id'))
+            ->pluck('doc_type')
+            ->all();
+        $availableTypes = array_unique(array_merge($storedTypes, $applicantTypes));
+
+        $required = [
+            'jamb_result' => 'JAMB Result',
+            'ssce_result' => 'SSCE Result (1st Sitting)',
+            'birth_certificate' => 'Birth Certificate',
+            'nin_document' => 'NIN Document',
+        ];
+
+        if (in_array(strtoupper((string) $student->mode_of_entry), ['DE', 'DIRECT ENTRY'], true)) {
+            $required['direct_entry_cert'] = 'Direct Entry Certificate';
+        }
+
+        $hasPhoto = !empty($student->picture)
+            || in_array('passport_photo', $availableTypes, true)
+            || $request->filled('processed_photo_token');
+        if (!$hasPhoto) {
+            $required['picture'] = 'Passport Photograph';
+        }
+
+        $hasSignature = !empty($student->signiture) || $request->hasFile('signiture');
+        if (!$hasSignature) {
+            $required['signiture'] = 'Digital Signature';
+        }
+
+        $missing = [];
+        foreach ($required as $field => $label) {
+            $hasNewFile = $field === 'picture'
+                ? false
+                : $request->hasFile($field);
+            $hasStoredFile = $field === 'picture'
+                ? $hasPhoto
+                : ($field === 'signiture' ? $hasSignature : in_array($field, $availableTypes, true));
+
+            if (!$hasNewFile && !$hasStoredFile) {
+                $missing[] = $label;
+            }
+        }
+
+        if ($missing) {
+            throw ValidationException::withMessages([
+                'documents' => 'Please upload the following required documents: ' . implode(', ', $missing) . '.',
+            ]);
+        }
+    }
+
+    private function saveStudentDocuments(Request $request, Student $student): void
+    {
+        $documentFields = [
+            'jamb_result',
+            'ssce_result',
+            'ssce_result_2',
+            'birth_certificate',
+            'direct_entry_cert',
+            'nin_document',
+        ];
+        $disk = Storage::disk('public');
+
+        foreach ($documentFields as $docType) {
+            if (!$request->hasFile($docType)) {
+                continue;
+            }
+
+            $file = $request->file($docType);
+            $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension());
+            $fileName = $docType . '_' . Str::uuid() . ($extension ? '.' . $extension : '');
+            $filePath = $file->storeAs('student-documents/' . session('id'), $fileName, 'public');
+
+            if (!$filePath) {
+                throw ValidationException::withMessages([
+                    $docType => 'The document could not be saved. Please try again.',
+                ]);
+            }
+
+            $existing = StudentDocument::where('user_id', session('id'))
+                ->where('doc_type', $docType)
+                ->first();
+
+            StudentDocument::updateOrCreate(
+                [
+                    'user_id' => (string) session('id'),
+                    'doc_type' => $docType,
+                ],
+                [
+                    'student_id' => $student->id,
+                    'file_path' => $filePath,
+                    'original_name' => Str::limit($file->getClientOriginalName(), 255, ''),
+                    'mime_type' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                    'uploaded_at' => now(),
+                ]
+            );
+
+            if ($existing && $existing->file_path !== $filePath) {
+                $disk->delete($existing->file_path);
+            }
+        }
     }
 
     public function updateStudentLevel(Request $request)
