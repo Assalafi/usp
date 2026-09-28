@@ -5,7 +5,9 @@
     $recordedCgpa = is_numeric($historyCgpa ?? null) ? number_format((float) $historyCgpa, 2) : '-';
     $calculatedCgpaValue = is_numeric($calculatedCgpa ?? null) ? number_format((float) $calculatedCgpa, 2) : '-';
     $courseCount = $results->count();
-    $unitCount = $results->sum(fn ($result) => (float) ($result->course_unit ?? $result->unit ?? 0));
+    $unitCount = $results->sum(fn ($result) => $isAllSessions
+        ? (float) ($result->unit ?? 0)
+        : (float) ($result->course_unit ?? 0));
     $passedCount = $results->filter(fn ($result) => !empty($result->grade) && strtoupper((string) $result->grade) !== 'F')->count();
     $failedCount = $results->filter(fn ($result) => strtoupper((string) ($result->grade ?? '')) === 'F')->count();
 @endphp
@@ -117,13 +119,17 @@
     <div class="section-title">Course results</div>
     <table class="results-table">
         <thead>
-            <tr><th class="code">Code</th><th class="title">Course title</th><th class="session">Session</th><th class="number">CA</th><th class="number">Exam</th><th class="number">Total</th><th class="number">Unit</th><th class="grade">Grade</th><th>Status</th></tr>
+            <tr><th class="code">Code</th><th class="title">Course title</th><th class="session">Session</th><th class="number">CA</th><th class="number">Exam</th><th class="number">Total</th><th class="number">Unit used</th><th class="number">Product</th><th class="grade">Grade</th><th>Status</th></tr>
         </thead>
         <tbody>
             @forelse ($results as $result)
-                @php
+@php
                     $grade = strtoupper((string) ($result->grade ?? ''));
                     $gradeClass = in_array($grade, ['A', 'B', 'C', 'D', 'E', 'F']) ? 'grade-' . strtolower($grade) : 'grade-pending';
+                    $resultUnit = is_numeric($result->unit ?? null) ? (float) $result->unit : 0;
+                    $courseUnit = is_numeric($result->course_unit ?? null) ? (float) $result->course_unit : 0;
+                    $unitUsed = $isAllSessions ? $resultUnit : $courseUnit;
+                    $isResit = $resultUnit <= 0;
                 @endphp
                 <tr>
                     <td class="code">{{ $result->code ?? '-' }}</td>
@@ -132,16 +138,17 @@
                     <td class="number">{{ $result->ca ?? '-' }}</td>
                     <td class="number">{{ $result->exam ?? '-' }}</td>
                     <td class="number">{{ $result->total ?? '-' }}</td>
-                    <td class="number">{{ $result->course_unit ?? ($result->unit ?? '-') }}</td>
+<td class="number">{{ $unitUsed > 0 ? number_format($unitUsed, 0) : '-' }}</td>
+                    <td class="number">{{ is_numeric($result->ugp ?? null) ? number_format((float) $result->ugp, 2) : '-' }}</td>
                     <td class="grade {{ $gradeClass }}">{{ $grade ?: '-' }}</td>
-                    <td class="approved">Approved</td>
+                    <td class="approved">{{ $isResit ? ($isAllSessions ? 'Resit: 0 result units; product included' : 'Resit: course unit used') : 'Approved' }}</td>
                 </tr>
             @empty
-                <tr><td colspan="9" style="text-align:center;color:#7890a7;padding:18px;">No approved results were found for this selection.</td></tr>
+                <tr><td colspan="10" style="text-align:center;color:#7890a7;padding:18px;">No approved results were found for this selection.</td></tr>
             @endforelse
         </tbody>
     </table>
 
-    <div class="note">This document contains approved results currently published on the University of Maiduguri student portal. The official {{ $isAllSessions ? 'CGPA' : 'GPA' }} is taken from the session history record; the calculated {{ $isAllSessions ? 'CGPA' : 'GPA' }} is provided for comparison.</div>
+    <div class="note">This document contains approved results currently published on the University of Maiduguri student portal. The official {{ $isAllSessions ? 'CGPA' : 'GPA' }} is taken from the session history record. The calculated {{ $isAllSessions ? 'CGPA' : 'GPA' }} uses every approved product; {{ $isAllSessions ? 'CGPA units come from stored result units.' : 'GPA units come from the course table.' }}</div>
 </body>
 </html>

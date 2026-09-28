@@ -53,16 +53,11 @@ class StudentResultsController extends Controller
         }
         $history = $historyQuery->orderBy('session', 'DESC')->first();
 
-        $cgpaQuery = DB::table('results')
-            ->leftJoin('course', 'results.code', '=', 'course.code')
-            ->where(['results.username' => $studentId, 'results.approve' => 'vc']);
-        if (!$isAllSessions) {
-            $cgpaQuery->where('session', $selectedSession);
-        }
-        $cgpaResults = $cgpaQuery->get(['course.unit as course_unit', 'results.ugp']);
-        $cgpaUnits = $cgpaResults->sum(fn ($result) => (float) ($result->course_unit ?? 0));
-        $cgpaPoints = $cgpaResults->sum(fn ($result) => (float) ($result->ugp ?? 0));
-        $calculatedCgpa = $cgpaUnits > 0 ? $cgpaPoints / $cgpaUnits : null;
+        $calculationUnits = $results->sum(fn ($result) => $isAllSessions
+            ? (float) ($result->unit ?? 0)
+            : (float) ($result->course_unit ?? 0));
+        $calculationProducts = $results->sum(fn ($result) => (float) ($result->ugp ?? 0));
+        $calculatedCgpa = $calculationUnits > 0 ? $calculationProducts / $calculationUnits : null;
         $historyCgpa = is_numeric($history->cgpa ?? null) ? (float) $history->cgpa : null;
 
         $gradeOrder = ['A', 'B', 'C', 'D', 'E', 'F'];

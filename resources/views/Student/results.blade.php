@@ -2,7 +2,6 @@
     $studentResults = collect($data ?? []);
     $resultsByLevel = $studentResults->groupBy('level');
     $courseCount = $studentResults->count();
-    $unitCount = $studentResults->sum(fn ($result) => (float) ($result->course_unit ?? $result->unit ?? 0));
     $failedCount = $studentResults->filter(fn ($result) => strtoupper((string) ($result->grade ?? '')) === 'F')->count();
     $passedCount = $studentResults->filter(fn ($result) => !empty($result->grade) && strtoupper((string) $result->grade) !== 'F')->count();
     $gradeOrder = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -11,12 +10,17 @@
     $displaySession = $selectedSession ?? request('session', session('system_session'));
     $isAllSessions = strtolower((string) $displaySession) === 'all';
     $displaySessionLabel = $isAllSessions ? 'All sessions' : $displaySession;
-    $historyCgpaValue = is_numeric($historyCgpa ?? null) ? number_format((float) $historyCgpa, 2) : '—';
-    $calculatedCgpaValue = is_numeric($calculatedCgpa ?? null) ? number_format((float) $calculatedCgpa, 2) : '—';
-    $cgpaRows = $studentResults->filter(fn ($result) => is_numeric($result->course_unit ?? null) && (float) $result->course_unit > 0);
-    $cgpaUnitsTotal = $cgpaRows->sum(fn ($result) => (float) ($result->course_unit ?? 0));
-    $cgpaPointsTotal = $cgpaRows->sum(fn ($result) => (float) ($result->ugp ?? 0));
-    $popupCalculatedCgpa = $cgpaUnitsTotal > 0 ? $cgpaPointsTotal / $cgpaUnitsTotal : null;
+    $historyCgpaValue = is_numeric($historyCgpa ?? null) ? number_format((float) $historyCgpa, 2) : '-';
+    $calculatedCgpaValue = is_numeric($calculatedCgpa ?? null) ? number_format((float) $calculatedCgpa, 2) : '-';
+    $calculationUnit = fn ($result) => $isAllSessions
+        ? (float) ($result->unit ?? 0)
+        : (float) ($result->course_unit ?? 0);
+    $unitCount = $studentResults->sum($calculationUnit);
+    $cgpaRows = $studentResults;
+    $cgpaExcludedRows = $studentResults->filter(fn ($result) => !is_numeric($result->unit ?? null) || (float) $result->unit <= 0);
+    $cgpaUnitsTotal = $studentResults->sum($calculationUnit);
+    $cgpaProductsTotal = $studentResults->sum(fn ($result) => (float) ($result->ugp ?? 0));
+    $popupCalculatedCgpa = $cgpaUnitsTotal > 0 ? $cgpaProductsTotal / $cgpaUnitsTotal : null;
 @endphp
 
 <div class="main-body ug-results-page">
@@ -81,7 +85,7 @@
                                                 <article class="ug-result-card" data-result-card data-search-text="{{ $searchText }}">
                                                     <div class="ug-result-card-top"><div><strong class="ug-result-code">{{ $result->code }}</strong><span class="ug-result-title">{{ $result->course_title ?? $result->title ?? 'Course result' }}</span></div><span class="ug-grade {{ $gradeTone }} grade-{{ strtolower($grade ?: 'pending') }}">{{ $grade ?: '—' }}</span></div>
                                                     <div class="ug-result-marks"><div><small>CA</small><strong>{{ $result->ca ?? '—' }}</strong></div><div><small>Exam</small><strong>{{ $result->exam ?? '—' }}</strong></div><div class="total"><small>Total</small><strong>{{ $result->total ?? '—' }}</strong></div></div>
-                                                    <div class="ug-result-meta"><span><i class="fas fa-cubes"></i> {{ $result->course_unit ?? ($result->unit ?? 'â€”') }} unit{{ (float) ($result->course_unit ?? $result->unit ?? 0) === 1.0 ? '' : 's' }}</span><span><i class="fas fa-calendar"></i> {{ $semester ?: 'Semester not specified' }}</span>@if ($isAllSessions && !empty($result->session))<span><i class="fas fa-clock"></i> {{ $result->session }}</span>@endif<span class="ug-approved"><i class="fas fa-shield-check"></i> Approved</span></div>
+                                                    <div class="ug-result-meta"><span><i class="fas fa-cubes"></i> {{ is_numeric($isAllSessions ? ($result->unit ?? null) : ($result->course_unit ?? null)) ? number_format((float) ($isAllSessions ? ($result->unit ?? 0) : ($result->course_unit ?? 0)), 0) : '-' }} {{ $isAllSessions ? 'result unit' : 'course unit' }}</span><span><i class="fas fa-calendar"></i> {{ $semester ?: 'Semester not specified' }}</span>@if ($isAllSessions && !empty($result->session))<span><i class="fas fa-clock"></i> {{ $result->session }}</span>@endif<span class="ug-approved"><i class="fas fa-shield-check"></i> Approved</span></div>
                                                 </article>
                                             @endforeach
                                         </div>
@@ -101,30 +105,39 @@
                 <div class="ug-cgpa-modal-backdrop" data-cgpa-close></div>
                 <div class="ug-cgpa-dialog" role="document">
                     <div class="ug-cgpa-dialog-header">
-                        <div><span class="ug-results-kicker">CGPA explanation</span><h2 id="cgpaExplanationTitle">{{ $isAllSessions ? 'How your CGPA was calculated' : 'How your session GPA was calculated' }}</h2><p id="cgpaExplanationDescription">This breakdown uses approved results for {{ strtolower($displaySessionLabel) }}.</p></div>
+                        <div><span class="ug-results-kicker">{{ $isAllSessions ? 'CGPA explanation' : 'GPA explanation' }}</span><h2 id="cgpaExplanationTitle">{{ $isAllSessions ? 'How your CGPA was calculated' : 'How your session GPA was calculated' }}</h2><p id="cgpaExplanationDescription">This breakdown uses approved results for {{ strtolower($displaySessionLabel) }}.</p></div>
                         <button type="button" class="ug-cgpa-close" data-cgpa-close aria-label="Close CGPA explanation"><i class="fas fa-times" aria-hidden="true"></i></button>
                     </div>
                     <div class="ug-cgpa-dialog-summary">
                         <div><small>{{ $isAllSessions ? 'Recorded CGPA' : 'Recorded GPA' }}</small><strong>{{ $historyCgpaValue }}</strong><span>From session history</span></div>
                         <div><small>{{ $isAllSessions ? 'Calculated CGPA' : 'Session GPA' }}</small><strong>{{ $calculatedCgpaValue }}</strong><span>From approved results</span></div>
-                        <div><small>Total units</small><strong>{{ number_format($cgpaUnitsTotal, 0) }}</strong><span>Included in this view</span></div>
-                        <div><small>Quality points</small><strong>{{ number_format($cgpaPointsTotal, 2) }}</strong><span>Unit x grade point</span></div>
+                        <div><small>Total units</small><strong>{{ number_format($cgpaUnitsTotal, 0) }}</strong><span>Used in denominator</span></div>
+                        <div><small>Products</small><strong>{{ number_format($cgpaProductsTotal, 2) }}</strong><span>Unit x grade point product</span></div>
                     </div>
-                    <div class="ug-cgpa-formula"><span>Calculation method</span><strong>{{ $isAllSessions ? 'CGPA' : 'GPA' }} = total quality points / total credit units</strong><p>{{ number_format($cgpaPointsTotal, 2) }} / {{ number_format($cgpaUnitsTotal, 0) }} = {{ is_numeric($popupCalculatedCgpa) ? number_format((float) $popupCalculatedCgpa, 2) : '—' }}</p></div>
+                    <div class="ug-cgpa-formula"><span>Calculation method</span><strong>{{ $isAllSessions ? 'CGPA' : 'GPA' }} = total products / total units</strong>@if ($cgpaUnitsTotal > 0)<p>{{ number_format($cgpaProductsTotal, 2) }} / {{ number_format($cgpaUnitsTotal, 0) }} = {{ number_format((float) $popupCalculatedCgpa, 2) }}</p>@else<p class="ug-cgpa-unavailable">Not available - there are no valid denominator units.</p>@endif</div>
                     <div class="ug-cgpa-breakdown">
-                        <div class="ug-cgpa-breakdown-heading"><div><strong>Course-by-course breakdown</strong><small>Each course contributes its quality points according to its credit units.</small></div><span>{{ $cgpaRows->count() }} course{{ $cgpaRows->count() === 1 ? '' : 's' }}</span></div>
-                        @if ($cgpaRows->isNotEmpty())
-                            <div class="ug-cgpa-table-wrap"><table class="ug-cgpa-table"><thead><tr><th>Course</th><th>Grade</th><th>Units</th><th>Quality points</th></tr></thead><tbody>
-                                @foreach ($cgpaRows as $cgpaRow)
-                                    @php $popupGrade = strtoupper((string) ($cgpaRow->grade ?? '')); @endphp
-                                    <tr><td><strong>{{ $cgpaRow->code }}</strong><small>{{ $cgpaRow->course_title ?? $cgpaRow->title ?? 'Course result' }}{{ $isAllSessions && !empty($cgpaRow->session) ? ' - ' . $cgpaRow->session : '' }}</small></td><td><span class="ug-cgpa-grade grade-{{ strtolower($popupGrade ?: 'pending') }}">{{ $popupGrade ?: '—' }}</span></td><td>{{ number_format((float) ($cgpaRow->course_unit ?? $cgpaRow->unit ?? 0), 0) }}</td><td>{{ is_numeric($cgpaRow->ugp ?? null) ? number_format((float) $cgpaRow->ugp, 2) : '—' }}</td></tr>
+<div class="ug-cgpa-breakdown-heading"><div><strong>Course-by-course breakdown</strong><small>{{ $isAllSessions ? 'CGPA uses stored result units for the total. A resit product is included, but its 0 result units add no new units.' : 'GPA uses the course unit for every course. Resit rows are flagged when their stored result unit is 0.' }}</small></div><span>{{ $cgpaRows->count() }} courses - {{ $cgpaExcludedRows->count() }} resit rows</span></div>
+                        @if ($studentResults->isNotEmpty())
+<div class="ug-cgpa-table-wrap"><table class="ug-cgpa-table"><thead><tr><th>Course</th><th>Grade</th><th>Units used</th><th>Product</th><th>Status</th></tr></thead><tbody>
+@foreach ($studentResults as $cgpaRow)
+                                    @php
+                                        $popupGrade = strtoupper((string) ($cgpaRow->grade ?? ''));
+                                        $popupResultUnit = is_numeric($cgpaRow->unit ?? null) ? (float) $cgpaRow->unit : 0;
+                                        $popupCourseUnit = is_numeric($cgpaRow->course_unit ?? null) ? (float) $cgpaRow->course_unit : 0;
+                                        $popupUnit = $isAllSessions ? $popupResultUnit : $popupCourseUnit;
+                                        $popupIsResit = $popupResultUnit <= 0;
+                                    @endphp
+                                    <tr class="{{ $popupIsResit ? 'ug-cgpa-resit-row' : '' }}"><td><strong>{{ $cgpaRow->code }}</strong><small>{{ $cgpaRow->course_title ?? $cgpaRow->title ?? 'Course result' }}{{ $isAllSessions && !empty($cgpaRow->session) ? ' - ' . $cgpaRow->session : '' }}</small></td><td><span class="ug-cgpa-grade grade-{{ strtolower($popupGrade ?: 'pending') }}">{{ $popupGrade ?: '-' }}</span></td><td>{{ $popupUnit > 0 ? number_format($popupUnit, 0) : '-' }}<small>{{ $isAllSessions ? 'result unit' : 'course unit' }}</small></td><td>{{ is_numeric($cgpaRow->ugp ?? null) ? number_format((float) $cgpaRow->ugp, 2) : '-' }}</td><td>@if ($popupIsResit)<span class="ug-cgpa-excluded"><i class="fas fa-circle-info"></i> {{ $isAllSessions ? 'Resit - 0 result units; product included' : 'Resit - course unit used' }}</span>@else<span class="ug-cgpa-included">Included</span>@endif</td></tr>
                                 @endforeach
-                            </tbody></table></div>
+                             </tbody></table></div>
                         @else
-                            <div class="ug-cgpa-no-data"><i class="fas fa-circle-info"></i><span>No approved course results with credit units are available for this selection.</span></div>
+                            <div class="ug-cgpa-no-data"><i class="fas fa-circle-info"></i><span>No approved course results are available for this selection.</span></div>
                         @endif
                     </div>
-                    <div class="ug-cgpa-note"><i class="fas fa-lightbulb" aria-hidden="true"></i><span>The recorded {{ $isAllSessions ? 'CGPA' : 'GPA' }} is the official value saved in session history. The calculated {{ $isAllSessions ? 'CGPA' : 'GPA' }} is shown for transparency and may differ when previous sessions, carryovers, or approved adjustments are included.</span></div>
+<div class="ug-cgpa-note"><i class="fas fa-lightbulb" aria-hidden="true"></i><span>The recorded {{ $isAllSessions ? 'CGPA' : 'GPA' }} is the official value saved in session history. The calculated {{ $isAllSessions ? 'CGPA' : 'GPA' }} uses the product from every approved result. {{ $isAllSessions ? 'For CGPA, the denominator uses stored result units.' : 'For GPA, the denominator uses course units.' }}</span></div>
+                    @if ($cgpaExcludedRows->isNotEmpty())
+<div class="ug-cgpa-resit-notice"><i class="fas fa-rotate"></i><span>{{ $cgpaExcludedRows->count() }} result{{ $cgpaExcludedRows->count() === 1 ? '' : 's' }} have 0 stored result units. {{ $isAllSessions ? 'Their product remains in the CGPA total, while their zero units do not increase the denominator.' : 'The matching course unit is used for this session GPA.' }}</span></div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -158,6 +171,8 @@
     .ug-cgpa-card>span{display:block;min-width:0;flex:1}.ug-cgpa-card small,.ug-cgpa-card b{display:block}.ug-cgpa-card small{color:#8394a7;font-size:.61rem;line-height:1.2;white-space:nowrap}.ug-cgpa-card b{color:#1765c6;font-size:1.05rem;line-height:1.15;margin-top:3px}.ug-cgpa-card:first-child b{color:#147a4a}.ug-cgpa-card>i{color:#72a6ca;font-size:.78rem}.ug-cgpa-card em{display:block;position:absolute;left:10px;bottom:-14px;color:#7c95aa;font-size:.54rem;font-style:normal;opacity:0;transition:opacity .18s ease}.ug-cgpa-card:hover em,.ug-cgpa-card:focus-visible em{opacity:1}
     .ug-cgpa-modal[hidden]{display:none}.ug-cgpa-modal{position:fixed;inset:0;z-index:2050;display:flex;align-items:center;justify-content:center;padding:16px}.ug-cgpa-modal-backdrop{position:absolute;inset:0;background:rgba(14,38,63,.58);backdrop-filter:blur(2px)}.ug-cgpa-dialog{position:relative;width:100%;max-width:780px;max-height:90vh;overflow:auto;background:#fff;border:1px solid #dce8f2;border-radius:18px;box-shadow:0 20px 70px rgba(8,38,67,.25);padding:22px}.ug-cgpa-dialog-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;border-bottom:1px solid #edf2f7;padding-bottom:15px}.ug-cgpa-dialog-header h2{margin:5px 0 3px;color:#1d4269;font-size:1.25rem}.ug-cgpa-dialog-header p{margin:0;color:#71859a;font-size:.78rem}.ug-cgpa-close{font:inherit;width:34px;height:34px;border:1px solid #dce8f2;border-radius:10px;background:#f5f9fc;color:#65819a;cursor:pointer;display:grid;place-items:center;flex:0 0 auto}.ug-cgpa-close:hover,.ug-cgpa-close:focus-visible{background:#e9f4fc;color:#1765c6;outline:2px solid #b9dff3;outline-offset:2px}.ug-cgpa-dialog-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:15px 0}.ug-cgpa-dialog-summary>div{border:1px solid #e4edf4;border-radius:11px;background:#f8fbfd;padding:10px}.ug-cgpa-dialog-summary small,.ug-cgpa-dialog-summary strong,.ug-cgpa-dialog-summary span{display:block}.ug-cgpa-dialog-summary small{color:#7b91a6;font-size:.61rem;text-transform:uppercase;letter-spacing:.04em}.ug-cgpa-dialog-summary strong{color:#1765c6;font-size:1.05rem;margin:3px 0}.ug-cgpa-dialog-summary>div:first-child strong{color:#147a4a}.ug-cgpa-dialog-summary span{color:#8b9aaa;font-size:.62rem}.ug-cgpa-formula{border:1px solid #cfe5f5;border-left:4px solid #3ea1e4;border-radius:11px;background:#f1f8fd;padding:11px 13px;margin-bottom:15px}.ug-cgpa-formula span,.ug-cgpa-formula strong,.ug-cgpa-formula p{display:block}.ug-cgpa-formula span{color:#5c7e98;font-size:.64rem;text-transform:uppercase;letter-spacing:.06em;font-weight:800}.ug-cgpa-formula strong{color:#1c517b;font-size:.83rem;margin-top:4px}.ug-cgpa-formula p{margin:4px 0 0;color:#1765c6;font-size:.9rem;font-weight:800}.ug-cgpa-breakdown{border:1px solid #e3ebf3;border-radius:12px;overflow:hidden}.ug-cgpa-breakdown-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 13px;background:#fbfdff;border-bottom:1px solid #edf2f7}.ug-cgpa-breakdown-heading strong,.ug-cgpa-breakdown-heading small{display:block}.ug-cgpa-breakdown-heading strong{color:#2c4e70;font-size:.83rem}.ug-cgpa-breakdown-heading small{color:#8495a8;font-size:.67rem;margin-top:2px}.ug-cgpa-breakdown-heading>span{color:#6f8aa1;font-size:.67rem;font-weight:700;white-space:nowrap}.ug-cgpa-table-wrap{overflow-x:auto}.ug-cgpa-table{width:100%;border-collapse:collapse;min-width:540px}.ug-cgpa-table th{padding:8px 10px;background:#eef6fb;color:#57758e;text-align:left;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em}.ug-cgpa-table td{padding:8px 10px;border-top:1px solid #edf2f7;color:#405d78;font-size:.72rem;vertical-align:middle}.ug-cgpa-table td:first-child{min-width:220px}.ug-cgpa-table td strong,.ug-cgpa-table td small{display:block}.ug-cgpa-table td strong{color:#1765c6;font-size:.74rem}.ug-cgpa-table td small{color:#7a8da0;font-size:.65rem;margin-top:2px}.ug-cgpa-grade{display:inline-grid;place-items:center;min-width:27px;border-radius:7px;padding:4px 6px;font-size:.7rem;font-weight:800}.ug-cgpa-grade.grade-a{background:#e8f7ee;color:#137a46}.ug-cgpa-grade.grade-b{background:#e8f0ff;color:#2c5fb7}.ug-cgpa-grade.grade-c{background:#fff4dc;color:#a76700}.ug-cgpa-grade.grade-d{background:#f2eaff;color:#7042a8}.ug-cgpa-grade.grade-e{background:#ffeaf3;color:#b12f68}.ug-cgpa-grade.grade-f{background:#ffe8eb;color:#b42d3b}.ug-cgpa-grade.grade-pending{background:#eef3f8;color:#71839a}.ug-cgpa-no-data{display:flex;align-items:center;gap:8px;padding:18px;color:#7b8da0;font-size:.75rem}.ug-cgpa-no-data i{color:#6a9bc0}.ug-cgpa-note{display:flex;align-items:flex-start;gap:8px;margin-top:13px;padding:10px 12px;border-radius:10px;background:#fff9eb;color:#866d38;font-size:.69rem;line-height:1.45}.ug-cgpa-note i{color:#c49730;margin-top:2px}.ug-cgpa-note span{display:block}.ug-cgpa-modal-open{overflow:hidden}
     @media (max-width:767px){.ug-cgpa-summary{gap:6px;margin-top:11px}.ug-cgpa-card{flex:1;min-width:0;padding:8px}.ug-cgpa-card small{font-size:.57rem;overflow:hidden;text-overflow:ellipsis}.ug-cgpa-card b{font-size:.94rem}.ug-cgpa-card>i{font-size:.7rem}.ug-cgpa-card em{display:none}.ug-cgpa-dialog{max-height:92vh;border-radius:15px;padding:15px}.ug-cgpa-dialog-header h2{font-size:1.05rem}.ug-cgpa-dialog-header p{font-size:.7rem}.ug-cgpa-dialog-summary{grid-template-columns:repeat(2,1fr);gap:6px;margin:12px 0}.ug-cgpa-dialog-summary>div{padding:8px}.ug-cgpa-dialog-summary strong{font-size:.94rem}.ug-cgpa-formula{padding:10px;margin-bottom:11px}.ug-cgpa-formula strong{font-size:.75rem}.ug-cgpa-formula p{font-size:.82rem}.ug-cgpa-breakdown-heading{padding:10px}.ug-cgpa-breakdown-heading small{font-size:.61rem}.ug-cgpa-note{font-size:.65rem}}
+
+    .ug-cgpa-unavailable{color:#a76600!important;font-size:.78rem!important;font-weight:700}.ug-cgpa-table .ug-cgpa-included,.ug-cgpa-table .ug-cgpa-excluded{display:inline-flex;align-items:center;gap:4px;border-radius:7px;padding:4px 6px;font-size:.62rem;font-weight:800;white-space:nowrap}.ug-cgpa-table .ug-cgpa-included{background:#e8f7ee;color:#137a46}.ug-cgpa-table .ug-cgpa-excluded{background:#fff4dc;color:#a76600}.ug-cgpa-table .ug-cgpa-excluded i{font-size:.6rem}.ug-cgpa-table .ug-cgpa-resit-row td{background:#fffaf0}.ug-cgpa-resit-notice{display:flex;align-items:flex-start;gap:8px;margin-top:8px;padding:9px 11px;border:1px solid #f0d79d;border-radius:10px;background:#fff9eb;color:#866d38;font-size:.68rem;line-height:1.4}.ug-cgpa-resit-notice i{color:#c49730;margin-top:2px}
 </style>
 
 <script>
