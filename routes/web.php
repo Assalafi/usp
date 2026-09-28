@@ -1163,8 +1163,8 @@ Route::get('/student-result', function (Request $req) {
     $history = $historyQuery->orderBy('session', 'DESC')->first();
     $calculationResults = collect($data['data']);
     $calculationUnits = $calculationResults->sum(fn ($result) => $isAllSessions
-        ? (float) ($result->unit ?? 0)
-        : (float) ($result->course_unit ?? 0));
+        ? (is_numeric($result->unit ?? null) && (float) $result->unit > 0 ? (float) $result->unit : 0)
+        : (is_numeric($result->course_unit ?? null) && (float) $result->course_unit > 0 ? (float) $result->course_unit : 0));
     $calculationProducts = $calculationResults->sum(fn ($result) => (float) ($result->ugp ?? 0));
     $calculatedCgpa = $calculationUnits > 0 ? $calculationProducts / $calculationUnits : null;
     $historyCgpa = is_numeric($history->cgpa ?? null) ? (float) $history->cgpa : null;

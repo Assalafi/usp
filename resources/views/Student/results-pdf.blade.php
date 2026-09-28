@@ -6,8 +6,8 @@
     $calculatedCgpaValue = is_numeric($calculatedCgpa ?? null) ? number_format((float) $calculatedCgpa, 2) : '-';
     $courseCount = $results->count();
     $unitCount = $results->sum(fn ($result) => $isAllSessions
-        ? (float) ($result->unit ?? 0)
-        : (float) ($result->course_unit ?? 0));
+        ? (is_numeric($result->unit ?? null) && (float) $result->unit > 0 ? (float) $result->unit : 0)
+        : (is_numeric($result->course_unit ?? null) && (float) $result->course_unit > 0 ? (float) $result->course_unit : 0));
     $passedCount = $results->filter(fn ($result) => !empty($result->grade) && strtoupper((string) $result->grade) !== 'F')->count();
     $failedCount = $results->filter(fn ($result) => strtoupper((string) ($result->grade ?? '')) === 'F')->count();
 @endphp
@@ -126,10 +126,10 @@
 @php
                     $grade = strtoupper((string) ($result->grade ?? ''));
                     $gradeClass = in_array($grade, ['A', 'B', 'C', 'D', 'E', 'F']) ? 'grade-' . strtolower($grade) : 'grade-pending';
-                    $resultUnit = is_numeric($result->unit ?? null) ? (float) $result->unit : 0;
+                    $resultUnit = is_numeric($result->unit ?? null) ? (float) $result->unit : null;
                     $courseUnit = is_numeric($result->course_unit ?? null) ? (float) $result->course_unit : 0;
-                    $unitUsed = $isAllSessions ? $resultUnit : $courseUnit;
-                    $isResit = $resultUnit <= 0;
+                    $unitUsed = $isAllSessions ? ($resultUnit ?? 0) : $courseUnit;
+                    $isResit = $resultUnit !== null && $resultUnit === 0.0;
                 @endphp
                 <tr>
                     <td class="code">{{ $result->code ?? '-' }}</td>
@@ -141,7 +141,7 @@
 <td class="number">{{ $unitUsed > 0 ? number_format($unitUsed, 0) : '-' }}</td>
                     <td class="number">{{ is_numeric($result->ugp ?? null) ? number_format((float) $result->ugp, 2) : '-' }}</td>
                     <td class="grade {{ $gradeClass }}">{{ $grade ?: '-' }}</td>
-                    <td class="approved">{{ $isResit ? ($isAllSessions ? 'Resit: 0 result units; product included' : 'Resit: course unit used') : 'Approved' }}</td>
+                    <td class="approved">{{ $isResit ? ($isAllSessions ? 'Resit: 0 result units; product included' : 'Resit: course unit used') : (($isAllSessions && $unitUsed <= 0) ? 'Result unit unavailable' : (($unitUsed <= 0) ? 'Course unit unavailable' : 'Approved')) }}</td>
                 </tr>
             @empty
                 <tr><td colspan="10" style="text-align:center;color:#7890a7;padding:18px;">No approved results were found for this selection.</td></tr>

@@ -13,11 +13,11 @@
     $historyCgpaValue = is_numeric($historyCgpa ?? null) ? number_format((float) $historyCgpa, 2) : '-';
     $calculatedCgpaValue = is_numeric($calculatedCgpa ?? null) ? number_format((float) $calculatedCgpa, 2) : '-';
     $calculationUnit = fn ($result) => $isAllSessions
-        ? (float) ($result->unit ?? 0)
-        : (float) ($result->course_unit ?? 0);
+        ? (is_numeric($result->unit ?? null) && (float) $result->unit > 0 ? (float) $result->unit : 0)
+        : (is_numeric($result->course_unit ?? null) && (float) $result->course_unit > 0 ? (float) $result->course_unit : 0);
     $unitCount = $studentResults->sum($calculationUnit);
     $cgpaRows = $studentResults;
-    $cgpaExcludedRows = $studentResults->filter(fn ($result) => !is_numeric($result->unit ?? null) || (float) $result->unit <= 0);
+    $cgpaExcludedRows = $studentResults->filter(fn ($result) => is_numeric($result->unit ?? null) && (float) $result->unit === 0.0);
     $cgpaUnitsTotal = $studentResults->sum($calculationUnit);
     $cgpaProductsTotal = $studentResults->sum(fn ($result) => (float) ($result->ugp ?? 0));
     $popupCalculatedCgpa = $cgpaUnitsTotal > 0 ? $cgpaProductsTotal / $cgpaUnitsTotal : null;
@@ -122,12 +122,12 @@
 @foreach ($studentResults as $cgpaRow)
                                     @php
                                         $popupGrade = strtoupper((string) ($cgpaRow->grade ?? ''));
-                                        $popupResultUnit = is_numeric($cgpaRow->unit ?? null) ? (float) $cgpaRow->unit : 0;
+                                        $popupResultUnit = is_numeric($cgpaRow->unit ?? null) ? (float) $cgpaRow->unit : null;
                                         $popupCourseUnit = is_numeric($cgpaRow->course_unit ?? null) ? (float) $cgpaRow->course_unit : 0;
                                         $popupUnit = $isAllSessions ? $popupResultUnit : $popupCourseUnit;
-                                        $popupIsResit = $popupResultUnit <= 0;
+                                        $popupIsResit = $popupResultUnit !== null && $popupResultUnit === 0.0;
                                     @endphp
-                                    <tr class="{{ $popupIsResit ? 'ug-cgpa-resit-row' : '' }}"><td><strong>{{ $cgpaRow->code }}</strong></td><td><span class="ug-cgpa-grade grade-{{ strtolower($popupGrade ?: 'pending') }}">{{ $popupGrade ?: '-' }}</span></td><td>{{ $popupUnit > 0 ? number_format($popupUnit, 0) : '-' }}<small>{{ $isAllSessions ? 'result unit' : 'course unit' }}</small></td><td>{{ is_numeric($cgpaRow->ugp ?? null) ? number_format((float) $cgpaRow->ugp, 2) : '-' }}</td><td>@if ($popupIsResit)<span class="ug-cgpa-excluded"><i class="fas fa-circle-info"></i> {{ $isAllSessions ? 'Resit - 0 result units; product included' : 'Resit - course unit used' }}</span>@else<span class="ug-cgpa-included">Included</span>@endif</td></tr>
+                                    <tr class="{{ $popupIsResit ? 'ug-cgpa-resit-row' : '' }}"><td><strong>{{ $cgpaRow->code }}</strong></td><td><span class="ug-cgpa-grade grade-{{ strtolower($popupGrade ?: 'pending') }}">{{ $popupGrade ?: '-' }}</span></td><td>{{ $popupUnit > 0 ? number_format($popupUnit, 0) : '-' }}<small>{{ $isAllSessions ? 'result unit' : 'course unit' }}</small></td><td>{{ is_numeric($cgpaRow->ugp ?? null) ? number_format((float) $cgpaRow->ugp, 2) : '-' }}</td><td>@if ($popupIsResit)<span class="ug-cgpa-excluded"><i class="fas fa-circle-info"></i> {{ $isAllSessions ? 'Resit - 0 result units; product included' : 'Resit - course unit used' }}</span>@elseif ($isAllSessions && $popupUnit <= 0)<span class="ug-cgpa-excluded">Result unit unavailable</span>@else<span class="ug-cgpa-included">Included</span>@endif</td></tr>
                                 @endforeach
                              </tbody></table></div>
                         @else
