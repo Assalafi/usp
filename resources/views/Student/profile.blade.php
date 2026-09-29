@@ -102,8 +102,16 @@
             'SSCE result (1st sitting)' => $documentRecords->has('ssce_result'),
             'Birth certificate' => $documentRecords->has('birth_certificate'),
             'NIN document' => $documentRecords->has('nin_document'),
+            'JAMB admission letter' => $documentRecords->has('jamb_admission'),
+            'Primary school certificate' => $documentRecords->has('primary_cert'),
+            'Indigene certificate' => $documentRecords->has('indigine'),
             'Passport photograph' => !empty($row->picture) || $documentRecords->has('passport_photo'),
             'Digital signature' => !empty($row->signiture) || $documentRecords->has('signiture'),
+        ],
+        'Bank details' => [
+            'Bank name' => $bankName,
+            'Bank code' => $bankCode,
+            'Account number' => $accountNumber,
         ],
     ];
     if (in_array(strtoupper((string) $row->mode_of_entry), ['DE', 'DIRECT ENTRY'], true)) {
@@ -306,10 +314,10 @@
                                         </fieldset>
                                     </div>
                                 </div>
-                                {{-- Print BIO Data --}}
+                                {{-- Print BIO Data/Course Registration --}}
                                 @if (session('activeProfile') == 1)
                                     <a href="/student-details-pdf" class="btn btn-primary" style="width: 100%"><i
-                                            class="fas fa-print"></i> Print BIO Data</a>
+                                            class="fas fa-print"></i> Print BIO Data/Course Registration</a>
                                 @else
                                     <a href="#" class="btn btn-warning" style="width: 100%"><i
                                             class="fas fa-exclamation-triangle"></i> Update your profile to print your
@@ -1059,8 +1067,8 @@
                                             </div>
                                             <div class="row g-3">
                                                 <div class="col-md-6">
-                                                    <label for="profile-bank-name" class="form-label">Bank name</label>
-                                                    <select class="form-select" id="profile-bank-name" name="bank_name" data-bank-code-target="profile-bank-code">
+                                                    <label for="profile-bank-name" class="form-label">Bank name <span class="text-danger">*</span></label>
+                                                    <select class="form-select" id="profile-bank-name" name="bank_name" data-bank-code-target="profile-bank-code" required>
                                                         <option value="">Select your bank</option>
                                                         @foreach ($bankOptions as $name => $code)
                                                             <option value="{{ $name }}" data-code="{{ $code }}" {{ strtoupper((string) $bankName) === $name ? 'selected' : '' }}>{{ $name }}</option>
@@ -1068,13 +1076,13 @@
                                                     </select>
                                                 </div>
                                                 <div class="col-md-6">
-                                                    <label for="profile-bank-code" class="form-label">Bank code</label>
-                                                    <input type="text" class="form-control bg-light" id="profile-bank-code" name="bank_code" value="{{ $bankCode }}" readonly>
+                                                    <label for="profile-bank-code" class="form-label">Bank code <span class="text-danger">*</span></label>
+                                                    <input type="text" class="form-control bg-light" id="profile-bank-code" name="bank_code" value="{{ $bankCode }}" readonly required>
                                                     <small class="form-text text-muted">Filled automatically from the selected bank.</small>
                                                 </div>
                                                 <div class="col-md-6">
-                                                    <label for="profile-account-number" class="form-label">Account number</label>
-                                                    <input type="text" class="form-control" id="profile-account-number" name="account_number" value="{{ $accountNumber }}" inputmode="numeric" maxlength="40" autocomplete="off">
+                                                    <label for="profile-account-number" class="form-label">Account number <span class="text-danger">*</span></label>
+                                                    <input type="text" class="form-control" id="profile-account-number" name="account_number" value="{{ $accountNumber }}" inputmode="numeric" maxlength="40" autocomplete="off" required>
                                                 </div>
                                                 <div class="col-md-6">
                                                     <label for="profile-sort-code" class="form-label">Sort code <span class="text-muted fw-normal">(optional)</span></label>
@@ -1166,6 +1174,24 @@
                                                     'label' => 'NIN Document',
                                                     'required' => true,
                                                     'description' => 'Upload your NIN slip or official NIN document.',
+                                                ],
+                                                [
+                                                    'id' => 'jamb_admission',
+                                                    'label' => 'JAMB Admission Letter',
+                                                    'required' => true,
+                                                    'description' => 'Upload your JAMB admission letter.',
+                                                ],
+                                                [
+                                                    'id' => 'primary_cert',
+                                                    'label' => 'Primary School Certificate',
+                                                    'required' => true,
+                                                    'description' => 'Upload your primary school certificate.',
+                                                ],
+                                                [
+                                                    'id' => 'indigine',
+                                                    'label' => 'Indigene Certificate',
+                                                    'required' => true,
+                                                    'description' => 'Upload your certificate of origin/indigene certificate.',
                                                 ],
                                             ];
 

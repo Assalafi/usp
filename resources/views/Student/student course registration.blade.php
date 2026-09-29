@@ -128,9 +128,6 @@
                             <h2>Courses saved for this session</h2>
                             <p>{{ $registeredCourses->count() ? 'Review your saved courses for ' . $selectedSession . '. You can remove a course or change an eligible semester.' : 'Nothing has been saved for this session yet.' }}</p>
                         </div>
-                        @if ($registeredCourses->count())
-                            <button type="button" class="ug-outline-button" data-bs-toggle="modal" data-bs-target="#printModal"><i class="fas fa-file-pdf"></i> Print / download</button>
-                        @endif
                     </div>
 
                     @if ($registeredCourses->count())
@@ -249,9 +246,6 @@
                 </section>
             </div>
 
-            <div id="printModal" class="modal fade" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title"><i class="fas fa-file-pdf text-danger me-2"></i>Print course registration</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><form action="{{ url('/get-registered-courses') }}" method="GET"><div class="modal-body"><label class="form-label" for="printSession">Choose session</label><select id="printSession" class="form-select" name="session" required>@foreach ($sessions as $sessionRow) @php $sessionTitle = $sessionRow->title ?? $sessionRow->session ?? ''; @endphp @if ($sessionTitle !== '')<option value="{{ $sessionTitle }}" {{ $selectedSession == $sessionTitle ? 'selected' : '' }}>{{ $sessionTitle }}</option>@endif @endforeach</select></div><div class="modal-footer"><button type="button" class="ug-clear-button" data-bs-dismiss="modal">Cancel</button><button type="submit" class="ug-primary-button"><i class="fas fa-download"></i> Generate PDF</button></div></form></div></div>
-            </div>
         @else
             <div class="ug-course-shell"><div class="ug-empty-state"><span class="warning"><i class="fas fa-lock"></i></span><h3>Course registration is not available</h3><p>Your programme is not enabled for online course registration at this time.</p></div></div>
         @endif

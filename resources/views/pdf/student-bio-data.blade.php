@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Student Biodata - {{ $student->username }}</title>
+    <title>Student Biodata and Course Registration - {{ $student->username }}</title>
     <style>
         @page { margin: 22px 25px 28px; }
         * { box-sizing: border-box; }
@@ -93,7 +93,7 @@
         </tr>
     </table>
 
-    <div class="document-title">STUDENT BIODATA</div>
+    <div class="document-title">STUDENT BIODATA / COURSE REGISTRATION</div>
 
     <table class="identity-bar">
         <tr>

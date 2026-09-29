@@ -1622,6 +1622,9 @@ class RegistrationController extends Controller
             'ssce_result_2' => 'SSCE result (2nd sitting)',
             'birth_certificate' => 'Birth certificate',
             'nin_document' => 'NIN document',
+            'jamb_admission' => 'JAMB admission letter',
+            'primary_cert' => 'Primary school certificate',
+            'indigine' => 'Indigene certificate',
             'direct_entry_cert' => 'Direct Entry certificate',
         ];
         $documentChecklist = [];
@@ -1786,10 +1789,13 @@ class RegistrationController extends Controller
             'birth_certificate' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:400',
             'direct_entry_cert' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:400',
             'nin_document' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:400',
+            'jamb_admission' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:400',
+            'primary_cert' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:400',
+            'indigine' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:400',
             // Bank details follow the same fields used by the SIWES form.
-            'bank_name' => 'nullable|string|max:255',
-            'bank_code' => 'nullable|string|max:20',
-            'account_number' => 'nullable|string|max:40',
+            'bank_name' => 'required|string|max:255',
+            'bank_code' => 'required|string|max:20',
+            'account_number' => 'required|string|max:40',
             'sort_code' => 'nullable|string|max:40',
         ]);
 
@@ -1942,6 +1948,9 @@ class RegistrationController extends Controller
             'ssce_result' => 'SSCE Result (1st Sitting)',
             'birth_certificate' => 'Birth Certificate',
             'nin_document' => 'NIN Document',
+            'jamb_admission' => 'JAMB Admission Letter',
+            'primary_cert' => 'Primary School Certificate',
+            'indigine' => 'Indigene Certificate',
         ];
 
         if (in_array(strtoupper((string) $student->mode_of_entry), ['DE', 'DIRECT ENTRY'], true)) {
@@ -1990,6 +1999,9 @@ class RegistrationController extends Controller
             'birth_certificate',
             'direct_entry_cert',
             'nin_document',
+            'jamb_admission',
+            'primary_cert',
+            'indigine',
         ];
         $disk = Storage::disk('public');
 
