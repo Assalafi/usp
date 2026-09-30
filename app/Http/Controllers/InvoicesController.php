@@ -505,7 +505,7 @@ class InvoicesController extends Controller
             return redirect()->back()->with('error', 'Undefined Payment Description');
         }
 
-        $baseUrl = rtrim((string) env('REMITA_BASE_URL'), '/') . '/remita/exapp/api/v1/send/api';
+        $baseUrl = rtrim((string) \App\Http\Controllers\SystemSettingsController::getRemitaBaseUrl(), '/') . '/remita/exapp/api/v1/send/api';
         $merchantId = (string) $this->merchantId;
         $apiKey = (string) $this->apiKey;
         $amountForRemita = rtrim(rtrim(number_format((float) $amount, 2, '.', ''), '0'), '.');
@@ -638,7 +638,7 @@ class InvoicesController extends Controller
         $serviceTypeId = \App\Http\Controllers\SystemSettingsController::get('remita_putme_service_type', env('REMITA_POST_UTME_KEY'));
         $name = $datas['name'] = $name . ' (' . session('username') . ')';
 
-        $baseUrl = env('REMITA_BASE_URL') . 'remita/exapp/api/v1/send/api';
+        $baseUrl = rtrim((string) \App\Http\Controllers\SystemSettingsController::getRemitaBaseUrl(), '/') . '/remita/exapp/api/v1/send/api';
         $merchantId = $this->merchantId;
         $apiKey = $this->apiKey;
         // echo $description.' '.$serviceTypeId;
