@@ -11,6 +11,7 @@ use Dompdf\Options;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
 use Maatwebsite\Excel\Facades\Excel;
@@ -504,70 +505,91 @@ class InvoicesController extends Controller
             return redirect()->back()->with('error', 'Undefined Payment Description');
         }
 
-        $baseUrl = env('REMITA_BASE_URL') . 'remita/exapp/api/v1/send/api';
-        $merchantId = $this->merchantId;
-        $apiKey = $this->apiKey;
-        // echo $description.' '.$serviceTypeId;
-        // die;
+        $baseUrl = rtrim((string) env('REMITA_BASE_URL'), '/') . '/remita/exapp/api/v1/send/api';
+        $merchantId = (string) $this->merchantId;
+        $apiKey = (string) $this->apiKey;
+        $amountForRemita = rtrim(rtrim(number_format((float) $amount, 2, '.', ''), '0'), '.');
+        $amountForRemita = $amountForRemita === '' ? '0' : $amountForRemita;
+        $orderId = (string) random_int(92343459459, 93438458488);
+        $hash = hash('sha512', $merchantId.$serviceTypeId.$orderId.$amountForRemita.$apiKey);
+        $payload = [
+            'serviceTypeId' => (string) $serviceTypeId,
+            'amount' => $amountForRemita,
+            'orderId' => $orderId,
+            'payerName' => trim((string) $name),
+            'payerEmail' => trim((string) $email),
+            'payerPhone' => trim((string) $phone),
+            'description' => trim((string) $description),
+        ];
+        $apiUrl = $baseUrl.'/echannelsvc/merchant/api/paymentinit';
+        $rawResponse = false;
+        $curlError = null;
+        $httpCode = 0;
 
-        // $baseUrl = 'https://remitademo.net/remita/exapp/api/v1/send/api';
-        // $merchantId = 2547916;
-        // $apiKey = 1946;
-        // $serviceTypeId = 4430731;
-        $amount = $amount;
-        $orderId = rand(92343459459, 93438458488);
-        $user_ip_address = $_SERVER['REMOTE_ADDR'];
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
+            $curl = curl_init($apiUrl);
+            curl_setopt_array($curl, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 3,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_CONNECTTIMEOUT => 12,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'Accept: application/json',
+                    'Authorization: remitaConsumerKey='.$merchantId.',remitaConsumerToken='.$hash,
+                ],
+            ]);
+            $rawResponse = curl_exec($curl);
+            $curlError = curl_error($curl) ?: null;
+            $httpCode = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            curl_close($curl);
 
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => '' . $baseUrl . '/echannelsvc/merchant/api/paymentinit',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 15,  // Set 15-second timeout
-            CURLOPT_CONNECTTIMEOUT => 10,  // Set 10-second connection timeout
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => '{
-                "serviceTypeId": "' . $serviceTypeId . '",
-                "amount": "' . $amount . '",
-                "orderId": "' . $orderId . '",
-                "payerName": "' . $name . '",
-                "payerEmail": "' . $email . '",
-                "payerPhone": "' . $phone . '",
-                "description": "' . $description . '"
-                }',
-            CURLOPT_HTTPHEADER => array(
-                'Content-Type: application/json',
-                'Authorization: remitaConsumerKey=' . $merchantId . ',remitaConsumerToken=' . hash('sha512', $merchantId . '' . $serviceTypeId . '' . $orderId . '' . $amount . '' . $apiKey) . ''
-            ),
-        ));
-
-        $response = curl_exec($curl);
-
-        curl_close($curl);
-
-        $obj = json_decode($response, true);
-
-        if ($obj === null) {
-            $substr = substr($response, 7, -1);
-            $obj = json_decode($substr, true);
+            if ($rawResponse !== false && $httpCode < 500 && $httpCode !== 429) {
+                break;
+            }
+            if ($attempt < 3) {
+                usleep($attempt * 500000);
+            }
         }
 
-        if (is_array($obj) && isset($obj['RRR']) && !empty($obj['RRR'])) {
-            $rrr = $obj['RRR'];
-        } elseif (is_array($obj) && isset($obj['status']) && $obj['status'] !== '00') {
-            $msg = $obj['statusMessage'] ?? $obj['status'] ?? 'Unknown error';
-            return redirect()->back()->with('error', 'REMITA Error: ' . $msg);
-        } else {
-            return redirect()->back()->with('error', 'Failed to Connect to REMITA. Try Again');
+        $rawBody = is_string($rawResponse) ? $rawResponse : '';
+        $obj = json_decode(trim($rawBody), true);
+        if (! is_array($obj) && preg_match('/\{.*\}/s', $rawBody, $matches)) {
+            $obj = json_decode($matches[0], true);
         }
+        $obj = is_array($obj) ? $obj : [];
 
-        if ($rrr == NULL) {
-            return redirect()->back()->with('error', 'There is an error from the REMITA site. Try Again');
-        } else {
-            $datas['username'] = session('id');
+        Log::info('UG Remita RRR generation request', [
+            'service_type_id' => (string) $serviceTypeId,
+            'order_id' => $orderId,
+            'http_status' => $httpCode,
+            'curl_error' => $curlError,
+            'response' => mb_substr($rawBody, 0, 2000),
+        ]);
+
+        $rrr = $obj['RRR'] ?? $obj['rrr'] ?? null;
+        if (! $rrr) {
+            $message = $obj['responseMsg']
+                ?? $obj['statusMessage']
+                ?? $obj['message']
+                ?? ($curlError ?: (($httpCode >= 500 || $httpCode === 429)
+                    ? 'Remita is temporarily busy. Please try again in a moment.'
+                    : 'Remita did not return a payment reference.'));
+            Log::error('UG Remita RRR generation failed', [
+                'service_type_id' => (string) $serviceTypeId,
+                'order_id' => $orderId,
+                'http_status' => $httpCode,
+                'message' => $message,
+                'response' => mb_substr($rawBody, 0, 2000),
+            ]);
+            return redirect()->back()->with('error', 'Remita could not create the payment reference: '.$message);
+        }
+        $datas['username'] = session('id');
             $datas['description'] = $description;
             $datas['amount'] = $amount;
             $datas['orderId'] = $orderId;
@@ -587,7 +609,6 @@ class InvoicesController extends Controller
             }
 
             return redirect()->back()->with('success', 'Payment Generated');
-        }
     }
 
     public function initializeApplicant(Request $req)
