@@ -1024,6 +1024,7 @@ Route::post('/staff-profile-documents', [StaffController::class, 'uploadDocument
 Route::post('/staff-profile-remove-document', [StaffController::class, 'removeDocument']);
 Route::post('/staff-profile-delete-doc', [StaffController::class, 'deleteOtherDoc']);
 Route::post('/staff-profile-submit', [StaffController::class, 'submitProfile']);
+Route::post('/admin/face-search', [\App\Http\Controllers\FaceSearchController::class, 'search'])->name('admin.face-search')->middleware('role');
 Route::post('/staff/export/pdf', [StaffController::class, 'exportPdf'])->name('staff.export.pdf')->middleware('role');
 Route::post('/staff/export/excel', [StaffController::class, 'exportExcel'])->name('staff.export.excel')->middleware('role');
 Route::get('/get-departments/{faculty}', [StaffController::class, 'getDepartments'])->middleware('role');

@@ -33,6 +33,7 @@
                         <button href="#" class="btn btn-dark uploadAction" data-bs-toggle="modal"
                             data-bs-target="#importDegree"><i class="fas fa-upload"></i> {{ 'Import Degree' }}</button>
                         <button href="#" class="btn btn-success" onclick="$('#exportModal').modal('show')"><i class="fas fa-download"></i> {{ 'Export' }}</button>
+                        @include('Admin.face-search-modal', ['scope' => 'ug_staff'])
                         <button href="#" class="btn btn-danger deleteAction" style="float: right;"
                             data-bs-toggle="modal" data-bs-target="#reset"><i class="fas fa-reset"></i>
                             {{ 'Reset' }}</button>

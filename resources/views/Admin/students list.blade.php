@@ -22,6 +22,7 @@
                             data-bs-target="#importStudent"><i class="fas fa-upload"></i> {{ 'Import' }}</button>
                         <button href="#" class="btn btn-secondary" data-bs-toggle="modal"
                             data-bs-target="#exportStudent"><i class="fas fa-download"></i> {{ 'Export' }}</button>
+                        @include('Admin.face-search-modal', ['scope' => 'ug_students'])
 
                     </div>
                     <div class="card-block">

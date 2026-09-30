@@ -515,6 +515,7 @@
         </div>
     </div>
 
+    @stack('scripts')
     @include('js')
 
 </body>

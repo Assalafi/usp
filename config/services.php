@@ -42,4 +42,11 @@ return [
         'change_of_course_key' => env('REMITA_CHANGE_OF_COURSE_KEY'),
         'inter_transfer_key' => env('REMITA_INTER_TRANSFER_KEY'),
     ],
+    'face_search' => [
+        'python' => env('FACE_SEARCH_PYTHON', '/opt/pg-photo-venv/bin/python3'),
+        'model_dir' => env('FACE_SEARCH_MODEL_DIR', storage_path('app/ai-models/face-search')),
+        'threshold' => (float) env('FACE_SEARCH_THRESHOLD', 0.48),
+        'min_margin' => (float) env('FACE_SEARCH_MIN_MARGIN', 0.045),
+        'timeout' => (int) env('FACE_SEARCH_TIMEOUT', 45),
+    ],
 ];
