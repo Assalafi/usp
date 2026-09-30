@@ -32,6 +32,7 @@ return [
     'remita' => [
         'merchant_id' => env('REMITA_MERCHANT_ID'),
         'api_key' => env('REMITA_API_KEY'),
+        'public_key' => env('REMITA_PUBLIC_KEY'),
         'base_url' => env('REMITA_BASE_URL'),
         'hostel_key' => env('REMITA_HOSTEL_KEY'),
         'hostel_description' => env('REMITA_HOSTEL_DESCRIPTION'),

@@ -261,7 +261,7 @@
 <script>
     (function () {
         const verifyUrl = @json(url('/verify'));
-        const publicKey = @json(env('REMITA_PUBLIC_KEY'));
+        const publicKey = @json(config('services.remita.public_key'));
 
         function showPaymentError(message) {
             if (window.Swal) {

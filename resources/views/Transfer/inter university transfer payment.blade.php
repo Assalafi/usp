@@ -176,7 +176,7 @@
 
         try {
             var paymentEngine = RmPaymentEngine.init({
-                key: "{{ env('REMITA_PUBLIC_KEY') }}",
+                key: "{{ config('services.remita.public_key') }}",
                 processRrr: true,
                 channels: 'card,bank,branch,ussd,qr,ibank,paywithremita,buyoncredit,wallet,phonenumber,transfer,enaira',
                 transactionId: Math.floor(Math.random() * 1101233),

@@ -629,7 +629,7 @@
                                         // Create new script element
                                         const script = document.createElement('script');
                                         script.type = 'text/javascript';
-                                        script.src = '{{ env('REMITA_BASE_URL') }}payment/v1/remita-pay-inline.bundle.js';
+                                        script.src = '{{ \App\Http\Controllers\SystemSettingsController::getRemitaBaseUrl() }}/payment/v1/remita-pay-inline.bundle.js';
 
                                         script.onload = function() {
                                             console.log('Remita script reloaded successfully');
@@ -688,7 +688,7 @@
 
                                             console.log('Initializing payment engine...');
                                             const paymentEngine = RmPaymentEngine.init({
-                                                key: "{{ env('REMITA_PUBLIC_KEY') }}",
+                                                key: "{{ config('services.remita.public_key') }}",
                                                 processRrr: true,
                                                 channels: 'card,bank,branch,ussd,qr,ibank,paywithremita,buyoncredit,wallet,phonenumber,transfer,enaira',
                                                 transactionId: Math.floor(Math.random() * 1101233),
@@ -935,7 +935,7 @@
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Remita Payment Widget -->
-    <script type="text/javascript" src="{{ env('REMITA_BASE_URL') }}payment/v1/remita-pay-inline.bundle.js"></script>
+    <script type="text/javascript" src="{{ \App\Http\Controllers\SystemSettingsController::getRemitaBaseUrl() }}/payment/v1/remita-pay-inline.bundle.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
