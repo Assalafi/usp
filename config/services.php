@@ -29,4 +29,16 @@ return [
         'email' => env('MULTITEXTER_EMAIL'),
         'password' => env('MULTITEXTER_PASSWORD'),
     ],
+    'remita' => [
+        'merchant_id' => env('REMITA_MERCHANT_ID'),
+        'api_key' => env('REMITA_API_KEY'),
+        'base_url' => env('REMITA_BASE_URL'),
+        'hostel_key' => env('REMITA_HOSTEL_KEY'),
+        'hostel_description' => env('REMITA_HOSTEL_DESCRIPTION'),
+        'school_fees_key' => env('REMITA_SCHOOL_FEES_KEY'),
+        'post_utme_key' => env('REMITA_POST_UTME_KEY'),
+        'post_utme_description' => env('REMITA_POST_UTME_DESCRIPTION'),
+        'change_of_course_key' => env('REMITA_CHANGE_OF_COURSE_KEY'),
+        'inter_transfer_key' => env('REMITA_INTER_TRANSFER_KEY'),
+    ],
 ];

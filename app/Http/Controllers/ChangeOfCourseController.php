@@ -14,8 +14,8 @@ class ChangeOfCourseController extends Controller
     
     public function __construct()
     {
-        $this->merchantId = env('REMITA_MERCHANT_ID');
-        $this->apiKey = env('REMITA_API_KEY');
+        $this->merchantId = config('services.remita.merchant_id');
+        $this->apiKey = config('services.remita.api_key');
     }
 
     /**
@@ -490,7 +490,7 @@ class ChangeOfCourseController extends Controller
         }
         $orderId = time() . rand(1000, 9999);
         $description = 'CHANGE OF COURSE FEE';
-        $serviceTypeId = env('REMITA_INTER_TRANSFER_KEY', '4430731');
+        $serviceTypeId = config('services.remita.inter_transfer_key', '4430731');
 
         // Sanitize strings - remove non-ASCII chars (Remita Java backend rejects them)
         $payerName = trim(preg_replace('/[^\x20-\x7E]/', '', $student->fullname)) ?: 'STUDENT';
@@ -630,7 +630,7 @@ class ChangeOfCourseController extends Controller
         $amount = $application->amount;
         $orderId = time() . rand(1000, 9999);
         $description = 'CHANGE OF COURSE FEE';
-        $serviceTypeId = env('REMITA_CHANGE_OF_COURSE_KEY', '4430731');
+        $serviceTypeId = config('services.remita.change_of_course_key', '4430731');
 
         // Sanitize strings - remove non-ASCII chars (Remita Java backend rejects them)
         $payerName = trim(preg_replace('/[^\x20-\x7E]/', '', $student->fullname)) ?: 'STUDENT';

@@ -16,8 +16,8 @@ class InterUniversityTransferController extends Controller
 
     public function __construct()
     {
-        $this->merchantId = env('REMITA_MERCHANT_ID');
-        $this->apiKey = env('REMITA_API_KEY');
+        $this->merchantId = config('services.remita.merchant_id');
+        $this->apiKey = config('services.remita.api_key');
     }
 
     // ==========================================
@@ -187,7 +187,7 @@ class InterUniversityTransferController extends Controller
         $user = DB::table('users')->where('id', session('id'))->first();
         $orderId = time() . rand(1000, 9999);
         $description = 'INTER-UNIVERSITY TRANSFER FEE';
-        $serviceTypeId = env('REMITA_INTER_TRANSFER_KEY', '4430731');
+        $serviceTypeId = config('services.remita.inter_transfer_key', '4430731');
 
         $paymentData = [
             'serviceTypeId' => $serviceTypeId,

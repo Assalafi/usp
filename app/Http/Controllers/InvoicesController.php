@@ -361,8 +361,8 @@ class InvoicesController extends Controller
         $this->page = $contents;
         $this->table = str_replace(' ', '_', $this->page);
         $this->title = strtoupper($this->page);
-        $this->merchantId = env('REMITA_MERCHANT_ID');
-        $this->apiKey = env('REMITA_API_KEY');
+        $this->merchantId = config('services.remita.merchant_id');
+        $this->apiKey = config('services.remita.api_key');
     }
 
     public function index()
@@ -406,8 +406,8 @@ class InvoicesController extends Controller
             $phone = $datas['phone'] = $req->phone;
             $email = $datas['email'] = strtolower($req->email);
 
-            $description = env('REMITA_HOSTEL_DESCRIPTION');
-            $serviceTypeId = env('REMITA_HOSTEL_KEY');
+            $description = config('services.remita.hostel_description');
+            $serviceTypeId = config('services.remita.hostel_key');
             $amount = DB::table('hostel')->where('occupant', session('id_number'))->select('amount')->value('amount');
             if ($amount > 0) {
             } else {
@@ -420,12 +420,12 @@ class InvoicesController extends Controller
             $full = $amounts;
             if (($amount == $half || $amount == $full) && $req->try == '1') {
                 $description = 'UNIVERSITY OF MAIDUGURI-1000127 FEES';
-                $serviceTypeId = env('REMITA_SCHOOL_FEES_KEY');
+                $serviceTypeId = config('services.remita.school_fees_key');
                 $name = $datas['name'] = $name . ' (' . session('username') . ')';
                 $amount = $amount;
             } else if ($req->try == 'second') {
                 $description = 'UNIVERSITY OF MAIDUGURI-1000127 FEES';
-                $serviceTypeId = env('REMITA_SCHOOL_FEES_KEY');
+                $serviceTypeId = config('services.remita.school_fees_key');
                 $name = $datas['name'] = $name . ' (' . session('username') . ')';
                 $amountPay = 0;
                 $amountPaid = 0;
@@ -634,8 +634,8 @@ class InvoicesController extends Controller
             return redirect()->back()->with('error', 'Your Personal Record Not Found in Current Uploaded Data, Report to Student Affairs.');
         }
         $amount = (float) \App\Http\Controllers\SystemSettingsController::get('putme_fee', 2000);
-        $description = env('REMITA_POST_UTME_DESCRIPTION');
-        $serviceTypeId = \App\Http\Controllers\SystemSettingsController::get('remita_putme_service_type', env('REMITA_POST_UTME_KEY'));
+        $description = config('services.remita.post_utme_description');
+        $serviceTypeId = \App\Http\Controllers\SystemSettingsController::get('remita_putme_service_type', config('services.remita.post_utme_key'));
         $name = $datas['name'] = $name . ' (' . session('username') . ')';
 
         $baseUrl = rtrim((string) \App\Http\Controllers\SystemSettingsController::getRemitaBaseUrl(), '/') . '/remita/exapp/api/v1/send/api';
