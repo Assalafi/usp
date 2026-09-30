@@ -256,12 +256,18 @@
     }
 </style>
 
-<script src="{{ \App\Http\Controllers\SystemSettingsController::getRemitaBaseUrl() }}/payment/v1/remita-pay-inline.bundle.js"></script>
+<script id="remita-widget-script" src="{{ \App\Http\Controllers\SystemSettingsController::getRemitaBaseUrl() }}/payment/v1/remita-pay-inline.bundle.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     (function () {
         const verifyUrl = @json(url('/verify'));
         const publicKey = @json(config('services.remita.public_key'));
+        const remitaScript = document.getElementById('remita-widget-script');
+        let remitaLoadError = null;
+
+        remitaScript?.addEventListener('error', function () {
+            remitaLoadError = new Error('The Remita payment service could not be loaded. Check your internet connection and try again.');
+        }, { once: true });
 
         function showPaymentError(message) {
             if (window.Swal) {
@@ -271,23 +277,46 @@
             }
         }
 
-        function launchPayNow(button) {
+        function waitForRemita(timeout = 15000) {
+            if (typeof window.RmPaymentEngine !== 'undefined') {
+                return Promise.resolve();
+            }
+
+            return new Promise((resolve, reject) => {
+                const started = Date.now();
+                const check = () => {
+                    if (typeof window.RmPaymentEngine !== 'undefined') {
+                        resolve();
+                        return;
+                    }
+                    if (remitaLoadError) {
+                        reject(remitaLoadError);
+                        return;
+                    }
+                    if (Date.now() - started >= timeout) {
+                        reject(new Error('The Remita payment service is taking too long to load. Please refresh the page and try again.'));
+                        return;
+                    }
+                    window.setTimeout(check, 100);
+                };
+                check();
+            });
+        }
+
+        async function launchPayNow(button) {
             const rrr = button.dataset.rrr;
             if (!rrr) {
                 showPaymentError('This invoice does not have a valid Remita reference.');
                 return;
             }
-            if (typeof window.RmPaymentEngine === 'undefined') {
-                showPaymentError('The Remita payment widget is still loading. Please try again.');
-                return;
-            }
 
             const original = button.innerHTML;
             button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opening...';
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opening payment...';
             let completed = false;
 
             try {
+                await waitForRemita();
                 const engine = window.RmPaymentEngine.init({
                     key: publicKey,
                     processRrr: true,
@@ -314,7 +343,7 @@
             } catch (error) {
                 button.disabled = false;
                 button.innerHTML = original;
-                showPaymentError('Could not initialize the Remita payment widget. Please try again.');
+                showPaymentError(error?.message || 'The Remita payment service is unavailable. Please refresh and try again.');
                 console.error(error);
             }
         }
