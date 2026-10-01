@@ -1489,6 +1489,7 @@ Route::get('/print-receipt/{rrr}', [InvoicesController::class, 'printReceipt'])-
 Route::get('/admin/receipts', [InvoicesController::class, 'adminReceipts'])->name('admin.receipts');
 Route::get('/admin/receipts/download-all', [InvoicesController::class, 'downloadAllReceipts'])->name('admin.receipts.download_all');
 Route::post('/admin/receipts/export-paid-students', [InvoicesController::class, 'exportPaidStudents'])->name('admin.receipts.export_paid_students');
+Route::post('/admin/receipts/export-unpaid-students', [InvoicesController::class, 'exportUnpaidStudents'])->name('admin.receipts.export_unpaid_students');
 
 Route::get('/course system allocation', [CourseAllocationController::class, 'courseSystem']);
 Route::get('/course-system-results', [CourseAllocationController::class, 'courseSystemResult']);

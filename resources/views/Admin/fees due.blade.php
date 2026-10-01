@@ -13,7 +13,11 @@
                         <button type="button" class="btn btn-success float-end me-2" data-bs-toggle="modal" data-bs-target="#exportPaidStudentsModal">
                             <i class="fas fa-file-excel"></i> Export Paid Students
                         </button>
+                        <button type="button" class="btn btn-warning float-end me-2" data-bs-toggle="modal" data-bs-target="#exportUnpaidStudentsModal">
+                            <i class="fas fa-user-clock"></i> Export Unpaid Active
+                        </button>
                         <button type="button" class="btn btn-primary float-end me-2" data-bs-toggle="modal"
+
                             data-bs-target="#bulkVerifyModal">
                             <i class="fas fa-check-circle"></i> Bulk Verify RRR
                         </button>
@@ -588,6 +592,54 @@ $(document).ready(function() {
     });
 });
 </script>
+
+
+<!-- Export Active Unpaid Students Modal -->
+<div class="modal fade" id="exportUnpaidStudentsModal" tabindex="-1" role="dialog" aria-labelledby="exportUnpaidStudentsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <div>
+                    <h5 class="modal-title mb-1" id="exportUnpaidStudentsLabel">Export Active Students with Outstanding Fees</h5>
+                    <small class="text-dark">Only students active in the selected session with an unpaid programme-fee balance are included.</small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="exportUnpaidStudentsForm" action="{{ route('admin.receipts.export_unpaid_students') }}" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="alert alert-light border mb-3">
+                        <i class="fas fa-info-circle text-primary me-1"></i>
+                        A student is considered active when the session has at least one result or a session-history record for that student.
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="exportUnpaidSession">Session <span class="text-danger">*</span></label>
+                        <select class="form-control" id="exportUnpaidSession" name="session" required>
+                            <option value="">Select session</option>
+                            @foreach ($session as $sessionOption)
+                                <option value="{{ $sessionOption->title }}" {{ $sessionOption->title === session('system_session') ? 'selected' : '' }}>{{ $sessionOption->title }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="exportUnpaidSponsor">Sponsor</label>
+                        <select class="form-control" id="exportUnpaidSponsor" name="fees_type">
+                            <option value="">All sponsors</option>
+                            <option value="nelfund">NELFUND</option>
+                            <option value="others">Others (Self-sponsored)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning" id="exportUnpaidStudentsButton">
+                        <i class="fas fa-file-excel me-1"></i> Export Excel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <!-- Export Paid Students Modal -->
 <div class="modal fade" id="exportPaidStudentsModal" tabindex="-1" role="dialog">

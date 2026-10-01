@@ -349,6 +349,34 @@ class InvoicesController extends Controller
         return \Maatwebsite\Excel\Facades\Excel::download($export, $filename);
     }
 
+
+    /**
+     * Admin: Export active students with an outstanding programme-fee balance.
+     * Activity is session-specific: a result or session_history row is enough
+     * to establish that the student was active in the selected session.
+     */
+    public function exportUnpaidStudents(Request $request)
+    {
+        if (!session()->has('log') || !in_array(session('accType'), ['Admin', 'Staff'])) {
+            return redirect('/')->with('error', 'Unauthorized access');
+        }
+
+        $validated = $request->validate([
+            'session' => ['required', 'string', 'max:20'],
+            'fees_type' => ['nullable', 'in:nelfund,others'],
+        ]);
+
+        set_time_limit(300);
+        ini_set('memory_limit', '512M');
+
+        $feesType = $validated['fees_type'] ?? '';
+        $session = $validated['session'];
+        $export = new \App\Exports\UnpaidStudentsExport($session, $feesType);
+        $filename = 'unpaid_active_students_' . str_replace('/', '-', $session) . '_' . ($feesType ?: 'all') . '_' . date('Y-m-d') . '.xlsx';
+
+        return \Maatwebsite\Excel\Facades\Excel::download($export, $filename);
+    }
+
     public function __construct(Request $req)
     {
         // Module Data

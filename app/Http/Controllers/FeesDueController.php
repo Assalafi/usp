@@ -74,7 +74,8 @@ class FeesDueController extends Controller
         }
             $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
             $data['fees_type'] = DB::table('fees_type')->where(['status' => '1'])->select('title')->orderBy('title', 'ASC')->get();
-            $data['session'] = DB::table('session')->where(['status' => '1'])->select('title')->orderBy('title', 'ASC')->get();
+            // Export and filtering must support historical sessions, not only the active one.
+            $data['session'] = DB::table('session')->select('title')->orderByDesc('title')->get();
             $data['page'] = $this->page;
             $data['title'] = $this->title;
             return view('main',$data);
