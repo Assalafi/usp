@@ -2,392 +2,158 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Student ID Card</title>
+    <title>University of Maiduguri - Undergraduate ID Card</title>
     <style>
-        @page { margin: 0; size: 85.6mm 53.98mm; }
-        * { box-sizing: border-box; }
-        html, body {
-            width: 85.6mm;
-            height: 53.98mm;
-            margin: 0;
-            padding: 0;
-            font-family: DejaVu Sans, Arial, sans-serif;
-            color: #102a43;
-            background: #ffffff;
-        }
-        .card-page {
-            position: relative;
-            width: 85.6mm;
-            height: 53.98mm;
-            overflow: hidden;
-            page-break-after: always;
-            background: #f8fbfe;
-        }
-        .card-page:last-child { page-break-after: avoid; }
-        .front { background: #f8fbfe; }
-        .top-band {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 85.6mm;
-            height: 13.3mm;
-            background: #083b66;
-        }
-        .top-accent {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 3.3mm;
-            height: 13.3mm;
-            background: #19a7ce;
-        }
-        .brand-logo {
-            position: absolute;
-            left: 4.8mm;
-            top: 2.15mm;
-            width: 8.8mm;
-            height: 8.8mm;
-            object-fit: contain;
-            background: #ffffff;
-            border-radius: 1.5mm;
-            padding: .65mm;
-        }
-        .brand-title {
-            position: absolute;
-            left: 15.2mm;
-            top: 3mm;
-            color: #ffffff;
-            font-size: 8.2pt;
-            font-weight: bold;
-            letter-spacing: .2pt;
-            line-height: 1.1;
-        }
-        .brand-subtitle {
-            position: absolute;
-            left: 15.2mm;
-            top: 8.25mm;
-            color: #bfe9f6;
-            font-size: 4.7pt;
-            letter-spacing: .65pt;
-            text-transform: uppercase;
-        }
-        .card-type {
-            position: absolute;
-            right: 3.4mm;
-            top: 4.1mm;
-            color: #ffffff;
-            font-size: 4.8pt;
-            font-weight: bold;
-            letter-spacing: .5pt;
-            text-align: right;
-            text-transform: uppercase;
-        }
-        .photo-frame {
-            position: absolute;
-            left: 3.4mm;
-            top: 16.25mm;
-            width: 22.8mm;
-            height: 28.3mm;
-            padding: .8mm;
-            border: .45mm solid #d6e3ee;
-            border-radius: 1.8mm;
-            background: #ffffff;
-        }
-        .photo-frame img {
-            display: block;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 1.1mm;
-        }
-        .identity {
-            position: absolute;
-            left: 29mm;
-            top: 16.2mm;
-            width: 53mm;
-            height: 28.7mm;
-        }
-        .student-name {
-            color: #083b66;
-            font-size: 9pt;
-            line-height: 1.12;
-            font-weight: bold;
-            text-transform: uppercase;
-            max-width: 51mm;
-            height: 7mm;
-            overflow: hidden;
-        }
-        .matric {
-            display: inline-block;
-            margin-top: .8mm;
-            padding: .8mm 1.7mm;
-            border-radius: 1.1mm;
-            background: #dff3f9;
-            color: #05688b;
-            font-size: 6.4pt;
-            font-weight: bold;
-            letter-spacing: .35pt;
-        }
-        .data-row {
-            width: 51.5mm;
-            height: 5.3mm;
-            border-bottom: .18mm solid #dfeaf1;
-            padding-top: 1.15mm;
-            white-space: nowrap;
-            overflow: hidden;
-        }
-        .data-label {
-            display: inline-block;
-            width: 14.5mm;
-            color: #718096;
-            font-size: 4.65pt;
-            font-weight: bold;
-            letter-spacing: .25pt;
-            text-transform: uppercase;
-            vertical-align: top;
-        }
-        .data-value {
-            display: inline-block;
-            width: 36mm;
-            color: #243b53;
-            font-size: 5.5pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            vertical-align: top;
-            overflow: hidden;
-        }
-        .bottom-band {
-            position: absolute;
-            left: 0;
-            bottom: 0;
-            width: 85.6mm;
-            height: 8.1mm;
-            background: #e7f1f8;
-            border-top: .35mm solid #b8d3e3;
-        }
-        .bottom-meta {
-            position: absolute;
-            left: 3.5mm;
-            top: 1.05mm;
-            color: #315c79;
-            font-size: 4.3pt;
-            line-height: 1.55;
-            text-transform: uppercase;
-        }
-        .bottom-meta strong { color: #083b66; }
-        .signature {
-            position: absolute;
-            right: 3.4mm;
-            bottom: 1.25mm;
-            width: 19mm;
-            height: 5.3mm;
-            border-bottom: .22mm solid #6b879b;
-            text-align: center;
-        }
-        .signature img {
-            max-width: 16mm;
-            max-height: 3.7mm;
-            object-fit: contain;
-        }
-        .signature-caption {
-            position: absolute;
-            right: 3.4mm;
-            bottom: .2mm;
-            width: 19mm;
-            color: #718096;
-            font-size: 3.5pt;
-            text-align: center;
-            text-transform: uppercase;
-            letter-spacing: .2pt;
-        }
-        .back {
-            background: #083b66;
-        }
-        .back-header {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 85.6mm;
-            height: 12.7mm;
-            background: #062e50;
-        }
-        .back-header .brand-logo {
-            left: 4.8mm;
-            top: 1.8mm;
-        }
-        .back-heading {
-            position: absolute;
-            left: 15.2mm;
-            top: 3.1mm;
-            color: #ffffff;
-            font-size: 8pt;
-            font-weight: bold;
-            letter-spacing: .35pt;
-            text-transform: uppercase;
-        }
-        .back-kicker {
-            position: absolute;
-            left: 15.2mm;
-            top: 8mm;
-            color: #bfe9f6;
-            font-size: 4.4pt;
-            letter-spacing: .6pt;
-            text-transform: uppercase;
-        }
-        .back-panel {
-            position: absolute;
-            left: 3.4mm;
-            top: 15mm;
-            width: 78.8mm;
-            height: 35.5mm;
-            padding: 3.2mm;
-            border-radius: 2mm;
-            background: #ffffff;
-        }
-        .qr-box {
-            position: absolute;
-            left: 5.5mm;
-            top: 19.2mm;
-            width: 24.2mm;
-            height: 24.2mm;
-            padding: 1.5mm;
-            border: .4mm solid #c8dce9;
-            border-radius: 1.7mm;
-            background: #ffffff;
-        }
-        .qr-box img {
-            display: block;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-        .back-details {
-            position: absolute;
-            left: 35mm;
-            top: 18.1mm;
-            width: 43.5mm;
-            color: #294e68;
-        }
-        .back-label {
-            color: #718096;
-            font-size: 4.2pt;
-            letter-spacing: .35pt;
-            text-transform: uppercase;
-        }
-        .back-value {
-            margin-top: .45mm;
-            color: #133b56;
-            font-size: 5.65pt;
-            font-weight: bold;
-            line-height: 1.17;
-            text-transform: uppercase;
-            max-height: 5.7mm;
-            overflow: hidden;
-        }
-        .back-rule {
-            width: 43mm;
-            margin: 1.35mm 0 1.2mm;
-            border-top: .2mm solid #dfeaf1;
-        }
-        .back-note {
-            position: absolute;
-            left: 5.5mm;
-            bottom: 3.1mm;
-            width: 70mm;
-            color: #d9edf6;
-            font-size: 4.1pt;
-            line-height: 1.35;
-            text-align: center;
-        }
-        .security {
-            position: absolute;
-            right: 4.2mm;
-            top: 14.1mm;
-            color: #8ed8eb;
-            font-size: 3.7pt;
-            letter-spacing: .25pt;
-            text-transform: uppercase;
-        }
+        @page { size: 53.98mm 85.6mm; margin: 0; }
+        html, body { margin: 0; padding: 0; }
+        body { font-family: "DejaVu Sans", sans-serif; font-size: 6pt; color: #172e45; }
+        .card { position: relative; width: 53.98mm; height: 85.59mm; background: #fff; }
+        .back { page-break-before: always; }
+        .header { position: absolute; top: 0; left: 0; width: 53.98mm; height: 17.2mm; background: #123451; }
+        .crest { position: absolute; left: 3.3mm; top: 2.9mm; width: 9mm; height: 11mm; background: #fff; border-radius: 1mm; }
+        .crest img, .photo img, .signature-image img { position: absolute; display: block; }
+        .university { position: absolute; left: 14.3mm; top: 3.4mm; color: #fff; font-weight: bold; line-height: 1.2; }
+        .university .overline { font-size: 7.2pt; }
+        .university .title { font-size: 10.2pt; }
+        .address { position: absolute; left: 14.3mm; top: 12.4mm; color: #d5e7f5; font-size: 4.55pt; }
+        .type-band { position: absolute; left: 0; top: 17.2mm; width: 53.98mm; height: 5.3mm; background: #3ea1e4; text-align: center; }
+        .type-band span { display: block; margin-top: .8mm; color: #fff; font-size: 6pt; font-weight: bold; letter-spacing: .45pt; }
+        .portrait-tint { position: absolute; left: 0; top: 22.5mm; width: 53.98mm; height: 15mm; background: #eaf4fb; }
+        .photo-border { position: absolute; left: 15.79mm; top: 23.55mm; width: 22mm; height: 23.5mm; border: .2mm solid #bccfdf; background: #fff; }
+        .photo { position: absolute; left: .5mm; top: .5mm; width: 21mm; height: 22.5mm; background: #fff; }
+        .photo-empty { margin-top: 8mm; text-align: center; color: #72889b; font-size: 5pt; }
+        .name { position: absolute; top: 48.4mm; left: 3.49mm; width: 47mm; text-align: center; font-weight: bold; line-height: 1.05; }
+        .matric { position: absolute; top: 55.8mm; left: 3.49mm; width: 47mm; text-align: center; font-weight: bold; color: #155d8f; line-height: 1.1; }
+        .name-rule { position: absolute; left: 20.99mm; top: 59.6mm; width: 12mm; border-top: .45mm solid #d6ad54; }
+        .field { position: absolute; left: 3.49mm; width: 47mm; text-align: center; }
+        .label { color: #536d83; font-size: 4.5pt; letter-spacing: .35pt; line-height: 1.15; }
+        .value { font-weight: bold; line-height: 1.15; }
+        .programme-label { top: 60.6mm; }
+        .programme-value { top: 62.8mm; line-height: 1; }
+        .faculty-label { top: 69mm; }
+        .faculty-value { top: 71.3mm; line-height: 1; }
+        .origin { position: absolute; left: 3.49mm; top: 77.4mm; width: 47mm; border-top: .18mm solid #dce6ed; }
+        .origin-column { position: absolute; top: .5mm; width: 22mm; }
+        .origin-column.right { left: 25mm; }
+        .origin-column .label { font-size: 4.2pt; }
+        .origin-column .value { margin-top: .1mm; line-height: 1; }
+        .edge { position: absolute; left: 0; top: 84.5mm; width: 53.98mm; height: 1.1mm; background: #123451; }
+        .edge-accent { position: absolute; left: 0; top: 84.5mm; width: 17mm; height: 1.1mm; background: #3ea1e4; }
+
+        .back-heading { position: absolute; left: 0; top: 0; width: 53.98mm; height: 8.5mm; background: #123451; text-align: center; color: #fff; }
+        .back-heading .heading { margin-top: 1.7mm; font-size: 6.5pt; font-weight: bold; letter-spacing: .35pt; }
+        .back-heading .subheading { margin-top: .35mm; font-size: 4.3pt; color: #c9e2f5; letter-spacing: .6pt; }
+        .ownership { position: absolute; left: 3.49mm; top: 11.1mm; width: 47mm; font-size: 5.65pt; line-height: 1.25; color: #334e65; }
+        .return { margin-top: 1mm; font-weight: bold; color: #172e45; }
+        .qr-panel { position: absolute; left: 3.49mm; top: 31mm; width: 19mm; height: 19mm; border: .18mm solid #d9e4ed; background: #fff; }
+        .qr-panel img { display: block; width: 19mm; height: 19mm; }
+        .qr-label { position: absolute; left: 3.49mm; top: 50.7mm; width: 19mm; text-align: center; font-size: 4pt; color: #536d83; }
+        .date { position: absolute; left: 26mm; width: 24.5mm; }
+        .date.issued { top: 32mm; }
+        .date.expires { top: 41mm; }
+        .date .value { margin-top: 1mm; font-size: 6.5pt; }
+        .emergency { position: absolute; left: 3.49mm; top: 54.3mm; width: 47mm; }
+        .emergency .label { color: #155d8f; font-size: 4.7pt; }
+        .emergency-name { position: absolute; left: 3.49mm; top: 57.1mm; width: 47mm; line-height: 1.05; }
+        .emergency-phone { position: absolute; left: 3.49mm; top: 63.4mm; width: 47mm; }
+        .signatures { position: absolute; left: 3.49mm; top: 67.1mm; width: 47mm; }
+        .signature-column { position: absolute; left: 0; width: 21mm; }
+        .signature-column.registrar { left: 26mm; }
+        .signature-image { position: relative; margin-left: 1mm; width: 19mm; height: 6.5mm; }
+        .signature-label { margin-top: .3mm; padding-top: .7mm; border-top: .18mm solid #91a6b8; color: #334e65; font-size: 4.6pt; text-align: center; }
+        .disclaimer { position: absolute; left: 3.49mm; top: 77.7mm; width: 47mm; color: #536d83; font-size: 4.8pt; line-height: 1.2; text-align: center; }
     </style>
 </head>
 <body>
-    <section class="card-page front">
-        <div class="top-band"></div>
-        <div class="top-accent"></div>
-        @if($logoData)
-            <img class="brand-logo" src="{{ $logoData }}" alt="">
-        @endif
-        <div class="brand-title">UNIVERSITY OF MAIDUGURI</div>
-        <div class="brand-subtitle">Official student identity card</div>
-        <div class="card-type">{{ $cardType }}</div>
-
-        <div class="photo-frame">
-            @if($photoData)
-                <img src="{{ $photoData }}" alt="">
+    <div class="card front">
+        <div class="header"></div>
+        <div class="crest">
+            @if($logo['src'])
+                <img src="{{ $logo['src'] }}" style="left: {{ $logo['left'] }}mm; top: {{ $logo['top'] }}mm; width: {{ $logo['width'] }}mm; height: {{ $logo['height'] }}mm;" alt="">
             @endif
         </div>
-
-        <div class="identity">
-            <div class="student-name">{{ $fullName }}</div>
-            <div class="matric">{{ $matric }}</div>
-            <div class="data-row">
-                <span class="data-label">Programme</span>
-                <span class="data-value">{{ $programTitle }}</span>
-            </div>
-            <div class="data-row">
-                <span class="data-label">Faculty</span>
-                <span class="data-value">{{ $facultyTitle }}</span>
-            </div>
-            <div class="data-row">
-                <span class="data-label">Department</span>
-                <span class="data-value">{{ $departmentTitle }}</span>
-            </div>
-            <div class="data-row">
-                <span class="data-label">Level</span>
-                <span class="data-value">{{ $student->level ?: 'Not set' }}</span>
+        <div class="university">
+            <div class="overline">UNIVERSITY OF</div>
+            <div class="title">MAIDUGURI</div>
+        </div>
+        <div class="address">P.M.B. 1069, Maiduguri, Nigeria</div>
+        <div class="type-band"><span>UNDERGRADUATE IDENTITY CARD</span></div>
+        <div class="portrait-tint"></div>
+        <div class="photo-border">
+            <div class="photo">
+                @if($photo['src'])
+                    <img src="{{ $photo['src'] }}" style="left: {{ $photo['left'] }}mm; top: {{ $photo['top'] }}mm; width: {{ $photo['width'] }}mm; height: {{ $photo['height'] }}mm;" alt="">
+                @else
+                    <div class="photo-empty">PHOTO NOT AVAILABLE</div>
+                @endif
             </div>
         </div>
+        <div class="name" style="font-size: {{ $nameText['size'] }}pt;">{!! nl2br(e($nameText['text'])) !!}</div>
+        <div class="matric" style="font-size: {{ $matricText['size'] }}pt;">{{ $matricText['text'] }}</div>
+        <div class="name-rule"></div>
 
-        <div class="bottom-band">
-            <div class="bottom-meta">
-                <div><strong>Issued:</strong> {{ $issueDate }} &nbsp;&nbsp; <strong>Valid until:</strong> {{ $expiryDate }}</div>
-                <div><strong>Property of the University of Maiduguri</strong></div>
+        <div class="field programme-label label">COURSE OF STUDY</div>
+        <div class="field programme-value value" style="font-size: {{ $programText['size'] }}pt;">{!! nl2br(e($programText['text'])) !!}</div>
+        <div class="field faculty-label label">FACULTY / COLLEGE</div>
+        <div class="field faculty-value value" style="font-size: {{ $facultyText['size'] }}pt;">{!! nl2br(e($facultyText['text'])) !!}</div>
+        <div class="origin">
+            <div class="origin-column">
+                <div class="label">STATE OF ORIGIN</div>
+                <div class="value" style="font-size: {{ $stateText['size'] }}pt;">{{ $stateText['text'] }}</div>
             </div>
-            @if($signatureData)
-                <div class="signature"><img src="{{ $signatureData }}" alt=""></div>
-            @endif
-            <div class="signature-caption">Student signature</div>
+            <div class="origin-column right">
+                <div class="label">NATIONALITY</div>
+                <div class="value" style="font-size: {{ $nationalityText['size'] }}pt;">{{ $nationalityText['text'] }}</div>
+            </div>
         </div>
-    </section>
+        <div class="edge"></div><div class="edge-accent"></div>
+    </div>
 
-    <section class="card-page back">
-        <div class="back-header">
-            @if($logoData)
-                <img class="brand-logo" src="{{ $logoData }}" alt="">
-            @endif
-            <div class="back-heading">Student identity card</div>
-            <div class="back-kicker">Scan to confirm card details</div>
+    <div class="card back">
+        <div class="back-heading">
+            <div class="heading">UNIVERSITY OF MAIDUGURI</div>
+            <div class="subheading">STUDENT IDENTITY CARD</div>
         </div>
-        <div class="security">Keep this card safe</div>
-        <div class="back-panel"></div>
-
+        <div class="ownership">
+            This card is the property of the University of Maiduguri and identifies only the holder whose photograph is on the front.
+            <div class="return">If found, please return it to the Registrar.</div>
+        </div>
         @if($qrData)
-            <div class="qr-box"><img src="{{ $qrData }}" alt="Verification QR code"></div>
+            <div class="qr-panel"><img src="{{ $qrData }}" alt="Card details QR code"></div>
+            <div class="qr-label">SCAN FOR CARD DETAILS</div>
         @endif
-
-        <div class="back-details">
-            <div class="back-label">Card holder</div>
-            <div class="back-value">{{ $fullName }}</div>
-            <div class="back-rule"></div>
-            <div class="back-label">Emergency contact</div>
-            <div class="back-value">{{ $student->kin_name ?: 'Not provided' }}</div>
-            <div class="back-value">{{ $student->kin_phone ?: 'Not provided' }}</div>
-            <div class="back-rule"></div>
-            <div class="back-label">Instructions</div>
-            <div class="back-value">If found, return this card to the University of Maiduguri.</div>
+        <div class="date issued">
+            <div class="label">DATE ISSUED</div>
+            <div class="value">{{ $issueDate }}</div>
         </div>
+        <div class="date expires">
+            <div class="label">EXPIRY DATE</div>
+            <div class="value">{{ $expiryDate }}</div>
+        </div>
+        <div class="emergency"><div class="label">IN CASE OF EMERGENCY, CONTACT</div></div>
+        <div class="emergency-name value" style="font-size: {{ $kinText['size'] }}pt;">{!! nl2br(e($kinText['text'])) !!}</div>
+        <div class="emergency-phone value" style="font-size: {{ $kinPhoneText['size'] }}pt;">{{ $kinPhoneText['text'] }}</div>
 
-        <div class="back-note">This card is issued for official university identification only. It is not transferable.</div>
-    </section>
+        <div class="signatures">
+            <div class="signature-column">
+                <div class="signature-image">
+                    @if($signature['src'])
+                        <img src="{{ $signature['src'] }}" style="left: {{ $signature['left'] }}mm; top: {{ $signature['top'] }}mm; width: {{ $signature['width'] }}mm; height: {{ $signature['height'] }}mm;" alt="">
+                    @endif
+                </div>
+                <div class="signature-label">Holder's signature</div>
+            </div>
+            <div class="signature-column registrar">
+                <div class="signature-image">
+                    @if($registrarSignature['src'])
+                        <img src="{{ $registrarSignature['src'] }}" style="left: {{ $registrarSignature['left'] }}mm; top: {{ $registrarSignature['top'] }}mm; width: {{ $registrarSignature['width'] }}mm; height: {{ $registrarSignature['height'] }}mm;" alt="">
+                    @endif
+                </div>
+                <div class="signature-label">Registrar</div>
+            </div>
+        </div>
+        <div class="disclaimer">The University disclaims responsibility for any improper use of this card.</div>
+        <div class="edge"></div><div class="edge-accent"></div>
+    </div>
 </body>
 </html>

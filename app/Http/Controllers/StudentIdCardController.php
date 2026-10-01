@@ -65,8 +65,7 @@ class StudentIdCardController extends Controller
     /**
      * Generate a print-ready, two-sided CR80 student ID card.
      *
-     * The card is rendered at the physical ID-1 dimensions (85.6mm x
-     * 53.98mm), rather than being placed on an A4 sheet.
+     * Each side is a portrait ID-1 page: 53.98mm wide by 85.6mm tall.
      */
     public function download($id)
     {
@@ -77,13 +76,6 @@ class StudentIdCardController extends Controller
         try {
             $student = Student::query()->where('id', $id)->firstOrFail();
 
-            $facultyTitle = DB::table('faculty')->where('code', $student->faculty)->value('title')
-                ?: ($student->faculty ?: 'Faculty not set');
-            $departmentTitle = DB::table('department')->where('code', $student->department)->value('title')
-                ?: ($student->department ?: 'Department not set');
-            $programTitle = DB::table('program')->where('code', $student->program)->value('title')
-                ?: ($student->program ?: 'Programme not set');
-
             $isPostgraduate = Str::contains(strtoupper((string) $student->username), 'PG')
                 || Str::contains(strtoupper((string) $student->faculty), '.PG');
 
@@ -93,24 +85,29 @@ class StudentIdCardController extends Controller
                 return view('pdf/pg id card', ['id' => $id]);
             }
 
+            $facultyTitle = DB::table('faculty')->where('code', $student->faculty)->value('title')
+                ?: ($student->faculty ?: 'Not recorded');
+            $programTitle = DB::table('program')->where('code', $student->program)->value('title')
+                ?: ($student->program ?: 'Not recorded');
+
             $photoPath = $this->firstExistingPath([
-                $isPostgraduate && $student->passport_pic
-                    ? public_path('storage/passport_pic/' . $student->passport_pic)
-                    : null,
                 $student->picture ? public_path('storage/picture/' . $student->picture) : null,
+                $student->picture ? storage_path('app/public/picture/' . $student->picture) : null,
                 $student->passport_pic ? public_path('storage/passport_pic/' . $student->passport_pic) : null,
                 public_path('card/default.jpg'),
             ]);
 
             $signaturePath = $this->firstExistingPath([
                 $student->signiture ? public_path('storage/signature/' . $student->signiture) : null,
+                $student->signiture ? storage_path('app/public/signature/' . $student->signiture) : null,
                 $student->passport_sign ? public_path('storage/passport_sign/' . $student->passport_sign) : null,
-                public_path('card/student sign.png'),
             ]);
 
             $logoPath = $this->firstExistingPath([
                 public_path('uploads/logo.png'),
-                public_path('card/logo.png'),
+            ]);
+            $registrarSignaturePath = $this->firstExistingPath([
+                public_path('card/registrar sign.png'),
             ]);
 
             $matric = trim((string) ($student->username ?: $student->jamb_no ?: 'Not assigned'));
@@ -123,37 +120,44 @@ class StudentIdCardController extends Controller
                 $programTitle,
             ]));
 
+            $options = new Options();
+            $options->set([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => false,
+                'isPhpEnabled' => false,
+                'defaultFont' => 'DejaVu Sans',
+                'chroot' => [public_path(), storage_path()],
+                'tempDir' => storage_path('app/dompdf'),
+                'fontCache' => storage_path('fonts'),
+                'fontDir' => storage_path('fonts'),
+            ]);
+            $dompdf = new Dompdf($options);
             $html = View::make('pdf.student-id-card', [
                 'student' => $student,
-                'cardType' => 'UG STUDENT',
                 'facultyTitle' => $facultyTitle,
-                'departmentTitle' => $departmentTitle,
                 'programTitle' => $programTitle,
                 'matric' => $matric,
                 'fullName' => $fullName,
                 'issueDate' => $issueDate,
                 'expiryDate' => $expiryDate,
-                'photoData' => $this->toDataUri($photoPath),
-                'signatureData' => $this->toDataUri($signaturePath),
-                'logoData' => $this->toDataUri($logoPath),
+                'photo' => $this->cardImage($photoPath, 21, 22.5),
+                'signature' => $this->cardImage($signaturePath, 19, 6.5),
+                'registrarSignature' => $this->cardImage($registrarSignaturePath, 19, 6.5),
+                'logo' => $this->cardImage($logoPath, 9, 11),
                 'qrData' => $this->makeQrDataUri($qrData),
+                'nameText' => $this->fitCardText($dompdf, $fullName, 47, 2, 8.6, 6),
+                'matricText' => $this->fitCardText($dompdf, $matric, 47, 1, 7.4, 4.8),
+                'programText' => $this->fitCardText($dompdf, $programTitle, 47, 2, 6.6, 5.2),
+                'facultyText' => $this->fitCardText($dompdf, $facultyTitle, 47, 2, 6, 5),
+                'stateText' => $this->fitCardText($dompdf, $student->state_origin ?: 'Not recorded', 22, 1, 6, 4.5),
+                'nationalityText' => $this->fitCardText($dompdf, $student->country ?: 'Not recorded', 22, 1, 6, 4.5),
+                'kinText' => $this->fitCardText($dompdf, $student->kin_name ?: 'Not recorded', 47, 2, 6.2, 5),
+                'kinPhoneText' => $this->fitCardText($dompdf, $student->kin_phone ?: 'Not recorded', 47, 1, 6.8, 5),
             ])->render();
 
-            $options = new Options();
-            $options->set([
-                'isHtml5ParserEnabled' => true,
-                'isRemoteEnabled' => false,
-                'defaultFont' => 'DejaVu Sans',
-                'chroot' => [public_path(), storage_path('app/public'), storage_path()],
-                'tempDir' => storage_path('app/dompdf'),
-                'fontCache' => storage_path('fonts'),
-                'fontDir' => storage_path('fonts'),
-            ]);
-
-            $dompdf = new Dompdf($options);
             $dompdf->loadHtml($html, 'UTF-8');
-            // CR80 / ISO ID-1: 85.60mm x 53.98mm, landscape.
-            $dompdf->setPaper([0, 0, 242.645669, 153.014173], 'landscape');
+            // ISO ID-1, portrait. Values are PDF points (72 points per inch).
+            $dompdf->setPaper([0, 0, 153.014173, 242.645669], 'portrait');
             $dompdf->render();
 
             $safeName = Str::slug($matric ?: 'student');
@@ -175,12 +179,64 @@ class StudentIdCardController extends Controller
     private function firstExistingPath(array $paths): string
     {
         foreach ($paths as $path) {
-            if ($path && is_file($path) && is_readable($path)) {
+            if ($path && is_file($path) && is_readable($path) && @getimagesize($path)) {
                 return $path;
             }
         }
 
         return '';
+    }
+
+    /** Explicit dimensions preserve image proportions in Dompdf (no object-fit). */
+    private function cardImage(string $path, float $boxWidth, float $boxHeight): array
+    {
+        $size = $path !== '' ? @getimagesize($path) : false;
+        if (!$size || !$size[0] || !$size[1]) {
+            return ['src' => '', 'width' => 0, 'height' => 0, 'left' => 0, 'top' => 0];
+        }
+
+        $scale = min($boxWidth / $size[0], $boxHeight / $size[1]);
+        $width = $size[0] * $scale;
+        $height = $size[1] * $scale;
+
+        return [
+            'src' => $this->toDataUri($path),
+            'width' => round($width, 3),
+            'height' => round($height, 3),
+            'left' => round(($boxWidth - $width) / 2, 3),
+            'top' => round(($boxHeight - $height) / 2, 3),
+        ];
+    }
+
+    /** Fit complete values to reserved lines using the actual PDF font metrics. */
+    private function fitCardText(Dompdf $pdf, string $text, float $widthMm, int $maxLines, float $maximum, float $minimum): array
+    {
+        $text = mb_strtoupper(trim(preg_replace('/\s+/u', ' ', $text)));
+        $metrics = $pdf->getFontMetrics();
+        $font = $metrics->getFont('DejaVu Sans', 'bold');
+        $width = $widthMm * 72 / 25.4;
+
+        for ($size = $maximum; $size >= $minimum - 0.01; $size -= 0.2) {
+            $lines = [];
+            $line = '';
+            foreach (explode(' ', $text) as $word) {
+                $candidate = $line === '' ? $word : $line . ' ' . $word;
+                if ($line !== '' && $metrics->getTextWidth($candidate, $font, $size) > $width) {
+                    $lines[] = $line;
+                    $line = $word;
+                } else {
+                    $line = $candidate;
+                }
+            }
+            $lines[] = $line;
+            $widest = max(array_map(fn ($value) => $metrics->getTextWidth($value, $font, $size), $lines));
+            if (count($lines) <= $maxLines && $widest <= $width) {
+                return ['text' => implode("\n", $lines), 'size' => round($size, 2)];
+            }
+        }
+
+        // Do not silently clip or omit unusually long official record values.
+        throw new \RuntimeException('An ID-card field is too long to print legibly. Please review the student record.');
     }
 
     private function toDataUri(string $path): string
@@ -206,7 +262,7 @@ class StudentIdCardController extends Controller
                 'outputInterface' => \chillerlan\QRCode\Output\QRGdImagePNG::class,
                 'scale' => 5,
                 'imageBase64' => true,
-                'quietzoneSize' => 1,
+                'quietzoneSize' => 4,
             ]);
 
             return (new \chillerlan\QRCode\QRCode($options))->render($value);
