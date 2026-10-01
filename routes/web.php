@@ -720,6 +720,15 @@ Route::get('/profile', function () {
 
     $userId = session('id');
     $student = Student::where('user_id', $userId)->first();
+    $currentSession = \App\Http\Controllers\SystemSettingsController::getCurrentSession();
+    $profileIsSubmittedForCurrentSession = $student
+        && $student->profile_status === 'submitted'
+        && !empty($student->profile_submitted_at)
+        && (string) ($student->profile_submission_session ?? '') === (string) ($currentSession ?? '')
+        && (string) ($student->profile_level_session ?? '') === (string) ($currentSession ?? '');
+    if (session('accType') === 'Student' && !$profileIsSubmittedForCurrentSession && request('mode') !== 'edit') {
+        return redirect('/profile?mode=edit&required=1');
+    }
     $studentDocuments = $student
         ? StudentDocument::where('user_id', $userId)->get()->keyBy('doc_type')
         : collect();
@@ -738,7 +747,7 @@ Route::get('/profile', function () {
         ->get()
         ->keyBy('doc_type');
 
-    return view('main', compact('studentDocuments', 'applicantDocuments', 'siwesBankDetails') + ['page' => 'profile']);
+    return view('main', compact('studentDocuments', 'applicantDocuments', 'siwesBankDetails', 'currentSession') + ['page' => 'profile']);
 });
 Route::get('id card/{id}', function ($id) {
     if (!session()->has('log')) {
@@ -1407,6 +1416,7 @@ Route::post('/create-student', [RegistrationController::class, 'createStudent'])
 Route::post('/update-student', [RegistrationController::class, 'updateStudent']);
 Route::post('/profile/photo/preview', [RegistrationController::class, 'previewProfilePhoto'])->name('profile.photo.preview');
 Route::post('/update-profile', [RegistrationController::class, 'updateProfile']);
+Route::post('/submit-profile', [RegistrationController::class, 'updateProfile'])->name('submit.profile');
 Route::post('/delete-student', [RegistrationController::class, 'deleteStudent']);
 Route::post('/reset-student', [RegistrationController::class, 'resetStudent']);
 Route::post('/election-student', [RegistrationController::class, 'electionStudent']);

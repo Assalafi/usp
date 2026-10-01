@@ -31,12 +31,35 @@ class StudentsListController extends Controller
         if ($req->has('_token')) {
             $data = $req->all();
             unset($data['_token']);
+            $allowedFilters = [
+                'faculty', 'department', 'program', 'level', 'session_of_entry',
+                'gender', 'marital_status', 'state_origin', 'lga_origin',
+                'contact_phone', 'jamb_no', 'username', 'profile_status',
+            ];
+            $data = array_intersect_key($data, array_flip($allowedFilters));
+            $profileStatus = $data['profile_status'] ?? null;
+            unset($data['profile_status']);
             $filteredData = array_filter($data, function ($v) {
                 return $v !== '' && $v !== 'all' && $v !== null;
             });
             $query = DB::table('students');
             foreach ($filteredData as $key => $value) {
                 $query->where($key, $value);
+            }
+            $currentSession = DB::table('session')->where('status', '1')->value('title');
+            if ($profileStatus === 'submitted') {
+                $query->where('profile_status', 'submitted')
+                    ->where('profile_submission_session', $currentSession)
+                    ->where('profile_level_session', $currentSession);
+            } elseif ($profileStatus === 'draft') {
+                $query->where(function ($statusQuery) use ($currentSession) {
+                    $statusQuery->whereNull('profile_status')
+                        ->orWhere('profile_status', '!=', 'submitted')
+                        ->orWhereNull('profile_submission_session')
+                        ->orWhere('profile_submission_session', '!=', $currentSession)
+                        ->orWhereNull('profile_level_session')
+                        ->orWhere('profile_level_session', '!=', $currentSession);
+                });
             }
             $data['data'] = $query->orderBy('fullname', 'ASC')->paginate(100)->withQueryString();
         }else{

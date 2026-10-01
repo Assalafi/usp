@@ -1743,43 +1743,54 @@ class RegistrationController extends Controller
             return redirect('/');
         }
 
+        $isSubmit = $request->input('profile_action') === 'submit' || $request->boolean('submit_profile');
+        $required = $isSubmit ? 'required' : 'nullable';
+        $modeInput = strtoupper(trim((string) $request->input('mode_of_entry', '')));
+        if ($modeInput === 'DIRECT ENTRY') {
+            $modeInput = 'DE';
+        }
+        if ($modeInput !== '') {
+            $request->merge(['mode_of_entry' => $modeInput]);
+        }
+
         $request->validate([
             // Student IDs in the UG database include legacy formats as well as
             // UUIDs; ownership is checked immediately below before updating.
             'id' => 'required|string|max:100',
-            'jamb_no' => 'required|string|max:100',
-            'surname' => 'required|string|max:100',
-            'first_name' => 'required|string|max:100',
-            'gender' => 'required|string|max:20',
-            'date_of_birth' => 'required|date',
-            'place_of_birth' => 'required|string|max:150',
-            'country' => 'required|string|max:100',
-            'state_origin' => 'required|string|max:100',
-            'lga_origin' => 'required|string|max:100',
-            'marital_status' => 'required|string|max:50',
-            'maiden_name' => 'required|string|max:150',
-            'religion' => 'required|string|max:100',
-            'nin' => 'required|string|max:30',
-            'home_address' => 'required|string|max:500',
-            'home_phone' => 'required|string|max:30',
-            'home_email' => 'required|email|max:150',
-            'contact_address' => 'required|string|max:500',
-            'contact_phone' => 'required|string|max:30',
-            'kin_name' => 'required|string|max:150',
-            'kin_address' => 'required|string|max:500',
-            'kin_phone' => 'required|string|max:30',
-            'kin_email' => 'required|email|max:150',
-            'sponsor_type' => 'required|string|max:100',
-            'sponsor_name' => 'required|string|max:150',
-            'sponsor_address' => 'required|string|max:500',
-            'sponsor_phone' => 'required|string|max:30',
-            'mother_name' => 'required|string|max:150',
-            'mother_address' => 'required|string|max:500',
-            'mother_phone' => 'required|string|max:30',
-            'father_name' => 'required|string|max:150',
-            'father_address' => 'required|string|max:500',
-            'father_phone' => 'required|string|max:30',
-            'level' => 'required|string|max:20',
+            'jamb_no' => $required . '|string|max:100',
+            'surname' => $required . '|string|max:100',
+            'first_name' => $required . '|string|max:100',
+            'gender' => $required . '|string|max:20',
+            'date_of_birth' => $required . '|date',
+            'place_of_birth' => $required . '|string|max:150',
+            'country' => $required . '|string|max:100',
+            'state_origin' => $required . '|string|max:100',
+            'lga_origin' => $required . '|string|max:100',
+            'marital_status' => $required . '|string|max:50',
+            'maiden_name' => $required . '|string|max:150',
+            'religion' => $required . '|string|max:100',
+            'nin' => $required . '|string|max:30',
+            'home_address' => $required . '|string|max:500',
+            'home_phone' => $required . '|string|max:30',
+            'home_email' => $required . '|email|max:150',
+            'contact_address' => $required . '|string|max:500',
+            'contact_phone' => $required . '|string|max:30',
+            'kin_name' => $required . '|string|max:150',
+            'kin_address' => $required . '|string|max:500',
+            'kin_phone' => $required . '|string|max:30',
+            'kin_email' => $required . '|email|max:150',
+            'sponsor_type' => $required . '|string|max:100',
+            'sponsor_name' => $required . '|string|max:150',
+            'sponsor_address' => $required . '|string|max:500',
+            'sponsor_phone' => $required . '|string|max:30',
+            'mother_name' => $required . '|string|max:150',
+            'mother_address' => $required . '|string|max:500',
+            'mother_phone' => $required . '|string|max:30',
+            'father_name' => $required . '|string|max:150',
+            'father_address' => $required . '|string|max:500',
+            'father_phone' => $required . '|string|max:30',
+            'level' => $required . '|string|max:20',
+            'mode_of_entry' => $required . '|in:UTME,DE',
             'picture' => 'nullable|file|image|mimes:jpeg,jpg,png|max:5120',
             'processed_photo_token' => 'nullable|string|max:100',
             'signiture' => 'nullable|file|image|mimes:png,jpeg,jpg|max:2048',
@@ -1793,9 +1804,9 @@ class RegistrationController extends Controller
             'primary_cert' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:400',
             'indigine' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:400',
             // Bank details follow the same fields used by the SIWES form.
-            'bank_name' => 'required|string|max:255',
-            'bank_code' => 'required|string|max:20',
-            'account_number' => 'required|string|max:40',
+            'bank_name' => $required . '|string|max:255',
+            'bank_code' => $required . '|string|max:20',
+            'account_number' => $required . '|string|max:40',
             'sort_code' => 'nullable|string|max:40',
         ]);
 
@@ -1803,8 +1814,40 @@ class RegistrationController extends Controller
             ->where('user_id', session('id'))
             ->firstOrFail();
 
-        $this->ensureRequiredStudentDocuments($request, $student);
+        if ($isSubmit) {
+            $this->ensureRequiredStudentDocuments($request, $student);
+        }
 
+        $selectedLevel = $request->filled('level') ? $request->input('level') : $student->level;
+        $profileSession = session('system_session') ?: DB::table('session')->where('status', '1')->value('title');
+        $selectedMode = $request->filled('mode_of_entry') ? strtoupper(trim((string) $request->input('mode_of_entry'))) : strtoupper(trim((string) $student->mode_of_entry));
+        $isNigerian = in_array(strtoupper(trim((string) $request->input('country'))), ['NIGERIA', 'NIGERIAN'], true);
+        $ninValue = trim((string) $request->input('nin', ''));
+        if ($ninValue !== '') {
+            if ($isNigerian && !preg_match('/^\d{11}$/', $ninValue)) {
+                throw ValidationException::withMessages(['nin' => 'Enter a valid Nigerian NIN containing exactly 11 digits.']);
+            }
+            $canonicalNin = strtoupper(preg_replace('/[^A-Z0-9]/', '', $ninValue));
+            $duplicateNin = Student::where('id', '!=', $student->id)
+                ->whereNotNull('nin')
+                ->whereRaw("UPPER(REPLACE(REPLACE(REPLACE(REPLACE(TRIM(nin), ' ', ''), '-', ''), '/', ''), '.', '')) = ?", [$canonicalNin])
+                ->exists();
+            if ($duplicateNin) {
+                throw ValidationException::withMessages(['nin' => 'This NIN is already linked to another student record. Check the number and try again.']);
+            }
+        }
+        if ($isNigerian && ($isSubmit || $request->filled('state_origin') || $request->filled('lga_origin'))) {
+            $locations = $this->nigeriaLocationMap();
+            $stateKey = collect(array_keys($locations))->first(fn ($name) => strtoupper($name) === strtoupper(trim((string) $request->input('state_origin'))));
+            if (!$stateKey) {
+                throw ValidationException::withMessages(['state_origin' => 'Select a valid Nigerian state of origin.']);
+            }
+            $lga = trim((string) $request->input('lga_origin'));
+            $validLga = collect($locations[$stateKey] ?? [])->first(fn ($name) => strtoupper($name) === strtoupper($lga));
+            if (!$validLga) {
+                throw ValidationException::withMessages(['lga_origin' => 'Select a valid LGA for the selected state.']);
+            }
+        }
         $pictureValue = null;
         if ($request->filled('processed_photo_token')) {
             $preview = Cache::pull('student.photo-preview.' . $request->processed_photo_token);
@@ -1843,7 +1886,8 @@ class RegistrationController extends Controller
                 'first_name' => strtoupper($request->first_name),
                 'other_name' => strtoupper($request->other_name),
                 'fullname' => strtoupper($request->first_name . ' ' . $request->surname . ' ' . $request->other_name),
-                'level' => $request->level,
+                'level' => $selectedLevel,
+                'mode_of_entry' => $selectedMode,
                 'jamb_no' => $request->jamb_no,
                 'date_of_birth' => strtoupper($request->date_of_birth),
                 'place_of_birth' => strtoupper($request->place_of_birth),
@@ -1853,7 +1897,7 @@ class RegistrationController extends Controller
                 'marital_status' => strtoupper($request->marital_status),
                 'maiden_name' => strtoupper($request->maiden_name),
                 'religion' => strtoupper($request->religion),
-                'nin' => strtoupper($request->nin),
+                'nin' => $ninValue !== '' ? ($isNigerian ? preg_replace('/\D+/', '', $ninValue) : strtoupper($ninValue)) : null,
                 'health_status' => strtoupper($request->health_status),
                 'physical_challenge' => strtoupper($request->physical_challenge),
                 'hobbies' => strtoupper($request->hobbies),
@@ -1896,6 +1940,16 @@ class RegistrationController extends Controller
 
         $this->saveStudentDocuments($request, $student);
 
+        // Mark the workflow only after document storage succeeds, so a failed
+        // upload can never unlock a student accidentally.
+        Student::where('id', $student->id)->update([
+            'profile_status' => $isSubmit ? 'submitted' : 'draft',
+            'profile_submitted_at' => $isSubmit ? now() : null,
+            'profile_last_updated_at' => now(),
+            'profile_submission_session' => $isSubmit ? $profileSession : null,
+            'profile_level_session' => $request->filled('level') ? $profileSession : $student->profile_level_session,
+        ]);
+
         // Keep the legacy SIWES record aligned when it already exists. We do
         // not create a SIWES application from the profile page; students who
         // have not started SIWES still retain their bank details on students.
@@ -1911,17 +1965,23 @@ class RegistrationController extends Controller
 
         // Keep the legacy users record aligned when the current level is
         // changed from the profile page.
-        DB::table('users')->where('id', session('id'))->update([
-            'level' => $request->level,
-        ]);
-        $request->session()->put('current_level', $request->level);
-        $request->session()->put('level', $request->level);
+        if ($selectedLevel) {
+            DB::table('users')->where('id', session('id'))->update([
+                'level' => $selectedLevel,
+            ]);
+        }
+        if ($selectedLevel) {
+            $request->session()->put('current_level', $selectedLevel);
+            $request->session()->put('level', $selectedLevel);
+        }
         $request->session()->put('update_profile', 1);
         $request->session()->put('lga', $request->lga_origin);
         $request->session()->put('state', strtoupper($request->state_origin));
-        DB::table('session_history')->where(['username' => session('id_number'), 'session' => session('system_session')])->update([
-            'level' => strtoupper($request->level)
-        ]);
+        if ($selectedLevel) {
+            DB::table('session_history')->where(['username' => session('id_number'), 'session' => session('system_session')])->update([
+                'level' => strtoupper($selectedLevel),
+            ]);
+        }
         if (!empty($request->father_phone)) {
             $activeProfile = 1;
         } else {
@@ -1930,7 +1990,23 @@ class RegistrationController extends Controller
         $request->session()->put('activeProfile', $activeProfile);
 
         // return redirect('student-details-pdf');
-        return redirect()->back()->with('success', 'Profile Updated Successfully!!!');
+        return redirect($isSubmit ? '/profile' : '/profile?mode=edit')->with('success', $isSubmit ? 'Profile submitted successfully. You can now use the student portal.' : 'Profile changes saved. Submit the profile when every required item is complete.');
+    }
+
+    private function nigeriaLocationMap(): array
+    {
+        static $locations;
+        if (is_array($locations)) {
+            return $locations;
+        }
+
+        $source = @file_get_contents(resource_path('views/includes/nigeria-states-lgas.blade.php'));
+        if (!$source || !preg_match('/var\\s+nigeriaLGAs\\s*=\\s*(\\{.*?\\});/s', $source, $matches)) {
+            return $locations = [];
+        }
+
+        $locations = json_decode($matches[1], true);
+        return is_array($locations) ? $locations : [];
     }
 
     private function ensureRequiredStudentDocuments(Request $request, Student $student): void
@@ -1953,7 +2029,8 @@ class RegistrationController extends Controller
             'indigine' => 'Indigene Certificate',
         ];
 
-        if (in_array(strtoupper((string) $student->mode_of_entry), ['DE', 'DIRECT ENTRY'], true)) {
+        $entryMode = strtoupper(trim((string) $request->input('mode_of_entry', $student->mode_of_entry)));
+        if (in_array($entryMode, ['DE', 'DIRECT ENTRY'], true)) {
             $required['direct_entry_cert'] = 'Direct Entry Certificate';
         }
 
@@ -2054,6 +2131,8 @@ class RegistrationController extends Controller
         Student::where('user_id', session('id'))->update([
             'level' => $request->level,
             'level_flag' => 1,
+            'profile_level_session' => session('system_session'),
+            'profile_last_updated_at' => now(),
         ]);
         // Keep the legacy users record in sync for older pages that still read
         // users.level while students.level remains the source of truth.

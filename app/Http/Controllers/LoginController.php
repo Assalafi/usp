@@ -92,7 +92,12 @@ class LoginController extends Controller
                         return redirect('/account validation');
                     }
                     $req->session()->put('student_session', $entry_session);
-                    if (($system_session == $entry_session) && $row->accType == 'Student') {
+                    $profileIsSubmittedForCurrentSession = Student::where('user_id', $row->id)
+                        ->where('profile_status', 'submitted')
+                        ->where('profile_submission_session', $system_session)
+                        ->where('profile_level_session', $system_session)
+                        ->exists();
+                    if (($system_session == $entry_session) && $row->accType == 'Student' && $profileIsSubmittedForCurrentSession) {
                         $payment = DB::table('invoices')->where(['username' => $row->id, 'serviceTypeId' => '365039916', 'session' => $system_session, 'status' => 'Paid'])->select('id')->value('id');
                         // echo $payment;
                         // die;

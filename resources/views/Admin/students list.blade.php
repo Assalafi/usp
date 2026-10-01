@@ -2,6 +2,7 @@
     use Illuminate\Support\Facades\DB;
     $lga = DB::table('students')->distinct()->orderBy('lga_origin', 'ASC')->get('lga_origin');
     $state = DB::table('students')->distinct()->orderBy('state_origin', 'ASC')->get('state_origin');
+    $currentSession = DB::table('session')->where('status', '1')->value('title');
 @endphp
 
 <!-- Start Content-->
@@ -120,6 +121,14 @@
                                     <label for="username">ID Number</label>
                                     <input type="text" name="username" id="username" class="form-control">
                                 </div>
+                                <div class="form-group col-md-2 profileStatusAction">
+                                    <label for="profile_status">Profile update</label>
+                                    <select class="form-control" id="profile_status" name="profile_status">
+                                        <option value="">All</option>
+                                        <option value="submitted" {{ request('profile_status') === 'submitted' ? 'selected' : '' }}>Submitted</option>
+                                        <option value="draft" {{ request('profile_status') === 'draft' ? 'selected' : '' }}>Not submitted</option>
+                                    </select>
+                                </div>
                                 <div class="form-group col-md-1">
                                     <button type="submit" class="btn btn-info btn-filter"><i
                                             class="fas fa-search"></i> {{ 'Filter' }}</button>
@@ -146,6 +155,7 @@
                                         {{-- <th>{{ ('Department') }}</th> --}}
                                         <th>{{ 'Program' }}</th>
                                         <th>{{ 'Level' }}</th>
+                                        <th>{{ 'Profile update' }}</th>
                                         <th>{{ 'Gender' }}</th>
                                         <th>{{ 'Action' }}</th>
                                     </tr>
@@ -180,6 +190,13 @@
                                             <td>{{ $programTitle }}
                                             </td>
                                             <td>{{ $row->level }}</td>
+                                            <td>
+                                                @if (($row->profile_status ?? 'draft') === 'submitted' && !empty($row->profile_submitted_at) && (string) ($row->profile_submission_session ?? '') === (string) ($currentSession ?? '') && (string) ($row->profile_level_session ?? '') === (string) ($currentSession ?? ''))
+                                                    <span class="badge bg-success" title="{{ $row->profile_submitted_at ? \Carbon\Carbon::parse($row->profile_submitted_at)->format('d M Y, h:i A') : 'Submitted' }}"><i class="fas fa-check-circle"></i> Submitted</span>
+                                                @else
+                                                    <span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> Not submitted</span>
+                                                @endif
+                                            </td>
                                             <td>
 
                                                 @if ($row->gender == 'M')

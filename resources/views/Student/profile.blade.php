@@ -1,10 +1,17 @@
 @php
     use App\Models\Student;
     use Illuminate\Support\Facades\DB;
+    $locationSource = @file_get_contents(resource_path('views/includes/nigeria-states-lgas.blade.php'));
+    $locationMatches = [];
+    $nigeriaLocationMap = [];
+    if ($locationSource && preg_match('/var\s+nigeriaLGAs\s*=\s*(\{.*?\});/s', $locationSource, $locationMatches)) {
+        $nigeriaLocationMap = json_decode($locationMatches[1], true) ?: [];
+    }
 
     $data = Student::where('user_id', session('id'))->get();
     $lgas = DB::table('locals')->where('state_id', 8)->orderBy('local_name', 'ASC')->get();
     $editMode = request('mode') === 'edit' || $errors->any();
+    $currentSession = $currentSession ?? DB::table('session')->where('status', '1')->value('title');
     $applicantDocuments = collect($applicantDocuments ?? []);
     $studentDocuments = collect($studentDocuments ?? []);
     // Student uploads override the original applicant upload for the same type.
@@ -53,6 +60,15 @@
         $normalized = trim((string) $value);
         return $normalized !== '' && (!$date || $normalized !== '1970-01-01');
     };
+    $modeOfEntryValue = strtoupper(trim((string) ($row->mode_of_entry ?? '')));
+    if ($modeOfEntryValue === 'DIRECT ENTRY') { $modeOfEntryValue = 'DE'; }
+    $modeOfEntryConfirmed = in_array($modeOfEntryValue, ['UTME', 'DE'], true);
+    $levelConfirmedForSession = !empty($row->level) && (string) ($row->profile_level_session ?? '') === (string) ($currentSession ?? '');
+    $profileStatus = $row->profile_status ?? 'draft';
+    $profileIsSubmitted = $profileStatus === 'submitted'
+        && !empty($row->profile_submitted_at)
+        && (string) ($row->profile_submission_session ?? '') === (string) ($currentSession ?? '')
+        && (string) ($row->profile_level_session ?? '') === (string) ($currentSession ?? '');
     $profileRequiredGroups = [
         'Bio-data' => [
             'JAMB number' => $row->jamb_no,
@@ -95,7 +111,8 @@
             'Father phone' => $row->father_phone,
         ],
         'Admission' => [
-            'Current level' => $row->level,
+            'Mode of entry' => $modeOfEntryConfirmed,
+            'Current level for ' . ($currentSession ?: 'the current session') => $levelConfirmedForSession,
         ],
         'Documents' => [
             'JAMB result' => $documentRecords->has('jamb_result'),
@@ -331,11 +348,15 @@
             @endif
             <div class="sp-edit-intro"><div><span class="sp-kicker">Profile centre</span><h2>{{ $editMode ? 'Keep your details up to date' : 'Your profile information' }}</h2><p>{{ $editMode ? 'Complete each section below. Required fields are marked with *.' : 'Review your biodata and contact information. Use Edit profile below the identity card to make changes.' }}</p></div><div class="sp-edit-actions"><span class="sp-secure-pill"><i class="fas fa-shield-alt"></i> Secure &amp; private</span>@if ($editMode)<a class="sp-page-edit" href="{{ url('/profile') }}"><i class="fas fa-times"></i> Close editor</a>@endif</div></div>
             @if ($editMode)
+            @if (request('required') || session('warning'))
+                <div class="alert alert-warning border-0 shadow-sm" role="alert"><i class="fas fa-lock me-1"></i> {{ session('warning') ?: 'Complete every required item and submit your profile to unlock the student portal.' }}</div>
+            @endif
             <form class="form-group" action="update-profile" id="myform" method="POST"
                 enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="id" value="{{ $row->id }}">
                 <input type="hidden" name="processed_photo_token" id="processed_photo_token" value="">
+                <input type="hidden" name="profile_action" id="profile_action" value="save">
                 <section class="sp-completion-card" aria-labelledby="profile-completion-title">
                     <div class="sp-completion-head">
                         <div>
@@ -345,6 +366,7 @@
                         </div>
                         <strong class="sp-completion-percent" style="color:{{ $profileProgressColor }}">{{ $profileCompletionPercent }}%</strong>
                     </div>
+<div class="sp-submission-status {{ $profileIsSubmitted ? 'sp-submission-status-success' : 'sp-submission-status-pending' }}"><i class="fas {{ $profileIsSubmitted ? 'fa-circle-check' : 'fa-lock' }}" aria-hidden="true"></i> {{ $profileIsSubmitted ? 'Submitted' : 'Not submitted' }} @if ($profileIsSubmitted && $row->profile_submitted_at) <span>on {{ \Carbon\Carbon::parse($row->profile_submitted_at)->format('d M Y, h:i A') }}</span> @else <span>Submit your profile to unlock portal activities.</span> @endif</div>
                     <div class="sp-completion-track" role="progressbar" aria-valuenow="{{ $profileCompletionPercent }}" aria-valuemin="0" aria-valuemax="100" aria-label="Profile completion">
                         <span style="width:{{ $profileCompletionPercent }}%; background:{{ $profileProgressColor }}"></span>
                     </div>
@@ -514,57 +536,42 @@
 
                                             </div>
                                             <div class="col-md-6">
+                                                @php
+    $countryValue = trim((string) ($row->country ?? ''));
+    $isNigerianCountry = $countryValue === '' || in_array(strtoupper($countryValue), ['NIGERIA', 'NIGERIAN'], true);
+@endphp
                                                 <div class="form-group row">
-                                                    <label for="country"
-                                                        class="col-sm-3 col-form-label">Country<sup>*</sup></label>
+                                                    <label for="profile-country-choice" class="col-sm-3 col-form-label">Country / nationality<sup>*</sup></label>
                                                     <div class="col-sm-9">
-                                                        <input type="text" class="form-control" id="country"
-                                                            name="country" placeholder="Country"
-                                                            value="{{ $row->country }}" required>
+                                                        <select class="form-control sp-cascade-select" id="profile-country-choice" required>
+                                                            <option value="Nigerian" {{ $isNigerianCountry ? 'selected' : '' }}>Nigerian</option>
+                                                            <option value="Other" {{ !$isNigerianCountry ? 'selected' : '' }}>Other country</option>
+                                                        </select>
+                                                        <input type="hidden" id="country" name="country" value="{{ $countryValue }}" required>
+                                                        <input type="text" class="form-control mt-2" id="country-other" value="{{ !$isNigerianCountry ? $countryValue : '' }}" placeholder="Enter your country" {{ $isNigerianCountry ? 'disabled hidden' : '' }}>
+                                                        <small class="form-text text-muted">Choose Nigerian to use the state and LGA lists. Choose Other country to type your location.</small>
                                                     </div>
                                                 </div>
                                                 <div class="form-group row">
-                                                    <label for="state_origin" class="col-sm-3 col-form-label">State of
-                                                        Origin<sup>*</sup></label>
+                                                    <label for="profile-state-select" class="col-sm-3 col-form-label">State of origin<sup>*</sup></label>
                                                     <div class="col-sm-9">
-                                                        <input type="text" class="form-control" id="state_origin"
-                                                            name="state_origin" placeholder="State of Origin"
-                                                            value="{{ $row->state_origin }}" required>
+                                                        <select class="form-control sp-cascade-select" id="profile-state-select" {{ !$isNigerianCountry ? 'disabled hidden' : '' }}>
+                                                            <option value="">Select state</option>
+                                                        </select>
+                                                        <input type="hidden" id="state_origin" name="state_origin" value="{{ $row->state_origin }}" required>
+                                                        <input type="text" class="form-control mt-2" id="state-origin-other" value="{{ !$isNigerianCountry ? $row->state_origin : '' }}" placeholder="Enter state / province" {{ $isNigerianCountry ? 'disabled hidden' : '' }}>
                                                     </div>
                                                 </div>
-                                                @if (session('state') == 'BORNO')
-                                                    <div class="form-group row">
-                                                        <label for="lga_origin" class="col-sm-3 col-form-label">LGA
-                                                            of Origin<sup>*</sup></label>
-                                                        <div class="col-sm-9">
-                                                            <select class="form-control" id="lga_origin"
-                                                                name="lga_origin" required>
-                                                                <option value="{{ $row->lga_origin }}">
-                                                                    {{ $row->lga_origin }}</option>
-                                                                @foreach ($lgas as $item)
-                                                                    <option value="{{ $item->local_name }}">
-                                                                        {{ $item->local_name }}</option>
-                                                                @endforeach
-                                                            </select>
-                                                        </div>
-                                                    </div>
-                                                @else
-                                                    <div class="form-group row">
-                                                        <label for="lga_origin" class="col-sm-3 col-form-label">LGA of
-                                                            Origin<sup>*</sup></label>
-                                                        <div class="col-sm-9">
-                                                            <input type="text" class="form-control"
-                                                                id="lga_origin" name="lga_origin"
-                                                                placeholder="LGA of Origin"
-                                                                value="{{ $row->lga_origin }}" required>
-                                                        </div>
-                                                    </div>
-                                                @endif
-
-
-
-
                                                 <div class="form-group row">
+                                                    <label for="profile-lga-select" class="col-sm-3 col-form-label">LGA / district of origin<sup>*</sup></label>
+                                                    <div class="col-sm-9">
+                                                        <select class="form-control sp-cascade-select" id="profile-lga-select" {{ !$isNigerianCountry ? 'disabled hidden' : '' }}>
+                                                            <option value="">Select state first</option>
+                                                        </select>
+                                                        <input type="hidden" id="lga_origin" name="lga_origin" value="{{ $row->lga_origin }}" required>
+                                                        <input type="text" class="form-control mt-2" id="lga-origin-other" value="{{ !$isNigerianCountry ? $row->lga_origin : '' }}" placeholder="Enter LGA / district" {{ $isNigerianCountry ? 'disabled hidden' : '' }}>
+                                                    </div>
+                                                </div><div class="form-group row">
                                                     <label for="marital_status"
                                                         class="col-sm-3 col-form-label">Marital
                                                         Status<sup>*</sup></label>
@@ -607,9 +614,10 @@
                                                     <label for="nin"
                                                         class="col-sm-3 col-form-label">NIN<sup>*</sup></label>
                                                     <div class="col-sm-9">
-                                                        <input type="number" class="form-control" id="nin"
+                                                        <input type="text" inputmode="numeric" pattern="[0-9]{11}" maxlength="11" autocomplete="off" class="form-control" id="nin"
                                                             name="nin" value="{{ $row->nin }}"
-                                                            placeholder="NIN" required>
+                                                            placeholder="Enter 11-digit NIN" required>
+                                                        <small class="form-text text-muted">Nigerian NIN must contain exactly 11 digits. It must not already belong to another student.</small>
                                                     </div>
                                                 </div>
 
@@ -767,16 +775,14 @@
                                                     </div>
                                                 </div>
                                                 <div class="form-group row">
-                                                    <label for="mode_of_entry" class="col-sm-3 col-form-label">Mode of
-                                                        Entry<sup>*</sup></label>
+                                                    <label for="mode_of_entry" class="col-sm-3 col-form-label">Mode of entry<sup>*</sup></label>
                                                     <div class="col-sm-9">
-                                                        <select class="form-control" id="mode_of_entry"
-                                                            name="mode_of_entry" disabled>
-                                                            <option value="{{ $row->mode_of_entry }}">
-                                                                {{ $row->mode_of_entry }}</option>
-                                                            <option value="UTME">UTME</option>
-                                                            <option value="DE">DE</option>
+                                                        <select class="form-control" id="mode_of_entry" name="mode_of_entry" required>
+                                                            <option value="" disabled {{ $modeOfEntryConfirmed ? '' : 'selected' }}>Select mode of entry</option>
+                                                            <option value="UTME" {{ $modeOfEntryValue === 'UTME' ? 'selected' : '' }}>UTME</option>
+                                                            <option value="DE" {{ $modeOfEntryValue === 'DE' ? 'selected' : '' }}>Direct Entry (DE)</option>
                                                         </select>
+                                                        <small class="form-text text-muted">Choose how you were admitted: UTME or Direct Entry (DE).</small>
                                                     </div>
                                                 </div>
                                                 <div class="form-group row">
@@ -792,20 +798,18 @@
                                                     </div>
                                                 </div>
                                                 <div class="form-group row">
-                                                    <label for="level_of_entry"
-                                                        class="col-sm-3 col-form-label">Level<sup>*</sup></label>
+                                                    <label for="level_of_entry" class="col-sm-3 col-form-label">Level for {{ $currentSession ?: 'current session' }}<sup>*</sup></label>
                                                     <div class="col-sm-9">
-                                                        <select class="form-control" id="level" name="level"
-                                                            required>
-                                                            <option value="{{ $row->level }}">
-                                                                {{ $row->level }}</option>
-                                                            <option value="100">100 Level</option>
-                                                            <option value="200">200 Level</option>
-                                                            <option value="300">300 Level</option>
-                                                            <option value="400">400 Level</option>
-                                                            <option value="500">500 Level</option>
-                                                            <option value="600">600 Level</option>
+                                                        <select class="form-control" id="level" name="level" required>
+                                                            <option value="" disabled {{ $levelConfirmedForSession ? '' : 'selected' }}>Select your level for {{ $currentSession ?: 'the current session' }}</option>
+                                                            <option value="100" {{ $levelConfirmedForSession && (string) $row->level === '100' ? 'selected' : '' }}>100 Level</option>
+                                                            <option value="200" {{ $levelConfirmedForSession && (string) $row->level === '200' ? 'selected' : '' }}>200 Level</option>
+                                                            <option value="300" {{ $levelConfirmedForSession && (string) $row->level === '300' ? 'selected' : '' }}>300 Level</option>
+                                                            <option value="400" {{ $levelConfirmedForSession && (string) $row->level === '400' ? 'selected' : '' }}>400 Level</option>
+                                                            <option value="500" {{ $levelConfirmedForSession && (string) $row->level === '500' ? 'selected' : '' }}>500 Level</option>
+                                                            <option value="600" {{ $levelConfirmedForSession && (string) $row->level === '600' ? 'selected' : '' }}>600 Level</option>
                                                         </select>
+                                                        <small class="form-text text-muted">Select the level you are entering for the {{ $currentSession ?: 'current' }} academic session. You must choose it again before submitting your profile.</small>
                                                     </div>
                                                 </div>
 
@@ -1262,8 +1266,10 @@
                 </div>
                 <div class="row">
                     <div class="col-md-12">
-                        <button type="submit" id="submit-profile-btn" class="btn btn-primary"
-                            style="width: 100%"><i class="fa fa-edit" aria-hidden="true"></i> Update Profile</button>
+                        <div class="sp-profile-submit-actions">
+                            <button type="button" id="save-profile-btn" class="btn btn-light"><i class="fas fa-floppy-disk" aria-hidden="true"></i> Save progress</button>
+                            <button type="button" id="submit-profile-btn" class="btn btn-primary"><i class="fas fa-paper-plane" aria-hidden="true"></i> Submit profile</button>
+                        </div>
                     </div>
                 </div>
 
@@ -1293,7 +1299,7 @@
             // Initialize select2 on select elements
             try {
                 if ($.fn.select2) {
-                    $('select').select2({
+                    $('select').not('.sp-cascade-select').select2({
                         width: '100%',
                         placeholder: 'Select an option'
                     });
@@ -1306,15 +1312,21 @@
             // Get the form element
             const profileForm = document.getElementById('myform');
             const submitButton = document.getElementById('submit-profile-btn');
+            const saveButton = document.getElementById('save-profile-btn');
             console.log('Form found:', profileForm !== null);
             console.log('Submit button found:', submitButton !== null);
-            if (!profileForm || !submitButton) return;
+            if (!profileForm || !submitButton || !saveButton) return;
 
             // Add click event handler directly to the submit button
             submitButton.addEventListener('click', function(event) {
                 event.preventDefault(); // Prevent default button action
                 console.log('Submit button clicked - performing validation');
-                validateAndSubmitForm(profileForm);
+                validateAndSubmitForm(profileForm, true);
+            });
+
+            saveButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                validateAndSubmitForm(profileForm, false);
             });
 
             // Also keep the form submit handler as backup
@@ -1324,25 +1336,23 @@
                 event.preventDefault();
 
                 // Use the shared validation function
-                validateAndSubmitForm(profileForm);
+                validateAndSubmitForm(profileForm, true);
             });
 
             /**
              * Validates the form and submits it if valid
              */
-            function validateAndSubmitForm(form) {
+            function validateAndSubmitForm(form, shouldSubmit) {
                 console.log('Running form validation');
 
                 // Array to store names of unfilled or invalid fields
                 const invalidFields = [];
 
-                // Validate all fields with required attribute
-                const requiredFields = form.querySelectorAll('[required]');
-                console.log('Fields with required attribute found:', requiredFields.length);
-                validateRequiredFields(requiredFields, invalidFields);
-
-                // Also validate fields with asterisk in label (may not have required attribute)
-                validateFieldsWithAsteriskLabels(form, invalidFields);
+                if (shouldSubmit) {
+                    const requiredFields = form.querySelectorAll('[required]');
+                    validateRequiredFields(requiredFields, invalidFields);
+                    validateFieldsWithAsteriskLabels(form, invalidFields);
+                }
 
                 // Log the complete validation summary
                 console.table(invalidFields);
@@ -1370,8 +1380,10 @@
                         document.getElementById('pills-documents-tab')?.click();
                         return false;
                     }
-                    // If all validations pass, submit the form
-                    console.log('Form valid, submitting');
+                    const actionInput = form.querySelector('#profile_action');
+                    if (actionInput) actionInput.value = shouldSubmit ? 'submit' : 'save';
+                    const activeButton = shouldSubmit ? submitButton : saveButton;
+                    if (activeButton) { activeButton.disabled = true; activeButton.classList.add('disabled'); activeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; }
                     form.submit();
                     return true;
                 }
@@ -1859,6 +1871,13 @@
         .student-profile-page .sp-photo-actions .btn { min-height:44px; }
         .student-profile-page .sp-help { max-width:520px; margin-left:auto; margin-right:auto; }
         .student-profile-page #submit-profile-btn { border:0; border-radius:11px; min-height:48px; font-weight:700; background:#3ea1e4; box-shadow:0 7px 18px rgba(62,161,228,.28); }
+        .sp-profile-submit-actions { display:flex; gap:.75rem; }
+        .sp-profile-submit-actions .btn { flex:1; min-height:48px; border-radius:11px; font-weight:700; }
+        .sp-profile-submit-actions #save-profile-btn { border:1px solid #c8dbe7; color:#28627f; background:#fff; }
+        .sp-submission-status { display:flex; gap:.45rem; align-items:center; margin:.8rem 0 1rem; padding:.7rem .85rem; border-radius:10px; font-size:.86rem; font-weight:700; }
+        .sp-submission-status span { font-weight:500; margin-left:.15rem; }
+        .sp-submission-status-success { color:#166534; background:#ecfdf3; border:1px solid #bbf7d0; }
+        .sp-submission-status-pending { color:#92400e; background:#fffbeb; border:1px solid #fde68a; }
         @media (max-width: 767.98px) {
             .student-profile-page { padding:.45rem; }
             .student-profile-page .page-wrapper { padding:0; }
@@ -2013,11 +2032,67 @@
             .student-profile-page .form-group.row .form-control,.student-profile-page .form-group.row .select2-container { width:100%!important; }
             .student-profile-page .tab-pane > .row > [class*="col-"] { padding-left:.25rem; padding-right:.25rem; }
             .student-profile-page #submit-profile-btn { position:sticky; bottom:.55rem; z-index:5; }
+            .student-profile-page .sp-profile-submit-actions { flex-direction:column; position:sticky; bottom:.55rem; z-index:5; padding:.55rem; background:rgba(255,255,255,.94); border:1px solid #e6eef3; border-radius:13px; backdrop-filter:blur(8px); }
         }
     </style>
     <script>
+        const nigeriaLGAs = @json($nigeriaLocationMap);
         document.addEventListener('DOMContentLoaded', function () {
             const form = document.getElementById('myform');
+            const countryChoice = document.getElementById('profile-country-choice');
+            const countryHidden = document.getElementById('country');
+            const countryOther = document.getElementById('country-other');
+            const stateSelect = document.getElementById('profile-state-select');
+            const stateHidden = document.getElementById('state_origin');
+            const stateOther = document.getElementById('state-origin-other');
+            const lgaSelect = document.getElementById('profile-lga-select');
+            const lgaHidden = document.getElementById('lga_origin');
+            const lgaOther = document.getElementById('lga-origin-other');
+            const currentState = @json($row->state_origin ?? '');
+            const currentLga = @json($row->lga_origin ?? '');
+            const canonicalState = (value) => Object.keys(nigeriaLGAs || {}).find((name) => name.toUpperCase() === String(value || '').trim().toUpperCase()) || '';
+            const renderLgas = (state, selected = '') => {
+                if (!lgaSelect) return;
+                const list = nigeriaLGAs[state] || [];
+                lgaSelect.innerHTML = '<option value="">Select LGA / district</option>' + list.map((lga) => '<option value="' + lga.replace(/"/g, '&quot;') + '">' + lga + '</option>').join('');
+                lgaSelect.disabled = !state;
+                const matching = list.find((lga) => lga.toUpperCase() === String(selected || '').trim().toUpperCase()) || '';
+                lgaSelect.value = matching;
+                if (lgaHidden) lgaHidden.value = matching || (state ? '' : (lgaOther?.value || lgaHidden.value || ''));
+                if (window.jQuery && lgaSelect.classList.contains('select2-hidden-accessible')) jQuery(lgaSelect).trigger('change.select2');
+            };
+            const syncCountryFields = () => {
+                const isNigerian = countryChoice?.value === 'Nigerian';
+                if (countryHidden) countryHidden.value = isNigerian ? 'Nigerian' : (countryOther?.value || '').trim();
+                if (countryOther) { countryOther.disabled = isNigerian; countryOther.hidden = isNigerian; countryOther.required = !isNigerian; }
+                if (stateSelect) { stateSelect.disabled = !isNigerian; stateSelect.hidden = !isNigerian; }
+                if (lgaSelect) { lgaSelect.disabled = !isNigerian; lgaSelect.hidden = !isNigerian; }
+                if (stateOther) { stateOther.disabled = isNigerian; stateOther.hidden = isNigerian; stateOther.required = !isNigerian; }
+                if (lgaOther) { lgaOther.disabled = isNigerian; lgaOther.hidden = isNigerian; lgaOther.required = !isNigerian; }
+                if (isNigerian) {
+                    const selectedState = canonicalState(stateHidden?.value || currentState);
+                    if (stateSelect) {
+                        stateSelect.innerHTML = '<option value="">Select state</option>' + Object.keys(nigeriaLGAs).map((state) => '<option value="' + state.replace(/"/g, '&quot;') + '">' + state + '</option>').join('');
+                        stateSelect.value = selectedState;
+                        if (window.jQuery && stateSelect.classList.contains('select2-hidden-accessible')) jQuery(stateSelect).trigger('change.select2');
+                    }
+                    renderLgas(selectedState, lgaHidden?.value || currentLga);
+                    if (stateHidden) stateHidden.value = selectedState;
+                    if (lgaOther) lgaOther.value = '';
+                } else {
+                    if (stateHidden) stateHidden.value = (stateOther?.value || '').trim();
+                    if (lgaHidden) lgaHidden.value = (lgaOther?.value || '').trim();
+                    if (stateSelect) stateSelect.value = '';
+                    if (lgaSelect) { lgaSelect.innerHTML = '<option value="">Not applicable</option>'; lgaSelect.disabled = true; }
+                }
+            };
+            countryChoice?.addEventListener('change', syncCountryFields);
+            countryOther?.addEventListener('input', syncCountryFields);
+            stateOther?.addEventListener('input', () => { if (stateHidden) stateHidden.value = stateOther.value.trim(); });
+            lgaOther?.addEventListener('input', () => { if (lgaHidden) lgaHidden.value = lgaOther.value.trim(); });
+            stateSelect?.addEventListener('change', () => { if (stateHidden) stateHidden.value = stateSelect.value; renderLgas(stateSelect.value); });
+            lgaSelect?.addEventListener('change', () => { if (lgaHidden) lgaHidden.value = lgaSelect.value; });
+            syncCountryFields();
             const pictureInput = document.getElementById('picture');
             const picturePreview = document.getElementById('profile-photo-preview');
             const processButton = document.getElementById('process-profile-photo');
