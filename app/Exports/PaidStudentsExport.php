@@ -110,7 +110,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
         return [
             'students' => $rows->count(),
             'required_amount' => (float) $rows->sum('required_amount'),
-            'amount_paid' => (float) $rows->sum('invoices_amount'),
+            'amount_paid' => (float) $rows->sum('amount_paid'),
         ];
     }
 
@@ -118,7 +118,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
     {
         $results = static::paidRows($this->session, $this->feesType);
         $totalRequired = (float) collect($results)->sum('required_amount');
-        $totalPaid = (float) collect($results)->sum('invoices_amount');
+        $totalPaid = (float) collect($results)->sum('amount_paid');
 
         // Convert to array and format amounts
         $rows = collect($results)->map(function ($item) {
