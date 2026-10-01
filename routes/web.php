@@ -27,6 +27,7 @@ use App\Http\Controllers\StaffController;
 use App\Http\Controllers\AlumniController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\StudentController;
+use App\Http\Controllers\StudentIdCardController;
 use App\Http\Controllers\StudentCourseRegistrationController;
 use App\Http\Controllers\StudentResultsController;
 use App\Http\Controllers\UsersController;
@@ -749,18 +750,7 @@ Route::get('/profile', function () {
 
     return view('main', compact('studentDocuments', 'applicantDocuments', 'siwesBankDetails', 'currentSession') + ['page' => 'profile']);
 });
-Route::get('id card/{id}', function ($id) {
-    if (!session()->has('log')) {
-        return redirect('/');
-    }
-    $std_id = DB::table('students')->where(['id' => $id])->select('username')->value('username');
-    // dd($std_id);
-    if (strpos($std_id, 'PG') !== false) {
-        return view('pdf/pg id card', ['id' => $id]);
-    } else {
-        return view('pdf/id card', ['id' => $id]);
-    }
-});
+Route::get('id card/{id}', [StudentIdCardController::class, 'download']);
 Route::get('exam-card', function () {
     if (!session()->has('log')) {
         return redirect('/');
