@@ -138,7 +138,7 @@
                     <br>
                     <p class="mb-0 text-muted">
                         For any inquiries or assistance, contact us via WhatsApp <a
-                            href="tel:+2347036982856"><strong>07036982856</strong></a>.
+                            href="tel:+2347037795011"><strong>0703 779 5011</strong></a>.
                     </p>
                 </div>
             </div>
