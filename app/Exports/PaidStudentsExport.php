@@ -28,10 +28,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                 program,
                 level,
                 required_amount,
-                CASE
-                    WHEN invoices_amount > required_amount THEN required_amount
-                    ELSE invoices_amount
-                END AS amount_paid,
+                invoices_amount AS amount_paid,
                 CASE
                     WHEN invoices_amount >= required_amount THEN 'Yes'
                     ELSE 'No'
@@ -64,6 +61,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                     i.session = ?
                     AND i.status = 'Paid'
                     AND i.serviceTypeId = 365039916
+                    AND i.description = 'UNIVERSITY OF MAIDUGURI-1000127 FEES'
         ";
 
         $params = [$this->session, $this->session];
