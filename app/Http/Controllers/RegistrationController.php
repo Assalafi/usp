@@ -1510,16 +1510,20 @@ class RegistrationController extends Controller
      * Generate the student's information-rich biodata PDF. The current
      * session's registered courses are included when they exist.
      */
-    public function downloadStudentBioDataPdf()
+    public function downloadStudentBioDataPdf(?string $studentId = null)
     {
         if (!session()->has('log')) {
             return redirect('/');
         }
 
-        $student = Student::where('user_id', session('id'))->first();
+        $student = $studentId
+            ? Student::where('id', $studentId)->first()
+            : Student::where('user_id', session('id'))->first();
         if (!$student) {
             return redirect('/profile')->with('error', 'Student profile could not be found.');
         }
+        // Use the selected student's account when an administrator generates a PDF.
+        $studentUserId = $student->user_id ?: session('id');
 
         $identity = strtoupper((string) ($student->username ?: session('username')));
         if (str_contains($identity, 'PG') || str_contains(strtoupper((string) session('faculty')), '.PG')) {
@@ -1542,8 +1546,8 @@ class RegistrationController extends Controller
             $photoCandidates[] = public_path('storage/' . $student->picture);
         }
 
-        $applicantDocuments = DocumentUpload::where('user_id', session('id'))->get()->keyBy('doc_type');
-        $studentDocuments = StudentDocument::where('user_id', session('id'))->get()->keyBy('doc_type');
+        $applicantDocuments = DocumentUpload::where('user_id', $studentUserId)->get()->keyBy('doc_type');
+        $studentDocuments = StudentDocument::where('user_id', $studentUserId)->get()->keyBy('doc_type');
         $documentRecords = $applicantDocuments->merge($studentDocuments)->keyBy('doc_type');
 
         foreach (['passport_photo', 'passport_photograph'] as $passportType) {

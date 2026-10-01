@@ -3,8 +3,9 @@
     use Illuminate\Support\Facades\DB;
     use App\Models\Student;
     use Illuminate\Database\QueryException;
-    use Endroid\QrCode\QrCode;
-    use Endroid\QrCode\Writer\PngWriter;
+    use chillerlan\QRCode\QRCode;
+    use chillerlan\QRCode\QROptions;
+    use chillerlan\QRCode\Output\QRGdImagePNG;
 
     if(isset($id)){
         $data = Student::where('id', $id)->select('fullname', 'username', 'jamb_no', 'faculty', 'program', 'state_origin', 'country', 'kin_name', 'kin_phone', 'picture', 'signiture','passport_pic', 'passport_sign', 'issue_date', 'expire_date')->get();

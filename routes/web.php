@@ -779,18 +779,7 @@ Route::get('/result-summary-vc', function () {
     }
     return view('pdf/summaryVc');
 });
-Route::get('student details pdf/{id}', function ($id) {
-    if (!session()->has('log')) {
-        return redirect('/');
-    }
-    $std_id = DB::table('students')->where(['id' => $id])->select('username')->value('username');
-    // dd($std_id);
-    if (strpos($std_id, 'PG') !== false) {
-        return view('pdf/pg student info', ['id' => $id]);
-    } else {
-        return view('pdf/student info', ['id' => $id]);
-    }
-});
+Route::get('student details pdf/{id}', [RegistrationController::class, 'downloadStudentBioDataPdf']);
 Route::get('program-courses/{id}', function ($id) {
     if (!session()->has('log')) {
         return redirect('/');

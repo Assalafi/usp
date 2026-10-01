@@ -3,8 +3,9 @@
     use Illuminate\Support\Facades\DB;
     use App\Models\Student;
     use Illuminate\Database\QueryException;
-    use Endroid\QrCode\QrCode;
-    use Endroid\QrCode\Writer\PngWriter;
+    use chillerlan\QRCode\QRCode;
+    use chillerlan\QRCode\QROptions;
+    use chillerlan\QRCode\Output\QRGdImagePNG;
 
     if(isset($id)){
         $data = Student::where('id', $id)->select('fullname', 'username', 'jamb_no', 'faculty', 'program', 'state_origin', 'country', 'kin_name', 'kin_phone', 'picture', 'signiture')->get();
@@ -113,13 +114,18 @@
     $pdf->Cell(54, 10, $kin_phone, 0, 1, 'C');
 
 
-    $qrCode = new QrCode($name.' With ID NO:'.$id.' From '.DB::table('program')->where('code', $course)->value('title'));
-    $qrCode->setSize(60);
-    $qrCode->setMargin(-10);
-    $writer = new PngWriter();
-    $result = $writer->write($qrCode);
-    file_put_contents('uploads/qrcode.png', $result->getString());
-    $pdf->Image('uploads/qrcode.png', 96.75, 122, 0, 0, 'PNG');
+    $qrData = $name.' With ID NO:'.$id.' From '.DB::table('program')->where('code', $course)->value('title');
+    $qrOptions = new QROptions([
+        'outputInterface' => QRGdImagePNG::class,
+        'scale' => 5,
+        'imageBase64' => true,
+    ]);
+    $qrBase64 = (new QRCode($qrOptions))->render($qrData);
+    $qrBase64 = preg_replace('/^data:image\/png;base64,/', '', $qrBase64);
+    $qrTempFile = tempnam(sys_get_temp_dir(), 'id_card_qr_') . '.png';
+    file_put_contents($qrTempFile, base64_decode($qrBase64));
+    $pdf->Image($qrTempFile, 96.75, 122, 0, 0, 'PNG');
+    @unlink($qrTempFile);
 
     }
 
