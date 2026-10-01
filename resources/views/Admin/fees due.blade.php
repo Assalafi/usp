@@ -126,8 +126,8 @@
                                     <div class="col-md-2">
                                         <label for="session">Session</label>
                                         <select class="form-control" id="session" name="session">
-                                            <option value="{{ $_GET['session'] ?? session('system_session') }}">
-                                                {{ $_GET['session'] ?? 'Select Option' }}</option>
+                                            <option value="{{ $_GET['session'] ?? ($fees_session ?? session('system_session')) }}">
+                                                {{ $_GET['session'] ?? ($fees_session ?? 'Select Option') }}</option>
 
                                             <option value="2028/2029">2028/2029</option>
                                             <option value="2027/2028">2027/2028</option>
@@ -617,7 +617,7 @@ $(document).ready(function() {
                         <select class="form-control" id="exportUnpaidSession" name="session" required>
                             <option value="">Select session</option>
                             @foreach ($session as $sessionOption)
-                                <option value="{{ $sessionOption->title }}" {{ $sessionOption->title === session('system_session') ? 'selected' : '' }}>{{ $sessionOption->title }}</option>
+                                <option value="{{ $sessionOption->title }}" {{ $sessionOption->title === ($fees_session ?? session('system_session')) ? 'selected' : '' }}>{{ $sessionOption->title }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -660,7 +660,7 @@ $(document).ready(function() {
                             <option value="2027/2028">2027/2028</option>
                             <option value="2026/2027">2026/2027</option>
                             <option value="2025/2026">2025/2026</option>
-                            <option value="2024/2025" selected>2024/2025</option>
+                            <option value="2024/2025" {{ ($fees_session ?? '') === '2024/2025' ? 'selected' : '' }}>2024/2025</option>
                             <option value="2023/2024">2023/2024</option>
                             <option value="2022/2023">2022/2023</option>
                             <option value="2021/2022">2021/2022</option>

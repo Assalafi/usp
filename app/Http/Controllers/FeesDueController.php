@@ -25,6 +25,7 @@ class FeesDueController extends Controller
 
     public function index(Request $req)
     {
+        $selectedSession = $req->input('session') ?: SystemSettingsController::getSchoolFeesSession();
         if ($req->has('_token')) {
             $data = $req->all();
             $start = $req -> start;
@@ -46,12 +47,12 @@ class FeesDueController extends Controller
                 unset($data['end']);
                 unset($data['rrr']);
                 $filteredData = array_filter($data);
-                $query = DB::table($this->table)->where(['session' => $req->session]);
+                $query = DB::table($this->table)->where(['session' => $selectedSession]);
                 foreach ($filteredData as $key => $value) {
                     $query->where($key, $value);
                 }
                 if($fac == 'none'){
-                    $data['data'] = $query->where(['status' => 'Paids'])->get();
+                    $data['data'] = $query->where(['status' => 'Paid'])->get();
                 }else{
                     if($status == 'Pending'){
                         $data['data'] = $query->get();
@@ -63,19 +64,20 @@ class FeesDueController extends Controller
             }
 
 
-            $data['hostel'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => '2024/2025'])->whereBetween('updated_at', [$start,$end])->sum('amount');
-            $data['school'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'UNIVERSITY OF MAIDUGURI-1000127 FEES', 'session' => '2024/2025'])->whereBetween('updated_at', [$start,$end])->sum('amount');
+            $data['hostel'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => $selectedSession])->whereBetween('updated_at', [$start,$end])->sum('amount');
+            $data['school'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'UNIVERSITY OF MAIDUGURI-1000127 FEES', 'session' => $selectedSession])->whereBetween('updated_at', [$start,$end])->sum('amount');
         }else{
 
-            $data['data'] = DB::table($this->table)->where(['status' => 'Paids'])->get();
+            $data['data'] = DB::table($this->table)->where(['status' => 'Paid', 'session' => $selectedSession])->get();
 
-            $data['hostel'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => '2024/2025'])->sum('amount');
-            $data['school'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'UNIVERSITY OF MAIDUGURI-1000127 FEES', 'session' => '2024/2025'])->sum('amount');
+            $data['hostel'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => $selectedSession])->sum('amount');
+            $data['school'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'UNIVERSITY OF MAIDUGURI-1000127 FEES', 'session' => $selectedSession])->sum('amount');
         }
             $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
             $data['fees_type'] = DB::table('fees_type')->where(['status' => '1'])->select('title')->orderBy('title', 'ASC')->get();
             // Export and filtering must support historical sessions, not only the active one.
             $data['session'] = DB::table('session')->select('title')->orderByDesc('title')->get();
+            $data['fees_session'] = $selectedSession;
             $data['page'] = $this->page;
             $data['title'] = $this->title;
             return view('main',$data);

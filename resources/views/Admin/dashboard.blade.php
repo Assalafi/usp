@@ -9,8 +9,9 @@
     $hostelFees = DB::table('invoices')
         ->where(['status' => 'Paid', 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => $fetching_session])
         ->sum('amount');
+    $schoolFeesSession = \App\Http\Controllers\SystemSettingsController::getSchoolFeesSession();
     $schoolFees = DB::table('invoices')
-        ->where(['status' => 'Paid', 'description' => 'UNIVERSITY OF MAIDUGURI-1000127 FEES', 'session' => '2025/2026'])
+        ->where(['status' => 'Paid', 'description' => 'UNIVERSITY OF MAIDUGURI-1000127 FEES', 'session' => $schoolFeesSession])
         ->sum('amount');
     $pin = HostelPin::where(['flag' => 1])
         ->where('username', '!=', 'Awaiting')
