@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Exports\PaidStudentsExport;
 
 class FeesDueController extends Controller
 {
@@ -65,13 +66,13 @@ class FeesDueController extends Controller
 
 
             $data['hostel'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => $selectedSession])->whereBetween('updated_at', [$start,$end])->sum('amount');
-            $data['school'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'UNIVERSITY OF MAIDUGURI-1000127 FEES', 'session' => $selectedSession])->whereBetween('updated_at', [$start,$end])->sum('amount');
+            $data['school'] = PaidStudentsExport::paidTotals($selectedSession)['amount_paid'];
         }else{
 
             $data['data'] = DB::table($this->table)->where(['status' => 'Paid', 'session' => $selectedSession])->paginate(100)->withQueryString();
 
             $data['hostel'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => $selectedSession])->sum('amount');
-            $data['school'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'UNIVERSITY OF MAIDUGURI-1000127 FEES', 'session' => $selectedSession])->sum('amount');
+            $data['school'] = PaidStudentsExport::paidTotals($selectedSession)['amount_paid'];
         }
             $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
             $data['fees_type'] = DB::table('fees_type')->where(['status' => '1'])->select('title')->orderBy('title', 'ASC')->get();

@@ -18,8 +18,15 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
         $this->feesType = $feesType;
     }
 
-    public function collection()
+    /**
+     * Return the validated paid-student rows used by both the export and the
+     * Fees Due summary. Keeping this query in one place prevents the card and
+     * downloaded report from showing different populations.
+     */
+    public static function paidRows(string $session, string $feesType = ''): array
     {
+        $serviceTypeId = (string) config('services.remita.school_fees_key', '365039916');
+
         $query = "
             SELECT
                 username,
@@ -42,34 +49,39 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                     s.level,
                     s.session_of_entry,
                     CASE
-                        WHEN s.session_of_entry = ? THEN
-                            COALESCE((SELECT amount FROM school_fees
-                             WHERE program = s.program AND level = s.level
-                             AND type = 'NEW' LIMIT 1), 0)
-                        ELSE
-                            COALESCE((SELECT amount FROM school_fees
-                             WHERE program = s.program AND level = s.level
-                             AND type = 'RETURNING'
-                             ORDER BY amount DESC LIMIT 1), 0)
+                        WHEN s.session_of_entry = ? THEN COALESCE(MAX(new_fees.amount), 0)
+                        ELSE COALESCE(MAX(returning_fees.amount), 0)
                     END AS required_amount,
                     COALESCE(SUM(i.amount), 0) AS invoices_amount
                 FROM
                     students s
                 JOIN
                     invoices i ON s.user_id = i.username
+                LEFT JOIN (
+                    SELECT program, level, MAX(amount) AS amount
+                    FROM school_fees
+                    WHERE type = 'NEW'
+                    GROUP BY program, level
+                ) new_fees ON new_fees.program = s.program AND new_fees.level = s.level
+                LEFT JOIN (
+                    SELECT program, level, MAX(amount) AS amount
+                    FROM school_fees
+                    WHERE type = 'RETURNING'
+                    GROUP BY program, level
+                ) returning_fees ON returning_fees.program = s.program AND returning_fees.level = s.level
                 WHERE
                     i.session = ?
                     AND i.status = 'Paid'
-                    AND i.serviceTypeId = 365039916
+                    AND i.serviceTypeId = ?
                     AND i.description = 'UNIVERSITY OF MAIDUGURI-1000127 FEES'
         ";
 
-        $params = [$this->session, $this->session];
+        $params = [$session, $session, $serviceTypeId];
 
         // Add sponsor filter
-        if ($this->feesType === 'nelfund') {
+        if ($feesType === 'nelfund') {
             $query .= " AND i.fees_type = 'nelfund'";
-        } elseif ($this->feesType === 'others') {
+        } elseif ($feesType === 'others') {
             $query .= " AND (i.fees_type != 'nelfund' OR i.fees_type IS NULL)";
         }
 
@@ -85,10 +97,31 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
             WHERE required_amount > 0
         ";
 
-        $results = DB::select($query, $params);
+        return DB::select($query, $params);
+    }
+
+    /**
+     * Totals for the same validated population used in the report.
+     */
+    public static function paidTotals(string $session, string $feesType = ''): array
+    {
+        $rows = collect(static::paidRows($session, $feesType));
+
+        return [
+            'students' => $rows->count(),
+            'required_amount' => (float) $rows->sum('required_amount'),
+            'amount_paid' => (float) $rows->sum('invoices_amount'),
+        ];
+    }
+
+    public function collection()
+    {
+        $results = static::paidRows($this->session, $this->feesType);
+        $totalRequired = (float) collect($results)->sum('required_amount');
+        $totalPaid = (float) collect($results)->sum('invoices_amount');
 
         // Convert to array and format amounts
-        return collect($results)->map(function ($item) {
+        $rows = collect($results)->map(function ($item) {
             return [
                 'username' => $item->username,
                 'faculty' => $item->faculty,
@@ -100,6 +133,21 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                 'full_payment' => $item->full_payment,
             ];
         });
+
+        // Keep the summary in the final row so it is visible in Excel without
+        // requiring a separate calculation.
+        $rows->push([
+            'username' => 'TOTAL',
+            'faculty' => '',
+            'department' => '',
+            'program' => '',
+            'level' => '',
+            'required_amount' => number_format($totalRequired, 2),
+            'amount_paid' => number_format($totalPaid, 2),
+            'full_payment' => '',
+        ]);
+
+        return $rows;
     }
 
     public function headings(): array

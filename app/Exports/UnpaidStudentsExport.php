@@ -111,7 +111,7 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
             ORDER BY active.faculty, active.department, active.program, active.username
         ";
 
-        return collect(DB::select($query, $params))->map(function ($student) {
+        $rows = collect(DB::select($query, $params))->map(function ($student) {
             $resultCount = (int) $student->result_count;
             $historyCount = (int) $student->history_count;
 
@@ -138,6 +138,27 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
                 'account_status' => (string) $student->account_status === '1' ? 'Active' : 'Inactive record',
             ];
         });
+
+        $rows->push([
+            'username' => 'TOTAL',
+            'name' => '',
+            'phone' => '',
+            'email' => '',
+            'faculty' => '',
+            'department' => '',
+            'program' => '',
+            'level' => '',
+            'entry_session' => '',
+            'required_amount' => number_format((float) $rows->sum(fn ($row) => (float) str_replace(',', '', $row['required_amount'])), 2),
+            'amount_paid' => number_format((float) $rows->sum(fn ($row) => (float) str_replace(',', '', $row['amount_paid'])), 2),
+            'outstanding_amount' => number_format((float) $rows->sum(fn ($row) => (float) str_replace(',', '', $row['outstanding_amount'])), 2),
+            'activity_source' => '',
+            'result_count' => $rows->sum('result_count'),
+            'session_history_count' => $rows->sum('session_history_count'),
+            'account_status' => '',
+        ]);
+
+        return $rows;
     }
 
     public function headings(): array

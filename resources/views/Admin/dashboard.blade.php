@@ -5,14 +5,13 @@
     use App\Models\Student;
     use App\Models\Alumni;
     use Illuminate\Support\Facades\DB;
+    use App\Exports\PaidStudentsExport;
     $fetching_session = \App\Http\Controllers\SystemSettingsController::getHostelFeesSession();
     $hostelFees = DB::table('invoices')
         ->where(['status' => 'Paid', 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => $fetching_session])
         ->sum('amount');
     $schoolFeesSession = \App\Http\Controllers\SystemSettingsController::getSchoolFeesSession();
-    $schoolFees = DB::table('invoices')
-        ->where(['status' => 'Paid', 'description' => 'UNIVERSITY OF MAIDUGURI-1000127 FEES', 'session' => $schoolFeesSession])
-        ->sum('amount');
+    $schoolFees = PaidStudentsExport::paidTotals($schoolFeesSession)['amount_paid'];
     $pin = HostelPin::where(['flag' => 1])
         ->where('username', '!=', 'Awaiting')
         ->count();
