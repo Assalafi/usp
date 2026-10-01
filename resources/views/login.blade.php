@@ -138,7 +138,7 @@
                     <br>
                     <p class="mb-0 text-muted">
                         For any inquiries or assistance, contact us via WhatsApp <a
-                            href="tel:+2347037795011"><strong>0703 779 5011</strong></a>.
+                            href="https://wa.me/2347037795011?text=Hello%2C%20I%20need%20assistance%20with%20the%20UNIMAID%20portal." target="_blank" rel="noopener"><strong>WhatsApp support</strong></a>.
                     </p>
                 </div>
             </div>
