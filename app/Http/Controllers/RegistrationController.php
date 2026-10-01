@@ -1496,6 +1496,7 @@ class RegistrationController extends Controller
             'student_id' => $student->id,
             'user_id' => session('id'),
             'path' => $path,
+            'source' => $request->hasFile('picture') ? 'upload' : 'current',
         ], now()->addMinutes(15));
 
         return response()->json([
@@ -1849,12 +1850,17 @@ class RegistrationController extends Controller
             }
         }
         $pictureValue = null;
+        $pictureWasNewUpload = false;
         if ($request->filled('processed_photo_token')) {
             $preview = Cache::pull('student.photo-preview.' . $request->processed_photo_token);
             $disk = Storage::disk('public');
             if (!$preview || $preview['student_id'] !== $student->id || $preview['user_id'] !== session('id') || !$disk->exists($preview['path'])) {
                 throw ValidationException::withMessages(['picture' => 'Your photo preview has expired. Process the photo again before saving.']);
             }
+            if ($isSubmit && ($preview['source'] ?? null) !== 'upload') {
+                throw ValidationException::withMessages(['picture' => 'Upload and prepare a new passport photograph. Your existing photo cannot be reused for this profile submission.']);
+            }
+            $pictureWasNewUpload = ($preview['source'] ?? null) === 'upload';
             $storedPath = 'picture/processed/' . Str::uuid() . '.jpg';
             $disk->makeDirectory('picture/processed');
             $disk->copy($preview['path'], $storedPath);
@@ -1874,9 +1880,11 @@ class RegistrationController extends Controller
         }
 
         if ($pictureValue) {
-            Student::where(['id' => $student->id])->update([
-                'picture' => $pictureValue
-            ]);
+            $pictureUpdate = ['picture' => $pictureValue];
+            if ($pictureWasNewUpload) {
+                $pictureUpdate['profile_photo_updated_at'] = now();
+            }
+            Student::where(['id' => $student->id])->update($pictureUpdate);
         }
 
         Student::where('id', $student->id)->update(
@@ -2009,6 +2017,37 @@ class RegistrationController extends Controller
         return is_array($locations) ? $locations : [];
     }
 
+    private function hasNewUploadedPhotoPreview(Request $request, Student $student): bool
+    {
+        $token = trim((string) $request->input('processed_photo_token', ''));
+        if ($token === '') {
+            return false;
+        }
+
+        $preview = Cache::get('student.photo-preview.' . $token);
+        $disk = Storage::disk('public');
+
+        return is_array($preview)
+            && ($preview['student_id'] ?? null) === $student->id
+            && ($preview['user_id'] ?? null) === session('id')
+            && ($preview['source'] ?? null) === 'upload'
+            && !empty($preview['path'])
+            && $disk->exists($preview['path']);
+    }
+
+    private function profilePhotoUpdatedForCurrentSubmission(Student $student): bool
+    {
+        if (empty($student->profile_photo_updated_at)) {
+            return false;
+        }
+
+        if (empty($student->profile_submitted_at)) {
+            return true;
+        }
+
+        return \Carbon\Carbon::parse($student->profile_photo_updated_at)
+            ->greaterThan(\Carbon\Carbon::parse($student->profile_submitted_at));
+    }
     private function ensureRequiredStudentDocuments(Request $request, Student $student): void
     {
         $storedTypes = StudentDocument::where('user_id', session('id'))
@@ -2034,11 +2073,10 @@ class RegistrationController extends Controller
             $required['direct_entry_cert'] = 'Direct Entry Certificate';
         }
 
-        $hasPhoto = !empty($student->picture)
-            || in_array('passport_photo', $availableTypes, true)
-            || $request->filled('processed_photo_token');
-        if (!$hasPhoto) {
-            $required['picture'] = 'Passport Photograph';
+        $hasNewUploadedPhoto = $this->hasNewUploadedPhotoPreview($request, $student)
+            || $this->profilePhotoUpdatedForCurrentSubmission($student);
+        if (!$hasNewUploadedPhoto) {
+            $required['picture'] = 'New Passport Photograph';
         }
 
         $hasSignature = !empty($student->signiture) || $request->hasFile('signiture');
@@ -2049,10 +2087,10 @@ class RegistrationController extends Controller
         $missing = [];
         foreach ($required as $field => $label) {
             $hasNewFile = $field === 'picture'
-                ? false
+                ? $this->hasNewUploadedPhotoPreview($request, $student)
                 : $request->hasFile($field);
             $hasStoredFile = $field === 'picture'
-                ? $hasPhoto
+                ? $this->profilePhotoUpdatedForCurrentSubmission($student)
                 : ($field === 'signiture' ? $hasSignature : in_array($field, $availableTypes, true));
 
             if (!$hasNewFile && !$hasStoredFile) {

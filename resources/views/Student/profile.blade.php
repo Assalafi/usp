@@ -65,6 +65,8 @@
     $modeOfEntryConfirmed = in_array($modeOfEntryValue, ['UTME', 'DE'], true);
     $levelConfirmedForSession = !empty($row->level) && (string) ($row->profile_level_session ?? '') === (string) ($currentSession ?? '');
     $profileStatus = $row->profile_status ?? 'draft';
+    $profilePhotoUpdatedForCurrentSubmission = !empty($row->profile_photo_updated_at)
+        && (empty($row->profile_submitted_at) || \Carbon\Carbon::parse($row->profile_photo_updated_at)->greaterThan(\Carbon\Carbon::parse($row->profile_submitted_at)));
     $profileIsSubmitted = $profileStatus === 'submitted'
         && !empty($row->profile_submitted_at)
         && (string) ($row->profile_submission_session ?? '') === (string) ($currentSession ?? '')
@@ -122,7 +124,7 @@
             'JAMB admission letter' => $documentRecords->has('jamb_admission'),
             'Primary school certificate' => $documentRecords->has('primary_cert'),
             'Indigene certificate' => $documentRecords->has('indigine'),
-            'Passport photograph' => !empty($row->picture) || $documentRecords->has('passport_photo'),
+            'Passport photograph (new upload)' => $profileIsSubmitted || $profilePhotoUpdatedForCurrentSubmission,
             'Digital signature' => !empty($row->signiture) || $documentRecords->has('signiture'),
         ],
         'Bank details' => [
@@ -1102,7 +1104,7 @@
                                             <section class="sp-media-card">
                                                 <div class="sp-media-heading">
                                                     <span class="sp-media-icon"><i class="fas fa-camera"></i></span>
-                                                    <div><h5>Passport photograph <span class="text-danger">*</span></h5><p>Use a clear, front-facing passport photograph.</p></div>
+                                                    <div><h5>Passport photograph <span class="text-danger">*</span></h5><p>Upload a clear, front-facing passport photograph. A new photo is required for this profile update.</p></div>
                                                 </div>
                                                 <div class="sp-photo-editor">
                                                     <div class="sp-photo-frame"><img id="profile-photo-preview" src="{{ $profilePhotoUrl }}" alt="Profile photo preview"></div>
@@ -1114,10 +1116,9 @@
                                                         <input type="file" class="d-none" id="picture" name="picture" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
                                                         <div class="sp-photo-actions">
                                                             <button type="button" class="btn btn-primary" id="process-profile-photo"><i class="fas fa-wand-magic-sparkles"></i> Prepare this photo and show preview</button>
-                                                            <button type="button" class="btn btn-light" id="process-current-photo"><i class="fas fa-rotate"></i> Prepare my current photo</button>
                                                         </div>
                                                         <div id="photo-processing-status" class="sp-media-status" role="status"></div>
-                                                        <small class="sp-help">One face only. The background is cleaned, the image is cropped to the shoulders and saved below 200 KB. Review the preview before updating.</small>
+                                                        <small class="sp-help">One face only. The background is cleaned, the image is cropped to the shoulders and saved below 200 KB. Review the preview before updating. Existing photos cannot be reused.</small>
                                                     </div>
                                                 </div>
                                                 <div class="sp-camera-modal" id="profile-camera-modal" hidden>
