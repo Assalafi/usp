@@ -285,6 +285,9 @@
                                 </tbody>
                             </table>
                         </div>
+                        @if (method_exists($data, 'links'))
+                            <div class="d-flex justify-content-center mt-3">{{ $data->links() }}</div>
+                        @endif
                         <!-- [ Data table ] end -->
                     </div>
                 </div>

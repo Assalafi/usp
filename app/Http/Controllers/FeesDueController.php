@@ -37,7 +37,7 @@ class FeesDueController extends Controller
             // If RRR is provided, search only by RRR and ignore other filters
             if ($rrr) {
                 $query = DB::table($this->table)->where('rrr', 'LIKE', '%' . $rrr . '%');
-                $data['data'] = $query->get();
+                $data['data'] = $query->paginate(100)->withQueryString();
             } else {
                 if($fac == 'none'){
                     unset($data['faculty']);
@@ -52,12 +52,12 @@ class FeesDueController extends Controller
                     $query->where($key, $value);
                 }
                 if($fac == 'none'){
-                    $data['data'] = $query->where(['status' => 'Paid'])->get();
+                    $data['data'] = $query->where(['status' => 'Paid'])->paginate(100)->withQueryString();
                 }else{
                     if($status == 'Pending'){
-                        $data['data'] = $query->get();
+                        $data['data'] = $query->paginate(100)->withQueryString();
                     }else{
-                        $data['data'] = $query->whereBetween('updated_at', [$start,$end])->get();
+                        $data['data'] = $query->whereBetween('updated_at', [$start,$end])->paginate(100)->withQueryString();
                     }
 
                 }
@@ -68,7 +68,7 @@ class FeesDueController extends Controller
             $data['school'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'UNIVERSITY OF MAIDUGURI-1000127 FEES', 'session' => $selectedSession])->whereBetween('updated_at', [$start,$end])->sum('amount');
         }else{
 
-            $data['data'] = DB::table($this->table)->where(['status' => 'Paid', 'session' => $selectedSession])->get();
+            $data['data'] = DB::table($this->table)->where(['status' => 'Paid', 'session' => $selectedSession])->paginate(100)->withQueryString();
 
             $data['hostel'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => $selectedSession])->sum('amount');
             $data['school'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'UNIVERSITY OF MAIDUGURI-1000127 FEES', 'session' => $selectedSession])->sum('amount');
