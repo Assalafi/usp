@@ -49,26 +49,22 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                     s.level,
                     s.session_of_entry,
                     CASE
-                        WHEN s.session_of_entry = ? THEN COALESCE(MAX(new_fees.amount), 0)
-                        ELSE COALESCE(MAX(returning_fees.amount), 0)
+                        WHEN s.session_of_entry = ? THEN
+                            COALESCE((SELECT amount FROM school_fees
+                             WHERE program = s.program AND level = s.level
+                             AND type = 'NEW' LIMIT 1), 0)
+                        ELSE
+                            COALESCE((SELECT amount FROM school_fees
+                             WHERE program = s.program AND level = s.level
+                             AND type = 'RETURNING'
+                             ORDER BY amount DESC LIMIT 1), 0)
                     END AS required_amount,
                     COALESCE(SUM(i.amount), 0) AS invoices_amount
                 FROM
                     students s
                 JOIN
                     invoices i ON s.user_id = i.username
-                LEFT JOIN (
-                    SELECT program, level, MAX(amount) AS amount
-                    FROM school_fees
-                    WHERE type = 'NEW'
-                    GROUP BY program, level
-                ) new_fees ON new_fees.program = s.program AND new_fees.level = s.level
-                LEFT JOIN (
-                    SELECT program, level, MAX(amount) AS amount
-                    FROM school_fees
-                    WHERE type = 'RETURNING'
-                    GROUP BY program, level
-                ) returning_fees ON returning_fees.program = s.program AND returning_fees.level = s.level
+
                 WHERE
                     i.session = ?
                     AND i.status = 'Paid'
