@@ -8,6 +8,22 @@
     $historyValue = is_numeric($historyCgpa ?? null) ? number_format((float) $historyCgpa, 2) : '-';
     $calculatedValue = is_numeric($calculatedCgpa ?? null) ? number_format((float) $calculatedCgpa, 2) : '-';
     $metricLabel = ($isAllSessions ?? false) ? 'CGPA' : 'GPA';
+    $approvalLabel = static function ($approval): string {
+        $approval = strtolower(trim((string) $approval));
+        return match ($approval) {
+            'system' => 'System recorded',
+            'lecturer' => 'Lecturer submitted',
+            'hod' => 'HOD approved',
+            'dean' => 'Dean approved',
+            'cs', 'course system' => 'Course System approved',
+            'provost' => 'Provost approved',
+            'registrar' => 'Registrar approved',
+            'senate' => 'Senate approved',
+            'vc', 'approved', 'approve' => 'VC approved',
+            '' => 'Pending approval',
+            default => ucwords(str_replace(['_', '-'], ' ', $approval)),
+        };
+    };
     $gradeTone = static function ($grade): string {
         $grade = strtoupper((string) $grade);
         return $grade === 'F' ? 'fail' : (in_array($grade, ['A', 'B', 'C', 'D', 'E'], true) ? 'pass' : 'pending');
@@ -15,25 +31,25 @@
 @endphp
 
 <div class="admin-results-summary">
-    <article><span class="admin-results-stat-icon blue"><i class="fas fa-book-open"></i></span><div><strong>{{ $courseCount }}</strong><small>Approved courses</small></div></article>
+    <article><span class="admin-results-stat-icon blue"><i class="fas fa-book-open"></i></span><div><strong>{{ $courseCount }}</strong><small>Recorded courses</small></div></article>
     <article><span class="admin-results-stat-icon green"><i class="fas fa-circle-check"></i></span><div><strong>{{ $passedCount }}</strong><small>Passed</small></div></article>
     <article><span class="admin-results-stat-icon red"><i class="fas fa-circle-exclamation"></i></span><div><strong>{{ $failedCount }}</strong><small>Carryovers</small></div></article>
     <article><span class="admin-results-stat-icon purple"><i class="fas fa-layer-group"></i></span><div><strong>{{ number_format((float) ($calculationUnits ?? 0), 0) }}</strong><small>{{ $isAllSessions ? 'Result units' : 'Course units' }}</small></div></article>
 </div>
 
 <section class="admin-results-card admin-grade-summary">
-    <div class="admin-results-section-heading"><div><span>GRADE SUMMARY</span><h2>{{ $displaySessionLabel }}</h2><p>Approved results recorded for this selection.</p></div><div class="admin-results-gpa"><div><small>Recorded {{ $metricLabel }}</small><strong>{{ $historyValue }}</strong></div><div><small>Calculated {{ $metricLabel }}</small><strong>{{ $calculatedValue }}</strong></div></div></div>
+    <div class="admin-results-section-heading"><div><span>GRADE SUMMARY</span><h2>{{ $displaySessionLabel }}</h2><p>Results recorded at every approval stage for this selection.</p></div><div class="admin-results-gpa"><div><small>Recorded {{ $metricLabel }}</small><strong>{{ $historyValue }}</strong></div><div><small>Calculated {{ $metricLabel }}</small><strong>{{ $calculatedValue }}</strong></div></div></div>
     <div class="admin-grade-grid">
         @foreach ($gradeOrder as $grade)
             <div class="admin-grade-chip grade-{{ strtolower($grade) }}"><b>{{ $grade }}</b><strong>{{ $gradeCounts[$grade] ?? 0 }}</strong><small>{{ $grade === 'F' ? 'Carryover' : 'Grade' }}</small></div>
         @endforeach
     </div>
-    <div class="admin-results-foot"><span><i class="fas fa-cubes"></i> {{ number_format((float) ($calculationUnits ?? 0), 0) }} units</span><span><i class="fas fa-check"></i> {{ $passedCount }} passed</span><span><i class="fas fa-rotate"></i> {{ $failedCount }} carryover</span><span><i class="fas fa-shield-check"></i> Approved only</span></div>
+    <div class="admin-results-foot"><span><i class="fas fa-cubes"></i> {{ number_format((float) ($calculationUnits ?? 0), 0) }} units</span><span><i class="fas fa-check"></i> {{ $passedCount }} passed</span><span><i class="fas fa-rotate"></i> {{ $failedCount }} carryover</span><span><i class="fas fa-list-check"></i> All approval stages</span></div>
 </section>
 
 @if ($studentResults->isNotEmpty())
     <section class="admin-results-card">
-        <div class="admin-results-section-heading"><div><span>COURSE GRADES</span><h2>Results at a glance</h2><p>Course codes and final grades for {{ strtolower($displaySessionLabel) }}.</p></div><span class="admin-results-count">{{ $courseCount }} results</span></div>
+        <div class="admin-results-section-heading"><div><span>COURSE GRADES</span><h2>Results at a glance</h2><p>Course codes and grades for {{ strtolower($displaySessionLabel) }}, at every approval stage.</p></div><span class="admin-results-count">{{ $courseCount }} results</span></div>
         <div class="admin-course-grade-grid">
             @foreach ($studentResults as $result)
                 @php $grade = strtoupper((string) ($result->grade ?? '')); @endphp
@@ -56,7 +72,11 @@
                                 <article class="admin-detail-course">
                                     <div class="admin-detail-top"><div><strong>{{ $result->code }}</strong><small>{{ $result->course_title ?? $result->title ?? 'Course title not available' }}</small></div><b class="admin-grade-pill {{ $gradeTone($grade) }} grade-{{ strtolower($grade ?: 'pending') }}">{{ $grade ?: '—' }}</b></div>
                                     <div class="admin-marks"><div><small>CA</small><strong>{{ $result->ca ?? '—' }}</strong></div><div><small>Exam</small><strong>{{ $result->exam ?? '—' }}</strong></div><div><small>Total</small><strong>{{ $result->total ?? '—' }}</strong></div></div>
-                                    <div class="admin-detail-meta"><span><i class="fas fa-cubes"></i> {{ $isAllSessions ? ($result->unit ?? '—') . ' result unit' : ($result->course_unit ?? '—') . ' course unit' }}</span><span><i class="fas fa-calendar"></i> {{ $semester ?: 'Not specified' }}</span><span class="approved"><i class="fas fa-shield-check"></i> Approved</span></div>
+                                    @php
+                                        $approval = strtolower(trim((string) ($result->approve ?? '')));
+                                        $approvalClass = in_array($approval, ['vc', 'approved', 'approve', 'senate'], true) ? 'approved' : 'pending';
+                                    @endphp
+                                    <div class="admin-detail-meta"><span><i class="fas fa-cubes"></i> {{ $isAllSessions ? ($result->unit ?? '—') . ' result unit' : ($result->course_unit ?? '—') . ' course unit' }}</span><span><i class="fas fa-calendar"></i> {{ $semester ?: 'Not specified' }}</span><span class="{{ $approvalClass }}"><i class="fas fa-shield-halved"></i> {{ $approvalLabel($result->approve ?? null) }}</span></div>
                                 </article>
                             @endforeach
                         </div>
@@ -66,5 +86,5 @@
         @endforeach
     </section>
 @else
-    <div class="admin-results-empty"><i class="fas fa-file-circle-question"></i><h3>No approved results for this session</h3><p>Choose another session to view published results.</p></div>
+    <div class="admin-results-empty"><i class="fas fa-file-circle-question"></i><h3>No recorded results for this session</h3><p>Choose another session to view the results recorded so far.</p></div>
 @endif

@@ -17,8 +17,7 @@ class AdminStudentResultsController extends Controller
         $isAllSessions = strtolower($selectedSession) === 'all';
         $resultsQuery = DB::table('results')
             ->leftJoin('course', 'results.code', '=', 'course.code')
-            ->where('results.username', $student->username)
-            ->where('results.approve', 'vc');
+            ->where('results.username', $student->username);
 
         if (!$isAllSessions) {
             $resultsQuery->where('results.session', $selectedSession);
