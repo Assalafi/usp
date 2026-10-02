@@ -198,17 +198,25 @@
                                                 @endif
                                             </td>
                                             <td>
-
-                                                @if ($row->gender == 'M')
-                                                    {{ 'Male' }}
+                                                @php($gender = strtoupper(trim((string) ($row->gender ?? ''))))
+                                                @if (in_array($gender, ['M', 'MALE'], true))
+                                                    Male
+                                                @elseif (in_array($gender, ['F', 'FEMALE'], true))
+                                                    Female
                                                 @else
-                                                    {{ 'Female' }}
+                                                    {{ $row->gender ?: 'Not provided' }}
                                                 @endif
                                             </td>
                                             <td>
                                                 <a href="/student details/{{ $row->id }}"
                                                     class="btn btn-icon btn-success btn-sm viewAction">
                                                     <i class="fas fa-eye"></i>
+                                                </a>
+
+                                                <a href="{{ route('admin.student.results', ['id' => $row->id]) }}"
+                                                    target="_blank" rel="noopener" class="btn btn-icon btn-info btn-sm"
+                                                    title="View approved results">
+                                                    <i class="fas fa-chart-line"></i>
                                                 </a>
 
                                                 <a href="#" class="btn btn-icon btn-primary btn-sm updateAction"

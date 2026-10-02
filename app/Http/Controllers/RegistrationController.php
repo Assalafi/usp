@@ -1658,7 +1658,6 @@ class RegistrationController extends Controller
                 ['label' => 'Nationality', 'value' => $student->country ?: 'Not provided'],
                 ['label' => 'State of origin', 'value' => $student->state_origin ?: 'Not provided'],
                 ['label' => 'LGA of origin', 'value' => $student->lga_origin ?: 'Not provided'],
-                ['label' => 'NIN', 'value' => $student->nin ?: 'Not provided'],
                 ['label' => 'Blood group', 'value' => $student->blood_group ?: 'Not provided'],
                 ['label' => 'Genotype', 'value' => $student->genotype ?: 'Not provided'],
             ],

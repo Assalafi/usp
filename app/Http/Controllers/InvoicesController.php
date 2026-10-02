@@ -31,15 +31,20 @@ class InvoicesController extends Controller
      */
     public function printReceipt($rrr)
     {
-        // Find the invoice by RRR
+        // Students use the Remita RRR. Administrators may also print a paid
+        // offline invoice by its record id, but only from an
+        // authenticated Admin/Staff session.
         $invoice = Invoice::where('rrr', $rrr)->first();
+        if (!$invoice && session()->has('log') && in_array(session('accType'), ['Admin', 'Staff'], true)) {
+            $invoice = is_numeric($rrr) ? Invoice::where('id', $rrr)->first() : null;
+        }
 
         // Check if invoice exists and is paid
         if (!$invoice) {
             return redirect()->back()->with('error', 'Invoice not found');
         }
 
-        if ($invoice->status !== 'Paid') {
+        if (!in_array(strtolower((string) $invoice->status), ['paid', 'successful', 'success'], true)) {
             return redirect()->back()->with('error', 'Receipt is only available for paid invoices');
         }
 

@@ -44,8 +44,8 @@
         $addCourses = DB::table('program_course_registration')->where('program', $row->program)->orderBy('code')->get();
 
         $invoices = DB::table('invoices')->where('username', $row->user_id)->orderByDesc('updated_at')->orderByDesc('id')->get();
-        $paidInvoices = $invoices->filter(fn ($invoice) => (string) ($invoice->status ?? '') === 'Paid');
-        $pendingInvoices = $invoices->filter(fn ($invoice) => (string) ($invoice->status ?? '') !== 'Paid');
+        $paidInvoices = $invoices->filter(fn ($invoice) => in_array(strtolower((string) ($invoice->status ?? '')), ['paid', 'successful', 'success'], true));
+        $pendingInvoices = $invoices->reject(fn ($invoice) => in_array(strtolower((string) ($invoice->status ?? '')), ['paid', 'successful', 'success'], true));
         $paidAmount = (float) $paidInvoices->sum(fn ($invoice) => (float) ($invoice->amount ?? 0));
         $pendingAmount = (float) $pendingInvoices->sum(fn ($invoice) => (float) ($invoice->amount ?? 0));
 
@@ -77,6 +77,7 @@
             </div>
             <div class="toolbar-actions">
                 <a href="{{ url('/student details pdf/' . $row->id) }}" class="student-btn student-btn-light" target="_blank"><i class="fas fa-file-pdf"></i><span>Student PDF</span></a>
+                <a href="{{ route('admin.student.results', ['id' => $row->id]) }}" class="student-btn student-btn-light" target="_blank" rel="noopener"><i class="fas fa-chart-line"></i><span>View results</span></a>
                 <a href="{{ url('/id card/' . $row->id) }}" class="student-btn student-btn-primary" target="_blank"><i class="fas fa-id-card"></i><span>ID card</span></a>
             </div>
         </div>
@@ -88,7 +89,7 @@
                     <span class="status-dot {{ $isActive ? 'active' : 'inactive' }}" title="{{ $isActive ? 'Active student' : 'Inactive student' }}"></span>
                 </div>
                 <div class="hero-copy">
-                    <div class="eyebrow">POSTGRADUATE STUDENT</div>
+                    <div class="eyebrow">UNDERGRADUATE STUDENT</div>
                     <h1>{{ $fullName }}</h1>
                     <div class="matric-number">{{ $value($row->username) }}</div>
                     <div class="hero-tags">
@@ -238,7 +239,7 @@
                     @else
                         <div class="responsive-table">
                             <table class="record-table">
-                                <thead><tr><th>Description</th><th>Session</th><th>Reference</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+                                <thead><tr><th>Description</th><th>Session</th><th>Reference</th><th>Amount</th><th>Status</th><th>Date</th><th class="text-end">Receipt</th></tr></thead>
                                 <tbody>
                                     @foreach ($invoices as $invoice)
                                         @php $invoiceStatus = strtolower((string) ($invoice->status ?? '')); @endphp
@@ -247,8 +248,16 @@
                                             <td>{{ $value($invoice->session) }}</td>
                                             <td><span class="mono">{{ $value($invoice->rrr ?? $invoice->reference ?? null) }}</span></td>
                                             <td><strong>{{ $money($invoice->amount ?? 0) }}</strong></td>
-                                            <td><span class="table-pill {{ $invoiceStatus === 'paid' ? 'success' : ($invoiceStatus === 'pending' ? 'warning' : 'muted') }}">{{ $statusLabel($invoice->status) }}</span></td>
+                                            <td><span class="table-pill {{ in_array($invoiceStatus, ['paid', 'successful', 'success'], true) ? 'success' : ($invoiceStatus === 'pending' ? 'warning' : 'muted') }}">{{ $statusLabel($invoice->status) }}</span></td>
                                             <td>{{ $value($invoice->updated_at ?? $invoice->created_at) }}</td>
+                                            <td class="text-end">
+                                                @if (in_array($invoiceStatus, ['paid', 'successful', 'success'], true))
+                                                    @php($receiptReference = $invoice->rrr ?: $invoice->id)
+                                                    <a class="table-action" href="{{ route('print.receipt', ['rrr' => $receiptReference]) }}" target="_blank" rel="noopener" title="Open payment receipt"><i class="fas fa-file-invoice"></i> Receipt</a>
+                                                @else
+                                                    <span class="table-pill muted">Not available</span>
+                                                @endif
+                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -307,6 +316,7 @@
     </div>
 
     <style>
+        .admin-student-page .hero-copy h1{color:#fff}
         .admin-student-page{--student-blue:#2563eb;--student-deep:#172554;--student-ink:#172033;--student-muted:#718096;--student-border:#e6ebf2;--student-bg:#f5f7fb;color:var(--student-ink);padding:clamp(14px,2.6vw,30px);background:var(--student-bg);min-height:calc(100vh - 70px)}
         .admin-student-page *{box-sizing:border-box}.admin-student-page h1,.admin-student-page h2,.admin-student-page h3,.admin-student-page h5,.admin-student-page p{margin-top:0}
         .student-toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:0 auto 18px;max-width:1440px}.toolbar-title{display:flex;align-items:center;gap:12px;color:#667085;font-size:.88rem}.back-link{display:inline-flex;gap:8px;align-items:center;color:var(--student-blue);font-weight:700;text-decoration:none}.back-link:hover{color:#1d4ed8}.toolbar-divider{height:20px;width:1px;background:#d5dce7}.toolbar-actions{display:flex;gap:8px;flex-wrap:wrap}

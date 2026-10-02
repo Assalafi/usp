@@ -30,6 +30,7 @@ use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentIdCardController;
 use App\Http\Controllers\StudentCourseRegistrationController;
 use App\Http\Controllers\StudentResultsController;
+use App\Http\Controllers\AdminStudentResultsController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\IdCardFeesController;
 use App\Models\ProgramCourseRegistration;
@@ -714,6 +715,12 @@ Route::get('/student details/{id}', function ($id) {
     }
     return view('main', ['page' => 'student details', 'id' => $id]);
 })->middleware('role');
+Route::get('/admin/student-results/{id}', [AdminStudentResultsController::class, 'show'])
+    ->name('admin.student.results')
+    ->middleware('role');
+Route::get('/admin/student-results/{id}/data', [AdminStudentResultsController::class, 'data'])
+    ->name('admin.student.results.data')
+    ->middleware('role');
 Route::get('/profile', function () {
     if (!session()->has('log')) {
         return redirect('/');
