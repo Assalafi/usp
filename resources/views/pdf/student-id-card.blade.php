@@ -9,14 +9,14 @@
         body { font-family: "DejaVu Sans", sans-serif; font-size: 6pt; color: #172e45; }
         .card { position: relative; width: 53.98mm; height: 85.59mm; background: #fff; }
         .back { page-break-before: always; }
-        .header { position: absolute; top: 0; left: 0; width: 53.98mm; height: 17.2mm; background: #123451; }
+        .header { position: absolute; top: 0; left: 0; width: 53.98mm; height: 17.2mm; background: #3ea1e4; }
         .crest { position: absolute; left: 3.3mm; top: 2.9mm; width: 9mm; height: 11mm; background: #fff; border-radius: 1mm; }
         .crest img, .photo img, .signature-image img { position: absolute; display: block; }
         .university { position: absolute; left: 14.3mm; top: 3.4mm; color: #fff; font-weight: bold; line-height: 1.2; }
         .university .overline { font-size: 7.2pt; }
         .university .title { font-size: 10.2pt; }
         .address { position: absolute; left: 14.3mm; top: 12.4mm; color: #d5e7f5; font-size: 4.55pt; }
-        .type-band { position: absolute; left: 0; top: 17.2mm; width: 53.98mm; height: 5.3mm; background: #3ea1e4; text-align: center; }
+        .type-band { position: absolute; left: 0; top: 17.2mm; width: 53.98mm; height: 5.3mm; background: #123451; text-align: center; }
         .type-band span { display: block; margin-top: .8mm; color: #fff; font-size: 6pt; font-weight: bold; letter-spacing: .45pt; }
         .portrait-tint { position: absolute; left: 0; top: 22.5mm; width: 53.98mm; height: 15mm; background: #eaf4fb; }
         .photo-border { position: absolute; left: 15.79mm; top: 23.55mm; width: 22mm; height: 23.5mm; border: .2mm solid #bccfdf; background: #fff; }
