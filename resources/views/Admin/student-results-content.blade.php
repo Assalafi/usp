@@ -36,7 +36,7 @@
         <div class="admin-results-section-heading"><div><span>COURSE GRADES</span><h2>Results at a glance</h2><p>Course codes and final grades for {{ strtolower($displaySessionLabel) }}.</p></div><span class="admin-results-count">{{ $courseCount }} results</span></div>
         <div class="admin-course-grade-grid">
             @foreach ($studentResults as $result)
-                @php($grade = strtoupper((string) ($result->grade ?? '')))
+                @php $grade = strtoupper((string) ($result->grade ?? '')); @endphp
                 <div class="admin-course-grade"><div><strong>{{ $result->code }}</strong><small>{{ $result->course_title ?? $result->title ?? 'Course title not available' }}{{ ($isAllSessions ?? false) && $result->session ? ' · ' . $result->session : '' }}</small></div><b class="admin-grade-pill {{ $gradeTone($grade) }} grade-{{ strtolower($grade ?: 'pending') }}">{{ $grade ?: '—' }}</b></div>
             @endforeach
         </div>
@@ -52,7 +52,7 @@
                         <div class="admin-semester-label"><span>{{ $semester ?: 'Semester not specified' }}</span><b>{{ $semesterResults->count() }} result{{ $semesterResults->count() === 1 ? '' : 's' }}</b></div>
                         <div class="admin-detailed-grid">
                             @foreach ($semesterResults as $result)
-                                @php($grade = strtoupper((string) ($result->grade ?? '')))
+                                @php $grade = strtoupper((string) ($result->grade ?? '')); @endphp
                                 <article class="admin-detail-course">
                                     <div class="admin-detail-top"><div><strong>{{ $result->code }}</strong><small>{{ $result->course_title ?? $result->title ?? 'Course title not available' }}</small></div><b class="admin-grade-pill {{ $gradeTone($grade) }} grade-{{ strtolower($grade ?: 'pending') }}">{{ $grade ?: '—' }}</b></div>
                                     <div class="admin-marks"><div><small>CA</small><strong>{{ $result->ca ?? '—' }}</strong></div><div><small>Exam</small><strong>{{ $result->exam ?? '—' }}</strong></div><div><small>Total</small><strong>{{ $result->total ?? '—' }}</strong></div></div>

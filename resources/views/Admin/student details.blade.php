@@ -252,7 +252,7 @@
                                             <td>{{ $value($invoice->updated_at ?? $invoice->created_at) }}</td>
                                             <td class="text-end">
                                                 @if (in_array($invoiceStatus, ['paid', 'successful', 'success'], true))
-                                                    @php($receiptReference = $invoice->rrr ?: $invoice->id)
+                                                    @php $receiptReference = $invoice->rrr ?: $invoice->id; @endphp
                                                     <a class="table-action" href="{{ route('print.receipt', ['rrr' => $receiptReference]) }}" target="_blank" rel="noopener" title="Open payment receipt"><i class="fas fa-file-invoice"></i> Receipt</a>
                                                 @else
                                                     <span class="table-pill muted">Not available</span>

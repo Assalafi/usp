@@ -198,7 +198,7 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                @php($gender = strtoupper(trim((string) ($row->gender ?? ''))))
+                                                @php $gender = strtoupper(trim((string) ($row->gender ?? ''))); @endphp
                                                 @if (in_array($gender, ['M', 'MALE'], true))
                                                     Male
                                                 @elseif (in_array($gender, ['F', 'FEMALE'], true))
