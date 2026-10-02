@@ -40,7 +40,7 @@
         .edge { position: absolute; left: 0; top: 84.5mm; width: 53.98mm; height: 1.1mm; background: #123451; }
         .edge-accent { position: absolute; left: 0; top: 84.5mm; width: 17mm; height: 1.1mm; background: #3ea1e4; }
 
-        .back-heading { position: absolute; left: 0; top: 0; width: 53.98mm; height: 8.5mm; background: #123451; text-align: center; color: #fff; }
+        .back-heading { position: absolute; left: 0; top: 0; width: 53.98mm; height: 8.5mm; background: #3ea1e4; text-align: center; color: #fff; }
         .back-heading .heading { margin-top: 1.7mm; font-size: 6.5pt; font-weight: bold; letter-spacing: .35pt; }
         .back-heading .subheading { margin-top: .35mm; font-size: 4.3pt; color: #c9e2f5; letter-spacing: .6pt; }
         .ownership { position: absolute; left: 3.49mm; top: 11.1mm; width: 47mm; font-size: 5.65pt; line-height: 1.25; color: #334e65; }
