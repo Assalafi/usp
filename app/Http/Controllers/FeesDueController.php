@@ -161,9 +161,18 @@ class FeesDueController extends Controller
                 'count' => (int) ($schoolTotals['students'] ?? 0),
             ]);
         }
+        $hostelPinCount = DB::table('hostel_pin')
+            ->where('flag', 1)
+            ->where('username', '!=', 'Awaiting')
+            ->count();
+        $hostelPinSummary = [
+            'count' => (int) $hostelPinCount,
+            'amount' => (float) $hostelPinCount * 2000,
+        ];
         $paymentSummary = $paymentSummary->sortByDesc('amount')->values();
         $data['payment_summary'] = $paymentSummary;
-        $data['payment_summary_total'] = (float) $paymentSummary->sum('amount');
+        $data['hostel_pin_summary'] = $hostelPinSummary;
+        $data['payment_summary_total'] = (float) $paymentSummary->sum('amount') + (float) $hostelPinSummary['amount'];
         $data['school_fee_totals'] = $schoolTotals;
         $data['fee_sponsor_summary'] = $sponsorTotals;
         $data['fee_unpaid_summary'] = $unpaidTotals;

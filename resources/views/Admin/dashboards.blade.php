@@ -6,12 +6,17 @@
     use App\Models\Alumni;
     use Illuminate\Support\Facades\DB;
     use App\Exports\PaidStudentsExport;
+    use App\Exports\UnpaidStudentsExport;
     $fetching_session = \App\Http\Controllers\SystemSettingsController::getHostelFeesSession();
-    $hostelFees = DB::table('invoices')
+    $hostelFeeStudents = DB::table('invoices')
         ->where(['status' => 'Paid', 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => $fetching_session])
-        ->sum('amount');
+        ->select('username')
+        ->distinct()
+        ->count('username');
     $schoolFeesSession = \App\Http\Controllers\SystemSettingsController::getSchoolFeesSession();
-    $schoolFees = PaidStudentsExport::paidTotals($schoolFeesSession)['amount_paid'];
+    $schoolFeeTotals = PaidStudentsExport::paidTotals($schoolFeesSession);
+    $schoolFeeStudents = (int) ($schoolFeeTotals['students'] ?? 0);
+    $unpaidStudentCount = (int) UnpaidStudentsExport::summaryTotals($schoolFeesSession)['students'];
     $pin = HostelPin::where(['flag' => 1])
         ->where('username', '!=', 'Awaiting')
         ->count();
@@ -54,8 +59,8 @@
                 <div class="col-sm-6 col-md-6 col-xl-3">
                     <div class="card bg-c-blue bitcoin-wallet">
                         <div class="card-block">
-                            <h5 class="text-white mb-2">Paid Student Fees</h5>
-                            <h3 class="text-white mb-2 f-w-300">N{{ number_format($schoolFees, 2) }}</h3>
+                            <h5 class="text-white mb-2">Students Who Paid School Fees</h5>
+                            <h3 class="text-white mb-2 f-w-300">{{ number_format($schoolFeeStudents) }}</h3>
                             <i class="fas fa-money-bill-wave f-70 text-white"></i>
                         </div>
                     </div>
@@ -65,8 +70,8 @@
                 <div class="col-sm-6 col-md-6 col-xl-3">
                     <div class="card bg-c-blue bitcoin-wallet">
                         <div class="card-block">
-                            <h5 class="text-white mb-2">Unpaid Student Fees</h5>
-                            <h3 class="text-white mb-2 f-w-300">0</h3>
+                            <h5 class="text-white mb-2">Students With Unpaid Fees</h5>
+                            <h3 class="text-white mb-2 f-w-300">{{ number_format($unpaidStudentCount) }}</h3>
                             <i class="fas fa-money-bill-wave f-70 text-white"></i>
                         </div>
                     </div>
@@ -76,8 +81,8 @@
                 <div class="col-sm-6 col-md-6 col-xl-3">
                     <div class="card theme-bg bitcoin-wallet">
                         <div class="card-block">
-                            <h5 class="text-white mb-2">Paid Hostel PIN</h5>
-                            <h3 class="text-white mb-2 f-w-300">N{{ number_format($pin * 2000, 2) }}</h3>
+                            <h5 class="text-white mb-2">Students Who Paid Hostel PIN</h5>
+                            <h3 class="text-white mb-2 f-w-300">{{ number_format($pin) }}</h3>
                             <i class="fas fa-bed f-70 text-white"></i>
                         </div>
                     </div>
@@ -87,8 +92,8 @@
                 <div class="col-sm-6 col-md-6 col-xl-3">
                     <div class="card theme-bg bitcoin-wallet">
                         <div class="card-block">
-                            <h5 class="text-white mb-2">Paid Hostel Fees</h5>
-                            <h3 class="text-white mb-2 f-w-300">N{{ number_format($hostelFees, 2) }}</h3>
+                            <h5 class="text-white mb-2">Students Who Paid Hostel Fees</h5>
+                            <h3 class="text-white mb-2 f-w-300">{{ number_format($hostelFeeStudents) }}</h3>
                             <i class="fas fa-bed f-70 text-white"></i>
                         </div>
                     </div>
@@ -98,7 +103,7 @@
                 <div class="col-sm-6 col-md-6 col-xl-3">
                     <div class="card theme-bg bitcoin-wallet">
                         <div class="card-block">
-                            <h5 class="text-white mb-2">Paid Certificate Fees</h5>
+                            <h5 class="text-white mb-2">Students Who Paid Certificate Fees</h5>
                             <h3 class="text-white mb-2 f-w-300">0</h3>
                             <i class="fas fa-certificate f-70 text-white"></i>
                         </div>
@@ -109,7 +114,7 @@
                 <div class="col-sm-6 col-md-6 col-xl-3">
                     <div class="card theme-bg bitcoin-wallet">
                         <div class="card-block">
-                            <h5 class="text-white mb-2">Paid Transcript Fees</h5>
+                            <h5 class="text-white mb-2">Students Who Paid Transcript Fees</h5>
                             <h3 class="text-white mb-2 f-w-300">0</h3>
                             <i class="fas fa-address-card f-70 text-white"></i>
                         </div>

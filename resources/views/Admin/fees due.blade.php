@@ -31,7 +31,8 @@
     $selfSponsor = $sponsorSummary['self'] ?? ['students' => 0, 'required_amount' => 0, 'amount_paid' => 0, 'outstanding_amount' => 0, 'fully_paid' => 0];
     $nelfundRate = ($nelfund['required_amount'] ?? 0) > 0 ? min(100, (($nelfund['amount_paid'] ?? 0) / $nelfund['required_amount']) * 100) : 0;
     $selfRate = ($selfSponsor['required_amount'] ?? 0) > 0 ? min(100, (($selfSponsor['amount_paid'] ?? 0) / $selfSponsor['required_amount']) * 100) : 0;
-    $paymentRecords = (int) collect($payment_summary ?? [])->sum('count');
+    $hostelPinSummary = $hostel_pin_summary ?? [];
+    $paymentRecords = (int) collect($payment_summary ?? [])->sum('count') + (int) ($hostelPinSummary['count'] ?? 0);
 @endphp
 
 <div class="fees-dashboard">
@@ -54,7 +55,7 @@
     </div>
 
     <div class="fees-kpis">
-        <div class="fees-kpi blue"><div class="fees-kpi-label">Total collected</div><div class="fees-kpi-value">N{{ number_format((float) ($payment_summary_total ?? 0), 2) }}</div><div class="fees-kpi-note">All paid payment descriptions, excluding refunds</div></div>
+        <div class="fees-kpi blue"><div class="fees-kpi-label">Total collected</div><div class="fees-kpi-value">N{{ number_format((float) ($payment_summary_total ?? 0), 2) }}</div><div class="fees-kpi-note">All paid services and validated hostel PINs</div></div>
         <div class="fees-kpi red"><div class="fees-kpi-label">Active outstanding</div><div class="fees-kpi-value">N{{ number_format((float) ($unpaidSummary['outstanding_amount'] ?? 0), 2) }}</div><div class="fees-kpi-note">{{ number_format((int) ($unpaidSummary['students'] ?? 0)) }} active student{{ (($unpaidSummary['students'] ?? 0) == 1) ? '' : 's' }} still owing</div></div>
         <div class="fees-kpi green"><div class="fees-kpi-label">Programme fees paid</div><div class="fees-kpi-value">N{{ number_format((float) ($schoolFeeTotals['amount_paid'] ?? 0), 2) }}</div><div class="fees-kpi-note">Validated school-fee collection</div></div>
         <div class="fees-kpi amber"><div class="fees-kpi-label">Paid payment records</div><div class="fees-kpi-value">{{ number_format($paymentRecords) }}</div><div class="fees-kpi-note">Across all services in this session</div></div>
@@ -99,14 +100,17 @@
     <div class="row g-3 mt-1">
         <div class="col-lg-6">
             <div class="fees-panel">
-                <div class="fees-panel-title"><div><h5>Paid payments by description</h5><small>Every paid invoice except refunds</small></div><i class="fas fa-list-alt text-primary"></i></div>
+                <div class="fees-panel-title"><div><h5>Paid payments by description</h5><small>Every paid invoice and validated hostel PIN</small></div><i class="fas fa-list-alt text-primary"></i></div>
                 <div class="table-responsive"><table class="fees-table"><thead><tr><th>Description</th><th>Records / students</th><th class="text-end">Amount</th></tr></thead><tbody>
                     @forelse (($payment_summary ?? collect()) as $summary)
                         <tr><td class="text-wrap" style="min-width:180px">{{ $summary['description'] }}</td><td>{{ number_format((int) ($summary['count'] ?? 0)) }}</td><td class="amount text-end">N{{ number_format((float) $summary['amount'], 2) }}</td></tr>
                     @empty
                         <tr><td colspan="3" class="text-center muted py-4">No paid payments found for this session.</td></tr>
                     @endforelse
-                    <tr><td><strong>Total collected</strong></td><td><strong>{{ number_format((int) collect($payment_summary ?? [])->sum('count')) }}</strong></td><td class="amount text-end"><strong>N{{ number_format((float) ($payment_summary_total ?? 0), 2) }}</strong></td></tr>
+                    @if (($hostelPinSummary['count'] ?? 0) > 0)
+                        <tr><td><span class="badge bg-light text-dark">HOSTEL PIN</span><small class="d-block text-muted">Validated PIN records</small></td><td>{{ number_format((int) ($hostelPinSummary['count'] ?? 0)) }}</td><td class="amount text-end">N{{ number_format((float) ($hostelPinSummary['amount'] ?? 0), 2) }}</td></tr>
+                    @endif
+                    <tr><td><strong>Total collected</strong></td><td><strong>{{ number_format($paymentRecords) }}</strong></td><td class="amount text-end"><strong>N{{ number_format((float) ($payment_summary_total ?? 0), 2) }}</strong></td></tr>
                 </tbody></table></div>
             </div>
         </div>
