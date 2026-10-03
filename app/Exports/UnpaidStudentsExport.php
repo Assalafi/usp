@@ -70,10 +70,14 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
                     COALESCE(history_activity.history_count, 0) AS history_count
                 FROM students s
                 LEFT JOIN (
-                    SELECT program, level, MAX(amount) AS amount
-                    FROM school_fees
-                    WHERE type = 'NEW'
-                    GROUP BY program, level
+                    SELECT first_new.program, first_new.level, sf.amount
+                    FROM (
+                        SELECT program, level, MIN(id) AS id
+                        FROM school_fees
+                        WHERE type = 'NEW'
+                        GROUP BY program, level
+                    ) first_new
+                    INNER JOIN school_fees sf ON sf.id = first_new.id
                 ) new_fees ON new_fees.program = s.program AND new_fees.level = s.level
                 LEFT JOIN (
                     SELECT program, level, MAX(amount) AS amount
@@ -161,6 +165,111 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
         return $rows;
     }
 
+    /**
+     * Fast, read-only summary of active students whose programme fee is not
+     * fully paid. Results and session history are both treated as activity,
+     * matching the unpaid export definition.
+     */
+    public static function summaryByLevel(string $session, string $feesType = ''): array
+    {
+        $programmeFee = 'UNIVERSITY OF MAIDUGURI-1000127 FEES';
+        $sponsorSql = '';
+        $params = [$session, $session, $programmeFee];
+
+        if ($feesType === 'nelfund') {
+            $sponsorSql = ' AND i.fees_type = ?';
+            $params[] = 'nelfund';
+        } elseif ($feesType === 'others') {
+            $sponsorSql = ' AND (i.fees_type <> ? OR i.fees_type IS NULL)';
+            $params[] = 'nelfund';
+        }
+
+        $params[] = $session;
+        $params[] = $session;
+
+        $query = "
+            SELECT active.level,
+                   COUNT(*) AS students,
+                   COALESCE(SUM(active.required_amount), 0) AS required_amount,
+                   COALESCE(SUM(active.amount_paid), 0) AS amount_paid,
+                   COALESCE(SUM(GREATEST(active.required_amount - active.amount_paid, 0)), 0) AS outstanding_amount
+            FROM (
+                SELECT
+                    s.level,
+                    CASE
+                        WHEN s.session_of_entry = ? THEN COALESCE(new_fees.amount, 0)
+                        ELSE COALESCE(returning_fees.amount, 0)
+                    END AS required_amount,
+                    COALESCE(paid.amount_paid, 0) AS amount_paid
+                FROM students s
+                LEFT JOIN (
+                    SELECT first_new.program, first_new.level, sf.amount
+                    FROM (
+                        SELECT program, level, MIN(id) AS id
+                        FROM school_fees
+                        WHERE type = 'NEW'
+                        GROUP BY program, level
+                    ) first_new
+                    INNER JOIN school_fees sf ON sf.id = first_new.id
+                ) new_fees ON new_fees.program = s.program AND new_fees.level = s.level
+                LEFT JOIN (
+                    SELECT program, level, MAX(amount) AS amount
+                    FROM school_fees
+                    WHERE type = 'RETURNING'
+                    GROUP BY program, level
+                ) returning_fees ON returning_fees.program = s.program AND returning_fees.level = s.level
+                LEFT JOIN (
+                    SELECT i.username, SUM(COALESCE(i.amount, 0)) AS amount_paid
+                    FROM invoices i
+                    WHERE i.session = ?
+                      AND i.status = 'Paid'
+                      AND i.description = ?
+                      {$sponsorSql}
+                    GROUP BY i.username
+                ) paid ON paid.username = s.user_id
+                LEFT JOIN (
+                    SELECT username, COUNT(*) AS result_count
+                    FROM results
+                    WHERE session = ?
+                    GROUP BY username
+                ) results_activity ON results_activity.username = s.username
+                LEFT JOIN (
+                    SELECT username, COUNT(*) AS history_count
+                    FROM session_history
+                    WHERE session = ?
+                    GROUP BY username
+                ) history_activity ON history_activity.username = s.username
+                WHERE results_activity.username IS NOT NULL
+                   OR history_activity.username IS NOT NULL
+            ) active
+            WHERE active.required_amount > 0
+              AND active.amount_paid < active.required_amount
+            GROUP BY active.level
+            ORDER BY active.level
+        ";
+
+        return array_map(static function ($row): array {
+            return [
+                'level' => (string) ($row->level ?? 'Not set'),
+                'students' => (int) ($row->students ?? 0),
+                'required_amount' => (float) ($row->required_amount ?? 0),
+                'amount_paid' => (float) ($row->amount_paid ?? 0),
+                'outstanding_amount' => (float) ($row->outstanding_amount ?? 0),
+            ];
+        }, DB::select($query, $params));
+    }
+
+    public static function summaryTotals(string $session, string $feesType = ''): array
+    {
+        $rows = static::summaryByLevel($session, $feesType);
+
+        return [
+            'students' => (int) collect($rows)->sum('students'),
+            'required_amount' => (float) collect($rows)->sum('required_amount'),
+            'amount_paid' => (float) collect($rows)->sum('amount_paid'),
+            'outstanding_amount' => (float) collect($rows)->sum('outstanding_amount'),
+        ];
+    }
     public function headings(): array
     {
         return [

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Exports\PaidStudentsExport;
+use App\Exports\UnpaidStudentsExport;
 
 class FeesDueController extends Controller
 {
@@ -92,11 +93,49 @@ class FeesDueController extends Controller
 
         }
         $schoolDescription = 'UNIVERSITY OF MAIDUGURI-1000127 FEES';
-        $schoolTotal = (float) (PaidStudentsExport::paidTotals($selectedSession)['amount_paid'] ?? 0);
+        $schoolTotals = PaidStudentsExport::paidTotals($selectedSession);
+        $sponsorTotals = PaidStudentsExport::sponsorTotals($selectedSession);
+        $paidLevelSummary = PaidStudentsExport::levelTotals($selectedSession);
+        $unpaidLevelSummary = UnpaidStudentsExport::summaryByLevel($selectedSession);
+        $levelMap = [];
+        foreach ($paidLevelSummary as $level) {
+            $key = (string) ($level['level'] ?: 'Not set');
+            $levelMap[$key] = [
+                'level' => $key,
+                'paid_students' => (int) $level['fully_paid'],
+                'paid_amount' => (float) $level['amount_paid'],
+                'unpaid_students' => 0,
+                'outstanding_amount' => 0.0,
+            ];
+        }
+        foreach ($unpaidLevelSummary as $level) {
+            $key = (string) ($level['level'] ?: 'Not set');
+            $levelMap[$key] ??= [
+                'level' => $key,
+                'paid_students' => 0,
+                'paid_amount' => 0.0,
+                'unpaid_students' => 0,
+                'outstanding_amount' => 0.0,
+            ];
+            $levelMap[$key]['unpaid_students'] = (int) $level['students'];
+            $levelMap[$key]['outstanding_amount'] = (float) $level['outstanding_amount'];
+        }
+        $levelSummary = collect($levelMap)->sortBy(function ($row) {
+            return is_numeric($row['level']) ? (int) $row['level'] : 9999;
+        })->values();
+        $unpaidTotals = [
+            'students' => (int) collect($unpaidLevelSummary)->sum('students'),
+            'required_amount' => (float) collect($unpaidLevelSummary)->sum('required_amount'),
+            'amount_paid' => (float) collect($unpaidLevelSummary)->sum('amount_paid'),
+            'outstanding_amount' => (float) collect($unpaidLevelSummary)->sum('outstanding_amount'),
+        ];
+
+        // Keep the description summary useful for reconciliation while using
+        // the validated school-fee total for the programme-fee line.
         $summaryRows = DB::table($this->table)
             ->where('session', $selectedSession)
             ->where('status', 'Paid')
-            ->selectRaw("COALESCE(NULLIF(TRIM(description), ''), 'Other payments') AS description, SUM(amount) AS total_amount")
+            ->selectRaw("COALESCE(NULLIF(TRIM(description), ''), 'Other payments') AS description, COUNT(*) AS payment_count, SUM(amount) AS total_amount")
             ->groupByRaw("COALESCE(NULLIF(TRIM(description), ''), 'Other payments')")
             ->orderByDesc('total_amount')
             ->get();
@@ -109,26 +148,34 @@ class FeesDueController extends Controller
             }
             $paymentSummary->push([
                 'description' => $description !== '' ? $description : 'Other payments',
+                'filter' => $description !== '' ? $description : 'Other payments',
                 'amount' => (float) $summaryRow->total_amount,
+                'count' => (int) $summaryRow->payment_count,
             ]);
         }
-        if ($schoolTotal > 0) {
+        if (($schoolTotals['amount_paid'] ?? 0) > 0) {
             $paymentSummary->push([
                 'description' => 'SCHOOL FEES',
-                'amount' => $schoolTotal,
+                'filter' => $schoolDescription,
+                'amount' => (float) $schoolTotals['amount_paid'],
+                'count' => (int) ($schoolTotals['students'] ?? 0),
             ]);
         }
         $paymentSummary = $paymentSummary->sortByDesc('amount')->values();
         $data['payment_summary'] = $paymentSummary;
         $data['payment_summary_total'] = (float) $paymentSummary->sum('amount');
-            $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
+        $data['school_fee_totals'] = $schoolTotals;
+        $data['fee_sponsor_summary'] = $sponsorTotals;
+        $data['fee_unpaid_summary'] = $unpaidTotals;
+        $data['fee_level_summary'] = $levelSummary;
+        $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
             $data['fees_type'] = DB::table('fees_type')->where(['status' => '1'])->select('title')->orderBy('title', 'ASC')->get();
-            // Export and filtering must support historical sessions, not only the active one.
+        // Export and filtering must support historical sessions, not only the active one.
             $data['session'] = DB::table('session')->select('title')->orderByDesc('title')->get();
             $data['fees_session'] = $selectedSession;
             $data['page'] = $this->page;
             $data['title'] = $this->title;
-            return view('main',$data);
+        return view('main',$data);
     }
 
     public function create(Request $req)

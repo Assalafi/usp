@@ -2,171 +2,141 @@
 <div class="main-body">
     <div class="page-wrapper">
         <!-- [ Main Content ] start -->
-        <div class="row">
-            <div class="col-sm-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>FEES COLLECTION</h5>
-                        <a href="/admin/receipts" class="btn btn-success float-end me-2">
-                            <i class="fas fa-file-pdf"></i> Receipts
-                        </a>
-                        <button type="button" class="btn btn-success float-end me-2" data-bs-toggle="modal" data-bs-target="#exportPaidStudentsModal">
-                            <i class="fas fa-file-excel"></i> Export Paid Students
-                        </button>
-                        <button type="button" class="btn btn-warning float-end me-2" data-bs-toggle="modal" data-bs-target="#exportUnpaidStudentsModal">
-                            <i class="fas fa-user-clock"></i> Export Unpaid Active
-                        </button>
-                        <button type="button" class="btn btn-primary float-end me-2" data-bs-toggle="modal"
+        <div class="row"><!-- Fees dashboard -->
+<style>
+    .fees-dashboard{--fees-blue:#1769aa;--fees-ink:#172b4d;--fees-muted:#65758b;--fees-border:#e7edf5;--fees-bg:#f5f8fc;margin:-8px -8px 22px}
+    .fees-dashboard *{box-sizing:border-box}
+    .fees-hero{border:0;border-radius:20px;background:linear-gradient(135deg,#123b67 0%,#1769aa 55%,#24a6c8 100%);color:#fff;padding:24px 26px;box-shadow:0 14px 34px rgba(22,67,111,.18);position:relative;overflow:hidden}
+    .fees-hero:after{content:"";position:absolute;width:260px;height:260px;border-radius:50%;right:-80px;top:-130px;background:rgba(255,255,255,.12)}
+    .fees-hero h2{font-size:1.45rem;font-weight:800;letter-spacing:-.02em;margin:0 0 6px;position:relative;z-index:1}.fees-hero p{margin:0;color:rgba(255,255,255,.78);position:relative;z-index:1}
+    .fees-hero-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;position:relative;z-index:1}.fees-hero-actions .btn{border-radius:10px;font-weight:700;padding:.55rem .8rem}
+    .fees-session-pill{display:inline-flex;align-items:center;gap:7px;margin-top:15px;padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.14);font-size:.82rem;position:relative;z-index:1}
+    .fees-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:16px}.fees-kpi{background:#fff;border:1px solid var(--fees-border);border-radius:15px;padding:17px 18px;box-shadow:0 5px 18px rgba(24,49,80,.06);min-width:0}.fees-kpi-label{color:var(--fees-muted);font-size:.77rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em}.fees-kpi-value{font-size:1.25rem;color:var(--fees-ink);font-weight:800;margin-top:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fees-kpi-note{color:#8a97a8;font-size:.76rem;margin-top:5px}.fees-kpi.blue{border-top:4px solid #1769aa}.fees-kpi.green{border-top:4px solid #159570}.fees-kpi.amber{border-top:4px solid #de9b16}.fees-kpi.red{border-top:4px solid #d9534f}
+    .fees-panel{background:#fff;border:1px solid var(--fees-border);border-radius:16px;padding:18px;box-shadow:0 5px 18px rgba(24,49,80,.05);height:100%}.fees-panel-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}.fees-panel-title h5{margin:0;color:var(--fees-ink);font-size:1rem;font-weight:800}.fees-panel-title small{color:var(--fees-muted)}
+    .fees-sponsor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.fees-sponsor{border:1px solid var(--fees-border);border-radius:13px;padding:15px}.fees-sponsor.nelfund{background:linear-gradient(145deg,#f1f8ff,#fff);border-left:4px solid #1769aa}.fees-sponsor.self{background:linear-gradient(145deg,#f1fbf7,#fff);border-left:4px solid #159570}.fees-sponsor-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.fees-sponsor-name{font-weight:800;color:var(--fees-ink)}.fees-sponsor-icon{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;background:#e5f1fb;color:#1769aa}.fees-sponsor.self .fees-sponsor-icon{background:#e2f7ee;color:#159570}.fees-sponsor-amount{font-size:1.2rem;font-weight:800;color:var(--fees-ink);margin-top:12px}.fees-sponsor-meta{display:flex;justify-content:space-between;gap:8px;font-size:.77rem;color:var(--fees-muted);margin-top:5px}.fees-progress{height:6px;border-radius:99px;background:#edf1f6;margin-top:12px;overflow:hidden}.fees-progress span{height:100%;display:block;border-radius:inherit;background:#1769aa}.fees-sponsor.self .fees-progress span{background:#159570}
+    .fees-table{width:100%;border-collapse:separate;border-spacing:0}.fees-table th{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:#748398;background:#f7f9fc;border-top:1px solid var(--fees-border);border-bottom:1px solid var(--fees-border);padding:10px 11px;white-space:nowrap}.fees-table td{padding:10px 11px;border-bottom:1px solid #eff3f7;color:#34465c;font-size:.82rem;vertical-align:middle}.fees-table tr:last-child td{border-bottom:0}.fees-table .amount{font-weight:800;white-space:nowrap;color:var(--fees-ink)}.fees-table .muted{color:#8a97a8}
+    .fees-filter{background:#fff;border:1px solid var(--fees-border);border-radius:16px;box-shadow:0 5px 18px rgba(24,49,80,.05);padding:18px;margin-top:16px}.fees-filter .form-label{font-size:.75rem;font-weight:700;color:#52657b;margin-bottom:5px}.fees-filter .form-control,.fees-filter .form-select{border-color:#dce5ef;border-radius:9px;min-height:40px;font-size:.84rem}.fees-filter .btn{border-radius:9px;min-height:40px;font-weight:700}.fees-filter-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}.fees-filter-heading h5{margin:0;color:var(--fees-ink);font-size:1rem;font-weight:800}.fees-filter-heading small{color:var(--fees-muted)}
+    .fees-section{margin-top:16px}.fees-section .card{border:1px solid var(--fees-border);border-radius:16px;box-shadow:0 5px 18px rgba(24,49,80,.05);overflow:hidden}.fees-section .card-block{padding:0}.fees-section .table-responsive{border-radius:inherit}.fees-section .table{margin-bottom:0}.fees-section .table thead th{background:#f7f9fc;color:#667890;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--fees-border)}
+    @media(max-width:991px){.fees-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.fees-hero-actions{justify-content:flex-start;margin-top:16px}.fees-panel{margin-bottom:14px}}
+    @media(max-width:575px){.fees-dashboard{margin:0 -2px 18px}.fees-hero{padding:20px 17px;border-radius:15px}.fees-hero h2{font-size:1.22rem}.fees-hero-actions .btn{font-size:.75rem;padding:.48rem .62rem}.fees-kpis{grid-template-columns:1fr 1fr;gap:9px}.fees-kpi{padding:13px 12px;border-radius:12px}.fees-kpi-value{font-size:1rem}.fees-kpi-note{font-size:.68rem}.fees-sponsor-grid{grid-template-columns:1fr}.fees-panel{padding:14px;border-radius:13px}.fees-table th,.fees-table td{padding:8px 7px}.fees-filter{padding:14px;border-radius:13px}.fees-filter-heading{align-items:flex-start;gap:10px}.fees-filter-heading small{font-size:.7rem}.fees-filter .row>[class*=col-]{margin-bottom:9px}}
+</style>
 
-                            data-bs-target="#bulkVerifyModal">
-                            <i class="fas fa-check-circle"></i> Bulk Verify RRR
-                        </button>
+@php
+    $schoolFeeTotals = $school_fee_totals ?? [];
+    $sponsorSummary = $fee_sponsor_summary ?? [];
+    $unpaidSummary = $fee_unpaid_summary ?? [];
+    $levelSummary = $fee_level_summary ?? [];
+    $nelfund = $sponsorSummary['nelfund'] ?? ['students' => 0, 'required_amount' => 0, 'amount_paid' => 0, 'outstanding_amount' => 0, 'fully_paid' => 0];
+    $selfSponsor = $sponsorSummary['self'] ?? ['students' => 0, 'required_amount' => 0, 'amount_paid' => 0, 'outstanding_amount' => 0, 'fully_paid' => 0];
+    $nelfundRate = ($nelfund['required_amount'] ?? 0) > 0 ? min(100, (($nelfund['amount_paid'] ?? 0) / $nelfund['required_amount']) * 100) : 0;
+    $selfRate = ($selfSponsor['required_amount'] ?? 0) > 0 ? min(100, (($selfSponsor['amount_paid'] ?? 0) / $selfSponsor['required_amount']) * 100) : 0;
+@endphp
 
-                    </div>
-                    <div class="card-block row">
-                        <div class="col-md-6">
-                            <div class="table-responsive">
-                                <table id="" class="display table nowrap table-striped table-hover"
-                                    style="width:100%">
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>{{ 'DESCRIPTION' }}</th>
-                                            <th>{{ 'TOTAL AMOUNT PAID' }}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @forelse (($payment_summary ?? collect()) as $summary)
-                                            <tr>
-                                                <td>{{ $loop->iteration }}</td>
-                                                <td class="text-wrap" style="white-space: normal">{{ $summary['description'] }}</td>
-                                                <td>N{{ number_format((float) $summary['amount'], 2) }}</td>
-                                            </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="3" class="text-center text-muted">No paid payments found for this session.</td>
-                                            </tr>
-                                        @endforelse
-                                        <tr>
-                                            <td>-</td>
-                                            <td><strong>TOTAL</strong></td>
-                                            <td><strong>N{{ number_format((float) ($payment_summary_total ?? 0), 2) }}</strong></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <form class="needs-validation" novalidate method="GET" action="#">
-                                @csrf
-                                <div class="row gx-2">
-                                    <div class="form-group col-md-3">
-                                        <label for="facultyf">Faculty <span>*</span></label>
-                                        <select class="form-control faculty" lang="f" name="faculty"
-                                            id="facultyf">
-                                            <option value="{{ $_GET['faculty'] ?? '' }}">
-                                                {{ $_GET['faculty'] ?? 'Select Option' }}</option>
-                                            @foreach ($faculty as $roww)
-                                                <option value="{{ $roww->code }}">{{ $roww->title }}
-                                                    ({{ $roww->code }})
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <div class="invalid-feedback"> You must select FACULTY </div>
-                                    </div>
-                                    <div class="form-group col-md-3">
-                                        <label for="departmentf">Department</label>
-                                        <select class="form-control department" lang="f" id="departmentf"
-                                            name="department">
-                                            <option value="{{ $_GET['department'] ?? '' }}">
-                                                {{ $_GET['department'] ?? 'Select Faculty First' }}</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group col-md-3">
-                                        <label for="programf">Program</label>
-                                        <select class="form-control" id="programf" lang="f" name="program">
-                                            <option value="{{ $_GET['program'] ?? '' }}">
-                                                {{ $_GET['program'] ?? 'Select Department First' }}</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="description">Description</label>
-                                        <select class="form-control" id="description" name="description">
-                                            <option value="{{ $_GET['description'] ?? '' }}">
-                                                {{ $_GET['description'] ?? 'Select Option' }}</option>
-                                            <option value="UNIVERSITY OF MAIDUGURI-1000127 FEES">UNIVERSITY OF
-                                                MAIDUGURI-1000127 FEES</option>
-                                            <option value="HOSTEL-MAINTENANCE/FEES">HOSTEL-MAINTENANCE/FEES</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="rrr">RRR</label>
-                                        <input type="text" class="form-control" id="rrr" name="rrr"
-                                            placeholder="Enter RRR" value="{{ $_GET['rrr'] ?? '' }}">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="student_id">Student ID</label>
-                                        <input type="search" class="form-control" id="student_id" name="student_id"
-                                            placeholder="e.g. 22/08/08/0010" value="{{ $_GET['student_id'] ?? '' }}"
-                                            autocomplete="off">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="status">Status</label>
-                                        <select class="form-control" id="status" name="status">
-                                            <option value="{{ $_GET['status'] ?? '' }}">
-                                                {{ $_GET['status'] ?? 'Select Option' }}</option>
-                                            <option value="Paid">Paid</option>
-                                            <option value="Pending">Pending</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label for="status">Start At</label>
-                                        <input type="date" name="start" id="start" class="form-control"
-                                            placeholder="Start At" value="{{ $_GET['start'] ?? '2024-01-01' }}">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label for="status">End At</label>
-                                        <input type="date" name="end" id="end" class="form-control"
-                                            placeholder="End At" value="{{ $_GET['end'] ?? date('Y-m-d') }}">
-                                    </div>
-                                    {{-- session --}}
-                                    <div class="col-md-2">
-                                        <label for="session">Session</label>
-                                        <select class="form-control" id="session" name="session">
-                                            <option value="{{ $_GET['session'] ?? ($fees_session ?? session('system_session')) }}">
-                                                {{ $_GET['session'] ?? ($fees_session ?? 'Select Option') }}</option>
-
-                                            <option value="2028/2029">2028/2029</option>
-                                            <option value="2027/2028">2027/2028</option>
-                                            <option value="2026/2027">2026/2027</option>
-                                            <option value="2025/2026">2025/2026</option>
-                                            <option value="2024/2025">2024/2025</option>
-                                            <option value="2023/2024">2023/2024</option>
-                                            <option value="2022/2023">2022/2023</option>
-                                            <option value="2021/2022">2021/2022</option>
-                                            <option value="2020/2021">2020/2021</option>
-                                            <option value="2019/2020">2019/2020</option>
-                                            <option value="2018/2019">2018/2019</option>
-                                            <option value="2017/2018">2017/2018</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="form-group">
-                                            <button type="submit" style="width: 100%"
-                                                class="btn btn-info btn-filter"><i class="fas fa-search"></i>
-                                                {{ 'Filter' }}</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-
-                    </div>
+<div class="fees-dashboard">
+    <div class="fees-hero">
+        <div class="row align-items-center">
+            <div class="col-lg-7">
+                <h2><i class="fas fa-wallet me-2"></i>Fees &amp; payment control</h2>
+                <p>Review programme-fee collections, NELFUND support, self-sponsored payments and active outstanding balances in one place.</p>
+                <span class="fees-session-pill"><i class="far fa-calendar-alt"></i> Session {{ $fees_session ?? '—' }}</span>
+            </div>
+            <div class="col-lg-5">
+                <div class="fees-hero-actions">
+                    <a href="/admin/receipts" class="btn btn-light"><i class="fas fa-file-pdf me-1"></i> Receipts</a>
+                    <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#exportPaidStudentsModal"><i class="fas fa-file-excel me-1"></i> Paid export</button>
+                    <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#exportUnpaidStudentsModal"><i class="fas fa-user-clock me-1"></i> Unpaid export</button>
+                    <button type="button" class="btn btn-info text-white" data-bs-toggle="modal" data-bs-target="#bulkVerifyModal"><i class="fas fa-check-circle me-1"></i> Verify RRR</button>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div class="col-sm-12">
+    <div class="fees-kpis">
+        <div class="fees-kpi blue"><div class="fees-kpi-label">Programme fees paid</div><div class="fees-kpi-value">N{{ number_format((float) ($schoolFeeTotals['amount_paid'] ?? 0), 2) }}</div><div class="fees-kpi-note">Validated school-fee payments</div></div>
+        <div class="fees-kpi green"><div class="fees-kpi-label">NELFUND paid</div><div class="fees-kpi-value">N{{ number_format((float) ($nelfund['amount_paid'] ?? 0), 2) }}</div><div class="fees-kpi-note">{{ number_format((int) ($nelfund['students'] ?? 0)) }} sponsored student{{ (($nelfund['students'] ?? 0) == 1) ? '' : 's' }}</div></div>
+        <div class="fees-kpi amber"><div class="fees-kpi-label">Self-sponsored paid</div><div class="fees-kpi-value">N{{ number_format((float) ($selfSponsor['amount_paid'] ?? 0), 2) }}</div><div class="fees-kpi-note">{{ number_format((int) ($selfSponsor['students'] ?? 0)) }} self-sponsored student{{ (($selfSponsor['students'] ?? 0) == 1) ? '' : 's' }}</div></div>
+        <div class="fees-kpi red"><div class="fees-kpi-label">Active outstanding</div><div class="fees-kpi-value">N{{ number_format((float) ($unpaidSummary['outstanding_amount'] ?? 0), 2) }}</div><div class="fees-kpi-note">{{ number_format((int) ($unpaidSummary['students'] ?? 0)) }} active student{{ (($unpaidSummary['students'] ?? 0) == 1) ? '' : 's' }} still owing</div></div>
+    </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-xl-5">
+            <div class="fees-panel">
+                <div class="fees-panel-title"><div><h5>Sponsor breakdown</h5><small>Paid programme fees split by invoice sponsor</small></div><i class="fas fa-chart-pie text-primary"></i></div>
+                <div class="fees-sponsor-grid">
+                    <div class="fees-sponsor nelfund">
+                        <div class="fees-sponsor-head"><span class="fees-sponsor-name">NELFUND</span><span class="fees-sponsor-icon"><i class="fas fa-graduation-cap"></i></span></div>
+                        <div class="fees-sponsor-amount">N{{ number_format((float) ($nelfund['amount_paid'] ?? 0), 2) }}</div>
+                        <div class="fees-sponsor-meta"><span>{{ number_format((int) ($nelfund['students'] ?? 0)) }} students</span><span>{{ number_format((int) ($nelfund['fully_paid'] ?? 0)) }} complete</span></div><div class="fees-sponsor-meta"><span>Recorded balance</span><span class="text-danger">N{{ number_format((float) ($nelfund['outstanding_amount'] ?? 0), 2) }}</span></div>
+                        <div class="fees-progress"><span style="width:{{ number_format($nelfundRate, 2, '.', '') }}%"></span></div>
+                    </div>
+                    <div class="fees-sponsor self">
+                        <div class="fees-sponsor-head"><span class="fees-sponsor-name">Self sponsor</span><span class="fees-sponsor-icon"><i class="fas fa-user-check"></i></span></div>
+                        <div class="fees-sponsor-amount">N{{ number_format((float) ($selfSponsor['amount_paid'] ?? 0), 2) }}</div>
+                        <div class="fees-sponsor-meta"><span>{{ number_format((int) ($selfSponsor['students'] ?? 0)) }} students</span><span>{{ number_format((int) ($selfSponsor['fully_paid'] ?? 0)) }} complete</span></div><div class="fees-sponsor-meta"><span>Recorded balance</span><span class="text-danger">N{{ number_format((float) ($selfSponsor['outstanding_amount'] ?? 0), 2) }}</span></div>
+                        <div class="fees-progress"><span style="width:{{ number_format($selfRate, 2, '.', '') }}%"></span></div>
+                    </div>
+                </div>
+                <small class="text-muted d-block mt-2">Sponsor cards use paid school-fee invoices. The overall outstanding figure also includes active students with no paid invoice yet.</small>
+                <div class="mt-3 p-3 rounded-3" style="background:#f7f9fc"><div class="d-flex justify-content-between gap-2"><span class="text-muted small">Active unpaid fees</span><strong class="text-danger">N{{ number_format((float) ($unpaidSummary['outstanding_amount'] ?? 0), 2) }}</strong></div><div class="d-flex justify-content-between gap-2 mt-1"><span class="text-muted small">Expected from unpaid students</span><span class="small fw-semibold">N{{ number_format((float) ($unpaidSummary['required_amount'] ?? 0), 2) }}</span></div></div>
+            </div>
+        </div>
+        <div class="col-xl-7">
+            <div class="fees-panel">
+                <div class="fees-panel-title"><div><h5>Collection and outstanding by level</h5><small>Paid collection and active balances for every level</small></div><i class="fas fa-layer-group text-danger"></i></div>
+                <div class="table-responsive"><table class="fees-table"><thead><tr><th>Level</th><th>Paid students</th><th>Paid amount</th><th>Unpaid students</th><th>Outstanding</th></tr></thead><tbody>
+                    @forelse ($levelSummary as $level)
+                        <tr><td><span class="badge bg-light text-dark">{{ $level['level'] ?: 'Not set' }}</span></td><td>{{ number_format((int) ($level['paid_students'] ?? 0)) }}</td><td class="amount">N{{ number_format((float) ($level['paid_amount'] ?? 0), 2) }}</td><td>{{ number_format((int) ($level['unpaid_students'] ?? 0)) }}</td><td class="amount text-danger">N{{ number_format((float) ($level['outstanding_amount'] ?? 0), 2) }}</td></tr>
+                    @empty
+                        <tr><td colspan="5" class="text-center muted py-4">No level collection or outstanding records found for this session.</td></tr>
+                    @endforelse
+                </tbody></table></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-lg-6">
+            <div class="fees-panel">
+                <div class="fees-panel-title"><div><h5>Paid payments by description</h5><small>Every paid invoice except refunds</small></div><i class="fas fa-list-alt text-primary"></i></div>
+                <div class="table-responsive"><table class="fees-table"><thead><tr><th>Description</th><th>Records / students</th><th class="text-end">Amount</th></tr></thead><tbody>
+                    @forelse (($payment_summary ?? collect()) as $summary)
+                        <tr><td class="text-wrap" style="min-width:180px">{{ $summary['description'] }}</td><td>{{ number_format((int) ($summary['count'] ?? 0)) }}</td><td class="amount text-end">N{{ number_format((float) $summary['amount'], 2) }}</td></tr>
+                    @empty
+                        <tr><td colspan="3" class="text-center muted py-4">No paid payments found for this session.</td></tr>
+                    @endforelse
+                    <tr><td><strong>Total collected</strong></td><td><strong>{{ number_format((int) collect($payment_summary ?? [])->sum('count')) }}</strong></td><td class="amount text-end"><strong>N{{ number_format((float) ($payment_summary_total ?? 0), 2) }}</strong></td></tr>
+                </tbody></table></div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="fees-panel">
+                <div class="fees-panel-title"><div><h5>Find payment records</h5><small>Use a session, sponsor, student ID, RRR or status</small></div><i class="fas fa-filter text-primary"></i></div>
+                <form class="needs-validation fees-filter-form" novalidate method="GET" action="{{ url()->current() }}">
+                    @csrf
+                    <div class="row gx-2">
+                        <div class="col-md-6 mb-2"><label class="form-label" for="session">Session</label><select class="form-select" id="session" name="session"><option value="{{ $_GET['session'] ?? ($fees_session ?? '') }}">{{ $_GET['session'] ?? ($fees_session ?? 'Select session') }}</option>@foreach (($session ?? collect()) as $sessionRow)<option value="{{ $sessionRow->title }}">{{ $sessionRow->title }}</option>@endforeach</select></div>
+                        <div class="col-md-6 mb-2"><label class="form-label" for="student_id">Student ID</label><input type="search" class="form-control" id="student_id" name="student_id" placeholder="e.g. 22/08/08/0010" value="{{ $_GET['student_id'] ?? '' }}" autocomplete="off"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label" for="facultyf">Faculty</label><select class="form-select faculty" lang="f" name="faculty" id="facultyf"><option value="{{ $_GET['faculty'] ?? '' }}">{{ $_GET['faculty'] ?? 'All faculties' }}</option>@foreach (($faculty ?? collect()) as $roww)<option value="{{ $roww->code }}">{{ $roww->title }} ({{ $roww->code }})</option>@endforeach</select></div>
+                        <div class="col-md-6 mb-2"><label class="form-label" for="departmentf">Department</label><select class="form-select department" lang="f" id="departmentf" name="department"><option value="{{ $_GET['department'] ?? '' }}">{{ $_GET['department'] ?? 'Select faculty first' }}</option></select></div>
+                        <div class="col-md-6 mb-2"><label class="form-label" for="programf">Programme</label><select class="form-select" id="programf" lang="f" name="program"><option value="{{ $_GET['program'] ?? '' }}">{{ $_GET['program'] ?? 'Select department first' }}</option></select></div>
+                        <div class="col-md-6 mb-2"><label class="form-label" for="description">Payment description</label><select class="form-select" id="description" name="description"><option value="{{ $_GET['description'] ?? '' }}">{{ $_GET['description'] ?? 'All descriptions' }}</option>@foreach (($payment_summary ?? collect()) as $summary)<option value="{{ $summary['filter'] ?? $summary['description'] }}">{{ $summary['description'] }}</option>@endforeach</select></div>
+                        <div class="col-md-6 mb-2"><label class="form-label" for="rrr">RRR</label><input type="text" class="form-control" id="rrr" name="rrr" placeholder="Enter RRR" value="{{ $_GET['rrr'] ?? '' }}"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label" for="status">Status</label><select class="form-select" id="status" name="status"><option value="{{ $_GET['status'] ?? '' }}">{{ $_GET['status'] ?? 'All statuses' }}</option><option value="Paid">Paid</option><option value="Pending">Pending</option></select></div>
+                        <div class="col-md-6 mb-2"><label class="form-label" for="start">From date</label><input type="date" name="start" id="start" class="form-control" value="{{ $_GET['start'] ?? '2024-01-01' }}"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label" for="end">To date</label><input type="date" name="end" id="end" class="form-control" value="{{ $_GET['end'] ?? date('Y-m-d') }}"></div>
+                        <div class="col-12 mt-2"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-search me-1"></i> Search payments</button></div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+            <div class="col-sm-12 fees-section">
                 <div class="card">
+                    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div><h5 class="mb-1"><i class="fas fa-receipt me-2 text-primary"></i>Payment transactions</h5><small class="text-muted">Showing up to 100 records for the selected session and filters.</small></div>
+                        <span class="badge bg-light text-dark"><i class="fas fa-database me-1"></i>Live records</span>
+                    </div>
                     <div class="card-block">
                         <!-- [ Data table ] start -->
                         <div class="table-responsive">
