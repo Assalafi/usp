@@ -17,7 +17,9 @@ class AdminStudentResultsController extends Controller
         $isAllSessions = strtolower($selectedSession) === 'all';
         $resultsQuery = DB::table('results')
             ->leftJoin('course', 'results.code', '=', 'course.code')
-            ->where('results.username', $student->username);
+            // Only final VC-approved results are published and included in GPA/CGPA calculations.
+            ->where('results.username', $student->username)
+            ->where('results.approve', 'vc');
 
         if (!$isAllSessions) {
             $resultsQuery->where('results.session', $selectedSession);

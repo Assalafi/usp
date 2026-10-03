@@ -38,18 +38,18 @@
 </div>
 
 <section class="admin-results-card admin-grade-summary">
-    <div class="admin-results-section-heading"><div><span>GRADE SUMMARY</span><h2>{{ $displaySessionLabel }}</h2><p>Results recorded at every approval stage for this selection.</p></div><div class="admin-results-gpa"><div><small>Recorded {{ $metricLabel }}</small><strong>{{ $historyValue }}</strong></div><div><small>Calculated {{ $metricLabel }}</small><strong>{{ $calculatedValue }}</strong></div></div></div>
+    <div class="admin-results-section-heading"><div><span>GRADE SUMMARY</span><h2>{{ $displaySessionLabel }}</h2><p>Final VC-approved results for this selection.</p></div><div class="admin-results-gpa"><div><small>Recorded {{ $metricLabel }}</small><strong>{{ $historyValue }}</strong></div><div><small>Calculated {{ $metricLabel }}</small><strong>{{ $calculatedValue }}</strong></div></div></div>
     <div class="admin-grade-grid">
         @foreach ($gradeOrder as $grade)
             <div class="admin-grade-chip grade-{{ strtolower($grade) }}"><b>{{ $grade }}</b><strong>{{ $gradeCounts[$grade] ?? 0 }}</strong><small>{{ $grade === 'F' ? 'Carryover' : 'Grade' }}</small></div>
         @endforeach
     </div>
-    <div class="admin-results-foot"><span><i class="fas fa-cubes"></i> {{ number_format((float) ($calculationUnits ?? 0), 0) }} units</span><span><i class="fas fa-check"></i> {{ $passedCount }} passed</span><span><i class="fas fa-rotate"></i> {{ $failedCount }} carryover</span><span><i class="fas fa-list-check"></i> All approval stages</span></div>
+    <div class="admin-results-foot"><span><i class="fas fa-cubes"></i> {{ number_format((float) ($calculationUnits ?? 0), 0) }} units</span><span><i class="fas fa-check"></i> {{ $passedCount }} passed</span><span><i class="fas fa-rotate"></i> {{ $failedCount }} carryover</span><span><i class="fas fa-shield-halved"></i> VC-approved only</span></div>
 </section>
 
 @if ($studentResults->isNotEmpty())
     <section class="admin-results-card">
-        <div class="admin-results-section-heading"><div><span>COURSE GRADES</span><h2>Results at a glance</h2><p>Course codes and grades for {{ strtolower($displaySessionLabel) }}, at every approval stage.</p></div><span class="admin-results-count">{{ $courseCount }} results</span></div>
+        <div class="admin-results-section-heading"><div><span>COURSE GRADES</span><h2>Results at a glance</h2><p>Course codes and grades from final VC-approved results for {{ strtolower($displaySessionLabel) }}.</p></div><span class="admin-results-count">{{ $courseCount }} results</span></div>
         <div class="admin-course-grade-grid">
             @foreach ($studentResults as $result)
                 @php $grade = strtoupper((string) ($result->grade ?? '')); @endphp
