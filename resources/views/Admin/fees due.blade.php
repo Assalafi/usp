@@ -58,7 +58,7 @@
         <div class="fees-kpi blue"><div class="fees-kpi-label">Total collected</div><div class="fees-kpi-value">N{{ number_format((float) ($payment_summary_total ?? 0), 2) }}</div><div class="fees-kpi-note">All paid services and validated hostel PINs</div></div>
         <div class="fees-kpi red"><div class="fees-kpi-label">Active outstanding</div><div class="fees-kpi-value">N{{ number_format((float) ($unpaidSummary['outstanding_amount'] ?? 0), 2) }}</div><div class="fees-kpi-note">{{ number_format((int) ($unpaidSummary['students'] ?? 0)) }} active student{{ (($unpaidSummary['students'] ?? 0) == 1) ? '' : 's' }} still owing</div></div>
         <div class="fees-kpi green"><div class="fees-kpi-label">Programme fees paid</div><div class="fees-kpi-value">N{{ number_format((float) ($schoolFeeTotals['amount_paid'] ?? 0), 2) }}</div><div class="fees-kpi-note">Validated school-fee collection</div></div>
-        <div class="fees-kpi amber"><div class="fees-kpi-label">Paid payment records</div><div class="fees-kpi-value">{{ number_format($paymentRecords) }}</div><div class="fees-kpi-note">Across all services in this session</div></div>
+        <div class="fees-kpi amber"><div class="fees-kpi-label">Paid records + hostel PINs</div><div class="fees-kpi-value">{{ number_format($paymentRecords) }}</div><div class="fees-kpi-note">Invoices plus validated hostel PIN records</div></div>
     </div>
 
     <div class="row g-3 mt-1">
