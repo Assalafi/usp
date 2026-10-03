@@ -101,12 +101,83 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
      */
     public static function paidTotals(string $session, string $feesType = ''): array
     {
-        $rows = collect(static::paidRows($session, $feesType));
+        $serviceTypeId = (string) config('services.remita.school_fees_key', '365039916');
+        $sponsorFilter = '';
+
+        if ($feesType === 'nelfund') {
+            $sponsorFilter = " AND fees_type = 'nelfund'";
+        } elseif ($feesType === 'others') {
+            $sponsorFilter = " AND (fees_type <> 'nelfund' OR fees_type IS NULL)";
+        }
+
+        // Aggregate in MySQL instead of materialising every paid student in PHP.
+        // The fee schedule selection mirrors paidRows(): first NEW row by id,
+        // and the highest RETURNING amount for each programme and level.
+        $query = "
+            SELECT
+                COUNT(*) AS students,
+                COALESCE(SUM(summary.required_amount), 0) AS required_amount,
+                COALESCE(SUM(summary.invoices_amount), 0) AS amount_paid
+            FROM (
+                SELECT
+                    s.username,
+                    s.faculty,
+                    s.department,
+                    s.program,
+                    s.level,
+                    s.session_of_entry,
+                    CASE
+                        WHEN s.session_of_entry = ? THEN COALESCE(new_fee.amount, 0)
+                        ELSE COALESCE(returning_fee.amount, 0)
+                    END AS required_amount,
+                    paid.invoices_amount
+                FROM students s
+                INNER JOIN (
+                    SELECT username, SUM(amount) AS invoices_amount
+                    FROM invoices
+                    WHERE session = ?
+                      AND status = 'Paid'
+                      AND serviceTypeId = ?
+                      AND description = 'UNIVERSITY OF MAIDUGURI-1000127 FEES'
+                      {$sponsorFilter}
+                    GROUP BY username
+                ) paid ON paid.username = s.user_id
+                LEFT JOIN (
+                    SELECT first_new.program, first_new.level, sf.amount
+                    FROM (
+                        SELECT program, level, MIN(id) AS id
+                        FROM school_fees
+                        WHERE type = 'NEW'
+                        GROUP BY program, level
+                    ) first_new
+                    INNER JOIN school_fees sf ON sf.id = first_new.id
+                ) new_fee ON new_fee.program = s.program AND new_fee.level = s.level
+                LEFT JOIN (
+                    SELECT program, level, MAX(amount) AS amount
+                    FROM school_fees
+                    WHERE type = 'RETURNING'
+                    GROUP BY program, level
+                ) returning_fee ON returning_fee.program = s.program AND returning_fee.level = s.level
+                GROUP BY
+                    s.username,
+                    s.faculty,
+                    s.department,
+                    s.program,
+                    s.level,
+                    s.session_of_entry,
+                    new_fee.amount,
+                    returning_fee.amount,
+                    paid.invoices_amount
+            ) summary
+            WHERE summary.required_amount > 0
+        ";
+
+        $totals = DB::selectOne($query, [$session, $session, $serviceTypeId]);
 
         return [
-            'students' => $rows->count(),
-            'required_amount' => (float) $rows->sum('required_amount'),
-            'amount_paid' => (float) $rows->sum('amount_paid'),
+            'students' => (int) ($totals->students ?? 0),
+            'required_amount' => (float) ($totals->required_amount ?? 0),
+            'amount_paid' => (float) ($totals->amount_paid ?? 0),
         ];
     }
 
