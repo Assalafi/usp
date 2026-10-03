@@ -16,6 +16,7 @@
     .fees-sponsor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.fees-sponsor{border:1px solid var(--fees-border);border-radius:13px;padding:15px}.fees-sponsor.nelfund{background:linear-gradient(145deg,#f1f8ff,#fff);border-left:4px solid #1769aa}.fees-sponsor.self{background:linear-gradient(145deg,#f1fbf7,#fff);border-left:4px solid #159570}.fees-sponsor-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.fees-sponsor-name{font-weight:800;color:var(--fees-ink)}.fees-sponsor-icon{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;background:#e5f1fb;color:#1769aa}.fees-sponsor.self .fees-sponsor-icon{background:#e2f7ee;color:#159570}.fees-sponsor-amount{font-size:1.2rem;font-weight:800;color:var(--fees-ink);margin-top:12px}.fees-sponsor-meta{display:flex;justify-content:space-between;gap:8px;font-size:.77rem;color:var(--fees-muted);margin-top:5px}.fees-progress{height:6px;border-radius:99px;background:#edf1f6;margin-top:12px;overflow:hidden}.fees-progress span{height:100%;display:block;border-radius:inherit;background:#1769aa}.fees-sponsor.self .fees-progress span{background:#159570}
     .fees-table{width:100%;border-collapse:separate;border-spacing:0}.fees-table th{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:#748398;background:#f7f9fc;border-top:1px solid var(--fees-border);border-bottom:1px solid var(--fees-border);padding:10px 11px;white-space:nowrap}.fees-table td{padding:10px 11px;border-bottom:1px solid #eff3f7;color:#34465c;font-size:.82rem;vertical-align:middle}.fees-table tr:last-child td{border-bottom:0}.fees-table .amount{font-weight:800;white-space:nowrap;color:var(--fees-ink)}.fees-table .muted{color:#8a97a8}
     .fees-filter{background:#fff;border:1px solid var(--fees-border);border-radius:16px;box-shadow:0 5px 18px rgba(24,49,80,.05);padding:18px;margin-top:16px}.fees-filter .form-label{font-size:.75rem;font-weight:700;color:#52657b;margin-bottom:5px}.fees-filter .form-control,.fees-filter .form-select{border-color:#dce5ef;border-radius:9px;min-height:40px;font-size:.84rem}.fees-filter .btn{border-radius:9px;min-height:40px;font-weight:700}.fees-filter-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}.fees-filter-heading h5{margin:0;color:var(--fees-ink);font-size:1rem;font-weight:800}.fees-filter-heading small{color:var(--fees-muted)}
+    .fees-results-info{font-size:.82rem}.fees-pagination-wrap .pagination{margin:0;gap:4px}.fees-pagination-wrap .page-item .page-link{border:1px solid #dfe7f1;border-radius:8px;color:#36516d;font-size:.8rem;font-weight:700;min-width:34px;text-align:center;padding:.45rem .65rem}.fees-pagination-wrap .page-item.active .page-link{background:#1769aa;border-color:#1769aa;color:#fff}.fees-pagination-wrap .page-item.disabled .page-link{color:#a5b1bf;background:#f7f9fc}@media(max-width:575px){.fees-pagination-row>[class*=col-]{width:100%}.fees-pagination-wrap{justify-content:flex-start!important;margin-top:10px;overflow-x:auto;padding-bottom:3px}.fees-pagination-wrap .pagination{flex-wrap:nowrap}.fees-results-info{font-size:.75rem}}
     .fees-section{margin-top:16px}.fees-section .card{border:1px solid var(--fees-border);border-radius:16px;box-shadow:0 5px 18px rgba(24,49,80,.05);overflow:hidden}.fees-section .card-block{padding:0}.fees-section .table-responsive{border-radius:inherit}.fees-section .table{margin-bottom:0}.fees-section .table thead th{background:#f7f9fc;color:#667890;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--fees-border)}
     @media(max-width:991px){.fees-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.fees-hero-actions{justify-content:flex-start;margin-top:16px}.fees-panel{margin-bottom:14px}}
     @media(max-width:575px){.fees-dashboard{margin:0 -2px 18px}.fees-hero{padding:20px 17px;border-radius:15px}.fees-hero h2{font-size:1.22rem}.fees-hero-actions .btn{font-size:.75rem;padding:.48rem .62rem}.fees-kpis{grid-template-columns:1fr 1fr;gap:9px}.fees-kpi{padding:13px 12px;border-radius:12px}.fees-kpi-value{font-size:1rem}.fees-kpi-note{font-size:.68rem}.fees-sponsor-grid{grid-template-columns:1fr}.fees-panel{padding:14px;border-radius:13px}.fees-table th,.fees-table td{padding:8px 7px}.fees-filter{padding:14px;border-radius:13px}.fees-filter-heading{align-items:flex-start;gap:10px}.fees-filter-heading small{font-size:.7rem}.fees-filter .row>[class*=col-]{margin-bottom:9px}}
@@ -264,9 +265,22 @@
                             </table>
                         </div>
                         @if (method_exists($data, 'links'))
-                            <div class="d-flex justify-content-center mt-3">{{ $data->links() }}</div>
-                        @endif
-                        <!-- [ Data table ] end -->
+                            <div class="row mt-4 fees-pagination-row">
+                                <div class="col-md-6">
+                                    <div class="d-flex align-items-center">
+                                        <span class="text-muted fees-results-info">
+                                            Showing {{ $data->firstItem() ?? 0 }} to {{ $data->lastItem() ?? 0 }}
+                                            of {{ $data->total() ?? 0 }} results
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="d-flex justify-content-end fees-pagination-wrap">
+                                        {{ $data->links('pagination::bootstrap-4') }}
+                                    </div>
+                                </div>
+                            </div>
+                        @endif                        <!-- [ Data table ] end -->
                     </div>
                 </div>
 
