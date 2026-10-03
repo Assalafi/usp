@@ -84,15 +84,43 @@ class FeesDueController extends Controller
             }
 
 
-            $data['hostel'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => $selectedSession])->whereBetween('updated_at', [$start,$end])->sum('amount');
-            $data['school'] = PaidStudentsExport::paidTotals($selectedSession)['amount_paid'];
+
         }else{
 
             $data['data'] = DB::table($this->table)->where(['status' => 'Paid', 'session' => $selectedSession])->paginate(100)->withQueryString();
 
-            $data['hostel'] = DB::table($this->table)->where(['status' => 'Paid', 'description' => 'HOSTEL-MAINTENANCE/FEES', 'session' => $selectedSession])->sum('amount');
-            $data['school'] = PaidStudentsExport::paidTotals($selectedSession)['amount_paid'];
+
         }
+        $schoolDescription = 'UNIVERSITY OF MAIDUGURI-1000127 FEES';
+        $schoolTotal = (float) (PaidStudentsExport::paidTotals($selectedSession)['amount_paid'] ?? 0);
+        $summaryRows = DB::table($this->table)
+            ->where('session', $selectedSession)
+            ->where('status', 'Paid')
+            ->selectRaw("COALESCE(NULLIF(TRIM(description), ''), 'Other payments') AS description, SUM(amount) AS total_amount")
+            ->groupByRaw("COALESCE(NULLIF(TRIM(description), ''), 'Other payments')")
+            ->orderByDesc('total_amount')
+            ->get();
+
+        $paymentSummary = collect();
+        foreach ($summaryRows as $summaryRow) {
+            $description = trim((string) $summaryRow->description);
+            if (strcasecmp($description, $schoolDescription) === 0) {
+                continue;
+            }
+            $paymentSummary->push([
+                'description' => $description !== '' ? $description : 'Other payments',
+                'amount' => (float) $summaryRow->total_amount,
+            ]);
+        }
+        if ($schoolTotal > 0) {
+            $paymentSummary->push([
+                'description' => 'SCHOOL FEES',
+                'amount' => $schoolTotal,
+            ]);
+        }
+        $paymentSummary = $paymentSummary->sortByDesc('amount')->values();
+        $data['payment_summary'] = $paymentSummary;
+        $data['payment_summary_total'] = (float) $paymentSummary->sum('amount');
             $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
             $data['fees_type'] = DB::table('fees_type')->where(['status' => '1'])->select('title')->orderBy('title', 'ASC')->get();
             // Export and filtering must support historical sessions, not only the active one.

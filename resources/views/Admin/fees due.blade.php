@@ -36,20 +36,21 @@
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        @forelse (($payment_summary ?? collect()) as $summary)
+                                            <tr>
+                                                <td>{{ $loop->iteration }}</td>
+                                                <td class="text-wrap" style="white-space: normal">{{ $summary['description'] }}</td>
+                                                <td>N{{ number_format((float) $summary['amount'], 2) }}</td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="3" class="text-center text-muted">No paid payments found for this session.</td>
+                                            </tr>
+                                        @endforelse
                                         <tr>
-                                            <td>{{ 1 }}</td>
-                                            <td>HOSTEL-MAINTENANCE/FEES</td>
-                                            <td>N{{ number_format($hostel, 2) }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>{{ 2 }}</td>
-                                            <td>SCHOOL FEES</td>
-                                            <td>N{{ number_format($school, 2) }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>{{ 2 }}</td>
-                                            <td>TOTAL</td>
-                                            <td>N{{ number_format($school + $hostel, 2) }}</td>
+                                            <td>-</td>
+                                            <td><strong>TOTAL</strong></td>
+                                            <td><strong>N{{ number_format((float) ($payment_summary_total ?? 0), 2) }}</strong></td>
                                         </tr>
                                     </tbody>
                                 </table>
