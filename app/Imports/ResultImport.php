@@ -177,16 +177,20 @@ class ResultImport implements ToCollection
                         if ($checking) {
 
                         } else {
-                            $exist = DB::table('results')
-                            ->select('id')
-                            ->where([
-                                'username' => $id,
-                                'code' => $this->course,
-                            ])
-                            ->where('session', '<', $this->session)
-                            ->first();
+                            // A previous upload is only a genuine completed attempt
+                            // after it has passed the final VC approval stage. An
+                            // unapproved/mistaken upload must not turn the next
+                            // session's normal result into a zero-unit resit.
+                            $previousApprovedResult = DB::table('results')
+                                ->where([
+                                    'username' => $id,
+                                    'code' => $this->course,
+                                    'approve' => 'vc',
+                                ])
+                                ->where('session', '<', $this->session)
+                                ->exists();
 
-                            if ($exist) {
+                            if ($previousApprovedResult) {
                                 $records['unit'] = 0;
                             } else {
                                 $records['unit'] = $rows->unit;
