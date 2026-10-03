@@ -34,10 +34,17 @@ class FeesDueController extends Controller
             $fac = $req -> faculty;
             $status = $req -> status;
             $rrr = $req -> rrr;
+            $studentId = trim((string) $req->input('student_id', ''));
 
             // If RRR is provided, search only by RRR and ignore other filters
             if ($rrr) {
-                $query = DB::table($this->table)->where('rrr', 'LIKE', '%' . $rrr . '%');
+                $query = DB::table($this->table)
+                    ->where('invoices.rrr', 'LIKE', '%' . $rrr . '%');
+                if ($studentId !== '') {
+                    $query->join('students', 'students.user_id', '=', 'invoices.username')
+                        ->where('students.username', $studentId)
+                        ->select('invoices.*');
+                }
                 $data['data'] = $query->paginate(100)->withQueryString();
             } else {
                 if($fac == 'none'){
@@ -47,8 +54,14 @@ class FeesDueController extends Controller
                 unset($data['start']);
                 unset($data['end']);
                 unset($data['rrr']);
+                unset($data['student_id']);
                 $filteredData = array_filter($data);
                 $query = DB::table($this->table)->where(['session' => $selectedSession]);
+                if ($studentId !== '') {
+                    $query->join('students', 'students.user_id', '=', 'invoices.username')
+                        ->where('students.username', $studentId)
+                        ->select('invoices.*');
+                }
                 foreach ($filteredData as $key => $value) {
                     $query->where($key, $value);
                 }

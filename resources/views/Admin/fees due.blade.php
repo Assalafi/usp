@@ -104,6 +104,12 @@
                                             placeholder="Enter RRR" value="{{ $_GET['rrr'] ?? '' }}">
                                     </div>
                                     <div class="col-md-3">
+                                        <label for="student_id">Student ID</label>
+                                        <input type="search" class="form-control" id="student_id" name="student_id"
+                                            placeholder="e.g. 22/08/08/0010" value="{{ $_GET['student_id'] ?? '' }}"
+                                            autocomplete="off">
+                                    </div>
+                                    <div class="col-md-3">
                                         <label for="status">Status</label>
                                         <select class="form-control" id="status" name="status">
                                             <option value="{{ $_GET['status'] ?? '' }}">
