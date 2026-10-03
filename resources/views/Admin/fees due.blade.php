@@ -30,6 +30,7 @@
     $selfSponsor = $sponsorSummary['self'] ?? ['students' => 0, 'required_amount' => 0, 'amount_paid' => 0, 'outstanding_amount' => 0, 'fully_paid' => 0];
     $nelfundRate = ($nelfund['required_amount'] ?? 0) > 0 ? min(100, (($nelfund['amount_paid'] ?? 0) / $nelfund['required_amount']) * 100) : 0;
     $selfRate = ($selfSponsor['required_amount'] ?? 0) > 0 ? min(100, (($selfSponsor['amount_paid'] ?? 0) / $selfSponsor['required_amount']) * 100) : 0;
+    $paymentRecords = (int) collect($payment_summary ?? [])->sum('count');
 @endphp
 
 <div class="fees-dashboard">
@@ -52,10 +53,10 @@
     </div>
 
     <div class="fees-kpis">
-        <div class="fees-kpi blue"><div class="fees-kpi-label">Programme fees paid</div><div class="fees-kpi-value">N{{ number_format((float) ($schoolFeeTotals['amount_paid'] ?? 0), 2) }}</div><div class="fees-kpi-note">Validated school-fee payments</div></div>
-        <div class="fees-kpi green"><div class="fees-kpi-label">NELFUND paid</div><div class="fees-kpi-value">N{{ number_format((float) ($nelfund['amount_paid'] ?? 0), 2) }}</div><div class="fees-kpi-note">{{ number_format((int) ($nelfund['students'] ?? 0)) }} sponsored student{{ (($nelfund['students'] ?? 0) == 1) ? '' : 's' }}</div></div>
-        <div class="fees-kpi amber"><div class="fees-kpi-label">Self-sponsored paid</div><div class="fees-kpi-value">N{{ number_format((float) ($selfSponsor['amount_paid'] ?? 0), 2) }}</div><div class="fees-kpi-note">{{ number_format((int) ($selfSponsor['students'] ?? 0)) }} self-sponsored student{{ (($selfSponsor['students'] ?? 0) == 1) ? '' : 's' }}</div></div>
+        <div class="fees-kpi blue"><div class="fees-kpi-label">Total collected</div><div class="fees-kpi-value">N{{ number_format((float) ($payment_summary_total ?? 0), 2) }}</div><div class="fees-kpi-note">All paid payment descriptions, excluding refunds</div></div>
         <div class="fees-kpi red"><div class="fees-kpi-label">Active outstanding</div><div class="fees-kpi-value">N{{ number_format((float) ($unpaidSummary['outstanding_amount'] ?? 0), 2) }}</div><div class="fees-kpi-note">{{ number_format((int) ($unpaidSummary['students'] ?? 0)) }} active student{{ (($unpaidSummary['students'] ?? 0) == 1) ? '' : 's' }} still owing</div></div>
+        <div class="fees-kpi green"><div class="fees-kpi-label">Programme fees paid</div><div class="fees-kpi-value">N{{ number_format((float) ($schoolFeeTotals['amount_paid'] ?? 0), 2) }}</div><div class="fees-kpi-note">Validated school-fee collection</div></div>
+        <div class="fees-kpi amber"><div class="fees-kpi-label">Paid payment records</div><div class="fees-kpi-value">{{ number_format($paymentRecords) }}</div><div class="fees-kpi-note">Across all services in this session</div></div>
     </div>
 
     <div class="row g-3 mt-1">
