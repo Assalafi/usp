@@ -67,18 +67,18 @@
                     <div class="fees-sponsor nelfund">
                         <div class="fees-sponsor-head"><span class="fees-sponsor-name">NELFUND</span><span class="fees-sponsor-icon"><i class="fas fa-graduation-cap"></i></span></div>
                         <div class="fees-sponsor-amount">N{{ number_format((float) ($nelfund['amount_paid'] ?? 0), 2) }}</div>
-                        <div class="fees-sponsor-meta"><span>{{ number_format((int) ($nelfund['students'] ?? 0)) }} students</span><span>{{ number_format((int) ($nelfund['fully_paid'] ?? 0)) }} complete</span></div><div class="fees-sponsor-meta"><span>Recorded balance</span><span class="text-danger">N{{ number_format((float) ($nelfund['outstanding_amount'] ?? 0), 2) }}</span></div>
+                        <div class="fees-sponsor-meta"><span>{{ number_format((int) ($nelfund['students'] ?? 0)) }} students</span><span>{{ number_format((int) ($nelfund['fully_paid'] ?? 0)) }} complete</span></div>
                         <div class="fees-progress"><span style="width:{{ number_format($nelfundRate, 2, '.', '') }}%"></span></div>
                     </div>
                     <div class="fees-sponsor self">
                         <div class="fees-sponsor-head"><span class="fees-sponsor-name">Self sponsor</span><span class="fees-sponsor-icon"><i class="fas fa-user-check"></i></span></div>
                         <div class="fees-sponsor-amount">N{{ number_format((float) ($selfSponsor['amount_paid'] ?? 0), 2) }}</div>
-                        <div class="fees-sponsor-meta"><span>{{ number_format((int) ($selfSponsor['students'] ?? 0)) }} students</span><span>{{ number_format((int) ($selfSponsor['fully_paid'] ?? 0)) }} complete</span></div><div class="fees-sponsor-meta"><span>Recorded balance</span><span class="text-danger">N{{ number_format((float) ($selfSponsor['outstanding_amount'] ?? 0), 2) }}</span></div>
+                        <div class="fees-sponsor-meta"><span>{{ number_format((int) ($selfSponsor['students'] ?? 0)) }} students</span><span>{{ number_format((int) ($selfSponsor['fully_paid'] ?? 0)) }} complete</span></div>
                         <div class="fees-progress"><span style="width:{{ number_format($selfRate, 2, '.', '') }}%"></span></div>
                     </div>
                 </div>
                 <small class="text-muted d-block mt-2">Sponsor cards use paid school-fee invoices. The overall outstanding figure also includes active students with no paid invoice yet.</small>
-                <div class="mt-3 p-3 rounded-3" style="background:#f7f9fc"><div class="d-flex justify-content-between gap-2"><span class="text-muted small">Active unpaid fees</span><strong class="text-danger">N{{ number_format((float) ($unpaidSummary['outstanding_amount'] ?? 0), 2) }}</strong></div><div class="d-flex justify-content-between gap-2 mt-1"><span class="text-muted small">Expected from unpaid students</span><span class="small fw-semibold">N{{ number_format((float) ($unpaidSummary['required_amount'] ?? 0), 2) }}</span></div></div>
+                <div class="mt-3 p-3 rounded-3" style="background:#f7f9fc"><div class="d-flex justify-content-between gap-2"><span class="text-muted small">Active unpaid fees</span><strong class="text-danger">N{{ number_format((float) ($unpaidSummary['outstanding_amount'] ?? 0), 2) }}</strong></div></div>
             </div>
         </div>
         <div class="col-xl-7">
