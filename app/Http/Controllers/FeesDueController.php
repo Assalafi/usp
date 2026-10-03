@@ -104,7 +104,7 @@ class FeesDueController extends Controller
         $paymentSummary = collect();
         foreach ($summaryRows as $summaryRow) {
             $description = trim((string) $summaryRow->description);
-            if (strcasecmp($description, $schoolDescription) === 0) {
+            if (strcasecmp($description, $schoolDescription) === 0 || strcasecmp($description, 'REFUND') === 0) {
                 continue;
             }
             $paymentSummary->push([
