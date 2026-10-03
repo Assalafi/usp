@@ -36,14 +36,17 @@ class FeesDueController extends Controller
             $rrr = $req -> rrr;
             $studentId = trim((string) $req->input('student_id', ''));
 
-            // If RRR is provided, search only by RRR and ignore other filters
+            // RRR remains the primary search; Student ID can narrow the matching invoice records.
             if ($rrr) {
                 $query = DB::table($this->table)
                     ->where('invoices.rrr', 'LIKE', '%' . $rrr . '%');
                 if ($studentId !== '') {
-                    $query->join('students', 'students.user_id', '=', 'invoices.username')
-                        ->where('students.username', $studentId)
-                        ->select('invoices.*');
+                    // invoices.username stores the students.user_id, not the matric number.
+                    $query->whereIn('invoices.username', function ($studentQuery) use ($studentId) {
+                        $studentQuery->select('user_id')
+                            ->from('students')
+                            ->where('username', $studentId);
+                    });
                 }
                 $data['data'] = $query->paginate(100)->withQueryString();
             } else {
@@ -56,22 +59,25 @@ class FeesDueController extends Controller
                 unset($data['rrr']);
                 unset($data['student_id']);
                 $filteredData = array_filter($data);
-                $query = DB::table($this->table)->where(['session' => $selectedSession]);
+                $query = DB::table($this->table)->where('invoices.session', $selectedSession);
                 if ($studentId !== '') {
-                    $query->join('students', 'students.user_id', '=', 'invoices.username')
-                        ->where('students.username', $studentId)
-                        ->select('invoices.*');
+                    // invoices.username stores the students.user_id, not the matric number.
+                    $query->whereIn('invoices.username', function ($studentQuery) use ($studentId) {
+                        $studentQuery->select('user_id')
+                            ->from('students')
+                            ->where('username', $studentId);
+                    });
                 }
                 foreach ($filteredData as $key => $value) {
-                    $query->where($key, $value);
+                    $query->where('invoices.' . $key, $value);
                 }
                 if($fac == 'none'){
-                    $data['data'] = $query->where(['status' => 'Paid'])->paginate(100)->withQueryString();
+                    $data['data'] = $query->where('invoices.status', 'Paid')->paginate(100)->withQueryString();
                 }else{
                     if($status == 'Pending'){
                         $data['data'] = $query->paginate(100)->withQueryString();
                     }else{
-                        $data['data'] = $query->whereBetween('updated_at', [$start,$end])->paginate(100)->withQueryString();
+                        $data['data'] = $query->whereBetween('invoices.updated_at', [$start,$end])->paginate(100)->withQueryString();
                     }
 
                 }
