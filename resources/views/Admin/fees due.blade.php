@@ -631,8 +631,8 @@ $(document).ready(function() {
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label" for="facultyExportUnpaid">Faculty</label>
-                            <select class="form-control faculty" lang="exportUnpaid" id="facultyExportUnpaid" name="faculty">
+                            <label class="form-label" for="facultyexportUnpaid">Faculty</label>
+                            <select class="form-control faculty" lang="exportUnpaid" id="facultyexportUnpaid" name="faculty">
                                 <option value="">All faculties</option>
                                 @foreach (($faculty ?? collect()) as $facultyOption)
                                     <option value="{{ $facultyOption->code }}">{{ $facultyOption->title }} ({{ $facultyOption->code }})</option>
@@ -640,14 +640,14 @@ $(document).ready(function() {
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label" for="departmentExportUnpaid">Department</label>
-                            <select class="form-control department" lang="exportUnpaid" id="departmentExportUnpaid" name="department">
+                            <label class="form-label" for="departmentexportUnpaid">Department</label>
+                            <select class="form-control department" lang="exportUnpaid" id="departmentexportUnpaid" name="department">
                                 <option value="">All departments</option>
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label" for="programExportUnpaid">Programme</label>
-                            <select class="form-control" id="programExportUnpaid" name="program">
+                            <label class="form-label" for="programexportUnpaid">Programme</label>
+                            <select class="form-control" id="programexportUnpaid" name="program">
                                 <option value="">All programmes</option>
                             </select>
                         </div>
@@ -707,8 +707,8 @@ $(document).ready(function() {
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label" for="facultyExportPaid">Faculty</label>
-                            <select class="form-control faculty" lang="exportPaid" id="facultyExportPaid" name="faculty">
+                            <label class="form-label" for="facultyexportPaid">Faculty</label>
+                            <select class="form-control faculty" lang="exportPaid" id="facultyexportPaid" name="faculty">
                                 <option value="">All faculties</option>
                                 @foreach (($faculty ?? collect()) as $facultyOption)
                                     <option value="{{ $facultyOption->code }}">{{ $facultyOption->title }} ({{ $facultyOption->code }})</option>
@@ -716,14 +716,14 @@ $(document).ready(function() {
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label" for="departmentExportPaid">Department</label>
-                            <select class="form-control department" lang="exportPaid" id="departmentExportPaid" name="department">
+                            <label class="form-label" for="departmentexportPaid">Department</label>
+                            <select class="form-control department" lang="exportPaid" id="departmentexportPaid" name="department">
                                 <option value="">All departments</option>
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label" for="programExportPaid">Programme</label>
-                            <select class="form-control" id="programExportPaid" name="program">
+                            <label class="form-label" for="programexportPaid">Programme</label>
+                            <select class="form-control" id="programexportPaid" name="program">
                                 <option value="">All programmes</option>
                             </select>
                         </div>
