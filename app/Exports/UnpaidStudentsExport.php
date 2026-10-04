@@ -6,13 +6,23 @@ use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 
-class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
+class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize, WithEvents
 {
-    public function __construct(
-        protected string $session,
-        protected string $feesType = ''
-    ) {
+    protected string $session;
+    protected string $feesType;
+    protected array $filters = [];
+    protected array $summary = [];
+
+    public function __construct(string $session, string $feesType = '', array $filters = [])
+    {
+        $this->session = $session;
+        $this->feesType = $feesType;
+        $this->filters = array_filter($filters, function ($value) {
+            return $value !== null && $value !== '' && $value !== 'all';
+        });
     }
 
     public function collection()
@@ -31,6 +41,21 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
 
         $params[] = $this->session;
         $params[] = $this->session;
+
+        $filterSql = '';
+        $filterParams = [];
+        $filterColumns = [
+            'faculty' => 'active.faculty',
+            'department' => 'active.department',
+            'program' => 'active.program',
+            'level' => 'active.level',
+        ];
+        foreach ($this->filters as $key => $value) {
+            if (isset($filterColumns[$key]) && $value !== null && $value !== '' && $value !== 'all') {
+                $filterSql .= ' AND ' . $filterColumns[$key] . ' = ?';
+                $filterParams[] = $value;
+            }
+        }
 
         $query = "
             SELECT
@@ -85,7 +110,6 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
                     WHERE type = 'RETURNING'
                     GROUP BY program, level
                 ) returning_fees ON returning_fees.program = s.program AND returning_fees.level = s.level
-
                 LEFT JOIN (
                     SELECT i.username, SUM(COALESCE(i.amount, 0)) AS amount_paid
                     FROM invoices i
@@ -112,9 +136,11 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
             ) active
             WHERE active.required_amount > 0
               AND active.amount_paid < active.required_amount
+              {$filterSql}
             ORDER BY active.faculty, active.department, active.program, active.username
         ";
 
+        $params = array_merge($params, $filterParams);
         $rows = collect(DB::select($query, $params))->map(function ($student) {
             $resultCount = (int) $student->result_count;
             $historyCount = (int) $student->history_count;
@@ -143,6 +169,24 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
             ];
         });
 
+        $recordCount = $rows->count();
+        $totalRequired = (float) $rows->sum(function ($row) {
+            return (float) str_replace(',', '', $row['required_amount']);
+        });
+        $totalPaid = (float) $rows->sum(function ($row) {
+            return (float) str_replace(',', '', $row['amount_paid']);
+        });
+        $totalOutstanding = (float) $rows->sum(function ($row) {
+            return (float) str_replace(',', '', $row['outstanding_amount']);
+        });
+
+        $this->summary = [
+            'records' => $recordCount,
+            'required_amount' => $totalRequired,
+            'amount_paid' => $totalPaid,
+            'outstanding_amount' => $totalOutstanding,
+        ];
+
         $rows->push([
             'username' => 'TOTAL',
             'name' => '',
@@ -153,9 +197,9 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
             'program' => '',
             'level' => '',
             'entry_session' => '',
-            'required_amount' => number_format((float) $rows->sum(fn ($row) => (float) str_replace(',', '', $row['required_amount'])), 2),
-            'amount_paid' => number_format((float) $rows->sum(fn ($row) => (float) str_replace(',', '', $row['amount_paid'])), 2),
-            'outstanding_amount' => number_format((float) $rows->sum(fn ($row) => (float) str_replace(',', '', $row['outstanding_amount'])), 2),
+            'required_amount' => number_format($totalRequired, 2),
+            'amount_paid' => number_format($totalPaid, 2),
+            'outstanding_amount' => number_format($totalOutstanding, 2),
             'activity_source' => '',
             'result_count' => $rows->sum('result_count'),
             'session_history_count' => $rows->sum('session_history_count'),
@@ -165,6 +209,30 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
         return $rows;
     }
 
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+                $summaryStart = $sheet->getHighestRow() + 2;
+                $summaryRows = [
+                    ['EXPORT SUMMARY', ''],
+                    ['Session', (string) $this->session],
+                    ['Sponsor', $this->feesType !== '' ? $this->feesType : 'All sponsors'],
+                    ['Faculty', $this->filters['faculty'] ?? 'All faculties'],
+                    ['Department', $this->filters['department'] ?? 'All departments'],
+                    ['Programme', $this->filters['program'] ?? 'All programmes'],
+                    ['Level', $this->filters['level'] ?? 'All levels'],
+                    ['Records', (int) ($this->summary['records'] ?? 0)],
+                    ['Required amount', (float) ($this->summary['required_amount'] ?? 0)],
+                    ['Amount paid', (float) ($this->summary['amount_paid'] ?? 0)],
+                    ['Outstanding amount', (float) ($this->summary['outstanding_amount'] ?? 0)],
+                ];
+                $sheet->fromArray($summaryRows, null, 'A' . $summaryStart);
+                $sheet->getStyle('A' . $summaryStart)->getFont()->setBold(true);
+            },
+        ];
+    }
     /**
      * Fast, read-only summary of active students whose programme fee is not
      * fully paid. Results and session history are both treated as activity,

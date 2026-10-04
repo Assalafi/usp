@@ -33,6 +33,7 @@
     $selfRate = ($selfSponsor['required_amount'] ?? 0) > 0 ? min(100, (($selfSponsor['amount_paid'] ?? 0) / $selfSponsor['required_amount']) * 100) : 0;
     $hostelPinSummary = $hostel_pin_summary ?? [];
     $paymentRecords = (int) collect($payment_summary ?? [])->sum('count') + (int) ($hostelPinSummary['count'] ?? 0);
+    $exportLevels = DB::table('students')->whereNotNull('level')->where('level', '!=', '')->select('level')->distinct()->orderBy('level')->pluck('level');
 @endphp
 
 <div class="fees-dashboard">
@@ -595,12 +596,12 @@ $(document).ready(function() {
 
 <!-- Export Active Unpaid Students Modal -->
 <div class="modal fade" id="exportUnpaidStudentsModal" tabindex="-1" role="dialog" aria-labelledby="exportUnpaidStudentsLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header bg-warning">
                 <div>
-                    <h5 class="modal-title mb-1" id="exportUnpaidStudentsLabel">Export Active Students with Outstanding Fees</h5>
-                    <small class="text-dark">Only students active in the selected session with an unpaid programme-fee balance are included.</small>
+                    <h5 class="modal-title mb-1" id="exportUnpaidStudentsLabel">Export students with outstanding fees</h5>
+                    <small class="text-dark">Use any combination of filters. The workbook includes the matching students and a totals summary.</small>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -609,25 +610,58 @@ $(document).ready(function() {
                 <div class="modal-body">
                     <div class="alert alert-light border mb-3">
                         <i class="fas fa-info-circle text-primary me-1"></i>
-                        A student is considered active when the session has at least one result or a session-history record for that student.
+                        Unpaid records include active students with a result or session-history record in the selected session.
                     </div>
-                    <div class="form-group mb-3">
-                        <label for="exportUnpaidSession">Session <span class="text-danger">*</span></label>
-                        <select class="form-control" id="exportUnpaidSession" name="session" required>
-                            <option value="">Select session</option>
-                            @foreach ($session as $sessionOption)
-                                <option value="{{ $sessionOption->title }}" {{ $sessionOption->title === ($fees_session ?? session('system_session')) ? 'selected' : '' }}>{{ $sessionOption->title }}</option>
-                            @endforeach
-                        </select>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label" for="exportUnpaidSession">Session <span class="text-danger">*</span></label>
+                            <select class="form-control" id="exportUnpaidSession" name="session" required>
+                                <option value="">Select session</option>
+                                @foreach ($session as $sessionOption)
+                                    <option value="{{ $sessionOption->title }}" {{ $sessionOption->title === ($fees_session ?? session('system_session')) ? 'selected' : '' }}>{{ $sessionOption->title }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="exportUnpaidSponsor">Sponsor</label>
+                            <select class="form-control" id="exportUnpaidSponsor" name="fees_type">
+                                <option value="">All sponsors</option>
+                                <option value="nelfund">NELFUND</option>
+                                <option value="others">Others (Self-sponsored)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="facultyExportUnpaid">Faculty</label>
+                            <select class="form-control faculty" lang="exportUnpaid" id="facultyExportUnpaid" name="faculty">
+                                <option value="">All faculties</option>
+                                @foreach (($faculty ?? collect()) as $facultyOption)
+                                    <option value="{{ $facultyOption->code }}">{{ $facultyOption->title }} ({{ $facultyOption->code }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="departmentExportUnpaid">Department</label>
+                            <select class="form-control department" lang="exportUnpaid" id="departmentExportUnpaid" name="department">
+                                <option value="">All departments</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="programExportUnpaid">Programme</label>
+                            <select class="form-control" id="programExportUnpaid" name="program">
+                                <option value="">All programmes</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="levelExportUnpaid">Level</label>
+                            <select class="form-control" id="levelExportUnpaid" name="level">
+                                <option value="">All levels</option>
+                                @foreach (($exportLevels ?? collect()) as $exportLevel)
+                                    <option value="{{ $exportLevel }}">{{ $exportLevel }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group mb-0">
-                        <label for="exportUnpaidSponsor">Sponsor</label>
-                        <select class="form-control" id="exportUnpaidSponsor" name="fees_type">
-                            <option value="">All sponsors</option>
-                            <option value="nelfund">NELFUND</option>
-                            <option value="others">Others (Self-sponsored)</option>
-                        </select>
-                    </div>
+                    <small class="text-muted d-block mt-3"><i class="fas fa-file-excel me-1"></i>The exported workbook contains the filtered rows, totals, filters used, and outstanding amount summary.</small>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -641,50 +675,77 @@ $(document).ready(function() {
 </div>
 
 <!-- Export Paid Students Modal -->
-<div class="modal fade" id="exportPaidStudentsModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
+<div class="modal fade" id="exportPaidStudentsModal" tabindex="-1" role="dialog" aria-labelledby="exportPaidStudentsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Export Paid Students</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header bg-success text-white">
+                <div>
+                    <h5 class="modal-title mb-1" id="exportPaidStudentsLabel">Export students who paid</h5>
+                    <small>Filter the paid programme-fee records before downloading the workbook.</small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <form id="exportPaidStudentsForm" action="/admin/receipts/export-paid-students" method="POST">
-                    @csrf
-                    <div class="form-group mb-3">
-                        <label for="exportSession">Select Session</label>
-                        <select class="form-control" id="exportSession" name="session" required>
-                            <option value="">Select Session</option>
-                            <option value="2028/2029">2028/2029</option>
-                            <option value="2027/2028">2027/2028</option>
-                            <option value="2026/2027">2026/2027</option>
-                            <option value="2025/2026">2025/2026</option>
-                            <option value="2024/2025" {{ ($fees_session ?? '') === '2024/2025' ? 'selected' : '' }}>2024/2025</option>
-                            <option value="2023/2024">2023/2024</option>
-                            <option value="2022/2023">2022/2023</option>
-                            <option value="2021/2022">2021/2022</option>
-                            <option value="2020/2021">2020/2021</option>
-                            <option value="2019/2020">2019/2020</option>
-                            <option value="2018/2019">2018/2019</option>
-                            <option value="2017/2018">2017/2018</option>
-                        </select>
+            <form id="exportPaidStudentsForm" action="{{ route('admin.receipts.export_paid_students') }}" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label" for="exportPaidSession">Session <span class="text-danger">*</span></label>
+                            <select class="form-control" id="exportPaidSession" name="session" required>
+                                <option value="">Select session</option>
+                                @foreach ($session as $sessionOption)
+                                    <option value="{{ $sessionOption->title }}" {{ $sessionOption->title === ($fees_session ?? session('system_session')) ? 'selected' : '' }}>{{ $sessionOption->title }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="exportPaidSponsor">Sponsor</label>
+                            <select class="form-control" id="exportPaidSponsor" name="fees_type">
+                                <option value="">All sponsors</option>
+                                <option value="nelfund">NELFUND</option>
+                                <option value="others">Others (Self-sponsored)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="facultyExportPaid">Faculty</label>
+                            <select class="form-control faculty" lang="exportPaid" id="facultyExportPaid" name="faculty">
+                                <option value="">All faculties</option>
+                                @foreach (($faculty ?? collect()) as $facultyOption)
+                                    <option value="{{ $facultyOption->code }}">{{ $facultyOption->title }} ({{ $facultyOption->code }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="departmentExportPaid">Department</label>
+                            <select class="form-control department" lang="exportPaid" id="departmentExportPaid" name="department">
+                                <option value="">All departments</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="programExportPaid">Programme</label>
+                            <select class="form-control" id="programExportPaid" name="program">
+                                <option value="">All programmes</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="levelExportPaid">Level</label>
+                            <select class="form-control" id="levelExportPaid" name="level">
+                                <option value="">All levels</option>
+                                @foreach (($exportLevels ?? collect()) as $exportLevel)
+                                    <option value="{{ $exportLevel }}">{{ $exportLevel }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group mb-3">
-                        <label for="exportSponsor">Sponsor</label>
-                        <select class="form-control" id="exportSponsor" name="fees_type">
-                            <option value="">All</option>
-                            <option value="nelfund">NELFUND</option>
-                            <option value="others">Others (Self Sponsor)</option>
-                        </select>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" form="exportPaidStudentsForm" class="btn btn-success">
-                    <i class="fas fa-file-excel"></i> Export to Excel
-                </button>
-            </div>
+                    <small class="text-muted d-block mt-3"><i class="fas fa-file-excel me-1"></i>The exported workbook contains the filtered rows, totals, filters used, and paid/outstanding amount summary.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" form="exportPaidStudentsForm" class="btn btn-success">
+                        <i class="fas fa-file-excel me-1"></i> Export Excel
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

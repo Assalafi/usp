@@ -6,16 +6,23 @@ use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 
-class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
+class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize, WithEvents
 {
     protected $session;
     protected $feesType;
+    protected $filters = [];
+    protected $summary = [];
 
-    public function __construct($session, $feesType = '')
+    public function __construct($session, $feesType = '', array $filters = [])
     {
         $this->session = $session;
         $this->feesType = $feesType;
+        $this->filters = array_filter($filters, function ($value) {
+            return $value !== null && $value !== '' && $value !== 'all';
+        });
     }
 
     /**
@@ -23,7 +30,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
      * Fees Due summary. Keeping this query in one place prevents the card and
      * downloaded report from showing different populations.
      */
-    public static function paidRows(string $session, string $feesType = ''): array
+    public static function paidRows(string $session, string $feesType = '', array $filters = []): array
     {
         $serviceTypeId = (string) config('services.remita.school_fees_key', '365039916');
 
@@ -79,6 +86,19 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
             $query .= " AND i.fees_type = 'nelfund'";
         } elseif ($feesType === 'others') {
             $query .= " AND (i.fees_type != 'nelfund' OR i.fees_type IS NULL)";
+        }
+
+        $filterColumns = [
+            'faculty' => 's.faculty',
+            'department' => 's.department',
+            'program' => 's.program',
+            'level' => 's.level',
+        ];
+        foreach ($filters as $key => $value) {
+            if (isset($filterColumns[$key]) && $value !== null && $value !== '' && $value !== 'all') {
+                $query .= ' AND ' . $filterColumns[$key] . ' = ?';
+                $params[] = $value;
+            }
         }
 
         $query .= "
@@ -320,11 +340,23 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
     }
     public function collection()
     {
-        $results = static::paidRows($this->session, $this->feesType);
+        $results = static::paidRows($this->session, $this->feesType, $this->filters);
+        $recordCount = count($results);
         $totalRequired = (float) collect($results)->sum('required_amount');
         $totalPaid = (float) collect($results)->sum('amount_paid');
+        $fullyPaid = collect($results)->filter(function ($item) {
+            return (string) $item->full_payment === 'Yes';
+        })->count();
 
-        // Convert to array and format amounts
+        $this->summary = [
+            'records' => $recordCount,
+            'fully_paid' => $fullyPaid,
+            'with_balance' => max(0, $recordCount - $fullyPaid),
+            'required_amount' => $totalRequired,
+            'amount_paid' => $totalPaid,
+            'outstanding_amount' => max(0, $totalRequired - $totalPaid),
+        ];
+
         $rows = collect($results)->map(function ($item) {
             return [
                 'username' => $item->username,
@@ -338,8 +370,6 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
             ];
         });
 
-        // Keep the summary in the final row so it is visible in Excel without
-        // requiring a separate calculation.
         $rows->push([
             'username' => 'TOTAL',
             'faculty' => '',
@@ -354,6 +384,32 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
         return $rows;
     }
 
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+                $summaryStart = $sheet->getHighestRow() + 2;
+                $summaryRows = [
+                    ['EXPORT SUMMARY', ''],
+                    ['Session', (string) $this->session],
+                    ['Sponsor', $this->feesType !== '' ? $this->feesType : 'All sponsors'],
+                    ['Faculty', $this->filters['faculty'] ?? 'All faculties'],
+                    ['Department', $this->filters['department'] ?? 'All departments'],
+                    ['Programme', $this->filters['program'] ?? 'All programmes'],
+                    ['Level', $this->filters['level'] ?? 'All levels'],
+                    ['Records', (int) ($this->summary['records'] ?? 0)],
+                    ['Fully paid records', (int) ($this->summary['fully_paid'] ?? 0)],
+                    ['Records with outstanding balance', (int) ($this->summary['with_balance'] ?? 0)],
+                    ['Required amount', (float) ($this->summary['required_amount'] ?? 0)],
+                    ['Amount paid', (float) ($this->summary['amount_paid'] ?? 0)],
+                    ['Outstanding amount', (float) ($this->summary['outstanding_amount'] ?? 0)],
+                ];
+                $sheet->fromArray($summaryRows, null, 'A' . $summaryStart);
+                $sheet->getStyle('A' . $summaryStart)->getFont()->setBold(true);
+            },
+        ];
+    }
     public function headings(): array
     {
         return [

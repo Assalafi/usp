@@ -344,11 +344,21 @@ class InvoicesController extends Controller
         }
 
         $feesType = $request->input('fees_type', '');
+        $filters = $request->validate([
+            'faculty' => ['nullable', 'string', 'max:100'],
+            'department' => ['nullable', 'string', 'max:100'],
+            'program' => ['nullable', 'string', 'max:100'],
+            'level' => ['nullable', 'string', 'max:50'],
+        ]);
+        $filters = array_filter($filters, function ($value) {
+            return $value !== null && $value !== '' && $value !== 'all';
+        });
 
         set_time_limit(300);
         ini_set('memory_limit', '512M');
 
-        $export = new \App\Exports\PaidStudentsExport($session, $feesType);
+        $export = new \App\Exports\PaidStudentsExport($session, $feesType, $filters);
+
         $filename = 'paid_students_' . str_replace('/', '-', $session) . '_' . ($feesType ? $feesType : 'all') . '_' . date('Y-m-d') . '.xlsx';
 
         return \Maatwebsite\Excel\Facades\Excel::download($export, $filename);
@@ -369,6 +379,10 @@ class InvoicesController extends Controller
         $validated = $request->validate([
             'session' => ['required', 'string', 'max:20'],
             'fees_type' => ['nullable', 'in:nelfund,others'],
+            'faculty' => ['nullable', 'string', 'max:100'],
+            'department' => ['nullable', 'string', 'max:100'],
+            'program' => ['nullable', 'string', 'max:100'],
+            'level' => ['nullable', 'string', 'max:50'],
         ]);
 
         set_time_limit(300);
@@ -376,7 +390,15 @@ class InvoicesController extends Controller
 
         $feesType = $validated['fees_type'] ?? '';
         $session = $validated['session'];
-        $export = new \App\Exports\UnpaidStudentsExport($session, $feesType);
+        $filters = array_filter([
+            'faculty' => $validated['faculty'] ?? null,
+            'department' => $validated['department'] ?? null,
+            'program' => $validated['program'] ?? null,
+            'level' => $validated['level'] ?? null,
+        ], function ($value) {
+            return $value !== null && $value !== '' && $value !== 'all';
+        });
+        $export = new \App\Exports\UnpaidStudentsExport($session, $feesType, $filters);
         $filename = 'unpaid_active_students_' . str_replace('/', '-', $session) . '_' . ($feesType ?: 'all') . '_' . date('Y-m-d') . '.xlsx';
 
         return \Maatwebsite\Excel\Facades\Excel::download($export, $filename);
