@@ -33,6 +33,11 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
     public static function paidRows(string $session, string $feesType = '', array $filters = []): array
     {
         $serviceTypeId = (string) config('services.remita.school_fees_key', '365039916');
+        $academicFilterKeys = ['faculty', 'department', 'program', 'level'];
+        $includeStudentsWithoutPayments = count(array_intersect(
+            array_keys($filters),
+            $academicFilterKeys
+        )) > 0;
 
         $query = "
             SELECT
@@ -42,11 +47,13 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                 program,
                 level,
                 required_amount,
-                invoices_amount AS amount_paid,
+                COALESCE(invoices_amount, 0) AS amount_paid,
                 CASE
-                    WHEN invoices_amount >= required_amount THEN 'Yes'
-                    ELSE 'No'
-                END AS full_payment
+                    WHEN COALESCE(invoices_amount, 0) <= 0 THEN 'No payment'
+                    WHEN invoices_amount > required_amount THEN 'Overpaid'
+                    WHEN invoices_amount >= required_amount THEN 'Fully paid'
+                    ELSE 'Partially paid'
+                END AS payment_status
             FROM (
                 SELECT
                     s.username,
@@ -66,26 +73,32 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                              AND type = 'RETURNING'
                              ORDER BY amount DESC LIMIT 1), 0)
                     END AS required_amount,
-                    COALESCE(SUM(i.amount), 0) AS invoices_amount
-                FROM
-                    students s
-                JOIN
-                    invoices i ON s.user_id = i.username
+                    COALESCE(paid.invoices_amount, 0) AS invoices_amount
+                FROM students s
+                LEFT JOIN (
+                    SELECT username, SUM(amount) AS invoices_amount
+                    FROM invoices
+                    WHERE session = ?
+                      AND status = 'Paid'
+                      AND serviceTypeId = ?
+                      AND description = 'UNIVERSITY OF MAIDUGURI-1000127 FEES'
+";
+        if ($feesType === 'nelfund') {
+            $query .= " AND fees_type = 'nelfund'";
+        } elseif ($feesType === 'others') {
+            $query .= " AND (fees_type != 'nelfund' OR fees_type IS NULL)";
+        }
 
-                WHERE
-                    i.session = ?
-                    AND i.status = 'Paid'
-                    AND i.serviceTypeId = ?
-                    AND i.description = 'UNIVERSITY OF MAIDUGURI-1000127 FEES'
+        $query .= "
+                    GROUP BY username
+                ) paid ON paid.username = s.user_id
+                WHERE 1 = 1
         ";
 
         $params = [$session, $session, $serviceTypeId];
 
-        // Add sponsor filter
-        if ($feesType === 'nelfund') {
-            $query .= " AND i.fees_type = 'nelfund'";
-        } elseif ($feesType === 'others') {
-            $query .= " AND (i.fees_type != 'nelfund' OR i.fees_type IS NULL)";
+        if (!$includeStudentsWithoutPayments) {
+            $query .= " AND paid.username IS NOT NULL";
         }
 
         $filterColumns = [
@@ -94,6 +107,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
             'program' => 's.program',
             'level' => 's.level',
         ];
+
         foreach ($filters as $key => $value) {
             if (isset($filterColumns[$key]) && $value !== null && $value !== '' && $value !== 'all') {
                 $query .= ' AND ' . $filterColumns[$key] . ' = ?';
@@ -102,20 +116,12 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
         }
 
         $query .= "
-                GROUP BY
-                    s.username,
-                    s.faculty,
-                    s.department,
-                    s.program,
-                    s.level,
-                    s.session_of_entry
             ) AS subquery
             WHERE required_amount > 0
         ";
 
         return DB::select($query, $params);
     }
-
     /**
      * Totals for the same validated population used in the report.
      */
@@ -342,31 +348,67 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
     {
         $results = static::paidRows($this->session, $this->feesType, $this->filters);
         $recordCount = count($results);
-        $totalRequired = (float) collect($results)->sum('required_amount');
-        $totalPaid = (float) collect($results)->sum('amount_paid');
-        $fullyPaid = collect($results)->filter(function ($item) {
-            return (string) $item->full_payment === 'Yes';
-        })->count();
+        $totalRequired = 0.0;
+        $totalPaid = 0.0;
+        $outstandingAmount = 0.0;
+        $overpaidAmount = 0.0;
+        $fullyPaid = 0;
+        $partiallyPaid = 0;
+        $noPayment = 0;
+        $overpaid = 0;
+
+        foreach ($results as $item) {
+            $required = (float) ($item->required_amount ?? 0);
+            $paid = (float) ($item->amount_paid ?? 0);
+            $totalRequired += $required;
+            $totalPaid += $paid;
+            $outstandingAmount += max($required - $paid, 0);
+            $overpaidAmount += max($paid - $required, 0);
+
+            switch ((string) ($item->payment_status ?? 'No payment')) {
+                case 'Fully paid':
+                    $fullyPaid++;
+                    break;
+                case 'Partially paid':
+                    $partiallyPaid++;
+                    break;
+                case 'Overpaid':
+                    $overpaid++;
+                    break;
+                default:
+                    $noPayment++;
+                    break;
+            }
+        }
 
         $this->summary = [
             'records' => $recordCount,
+            'paid_records' => $recordCount - $noPayment,
             'fully_paid' => $fullyPaid,
-            'with_balance' => max(0, $recordCount - $fullyPaid),
+            'partially_paid' => $partiallyPaid,
+            'no_payment' => $noPayment,
+            'overpaid' => $overpaid,
+            'with_balance' => $partiallyPaid + $noPayment,
             'required_amount' => $totalRequired,
             'amount_paid' => $totalPaid,
-            'outstanding_amount' => max(0, $totalRequired - $totalPaid),
+            'outstanding_amount' => $outstandingAmount,
+            'overpaid_amount' => $overpaidAmount,
         ];
 
         $rows = collect($results)->map(function ($item) {
+            $required = (float) ($item->required_amount ?? 0);
+            $paid = (float) ($item->amount_paid ?? 0);
+
             return [
                 'username' => $item->username,
                 'faculty' => $item->faculty,
                 'department' => $item->department,
                 'program' => $item->program,
                 'level' => $item->level,
-                'required_amount' => number_format($item->required_amount, 2),
-                'amount_paid' => number_format($item->amount_paid, 2),
-                'full_payment' => $item->full_payment,
+                'required_amount' => number_format($required, 2),
+                'amount_paid' => number_format($paid, 2),
+                'outstanding_amount' => number_format(max($required - $paid, 0), 2),
+                'payment_status' => $item->payment_status,
             ];
         });
 
@@ -378,12 +420,12 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
             'level' => '',
             'required_amount' => number_format($totalRequired, 2),
             'amount_paid' => number_format($totalPaid, 2),
-            'full_payment' => '',
+            'outstanding_amount' => number_format($outstandingAmount, 2),
+            'payment_status' => '',
         ]);
 
         return $rows;
     }
-
     public function registerEvents(): array
     {
         return [
@@ -399,17 +441,22 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                     ['Programme', $this->filters['program'] ?? 'All programmes'],
                     ['Level', $this->filters['level'] ?? 'All levels'],
                     ['Records', (int) ($this->summary['records'] ?? 0)],
+                    ['Records with any payment', (int) ($this->summary['paid_records'] ?? 0)],
                     ['Fully paid records', (int) ($this->summary['fully_paid'] ?? 0)],
-                    ['Records with outstanding balance', (int) ($this->summary['with_balance'] ?? 0)],
+                    ['Partially paid records', (int) ($this->summary['partially_paid'] ?? 0)],
+                    ['No payment records', (int) ($this->summary['no_payment'] ?? 0)],
+                    ['Overpaid records', (int) ($this->summary['overpaid'] ?? 0)],
                     ['Required amount', (float) ($this->summary['required_amount'] ?? 0)],
                     ['Amount paid', (float) ($this->summary['amount_paid'] ?? 0)],
                     ['Outstanding amount', (float) ($this->summary['outstanding_amount'] ?? 0)],
+                    ['Overpaid amount', (float) ($this->summary['overpaid_amount'] ?? 0)],
                 ];
                 $sheet->fromArray($summaryRows, null, 'A' . $summaryStart);
                 $sheet->getStyle('A' . $summaryStart)->getFont()->setBold(true);
             },
         ];
     }
+
     public function headings(): array
     {
         return [
@@ -420,7 +467,8 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
             'Level',
             'Required Amount',
             'Amount Paid',
-            'Full Payment',
+            'Outstanding Amount',
+            'Payment Status',
         ];
     }
 }
