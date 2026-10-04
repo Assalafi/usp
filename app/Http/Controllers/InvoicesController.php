@@ -343,7 +343,7 @@ class InvoicesController extends Controller
             return redirect()->back()->with('error', 'Session is required');
         }
 
-        $feesType = $request->input('fees_type', '');
+        $feesType = (string) ($request->input('fees_type') ?? '');
         $filters = $request->validate([
             'faculty' => ['nullable', 'string', 'max:100'],
             'department' => ['nullable', 'string', 'max:100'],

@@ -19,7 +19,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
     public function __construct($session, $feesType = '', array $filters = [])
     {
         $this->session = $session;
-        $this->feesType = $feesType;
+        $this->feesType = (string) ($feesType ?? '');
         $this->filters = array_filter($filters, function ($value) {
             return $value !== null && $value !== '' && $value !== 'all';
         });
