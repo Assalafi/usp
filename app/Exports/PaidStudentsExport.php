@@ -57,7 +57,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                 END AS payment_status
             FROM (
                 SELECT
-                    COALESCE(NULLIF(TRIM(s.username), ''), NULLIF(NULLIF(CAST(s.user_id AS CHAR), ''), '0'), CAST(s.id AS CHAR)) AS username,
+                    COALESCE(NULLIF(TRIM(s.username), ''), NULLIF(TRIM(account_lookup.username), '')) AS username,
                     COALESCE(faculty_lookup.title, s.faculty) AS faculty,
                     COALESCE(department_lookup.title, s.department) AS department,
                     COALESCE(program_lookup.title, s.program) AS program,
@@ -76,6 +76,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                     END AS required_amount,
                     COALESCE(paid.invoices_amount, 0) AS invoices_amount
                 FROM students s
+                LEFT JOIN users account_lookup ON account_lookup.id = s.user_id
                 LEFT JOIN faculty faculty_lookup ON faculty_lookup.code = s.faculty
                 LEFT JOIN department department_lookup ON department_lookup.code = s.department
                 LEFT JOIN program program_lookup ON program_lookup.code = s.program
@@ -101,9 +102,10 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
 
         $params = [$session, $session, $serviceTypeId];
 
-        // id_no is the student's assigned institutional number. Records that
-        // still have zero/null id_no are not valid for this payment report.
-        $query .= " AND COALESCE(s.id_no, 0) <> 0";
+        // Keep id_no = 0 records in the population, but only expose genuine
+        // matric numbers. A valid UG username has exactly three slashes:
+        // NN/NN/NN/NNNN.
+        $query .= " AND TRIM(COALESCE(NULLIF(s.username, ''), NULLIF(account_lookup.username, ''))) REGEXP '^[0-9][0-9]/[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]$'";
 
         if (!$includeStudentsWithoutPayments) {
             $query .= " AND paid.username IS NOT NULL";
