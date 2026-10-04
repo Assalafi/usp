@@ -101,6 +101,10 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
 
         $params = [$session, $session, $serviceTypeId];
 
+        // id_no is the student's assigned institutional number. Records that
+        // still have zero/null id_no are not valid for this payment report.
+        $query .= " AND COALESCE(s.id_no, 0) <> 0";
+
         if (!$includeStudentsWithoutPayments) {
             $query .= " AND paid.username IS NOT NULL";
         }
