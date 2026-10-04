@@ -57,7 +57,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                 END AS payment_status
             FROM (
                 SELECT
-                    s.username,
+                    COALESCE(NULLIF(TRIM(s.username), ''), NULLIF(NULLIF(CAST(s.user_id AS CHAR), ''), '0'), CAST(s.id AS CHAR)) AS username,
                     COALESCE(faculty_lookup.title, s.faculty) AS faculty,
                     COALESCE(department_lookup.title, s.department) AS department,
                     COALESCE(program_lookup.title, s.program) AS program,
@@ -518,7 +518,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
     public function headings(): array
     {
         return [
-            'Username',
+            'Student ID',
             'Faculty',
             'Department',
             'Program',
