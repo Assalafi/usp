@@ -737,7 +737,7 @@ $(document).ready(function() {
                             </select>
                         </div>
                     </div>
-                    <small class="text-muted d-block mt-3"><i class="fas fa-file-excel me-1"></i>With a faculty, department, programme or level selected, the workbook includes matching students even when they have no payment. IDs follow NN/NN/NN/NNNN; records without a valid matric number are omitted. Each row is marked No payment, Partially paid, Fully paid or Overpaid, with a complete summary.</small>
+                    <small class="text-muted d-block mt-3"><i class="fas fa-file-excel me-1"></i>With a faculty, department, programme or level selected, the workbook includes matching students even when they have no payment. IDs follow NN/NN/NN/NNNN, with an optional final letter; records without a valid matric number are omitted. Each row is marked No payment, Partially paid, Fully paid or Overpaid, with a complete summary.</small>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

@@ -105,7 +105,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
         // Keep id_no = 0 records in the population, but only expose genuine
         // matric numbers. A valid UG username has exactly three slashes:
         // NN/NN/NN/NNNN.
-        $query .= " AND TRIM(COALESCE(NULLIF(s.username, ''), NULLIF(account_lookup.username, ''))) REGEXP '^[0-9][0-9]/[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]$'";
+        $query .= " AND TRIM(COALESCE(NULLIF(s.username, ''), NULLIF(account_lookup.username, ''))) REGEXP '^[0-9][0-9]/[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9][A-Z]?$'";
 
         if (!$includeStudentsWithoutPayments) {
             $query .= " AND paid.username IS NOT NULL";
