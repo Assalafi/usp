@@ -15,6 +15,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
     protected $feesType;
     protected $filters = [];
     protected $summary = [];
+    protected $noPaymentSectionRow = null;
 
     public function __construct($session, $feesType = '', array $filters = [])
     {
@@ -57,9 +58,9 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
             FROM (
                 SELECT
                     s.username,
-                    s.faculty,
-                    s.department,
-                    s.program,
+                    COALESCE(faculty_lookup.title, s.faculty) AS faculty,
+                    COALESCE(department_lookup.title, s.department) AS department,
+                    COALESCE(program_lookup.title, s.program) AS program,
                     s.level,
                     s.session_of_entry,
                     CASE
@@ -75,6 +76,9 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                     END AS required_amount,
                     COALESCE(paid.invoices_amount, 0) AS invoices_amount
                 FROM students s
+                LEFT JOIN faculty faculty_lookup ON faculty_lookup.code = s.faculty
+                LEFT JOIN department department_lookup ON department_lookup.code = s.department
+                LEFT JOIN program program_lookup ON program_lookup.code = s.program
                 LEFT JOIN (
                     SELECT username, SUM(amount) AS invoices_amount
                     FROM invoices
@@ -395,7 +399,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
             'overpaid_amount' => $overpaidAmount,
         ];
 
-        $rows = collect($results)->map(function ($item) {
+        $formatRow = function ($item): array {
             $required = (float) ($item->required_amount ?? 0);
             $paid = (float) ($item->amount_paid ?? 0);
 
@@ -410,7 +414,39 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                 'outstanding_amount' => number_format(max($required - $paid, 0), 2),
                 'payment_status' => $item->payment_status,
             ];
-        });
+        };
+
+        $paidResults = collect($results)
+            ->filter(fn ($item) => (float) ($item->amount_paid ?? 0) > 0)
+            ->sortBy('username')
+            ->values();
+
+        $noPaymentResults = collect($results)
+            ->filter(fn ($item) => (float) ($item->amount_paid ?? 0) <= 0)
+            ->sortBy('username')
+            ->values();
+
+        $rows = $paidResults->map($formatRow);
+
+        if ($noPaymentResults->isNotEmpty()) {
+            // Keep students with no payment at the end under a visible
+            // section heading so they cannot be mistaken for paid records.
+            $this->noPaymentSectionRow = $rows->count() + 2;
+            $rows->push([
+                'username' => 'STUDENTS WITHOUT PAYMENT',
+                'faculty' => '',
+                'department' => '',
+                'program' => '',
+                'level' => '',
+                'required_amount' => '',
+                'amount_paid' => '',
+                'outstanding_amount' => '',
+                'payment_status' => '',
+            ]);
+            $rows = $rows->concat($noPaymentResults->map($formatRow));
+        } else {
+            $this->noPaymentSectionRow = null;
+        }
 
         $rows->push([
             'username' => 'TOTAL',
@@ -432,13 +468,25 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
                 $summaryStart = $sheet->getHighestRow() + 2;
+                $facultyFilter = $this->filters['faculty'] ?? null;
+                $departmentFilter = $this->filters['department'] ?? null;
+                $programFilter = $this->filters['program'] ?? null;
+                $facultyLabel = $facultyFilter
+                    ? (string) (DB::table('faculty')->where('code', $facultyFilter)->value('title') ?: $facultyFilter)
+                    : 'All faculties';
+                $departmentLabel = $departmentFilter
+                    ? (string) (DB::table('department')->where('code', $departmentFilter)->value('title') ?: $departmentFilter)
+                    : 'All departments';
+                $programLabel = $programFilter
+                    ? (string) (DB::table('program')->where('code', $programFilter)->value('title') ?: $programFilter)
+                    : 'All programmes';
                 $summaryRows = [
                     ['EXPORT SUMMARY', ''],
                     ['Session', (string) $this->session],
                     ['Sponsor', $this->feesType !== '' ? $this->feesType : 'All sponsors'],
-                    ['Faculty', $this->filters['faculty'] ?? 'All faculties'],
-                    ['Department', $this->filters['department'] ?? 'All departments'],
-                    ['Programme', $this->filters['program'] ?? 'All programmes'],
+                    ['Faculty', $facultyLabel],
+                    ['Department', $departmentLabel],
+                    ['Programme', $programLabel],
                     ['Level', $this->filters['level'] ?? 'All levels'],
                     ['Records', (int) ($this->summary['records'] ?? 0)],
                     ['Records with any payment', (int) ($this->summary['paid_records'] ?? 0)],
@@ -451,6 +499,16 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                     ['Outstanding amount', (float) ($this->summary['outstanding_amount'] ?? 0)],
                     ['Overpaid amount', (float) ($this->summary['overpaid_amount'] ?? 0)],
                 ];
+                if ($this->noPaymentSectionRow !== null) {
+                    $sectionRow = $this->noPaymentSectionRow;
+                    $sheet->mergeCells('A' . $sectionRow . ':I' . $sectionRow);
+                    $sheet->getStyle('A' . $sectionRow . ':I' . $sectionRow)->applyFromArray([
+                        'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                        'fill' => ['fillType' => 'solid', 'color' => ['rgb' => 'B45309']],
+                        'alignment' => ['horizontal' => 'left'],
+                    ]);
+                }
+
                 $sheet->fromArray($summaryRows, null, 'A' . $summaryStart);
                 $sheet->getStyle('A' . $summaryStart)->getFont()->setBold(true);
             },
