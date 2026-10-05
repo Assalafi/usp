@@ -2053,10 +2053,15 @@ class RegistrationController extends Controller
     }
     private function ensureRequiredStudentDocuments(Request $request, Student $student): void
     {
+        $disk = Storage::disk('public');
         $storedTypes = StudentDocument::where('user_id', session('id'))
+            ->get(['doc_type', 'file_path'])
+            ->filter(fn ($document) => !empty($document->file_path) && $disk->exists($document->file_path))
             ->pluck('doc_type')
             ->all();
         $applicantTypes = DocumentUpload::where('user_id', session('id'))
+            ->get(['doc_type', 'file_path'])
+            ->filter(fn ($document) => !empty($document->file_path) && $disk->exists($document->file_path))
             ->pluck('doc_type')
             ->all();
         $availableTypes = array_unique(array_merge($storedTypes, $applicantTypes));
@@ -2075,13 +2080,20 @@ class RegistrationController extends Controller
             $required['direct_entry_cert'] = 'Direct Entry Certificate';
         }
 
+        $hasStoredPhotoForCurrentSubmission = $this->profilePhotoUpdatedForCurrentSubmission($student)
+            && !empty($student->picture)
+            && $disk->exists('picture/' . $student->picture);
         $hasNewUploadedPhoto = $this->hasNewUploadedPhotoPreview($request, $student)
-            || $this->profilePhotoUpdatedForCurrentSubmission($student);
+            || $hasStoredPhotoForCurrentSubmission;
         if (!$hasNewUploadedPhoto) {
             $required['picture'] = 'New Passport Photograph';
         }
 
-        $hasSignature = !empty($student->signiture) || $request->hasFile('signiture');
+        $storedSignatureIsValid = !empty($student->signiture)
+            && Storage::disk('public')->exists('signature/' . $student->signiture);
+        $newSignatureIsValid = $request->hasFile('signiture')
+            && $request->file('signiture')->isValid();
+        $hasSignature = $storedSignatureIsValid || $newSignatureIsValid;
         if (!$hasSignature) {
             $required['signiture'] = 'Digital Signature';
         }
@@ -2090,9 +2102,9 @@ class RegistrationController extends Controller
         foreach ($required as $field => $label) {
             $hasNewFile = $field === 'picture'
                 ? $this->hasNewUploadedPhotoPreview($request, $student)
-                : $request->hasFile($field);
+                : ($request->hasFile($field) && $request->file($field)->isValid());
             $hasStoredFile = $field === 'picture'
-                ? $this->profilePhotoUpdatedForCurrentSubmission($student)
+                ? $hasStoredPhotoForCurrentSubmission
                 : ($field === 'signiture' ? $hasSignature : in_array($field, $availableTypes, true));
 
             if (!$hasNewFile && !$hasStoredFile) {

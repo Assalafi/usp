@@ -16,6 +16,10 @@
     $studentDocuments = collect($studentDocuments ?? []);
     // Student uploads override the original applicant upload for the same type.
     $documentRecords = $applicantDocuments->merge($studentDocuments)->keyBy('doc_type');
+    $validDocumentRecords = $documentRecords->filter(function ($document) {
+        return !empty($document->file_path)
+            && \Illuminate\Support\Facades\Storage::disk('public')->exists($document->file_path);
+    });
     $bankOptions = [
         'ACCESS BANK PLC' => '044',
         'CITIBANK NIGERIA LIMITED' => '023',
@@ -51,6 +55,8 @@
     $profilePhotoUrl = $row->picture
         ? asset('storage/picture/' . $row->picture)
         : ($passportDocument ? asset('storage/' . $passportDocument->file_path) : asset('uploads/profile.jpg'));
+    $hasStoredSignature = !empty($row->signiture)
+        && \Illuminate\Support\Facades\Storage::disk('public')->exists('signature/' . $row->signiture);
     $legacyBank = $siwesBankDetails ?? null;
     $bankName = $row->bank_name ?: ($legacyBank->bank_name ?? '');
     $bankCode = $row->bank_code ?: ($legacyBank->bank_code ?? '');
@@ -117,14 +123,14 @@
             'Current level for ' . ($currentSession ?: 'the current session') => $levelConfirmedForSession,
         ],
         'Documents' => [
-            'JAMB result' => $documentRecords->has('jamb_result'),
-            'SSCE result (1st sitting)' => $documentRecords->has('ssce_result'),
-            'Birth certificate' => $documentRecords->has('birth_certificate'),
-            'NIN document' => $documentRecords->has('nin_document'),
-            'JAMB admission letter' => $documentRecords->has('jamb_admission'),
-            'Indigene certificate' => $documentRecords->has('indigine'),
+            'JAMB result' => $validDocumentRecords->has('jamb_result'),
+            'SSCE result (1st sitting)' => $validDocumentRecords->has('ssce_result'),
+            'Birth certificate' => $validDocumentRecords->has('birth_certificate'),
+            'NIN document' => $validDocumentRecords->has('nin_document'),
+            'JAMB admission letter' => $validDocumentRecords->has('jamb_admission'),
+            'Indigene certificate' => $validDocumentRecords->has('indigine'),
             'Passport photograph (new upload)' => $profileIsSubmitted || $profilePhotoUpdatedForCurrentSubmission,
-            'Digital signature' => !empty($row->signiture) || $documentRecords->has('signiture'),
+            'Digital signature' => $hasStoredSignature,
         ],
         'Bank details' => [
             'Bank name' => $bankName,
@@ -133,7 +139,7 @@
         ],
     ];
     if (in_array(strtoupper((string) $row->mode_of_entry), ['DE', 'DIRECT ENTRY'], true)) {
-        $profileRequiredGroups['Documents']['Direct entry certificate'] = $documentRecords->has('direct_entry_cert');
+        $profileRequiredGroups['Documents']['Direct entry certificate'] = $validDocumentRecords->has('direct_entry_cert');
     }
 
     $profileMissingFields = [];
@@ -1140,9 +1146,9 @@
                                                     <div class="sp-signature-actions"><button type="button" class="btn btn-light btn-sm" id="clear-student-signature"><i class="fas fa-eraser"></i> Clear</button></div>
                                                 </div>
                                                 <label for="signiture" class="sp-upload-label sp-upload-secondary"><i class="fas fa-file-arrow-up"></i> Upload signature image</label>
-                                                <input type="file" class="d-none" id="signiture" name="signiture" accept="image/png,image/jpeg" @if (!$row->signiture) required @endif>
+                                                <input type="file" class="d-none" id="signiture" name="signiture" accept="image/png,image/jpeg" @if (!$hasStoredSignature) required @endif>
                                                 <small class="sp-help">Sign inside the box using your finger or mouse. Your signature appears on official documents and ID cards.</small>
-                                                @if ($row->signiture)
+                                                @if ($hasStoredSignature)
                                                     <img class="sp-existing-signature" src="{{ asset('storage/signature/' . $row->signiture) }}" alt="Current signature">
                                                 @endif
                                             </section>
