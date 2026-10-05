@@ -122,7 +122,6 @@
             'Birth certificate' => $documentRecords->has('birth_certificate'),
             'NIN document' => $documentRecords->has('nin_document'),
             'JAMB admission letter' => $documentRecords->has('jamb_admission'),
-            'Primary school certificate' => $documentRecords->has('primary_cert'),
             'Indigene certificate' => $documentRecords->has('indigine'),
             'Passport photograph (new upload)' => $profileIsSubmitted || $profilePhotoUpdatedForCurrentSubmission,
             'Digital signature' => !empty($row->signiture) || $documentRecords->has('signiture'),
@@ -1189,8 +1188,8 @@
                                                 [
                                                     'id' => 'primary_cert',
                                                     'label' => 'Primary School Certificate',
-                                                    'required' => true,
-                                                    'description' => 'Upload your primary school certificate.',
+                                                    'required' => false,
+                                                    'description' => 'Optional. Upload your primary school certificate if available.',
                                                 ],
                                                 [
                                                     'id' => 'indigine',

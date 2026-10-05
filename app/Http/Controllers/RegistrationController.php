@@ -2067,7 +2067,6 @@ class RegistrationController extends Controller
             'birth_certificate' => 'Birth Certificate',
             'nin_document' => 'NIN Document',
             'jamb_admission' => 'JAMB Admission Letter',
-            'primary_cert' => 'Primary School Certificate',
             'indigine' => 'Indigene Certificate',
         ];
 
