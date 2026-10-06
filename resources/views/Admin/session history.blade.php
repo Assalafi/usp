@@ -361,10 +361,10 @@
                 <form action="/generate-session-history" method="POST">
                     @csrf
                     <div class="modal-body">
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle"></i> This will <strong>delete all existing session
-                                history</strong> for the selected students and create new records based on their
-                            session_of_entry.
+                        <div class="alert alert-info">
+                            <i class="fas fa-shield-alt"></i> Existing session history records will not be deleted or
+                            overwritten. The system will check the selected students and create records only for students
+                            who do not already have a history record for the selected session.
                         </div>
                         <div class="mb-3">
                             <label for="facultyGen" class="form-label">Faculty <small

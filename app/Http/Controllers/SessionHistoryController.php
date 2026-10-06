@@ -175,27 +175,28 @@ class SessionHistoryController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
-        
-        $targetSession = $request->session;
-        $faculty = $request->faculty;
-        $department = $request->department;
-        $program = $request->program;
-        $offset = $request->offset ?? 0;
+
+        $targetSession = trim((string) $request->input('session'));
+        $faculty = $request->input('faculty');
+        $department = $request->input('department');
+        $program = $request->input('program');
+        $offset = max(0, (int) $request->input('offset', 0));
+        $createdTotal = max(0, (int) $request->input('created_total', 0));
+        $preservedTotal = max(0, (int) $request->input('preserved_total', 0));
         $limit = 100;
-        $deleteFlag = $request->delete_done ?? 0;
-        
+
         if (!$targetSession) {
             return redirect()->back()->with('error', 'Session is required');
         }
-        
-        // Build student query based on filters
+
+        // Build a stable student query for the selected entry session.
         $query = DB::table('students')
             ->whereNotNull('session_of_entry')
             ->where('session_of_entry', $targetSession)
             ->where('id_no', '!=', 0)
             ->whereNotNull('id_no');
-        
-        // Apply optional filters (check for actual values, not placeholders)
+
+        // Apply optional filters (check for actual values, not placeholders).
         if (!empty($program) && $program !== 'all' && $program !== 'Select Department First') {
             $query->where('program', $program);
         }
@@ -205,31 +206,39 @@ class SessionHistoryController extends Controller
         if (!empty($faculty) && $faculty !== 'all' && $faculty !== 'All Faculties') {
             $query->where('faculty', $faculty);
         }
-        
-        // Get total count for progress
+
         $totalStudents = (clone $query)->count();
-        
+
         if ($totalStudents == 0) {
             return redirect()->back()->with('error', 'No students found with the selected criteria');
         }
-        
-        // Delete existing records only on first batch
-        if ($offset == 0 && $deleteFlag == 0) {
-            $usernames = (clone $query)->pluck('username')->toArray();
-            DB::table('session_history')->whereIn('username', $usernames)->delete();
-        }
-        
-        // Get current batch of students
-        $students = $query->skip($offset)->take($limit)->get();
-        
+
+        // Keep pagination stable while batches are being processed. Existing
+        // rows are never deleted or overwritten; only missing rows are inserted.
+        $students = $query->orderBy('students.id', 'asc')->skip($offset)->take($limit)->get();
+
         if ($students->isEmpty()) {
-            // All done
-            return redirect('/session history')->with('success', "Session history generated for {$totalStudents} students. Previous records deleted.");
+            return redirect('/session history')->with('success', "Session history check completed for {$totalStudents} students. {$createdTotal} missing record(s) created; {$preservedTotal} existing record(s) preserved.");
         }
-        
-        // Insert session history for current batch
+
+        $usernames = $students->pluck('username')->filter()->values()->all();
+        $existing = DB::table('session_history')
+            ->where('session', $targetSession)
+            ->whereIn('username', $usernames)
+            ->pluck('username')
+            ->flip();
+
+        $rows = [];
+        $preservedCount = 0;
+        $timestamp = now();
+
         foreach ($students as $student) {
-            DB::table('session_history')->insert([
+            if (!$student->username || isset($existing[$student->username])) {
+                $preservedCount++;
+                continue;
+            }
+
+            $rows[] = [
                 'username' => $student->username,
                 'session' => $targetSession,
                 'level' => $student->level_of_entry ?? '100',
@@ -238,32 +247,44 @@ class SessionHistoryController extends Controller
                 'product' => 0,
                 'cgpa' => 0,
                 'status' => 'PENDING',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ];
         }
-        
-        $newOffset = $offset + $limit;
+
+        // insertOrIgnore makes a second/concurrent run safe when the unique
+        // username + session key already exists.
+        $createdCount = $rows
+            ? DB::transaction(function () use ($rows) {
+                return DB::table('session_history')->insertOrIgnore($rows);
+            })
+            : 0;
+        $preservedCount += max(0, count($rows) - $createdCount);
+        $createdTotal += $createdCount;
+        $preservedTotal += $preservedCount;
+
+        $newOffset = $offset + $students->count();
         $processed = min($newOffset, $totalStudents);
         $remaining = $totalStudents - $processed;
-        
-        // Build redirect URL with parameters
+
         $params = http_build_query([
             'session' => $targetSession,
             'faculty' => $faculty,
             'department' => $department,
             'program' => $program,
             'offset' => $newOffset,
-            'delete_done' => 1,
+            'created_total' => $createdTotal,
+            'preserved_total' => $preservedTotal,
         ]);
-        
-        // Return JavaScript redirect for next batch
+
         return "
             <html>
-            <head><title>Generating Session History...</title></head>
+            <head><title>Checking Session History...</title></head>
             <body style='font-family: Arial, sans-serif; padding: 50px; text-align: center;'>
-                <h3>Generating Session History</h3>
+                <h3>Checking Session History</h3>
                 <p>Processed: {$processed} / {$totalStudents} students</p>
+                <p>New records created in this batch: {$createdCount}</p>
+                <p>Existing records preserved: {$preservedCount}</p>
                 <p>Remaining: {$remaining}</p>
                 <div style='width: 300px; margin: 20px auto; background: #eee; border-radius: 5px;'>
                     <div style='width: " . round(($processed / $totalStudents) * 100) . "%; background: #28a745; height: 20px; border-radius: 5px;'></div>
