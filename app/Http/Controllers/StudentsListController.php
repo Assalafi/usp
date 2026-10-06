@@ -43,7 +43,7 @@ class StudentsListController extends Controller
                 return $v !== '' && $v !== 'all' && $v !== null;
             });
             // Gender is maintained on the students table; keep the source explicit.
-            $query = DB::table('students')->select('students.*');
+            $query = DB::table('students')->select('students.*')->where('students.status', 1);
             foreach ($filteredData as $key => $value) {
                 $query->where($key, $value);
             }
@@ -65,7 +65,7 @@ class StudentsListController extends Controller
             $data['data'] = $query->orderBy('fullname', 'ASC')->paginate(100)->withQueryString();
         }else{
 
-            $data['data'] = DB::table('students')->select('students.*')->where(['level_of_entry' => '900'])->orderBy('fullname', 'ASC')->paginate(100)->withQueryString();
+            $data['data'] = DB::table('students')->select('students.*')->where('students.status', 1)->where(['level_of_entry' => '900'])->orderBy('fullname', 'ASC')->paginate(100)->withQueryString();
         }
             $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
             $data['fees_type'] = DB::table('fees_type')->where(['status' => '1'])->select('title')->orderBy('title', 'ASC')->get();
