@@ -208,22 +208,39 @@ class AlumniController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
-        
+
         $data['page'] = 'alumni/move_to_alumni_progress';
         $data['title'] = 'Move Students to Alumni';
+        $data['sessions'] = DB::table('session')->select('title')->orderByDesc('title')->get();
+        $data['currentSession'] = DB::table('session')->where('status', '1')->value('title');
         return view('main', $data);
     }
-
     /**
      * Stream the progress of moving students to alumni
      */
-    public function moveToAlumniStream()
+    public function moveToAlumniStream(Request $request)
     {
         if (!session()->has('log')) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $response = new StreamedResponse(function() {
+        $selectedSession = trim((string) $request->query('session', ''));
+        $usernamePrefix = trim((string) $request->query('username_prefix', ''));
+        $validSession = DB::table('session')->where('title', $selectedSession)->exists();
+
+        if (!$validSession) {
+            return response()->json(['error' => 'Please select a valid academic session.'], 422);
+        }
+
+        if ($usernamePrefix !== '' && !preg_match('/^\d{2}$/', $usernamePrefix)) {
+            return response()->json(['error' => 'The matric-number prefix must be two digits, for example 22.'], 422);
+        }
+
+        $scopeLabel = $usernamePrefix === ''
+            ? 'all matric-number years'
+            : "matric-number prefixes {$usernamePrefix} and earlier";
+
+        $response = new StreamedResponse(function() use ($selectedSession, $usernamePrefix, $scopeLabel) {
             // Set headers for Server-Sent Events
             header('Content-Type: text/event-stream');
             header('Cache-Control: no-cache');
@@ -237,31 +254,26 @@ class AlumniController extends Controller
 
             // Send initial status
             $this->sendSseMessage('status', [
-                'message' => 'Starting process to move students to alumni...'
+                'message' => "Starting process for session {$selectedSession} ({$scopeLabel})..."
             ]);
 
             try {
-                // Get all students who are not in results table AND student_course_registration table AND whose program exists in program_course_registration
+                // Eligibility is based on active status and the absence of a result in the selected session.
                 $studentsQuery = Student::whereNotNull('username') // Ensure username is not null
                     ->where('status', 1) // Only active students
-                    ->whereNotExists(function($query) {
+                    ->whereNotExists(function($query) use ($selectedSession) {
                         $query->select(DB::raw(1))
                               ->from('results')
                               ->whereRaw('results.username = students.username')
-                              ->where('session', '2024/2025');
-                    })
-                    ->whereNotExists(function($query) {
-                        $query->select(DB::raw(1))
-                              ->from('student_course_registration')
-                              ->whereRaw('student_course_registration.username = students.username')
-                              ->where('session', '2024/2025');
-                    })
-                    ->whereExists(function($query) {
-                        $query->select(DB::raw(1))
-                              ->from('program_course_registration')
-                              ->whereRaw('program_course_registration.program = students.program');
+                              ->where('session', $selectedSession);
                     })
                     ->with(['facultys', 'departments', 'programs']); // Load relationships
+
+                if ($usernamePrefix !== '') {
+                    $studentsQuery
+                        ->whereRaw("students.username REGEXP '^[0-9]{2}/'")
+                        ->whereRaw("CAST(SUBSTRING_INDEX(students.username, '/', 1) AS UNSIGNED) <= ?", [(int) $usernamePrefix]);
+                }
 
                 $totalStudents = $studentsQuery->count();
                 $processedCount = 0;
@@ -270,7 +282,7 @@ class AlumniController extends Controller
 
                 if ($totalStudents === 0) {
                     $this->sendSseMessage('status', [
-                        'message' => 'No eligible students found to move to alumni. Students must have no results records AND their program must exist in program_course_registration.'
+                        'message' => "No eligible students found for session {$selectedSession} ({$scopeLabel}). Eligible students must be active and have no result in that session."
                     ]);
                     $this->sendSseMessage('finished', [
                         'message' => 'Process completed. No students to process.'
@@ -295,20 +307,6 @@ class AlumniController extends Controller
                         break;
                     }
                         try {
-                            // Double-check if student's program exists in program_course_registration
-                            $programExists = DB::table('program_course_registration')
-                                ->where('program', $student->program)
-                                ->exists();
-
-                            if (!$programExists) {
-                                $errorCount++;
-                                $this->sendSseMessage('progress', [
-                                    'message' => "✗ Skipped {$student->username}: Program '{$student->program}' not found in program_course_registration",
-                                    'progress' => round((++$processedCount / $totalStudents) * 100)
-                                ]);
-                                continue;
-                            }
-
                             // Check if student already exists in alumni table
                             $existingAlumni = Alumni::where('username', $student->username)->first();
 
@@ -320,7 +318,7 @@ class AlumniController extends Controller
                                 'email' => $student->contact_email ?? 'N/A',
                                 'phone' => $student->contact_phone ?? 'N/A',
                                 'gender' => $student->gender,
-                                'program' => $student->programs->title ?? $student->program ?? 'N/A',
+                                'program' => $student->programs?->title ?? $student->program ?? 'N/A',
                                 'year' => date('Y'), // Current year as graduation year
                                 'picture' => 'N/A',
                                 'password' => $student->username,
@@ -333,7 +331,7 @@ class AlumniController extends Controller
                                 Alumni::create($alumniData);
 
                                 $successCount++;
-                                $programTitle = $student->programs->title ?? $student->program ?? 'N/A';
+                                $programTitle = $student->programs?->title ?? $student->program ?? 'N/A';
                                 $this->sendSseMessage('progress', [
                                     'message' => "✓ Created alumni record {$student->username} - Program: {$programTitle}",
                                     'progress' => round((++$processedCount / $totalStudents) * 100)
@@ -343,7 +341,7 @@ class AlumniController extends Controller
                                 $existingAlumni->update($alumniData);
 
                                 $successCount++;
-                                $programTitle = $student->programs->title ?? $student->program ?? 'N/A';
+                                $programTitle = $student->programs?->title ?? $student->program ?? 'N/A';
                                 $this->sendSseMessage('progress', [
                                     'message' => "✓ Updated alumni record {$student->username} - Program: {$programTitle}",
                                     'progress' => round((++$processedCount / $totalStudents) * 100)
