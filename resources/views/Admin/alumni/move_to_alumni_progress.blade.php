@@ -10,7 +10,7 @@
                     <select id="conversion-session" class="form-control" required>
                         <option value="">Select session</option>
                         @foreach ($sessions as $session)
-                            <option value="{{ $session->title }}" @selected($session->title === ($currentSession ?? null))>{{ $session->title }}</option>
+                            <option value="{{ $session->title }}" {{ $session->title === ($currentSession ?? null) ? 'selected' : '' }}>{{ $session->title }}</option>
                         @endforeach
                     </select>
                     <small class="text-muted">Only students with no result in this session will be considered.</small>
