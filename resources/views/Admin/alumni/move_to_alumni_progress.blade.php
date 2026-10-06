@@ -16,9 +16,9 @@
                     <small class="text-muted">Only students with no result in this session will be considered.</small>
                 </div>
                 <div class="col-md-6">
-                    <label for="username-prefix" class="form-label fw-semibold">Matric-number cutoff <span class="text-muted fw-normal">(optional)</span></label>
-                    <select id="username-prefix" class="form-control">
-                        <option value="">All matric-number years</option>
+                    <label for="username-prefix" class="form-label fw-semibold">Matric-number cutoff</label>
+                    <select id="username-prefix" class="form-control" required>
+                        <option value="">Select matric-number cutoff</option>
                         @for ($prefix = (int) date('y'); $prefix >= 0; $prefix--)
                             @php($formattedPrefix = str_pad((string) $prefix, 2, '0', STR_PAD_LEFT))
                             <option value="{{ $formattedPrefix }}">{{ $formattedPrefix }} and earlier</option>
@@ -35,7 +35,7 @@
             </div>
         </form>
 
-        <div id="status-message" class="alert alert-info">Choose a session and start the conversion.</div>
+        <div id="status-message" class="alert alert-info">Choose an academic session and matric-number cutoff, then start the conversion.</div>
         <div class="progress mb-3">
             <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
                 style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
@@ -78,8 +78,8 @@
             const selectedSession = document.getElementById('conversion-session').value;
             const usernamePrefix = document.getElementById('username-prefix').value;
 
-            if (!selectedSession) {
-                statusMessage.textContent = 'Please select an academic session first.';
+            if (!selectedSession || !usernamePrefix) {
+                statusMessage.textContent = 'Please select both an academic session and a matric-number cutoff first.';
                 statusMessage.className = 'alert alert-warning';
                 return;
             }
@@ -101,9 +101,7 @@
 
             const url = new URL("{{ route('alumni.move_to_alumni_stream') }}", window.location.origin);
             url.searchParams.set('session', selectedSession);
-            if (usernamePrefix) {
-                url.searchParams.set('username_prefix', usernamePrefix);
-            }
+            url.searchParams.set('username_prefix', usernamePrefix);
 
             eventSource = new EventSource(url.toString());
 

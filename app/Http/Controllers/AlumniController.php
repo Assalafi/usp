@@ -232,14 +232,11 @@ class AlumniController extends Controller
             return response()->json(['error' => 'Please select a valid academic session.'], 422);
         }
 
-        if ($usernamePrefix !== '' && !preg_match('/^\d{2}$/', $usernamePrefix)) {
-            return response()->json(['error' => 'The matric-number prefix must be two digits, for example 22.'], 422);
+        if ($usernamePrefix === '' || !preg_match('/^\d{2}$/', $usernamePrefix)) {
+            return response()->json(['error' => 'Please select a matric-number cutoff, for example 22.'], 422);
         }
 
-        $scopeLabel = $usernamePrefix === ''
-            ? 'all matric-number years'
-            : "matric-number prefixes {$usernamePrefix} and earlier";
-
+        $scopeLabel = "matric-number prefixes {$usernamePrefix} and earlier";
         $response = new StreamedResponse(function() use ($selectedSession, $usernamePrefix, $scopeLabel) {
             // Set headers for Server-Sent Events
             header('Content-Type: text/event-stream');
@@ -269,12 +266,9 @@ class AlumniController extends Controller
                     })
                     ->with(['facultys', 'departments', 'programs']); // Load relationships
 
-                if ($usernamePrefix !== '') {
-                    $studentsQuery
-                        ->whereRaw("students.username REGEXP '^[0-9]{2}/'")
-                        ->whereRaw("CAST(SUBSTRING_INDEX(students.username, '/', 1) AS UNSIGNED) <= ?", [(int) $usernamePrefix]);
-                }
-
+                $studentsQuery
+                    ->whereRaw("students.username REGEXP '^[0-9]{2}/'")
+                    ->whereRaw("CAST(SUBSTRING_INDEX(students.username, '/', 1) AS UNSIGNED) <= ?", [(int) $usernamePrefix]);
                 $totalStudents = $studentsQuery->count();
                 $processedCount = 0;
                 $successCount = 0;
