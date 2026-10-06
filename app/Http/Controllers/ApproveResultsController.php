@@ -1417,4 +1417,274 @@ class ApproveResultsController extends Controller
             ], 500);
         }
     }
+    /**
+     * Apply final VC-approved results to the matching course registrations.
+     *
+     * Processing is session-scoped, batched, and transactional. Existing
+     * registrations are updated only when an exact student/course/session/
+     * semester match exists; ambiguous or missing registrations are reported
+     * instead of being guessed.
+     */
+    public function applyApprovedResults(Request $request)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        $username = strtoupper(trim((string) session('username')));
+        $accountType = strtoupper(trim((string) session('accType')));
+        if (!in_array($username, ['SP11913', 'SU'], true) && $accountType !== 'ADMIN') {
+            abort(403, 'You are not authorised to apply approved results.');
+        }
+
+        $validated = $request->validate([
+            'session' => 'required|string|max:25',
+            'faculty' => 'required|string|max:20',
+            'department' => 'required|string|max:20',
+            'levels' => 'required|in:100,200,300,400,500,600,700,800',
+            'by_department' => 'nullable|boolean',
+            'offset' => 'nullable|integer|min:0',
+            'applied_total' => 'nullable|integer|min:0',
+            'failed_total' => 'nullable|integer|min:0',
+            'unmatched_total' => 'nullable|integer|min:0',
+        ]);
+
+        $targetSession = trim($validated['session']);
+        $faculty = trim($validated['faculty']);
+        $department = trim($validated['department']);
+        $level = trim($validated['levels']);
+        $byDepartment = $request->boolean('by_department');
+        $offset = max(0, (int) ($validated['offset'] ?? 0));
+        $appliedTotal = max(0, (int) ($validated['applied_total'] ?? 0));
+        $failedTotal = max(0, (int) ($validated['failed_total'] ?? 0));
+        $unmatchedTotal = max(0, (int) ($validated['unmatched_total'] ?? 0));
+
+        $departmentQuery = DB::table('department')->where('code', $department);
+        if ($faculty !== '') {
+            $departmentQuery->where('faculty', $faculty);
+        }
+        if (!$departmentQuery->exists()) {
+            return redirect('/status')->with('error', 'The selected department does not belong to the selected faculty.');
+        }
+
+        // Include historical programmes as well as currently active ones. Old
+        // approved results must remain apply-able after a programme is retired.
+        $programCodes = DB::table('program')
+            ->where('department', $department)
+            ->when($faculty !== '', function ($query) use ($faculty) {
+                $query->where('faculty', $faculty);
+            })
+            ->pluck('code')
+            ->filter()
+            ->values()
+            ->all();
+
+        if (!$byDepartment && empty($programCodes)) {
+            return redirect('/status')->with('error', 'No programmes were found for the selected department.');
+        }
+
+        $baseQuery = DB::table('results')
+            ->where('approve', 'vc')
+            ->where('session', $targetSession)
+            ->where('level', $level);
+
+        if ($byDepartment) {
+            $baseQuery->where('department', $department);
+        } else {
+            $baseQuery->whereIn('program', $programCodes);
+        }
+
+        $totalRecords = (clone $baseQuery)->count();
+        if ($totalRecords === 0) {
+            return redirect('/status')->with('error', 'No VC-approved results were found for the selected session, department, and level.');
+        }
+
+        $data = (clone $baseQuery)
+            ->select('id', 'username', 'code', 'unit', 'point', 'ugp', 'total', 'grade', 'remark', 'session', 'semester')
+            ->orderBy('id', 'asc')
+            ->skip($offset)
+            ->take(500)
+            ->get();
+
+        if ($data->isEmpty()) {
+            return redirect('/status')->with('success', "Approved-result reconciliation completed. {$appliedTotal} registration(s) matched; {$failedTotal} missing result registration(s) marked F; {$unmatchedTotal} result(s) had no exact registration match. Existing result records were not changed.");
+        }
+
+        $batchStats = [
+            'applied' => 0,
+            'failed' => 0,
+            'unmatched' => 0,
+        ];
+
+        try {
+            DB::transaction(function () use ($data, $targetSession, $level, &$batchStats) {
+                $usernames = $data->pluck('username')->filter()->unique()->values()->all();
+                $registrationKey = function ($username, $code, $semester) {
+                    $semester = trim((string) ($semester ?? ''));
+                    return (string) $username . "\0" . (string) $code . "\0" . $semester;
+                };
+
+                // Load the batch registrations once. This prevents hundreds of
+                // duplicate lookup queries and ensures matching is deterministic.
+                $registrations = empty($usernames)
+                    ? collect()
+                    : DB::table('student_course_registration')
+                        ->whereIn('username', $usernames)
+                        ->where('session', $targetSession)
+                        ->get();
+                $registrationMap = [];
+                foreach ($registrations as $registration) {
+                    $key = $registrationKey($registration->username, $registration->code, $registration->semester);
+                    $registrationMap[$key][] = $registration;
+                }
+
+                foreach ($data as $result) {
+                    $key = $registrationKey($result->username, $result->code, $result->semester);
+                    $matches = $registrationMap[$key] ?? [];
+                    if (count($matches) !== 1) {
+                        $batchStats['unmatched']++;
+                        continue;
+                    }
+
+                    $registrationStatus = trim((string) ($result->remark ?? ''));
+                    if ($registrationStatus === '') {
+                        $registrationStatus = strtoupper((string) $result->grade) === 'F' ? 'FAILED' : 'PASSED';
+                    }
+
+                    DB::table('student_course_registration')
+                        ->where('id', $matches[0]->id)
+                        ->update([
+                            'total' => $result->total,
+                            'grade' => $result->grade,
+                            'status' => $registrationStatus,
+                            'unit' => $result->unit,
+                            'point' => $result->point,
+                            'ugp' => $result->ugp,
+                            'updated_at' => now(),
+                        ]);
+                    $batchStats['applied']++;
+                }
+
+                // Reconcile each student and selected level independently. Only
+                // still-awaiting registrations without any uploaded result are
+                // marked F; approved or pending result rows are not deleted.
+                $pendingRegistrations = empty($usernames)
+                    ? collect()
+                    : DB::table('student_course_registration')
+                        ->whereIn('username', $usernames)
+                        ->where('session', $targetSession)
+                        ->where('level', $level)
+                        ->where('status', 'awaiting')
+                        ->where(function ($query) {
+                            $query->whereNull('grade')->orWhere('grade', '');
+                        })
+                        ->get();
+
+                if ($pendingRegistrations->isEmpty()) {
+                    return;
+                }
+
+                $pendingCodes = $pendingRegistrations->pluck('code')->filter()->unique()->values()->all();
+                $existingResultKeys = DB::table('results')
+                    ->where('session', $targetSession)
+                    ->whereIn('username', $usernames)
+                    ->whereIn('code', $pendingCodes)
+                    ->select('username', 'code')
+                    ->get()
+                    ->mapWithKeys(function ($result) {
+                        return [(string) $result->username . "\0" . (string) $result->code => true];
+                    });
+
+                foreach ($pendingRegistrations as $registration) {
+                    $resultKey = (string) $registration->username . "\0" . (string) $registration->code;
+                    if ($existingResultKeys->has($resultKey)) {
+                        continue;
+                    }
+
+                    DB::table('student_course_registration')
+                        ->where('id', $registration->id)
+                        ->update([
+                            'grade' => 'F',
+                            'total' => 0,
+                            'point' => 0,
+                            'ugp' => 0,
+                            'status' => 'FAILED',
+                            'updated_at' => now(),
+                        ]);
+                    $batchStats['failed']++;
+                }
+            }, 3);
+        } catch (\Throwable $exception) {
+            Log::error('Failed to apply approved results batch.', [
+                'session' => $targetSession,
+                'faculty' => $faculty,
+                'department' => $department,
+                'level' => $level,
+                'offset' => $offset,
+                'exception' => $exception,
+            ]);
+
+            return redirect('/status')->with('error', 'The approved-result batch could not be completed. No partial changes from this batch were saved.');
+        }
+
+        $appliedTotal += $batchStats['applied'];
+        $failedTotal += $batchStats['failed'];
+        $unmatchedTotal += $batchStats['unmatched'];
+        $processedRecords = min($offset + $data->count(), $totalRecords);
+        $remainingRecords = max(0, $totalRecords - $processedRecords);
+
+        if ($processedRecords >= $totalRecords) {
+            $message = "Approved-result reconciliation completed for {$totalRecords} VC-approved result(s). {$appliedTotal} registration(s) matched; {$failedTotal} missing result registration(s) marked F; {$unmatchedTotal} result(s) had no exact registration match. Existing result records were not changed.";
+            return redirect('/status')->with('success', $message);
+        }
+
+        $params = http_build_query([
+            'session' => $targetSession,
+            'faculty' => $faculty,
+            'department' => $department,
+            'levels' => $level,
+            'by_department' => $byDepartment ? 1 : 0,
+            'offset' => $offset + $data->count(),
+            'applied_total' => $appliedTotal,
+            'failed_total' => $failedTotal,
+            'unmatched_total' => $unmatchedTotal,
+        ]);
+        $progress = (int) round(($processedRecords / $totalRecords) * 100);
+        $nextUrl = url('/apply-result') . '?' . $params;
+
+        return "
+            <html>
+            <head>
+                <title>Applying Approved Results</title>
+                <meta name='viewport' content='width=device-width, initial-scale=1'>
+                <style>
+                    body { font-family: Arial, sans-serif; background: #f4f7fb; color: #24344d; padding: 24px; }
+                    .card { max-width: 560px; margin: 8vh auto; background: #fff; border-radius: 14px; padding: 28px; box-shadow: 0 8px 30px rgba(22,40,70,.10); }
+                    .bar { height: 12px; background: #e8edf5; border-radius: 999px; overflow: hidden; }
+                    .bar > div { height: 100%; width: {$progress}%; background: #1677d2; border-radius: inherit; transition: width .2s ease; }
+                    .muted { color: #6d7b91; font-size: .9rem; }
+                    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 20px 0; }
+                    .summary div { background: #f7f9fc; border-radius: 10px; padding: 11px; text-align: center; }
+                    .summary strong { display: block; font-size: 1.1rem; }
+                    @media(max-width:520px) { body { padding: 12px; } .card { padding: 20px; } .summary { grid-template-columns: 1fr; } }
+                </style>
+            </head>
+            <body>
+                <main class='card'>
+                    <h2>Applying approved results</h2>
+                    <p class='muted'>The system is reconciling only VC-approved results for {$targetSession}, level {$level}.</p>
+                    <p><strong>{$processedRecords} of {$totalRecords}</strong> result records processed ({$progress}%).</p>
+                    <div class='bar' aria-label='Progress'><div></div></div>
+                    <div class='summary'>
+                        <div><strong>{$appliedTotal}</strong><span class='muted'>Matched</span></div>
+                        <div><strong>{$failedTotal}</strong><span class='muted'>Marked F</span></div>
+                        <div><strong>{$unmatchedTotal}</strong><span class='muted'>Unmatched</span></div>
+                    </div>
+                    <p class='muted'>{$remainingRecords} result records remaining. Please keep this page open.</p>
+                </main>
+                <script>setTimeout(function () { window.location.href = '{$nextUrl}'; }, 700);</script>
+            </body>
+            </html>
+        ";
+    }
 }

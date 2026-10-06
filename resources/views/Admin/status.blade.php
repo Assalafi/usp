@@ -765,74 +765,69 @@
         </div>
     </div>
 </div>
-<div id="applyResult" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+<div id="applyResult" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="applyResultLabel"
     aria-hidden="true">
     <div class="modal-dialog modal-md" role="document">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="myModalLabel">Apply Approved Results</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"><span
-                        aria-hidden="true">&times;</span></button>
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title" id="applyResultLabel"><i class="fas fa-check-double me-2"></i>Apply approved results</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="card">
-                <div class="card-body">
-                    <a href="#"><i class="fas fa-download"></i> Download Template</a>
-                </div>
-
-                <form class="form-group" action="/apply-result" method="GET" enctype="multipart/form-data">
-                    <div class="card-body">
-                        <!-- Details View Start -->
-                        @csrf
-                        <div class="form-group">
-                            <label for="facultyf">Faculty <span>*</span></label>
-                            <select class="form-control faculty" lang="ff" name="faculty" id="facultyff">
-                                <option value="">Select Option</option>
-                                @foreach ($faculty as $roww)
-                                    <option value="{{ $roww->code }}">{{ $roww->title }} ({{ $roww->code }})
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="departmentf">Department</label>
-                            <select class="form-control department" lang="ff" id="departmentff"
-                                name="department" required>
-                                <option value="">Select Faculty First</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="applyByDept"
-                                    name="by_department" value="1">
-                                <label class="form-check-label" for="applyByDept">
-                                    <strong>By Department</strong> <small class="text-muted">(all programs in
-                                        department)</small>
-                                </label>
-                            </div>
-                        </div>
-                        {{-- level --}}
-                        <div class="form-group">
-                            <label for="level">Level</label>
-                            <select class="form-control" name="levels" id="level" required>
-                                <option value="">Select Level</option>
-                                <option value="100">100</option>
-                                <option value="200">200</option>
-                                <option value="300">300</option>
-                                <option value="400">400</option>
-                                <option value="500">500</option>
-                                <option value="600">600</option>
-                                <option value="700">700</option>
-                            </select>
-                        </div>
-                        <!-- Details View End -->
-                        <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-success">Apply Approved Results</button>
+            <form class="form-group" action="{{ url('/apply-result') }}" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="alert alert-info small">
+                        <strong>What this does:</strong> matches final VC-approved results to the exact student,
+                        course, session and semester registration. Existing result records are not changed.
+                        Missing or unmatched registrations are reported instead of guessed.
                     </div>
-                </form>
-                {{-- <a href="/apply-result" class="btn btn-warning">Apply Approved Results</a> --}}
-            </div>
+                    <div class="form-group mb-3">
+                        <label for="applySession" class="form-label">Academic session <span class="text-danger">*</span></label>
+                        <select class="form-control" name="session" id="applySession" required>
+                            <option value="">Select session</option>
+                            @foreach ($session as $row)
+                                <option value="{{ $row->title }}" {{ ($row->title === ($currentSession ?? null)) ? 'selected' : '' }}>{{ $row->title }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="facultyff" class="form-label">Faculty <span class="text-danger">*</span></label>
+                        <select class="form-control faculty" lang="ff" name="faculty" id="facultyff" required>
+                            <option value="">Select faculty</option>
+                            @foreach ($faculty as $roww)
+                                <option value="{{ $roww->code }}">{{ $roww->title }} ({{ $roww->code }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="departmentff" class="form-label">Department <span class="text-danger">*</span></label>
+                        <select class="form-control department" lang="ff" id="departmentff" name="department" required>
+                            <option value="">Select faculty first</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="applyLevel" class="form-label">Level <span class="text-danger">*</span></label>
+                        <select class="form-control" name="levels" id="applyLevel" required>
+                            <option value="">Select level</option>
+                            @for ($i = 1; $i <= 8; $i++)
+                                <option value="{{ $i * 100 }}">{{ $i * 100 }}</option>
+                            @endfor
+                        </select>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="applyByDept" name="by_department" value="1">
+                        <label class="form-check-label" for="applyByDept">
+                            Match by department column
+                            <small class="d-block text-muted">Use this only when the uploaded result department is reliable; otherwise the department’s active programmes are used.</small>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning"><i class="fas fa-play me-1"></i> Start reconciliation</button>
+                </div>
+            </form>
         </div>
-
     </div>
 </div>
 <div id="promoteStudent" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"

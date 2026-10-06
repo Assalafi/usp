@@ -40,6 +40,7 @@ class StatusController extends Controller
 
         //return 'stuss';
             $data['session'] = DB::table('session')->select('title')->orderBy('title', 'ASC')->get();
+            $data['currentSession'] = DB::table('session')->where('status', '1')->value('title');
         $data['page'] = $this->page;
         $data['title'] = $this->title;
         return view('main',$data);
