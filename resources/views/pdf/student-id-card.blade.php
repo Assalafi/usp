@@ -9,13 +9,19 @@
         body { font-family: "DejaVu Sans", sans-serif; font-size: 6pt; color: #172e45; }
         .card { position: relative; width: 53.98mm; height: 85.59mm; background: #fff; }
         .back { page-break-before: always; }
+        /* A restrained security watermark keeps the official crest visible without
+           competing with the card information or reducing scan/readability. */
+        .watermark { position: absolute; z-index: 0; left: 7mm; top: 28mm; width: 40mm; height: 40mm; opacity: .085; text-align: center; }
+        .watermark img { display: block; width: 40mm; height: 40mm; }
         .header { position: absolute; top: 0; left: 0; width: 53.98mm; height: 17.2mm; background: #3ea1e4; }
-        .crest { position: absolute; left: 3.3mm; top: 2.9mm; width: 9mm; height: 11mm; background: #fff; border-radius: 1mm; }
+        .crest { position: absolute; left: 3.3mm; top: 2.9mm; width: 9mm; height: 11mm; background: transparent; border-radius: 0; }
         .crest img, .photo img, .signature-image img { position: absolute; display: block; }
-        .university { position: absolute; left: 14.3mm; top: 3.4mm; color: #fff; font-weight: bold; line-height: 1.2; }
-        .university .overline { font-size: 7.2pt; }
-        .university .title { font-size: 10.2pt; }
-        .address { position: absolute; left: 14.3mm; top: 12.4mm; color: #d5e7f5; font-size: 4.55pt; }
+        /* Keep the crest consistently padded and sized like the staff and PG cards. */
+        .crest img { left: 1mm; top: .4mm; width: 7mm; height: 10mm; }
+        .university { position: absolute; left: 13mm; top: 3.9mm; width: 38mm; color: #fff; text-align: center; font-weight: bold; line-height: 1; white-space: nowrap; }
+        .university .title { font-size: 7.6pt; letter-spacing: .02pt; }
+        .center-excellence { position: absolute; left: 13mm; top: 7.8mm; width: 38mm; color: #d13737; text-align: center; font-size: 5.9pt; font-style: italic; font-weight: bold; letter-spacing: .12pt; }
+        .address { position: absolute; left: 13mm; top: 10.8mm; width: 38mm; color: #d5e7f5; text-align: center; font-size: 3.45pt; white-space: nowrap; }
         .type-band { position: absolute; left: 0; top: 17.2mm; width: 53.98mm; height: 5.3mm; background: #123451; text-align: center; }
         .type-band span { display: block; margin-top: .8mm; color: #fff; font-size: 6pt; font-weight: bold; letter-spacing: .45pt; }
         .portrait-tint { position: absolute; left: 0; top: 22.5mm; width: 53.98mm; height: 15mm; background: #eaf4fb; }
@@ -66,17 +72,18 @@
 </head>
 <body>
     <div class="card front">
+        @if($logo['src'])
+            <div class="watermark" aria-hidden="true"><img src="{{ $logo['src'] }}" alt=""></div>
+        @endif
         <div class="header"></div>
         <div class="crest">
             @if($logo['src'])
-                <img src="{{ $logo['src'] }}" style="left: {{ $logo['left'] }}mm; top: {{ $logo['top'] }}mm; width: {{ $logo['width'] }}mm; height: {{ $logo['height'] }}mm;" alt="">
+                <img src="{{ $logo['src'] }}" alt="University crest">
             @endif
         </div>
-        <div class="university">
-            <div class="overline">UNIVERSITY OF</div>
-            <div class="title">MAIDUGURI</div>
-        </div>
-        <div class="address">P.M.B. 1069, Maiduguri, Nigeria</div>
+        <div class="university"><div class="title">UNIVERSITY OF MAIDUGURI</div></div>
+        <div class="center-excellence">...Centre of Excellence</div>
+        <div class="address">P.M.B. 1069, Bama Road, Maiduguri, Borno State - Nigeria</div>
         <div class="type-band"><span>UNDERGRADUATE IDENTITY CARD</span></div>
         <div class="portrait-tint"></div>
         <div class="photo-border">
@@ -110,6 +117,9 @@
     </div>
 
     <div class="card back">
+        @if($logo['src'])
+            <div class="watermark" aria-hidden="true"><img src="{{ $logo['src'] }}" alt=""></div>
+        @endif
         <div class="back-heading">
             <div class="heading">UNIVERSITY OF MAIDUGURI</div>
             <div class="subheading">STUDENT IDENTITY CARD</div>

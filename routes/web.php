@@ -50,6 +50,12 @@ Route::get('/alumni', [AlumniController::class, 'index'])->name('alumni.index')-
 Route::post('/update alumni', [AlumniController::class, 'update']);
 Route::post('/import-alumni', [AlumniController::class, 'upload']);
 Route::post('/upload-student-to-alumni', [AlumniController::class, 'uploadStudent']);
+Route::post('/upload-student-ids-to-alumni', [AlumniController::class, 'uploadStudentIds'])
+    ->name('alumni.upload_student_ids')
+    ->middleware('role');
+Route::get('/alumni/download-template', [AlumniController::class, 'downloadStudentTemplate'])
+    ->name('alumni.download_template')
+    ->middleware('role');
 
 // Move to Alumni Progress Routes
 Route::get('/admin/move-to-alumni-progress', [AlumniController::class, 'showMoveToAlumniProgress'])->name('alumni.move_to_alumni_progress');
@@ -514,6 +520,9 @@ Route::get('/admin/student-results/{id}', [AdminStudentResultsController::class,
 Route::get('/admin/student-results/{id}/data', [AdminStudentResultsController::class, 'data'])
     ->name('admin.student.results.data')
     ->middleware('role');
+Route::get('/admin/student-results/{id}/pdf', [StudentResultsController::class, 'downloadForAdmin'])
+    ->name('admin.student.results.pdf')
+    ->middleware('role');
 Route::get('/profile', function () {
     if (!session()->has('log')) {
         return redirect('/');
@@ -791,6 +800,7 @@ Route::get('staff-record/{id}', function ($id) {
     $data['page'] = 'staff record';
     return view('main', $data);
 });
+Route::get('staff id card/{id}', [StaffController::class, 'downloadIdCard']);
 Route::get('staff-record/download-cv/{id}', [StaffController::class, 'downloadCV']);
 Route::get('staff-profile', function () {
     if (!session()->has('log')) {
@@ -807,6 +817,7 @@ Route::get('staff-profile', function () {
 });
 Route::post('/staff-profile-update', [StaffController::class, 'profileUpdate']);
 Route::get('/staff-profile/download-cv', [StaffController::class, 'downloadMyCV']);
+Route::get('/staff-profile/download-id-card', [StaffController::class, 'downloadMyIdCard']);
 Route::get('/staff-profile/download-audit-form', [StaffController::class, 'downloadAuditForm']);
 Route::post('/staff-profile-documents', [StaffController::class, 'uploadDocuments']);
 Route::post('/staff-profile-remove-document', [StaffController::class, 'removeDocument']);
@@ -1050,6 +1061,9 @@ Route::post('flag', [HostelController::class, 'flag']);
 Route::post('delete bed', [HostelController::class, 'deleteBed']);
 Route::post('create-hostel', [HostelController::class, 'createHostel']);
 Route::get('/print-permit/{id}', [HostelController::class, 'printPermit']);
+Route::get('/admin/hostel-permit/{id}', [HostelController::class, 'adminPrintPermit'])
+    ->middleware('role')
+    ->name('admin.hostel.permit');
 Route::post('/upload-pin', [HostelController::class, 'uploadPin']);
 
 Route::get('/users', [UsersController::class, 'index']);

@@ -25,8 +25,10 @@
                         <h5>Alumni List</h5>
                     </div>
                     <div class="card-block">
-                        <button href="#" class="btn btn-dark uploadAction" data-bs-toggle="modal"
-                            data-bs-target="#importStudent"><i class="fas fa-upload"></i> {{ 'Import' }}</button>
+                        <button type="button" class="btn btn-dark uploadAction" data-bs-toggle="modal"
+                            data-bs-target="#importStudentIds">
+                            <i class="fas fa-file-import"></i> Import student IDs
+                        </button>
                         <a href="{{ route('alumni.move_to_alumni_progress') }}" class="btn btn-success uploadAction">
                             <i class="fas fa-graduation-cap"></i> Move Students to Alumni
                         </a>
@@ -38,10 +40,6 @@
                             <i class="fas fa-calendar-alt"></i> Restore by Year
                         </button>
                         
-                        <button href="#" class="btn btn-dark uploadAction" data-bs-toggle="modal"
-                            data-bs-target="#importStudents"><i class="fas fa-upload"></i> {{ 'Move Student to Alumni' }}</button>
-                        {{-- for degree import --}}
-
                     </div>
                     <div class="card-block">
                         <form class="needs-validation" novalidate method="GET" action="#">
@@ -277,67 +275,6 @@
 </div>
 <!-- End Content-->
 
-<!-- Show modal content -->
-<div id="importStudents" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
-    aria-hidden="true">
-    <div class="modal-dialog modal-md" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="myModalLabel">Move Student to Alumni</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"><span
-                        aria-hidden="true">&times;</span></button>
-            </div>
-            <div class="card">
-                <div class="card-body">
-                    <a href="{{ url('uploads/New Student Upload.xlsx') }}" download="New Student Upload.xlsx"><i
-                            class="fas fa-download"></i> Download Template</a>
-                </div>
-
-                <form class="form-group" action="upload-student" method="POST" enctype="multipart/form-data">
-                    <div class="card-body">
-                        <!-- Details View Start -->
-                        @csrf
-                        <input type="hidden" name="upload_type" value="old">
-                        <div class="form-group">
-                            <label for="faculty1">Faculty</label>
-                            <select class="form-control faculty" id="faculty1" name="faculty" lang="1"
-                                required>
-                                <option value="">Select Option</option>
-                                @foreach ($faculty as $row)
-                                    <option value="{{ $row->code }}">{{ $row->code }}: {{ $row->title }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="department1">Department</label>
-                            <select class="form-control department" id="department1" name="department"
-                                lang="1" required>
-                                <option value="">Select Faculty First</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="program1">Program</label>
-                            <select class="form-control" id="program1" name="program" lang="1" required>
-                                <option value="">Select Department First</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="file"></label>
-                            <input type="file" name="file" id="file" accept=".xlsx, .xls"
-                                class="form-control">
-                        </div>
-                        <!-- Details View End -->
-                        <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-success">Upload</button>
-                    </div>
-                </form>
-            </div>
-
-        </div>
-    </div>
-</div>
-
 <!-- Restore by Year Modal -->
 <div id="restoreByYearModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
     aria-hidden="true">
@@ -486,38 +423,59 @@
     });
 </script>
 
-<!-- Show modal content -->
-<div id="importStudent" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+<!-- Import existing students by username -->
+<div id="importStudentIds" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="importStudentIdsTitle"
     aria-hidden="true">
-    <div class="modal-dialog modal-md" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="myModalLabel">Upload</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"><span
-                        aria-hidden="true">&times;</span></button>
+    <div class="modal-dialog modal-dialog-centered modal-md" role="document">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white">
+                <div>
+                    <h5 class="modal-title mb-1" id="importStudentIdsTitle">Import students to Alumni</h5>
+                    <small class="text-white-50">Use student usernames already registered on this system</small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="card">
-                <div class="card-body">
-                    <a href="#"><i class="fas fa-download"></i> Download Template</a>
+            <div class="modal-body p-4">
+                <div class="alert alert-info border-0 mb-4">
+                    <div class="d-flex gap-2">
+                        <i class="fas fa-circle-info mt-1"></i>
+                        <div>
+                            Upload one username per row. Only matching records in the <strong>students</strong> table will be converted.
+                            IDs not found on this portal are skipped and listed in the result message.
+                        </div>
+                    </div>
                 </div>
 
-                <form class="form-group" action="/import-alumni" method="POST" enctype="multipart/form-data">
-                    <div class="card-body">
-                        <!-- Details View Start -->
-                        @csrf
-                        <input type="hidden" name="upload_type" value="new">
-                        <div class="form-group">
-                            <label for="file"></label>
-                            <input type="file" name="file" id="file" accept=".xlsx, .xls"
-                                class="form-control" required>
-                        </div>
-                        <!-- Details View End -->
-                        <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-success">Upload</button>
+                <a class="btn btn-outline-primary w-100 mb-4" href="{{ route('alumni.download_template') }}">
+                    <i class="fas fa-download me-1"></i> Download Excel template
+                </a>
+
+                <form action="{{ route('alumni.upload_student_ids') }}" method="POST" enctype="multipart/form-data" id="studentIdsImportForm">
+                    @csrf
+                    <label for="studentIdsFile" class="form-label fw-semibold">Excel file</label>
+                    <input type="file" name="file" id="studentIdsFile" accept=".xlsx,.xls,.csv" class="form-control" required>
+                    <div class="form-text">Accepted: .xlsx, .xls or .csv. Maximum size: 10 MB.</div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success" id="studentIdsImportSubmit">
+                            <i class="fas fa-upload me-1"></i> Import IDs
+                        </button>
                     </div>
                 </form>
             </div>
-
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('studentIdsImportForm');
+        const button = document.getElementById('studentIdsImportSubmit');
+        if (!form || !button) return;
+        form.addEventListener('submit', function () {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Importing...';
+        });
+    });
+</script>

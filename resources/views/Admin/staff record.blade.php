@@ -128,6 +128,9 @@
                                     <a href="{{ url('/staff-record/download-cv/' . $row->id) }}" class="btn btn-success btn-sm ml-1" target="_blank">
                                         <i class="fas fa-file-pdf"></i> Download CV
                                     </a>
+                                    <a href="{{ url('/staff id card/' . $row->id) }}" class="btn btn-info btn-sm ml-1" target="_blank">
+                                        <i class="fas fa-id-card"></i> ID Card
+                                    </a>
                                 </div>
                             </div>
                         </div>

@@ -14,6 +14,7 @@ use App\Imports\PinImport;
 use App\Models\HostelPin;
 use App\Models\Hostel;
 use App\Models\User;
+use App\Models\Student;
 use FPDF;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -491,7 +492,7 @@ class HostelController extends Controller
             return redirect('/');
         }
 
-        $data['data'] = DB::table('hostel')->where(['flag' => 3, 'status' => 1])->select('id', 'hall', 'block', 'room', 'bed', 'status', 'bed_type', 'occupant')->orderBy('hall', 'asc')->orderBy('block', 'asc')->orderBy('room', 'asc')->orderBy('bed', 'asc')->get();
+        $data['data'] = DB::table('hostel')->where(['flag' => 3, 'status' => 1])->select('id', 'hall', 'block', 'room', 'bed', 'status', 'bed_type', 'occupant', 'hostel_payment')->orderBy('hall', 'asc')->orderBy('block', 'asc')->orderBy('room', 'asc')->orderBy('bed', 'asc')->get();
 
         if ($request->has('filter')) {
             $data = $request->all();
@@ -913,18 +914,53 @@ class HostelController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
-        if(session('accType') == 'Admin'){
 
-        }else{
-            $getHostel = DB::table('hostel')->where(['occupant' => session('id_number')])->first();
-            $getID = $getHostel->id;
-            //$getOccupant = $getHostel->occupant;
-            if($getID != $id){
-                return redirect()->back()->with('error', 'Your ID No:'.session('id_number').' is captured for security reason...');
+        // Keep the legacy student URL restricted. Back-office users should use
+        // the dedicated admin route below, which performs its own permission
+        // and payment checks.
+        if (session('accType') === 'Admin') {
+            $hostel = DB::table('hostel')->where('id', $id)->first();
+        } else {
+            $hostel = DB::table('hostel')->where('occupant', session('id_number'))->first();
+
+            if (!$hostel || (string) $hostel->id !== (string) $id) {
+                return redirect()->back()->with('error', 'You can only download the permit assigned to your account.');
             }
         }
+
+        if (!$hostel || empty($hostel->occupant)) {
+            return redirect()->back()->with('error', 'This hostel reservation has no valid occupant or permit.');
+        }
+
         $data['id'] = $id;
         return view('pdf/permit', $data);
+    }
+
+    /**
+     * Generate a hostel permit for an authorised back-office user.
+     * This deliberately uses the same permit view as the student download
+     * so both copies have identical content and formatting.
+     */
+    public function adminPrintPermit($id)
+    {
+        if (!session()->has('log') || !in_array(session('accType'), ['Admin', 'Staff'], true)) {
+            return redirect('/')->with('error', 'You do not have permission to download hostel permits.');
+        }
+
+        $hostel = DB::table('hostel')
+            ->where('id', $id)
+            ->where('status', 1)
+            ->where('hostel_payment', 1)
+            ->first();
+        if (!$hostel || empty($hostel->occupant)) {
+            return redirect()->back()->with('error', 'A permit is available only after the hostel payment has been recorded.');
+        }
+
+        if (!Student::where('username', $hostel->occupant)->exists()) {
+            return redirect()->back()->with('error', 'The occupant record could not be found.');
+        }
+
+        return view('pdf/permit', ['id' => $hostel->id]);
     }
 
     public function uploadPin(Request $request)

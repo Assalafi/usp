@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Imports\DegreeImport;
 use App\Imports\AlumniImport;
 use App\Imports\StudentToAlumniImport;
+use App\Imports\StudentIdsToAlumniImport;
+use App\Exports\StudentIdsToAlumniTemplateExport;
 use App\Models\Alumni;
 use App\Models\Student;
 use App\Models\User;
@@ -172,6 +174,77 @@ class AlumniController extends Controller
         }
 
         return redirect()->back()->with('error', 'File not found or other error occurred.');
+    }
+
+    /**
+     * Convert existing student records to alumni from a one-column ID list.
+     * No record is created when the uploaded username is not in students.
+     */
+    public function uploadStudentIds(Request $request)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+        ], [
+            'file.required' => 'Choose an Excel file containing the student usernames.',
+            'file.mimes' => 'Upload an Excel workbook (.xlsx or .xls) or a CSV file.',
+            'file.max' => 'The upload must not be larger than 10 MB.',
+        ]);
+
+        try {
+            $import = new StudentIdsToAlumniImport();
+            Excel::import($import, $request->file('file'));
+            $stats = $import->stats();
+
+            $message = sprintf(
+                'Import complete: %d converted, %d already alumni, %d not found, %d duplicate, %d invalid, %d failed.',
+                $stats['converted'],
+                $stats['already_alumni'],
+                count($stats['not_found']),
+                $stats['duplicates'],
+                count($stats['invalid']),
+                count($stats['errors'])
+            );
+
+            $details = [];
+            if ($stats['not_found']) {
+                $details[] = 'Not found: ' . implode(', ', array_slice($stats['not_found'], 0, 20));
+            }
+            if ($stats['invalid']) {
+                $details[] = 'Invalid rows: ' . implode(' ', array_slice($stats['invalid'], 0, 10));
+            }
+            if ($stats['errors']) {
+                $details[] = 'Failed rows: ' . implode(' | ', array_slice($stats['errors'], 0, 10));
+            }
+
+            $status = ($stats['converted'] || $stats['already_alumni']) ? 'success' : 'warning';
+            return redirect()->route('alumni.index')->with($status, $message . ($details ? ' ' . implode(' ', $details) : ''));
+        } catch (\Throwable $exception) {
+            \Log::error('Student-to-alumni ID import failed', [
+                'error' => $exception->getMessage(),
+                'trace' => $exception->getTraceAsString(),
+            ]);
+
+            return redirect()->route('alumni.index')->with('error', 'The file could not be imported. Check that it contains one username column and try again.');
+        }
+    }
+
+    /**
+     * Download the one-column workbook used by the student-to-alumni import.
+     */
+    public function downloadStudentTemplate()
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        return Excel::download(
+            new StudentIdsToAlumniTemplateExport(),
+            'students-to-alumni-template.xlsx'
+        );
     }
 
     public function uploadDegree(Request $request)

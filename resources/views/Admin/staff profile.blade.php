@@ -207,6 +207,7 @@
         <div class="sp-header-actions">
             @if($row->profile_status == 'submitted')
                 <a href="/staff-profile/download-cv" class="sp-edit-toggle" style="background:linear-gradient(135deg, #667eea, #764ba2); color:#fff;"><i class="fas fa-download"></i> Get CV</a>
+                <a href="/staff-profile/download-id-card" class="sp-edit-toggle" style="background:linear-gradient(135deg, #159957, #155799); color:#fff; margin-left:6px;" target="_blank"><i class="fas fa-id-card"></i> ID Card</a>
                 <a href="/staff-profile/download-audit-form" class="sp-edit-toggle" style="background:linear-gradient(135deg, #2d6a4f, #40916c); color:#fff; margin-left:6px;"><i class="fas fa-file-alt"></i> Audit Form</a>
             @endif
             @if($editMode)
@@ -242,6 +243,7 @@
             <div class="sp-view-item"><div class="label">State of Origin</div><div class="value">{{ $row->state ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">LGA</div><div class="value">{{ $row->lga ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Nationality</div><div class="value">{{ $row->nationality ?: 'Not set' }}</div></div>
+            <div class="sp-view-item"><div class="label">Blood Group</div><div class="value">{{ $row->blood_group ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">NIN</div><div class="value">{{ $row->nin ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Address</div><div class="value">{{ $row->address ?: 'Not set' }}</div></div>
             <div class="sp-view-item"><div class="label">Physically Challenged</div><div class="value">{{ $row->physically_challenged ?: 'Not set' }}</div></div>
@@ -297,6 +299,15 @@
                         <option value="MARRIED">MARRIED</option>
                         <option value="DIVORCED">DIVORCED</option>
                         <option value="WIDOWED">WIDOWED</option>
+                    </select>
+                </div>
+                <div class="sp-form-group">
+                    <label>Blood Group</label>
+                    <select name="blood_group">
+                        <option value="">Select</option>
+                        @foreach(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as $bloodGroup)
+                            <option value="{{ $bloodGroup }}" {{ ($row->blood_group ?? '') === $bloodGroup ? 'selected' : '' }}>{{ $bloodGroup }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div class="sp-form-group">

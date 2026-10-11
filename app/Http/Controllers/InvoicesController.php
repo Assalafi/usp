@@ -1078,7 +1078,7 @@ class InvoicesController extends Controller
             Excel::import($import, $file);
             // dd(session('studentImportMsg'));
             // Now, $data contains all the rows from the Excel file with non-empty emails
-            return redirect()->back()->with(session('studentImportStatus'), session('studentImportMsg'));
+            return redirect('/fees due')->with(session('studentImportStatus'), session('studentImportMsg'));
         }
 
         return redirect()->back()->with('error', 'File not found or other error occurred.');

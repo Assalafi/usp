@@ -224,9 +224,10 @@
                                             </td>
                                             <td>
                                                 @if ($row->hostel_payment == 1)
-                                                    <a href="/print-permit/{{ $row->id }}"
-                                                        class="btn btn-info btn-sm" <i class="fas fa-print"></i>
-                                                        Permit
+                                                    <a href="{{ route('admin.hostel.permit', ['id' => $row->id]) }}"
+                                                        class="btn btn-info btn-sm" target="_blank" rel="noopener"
+                                                        title="Download hostel permit">
+                                                        <i class="fas fa-download"></i> Permit
                                                     </a>
                                                 @endif
                                                 <button type="button" class="btn btn-secondary btn-sm"

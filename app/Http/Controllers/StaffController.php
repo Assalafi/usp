@@ -691,6 +691,209 @@ class StaffController extends Controller
         return $this->downloadCV($row->id);
     }
 
+    public function downloadMyIdCard()
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        $row = DB::table('staff')->where('username', session('username'))->first();
+        if (!$row) {
+            return back()->with('error', 'Staff record not found.');
+        }
+
+        return $this->downloadIdCard($row->id);
+    }
+
+    /**
+     * Generate the same portrait CR80 two-sided identity card used for
+     * undergraduate students, with staff-specific employment fields.
+     */
+    public function downloadIdCard($id)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        $row = DB::table('staff')->where('id', $id)->first();
+        if (!$row) {
+            return back()->with('error', 'Staff record not found.');
+        }
+
+        try {
+            $unitName = (!empty($row->unit_id))
+                ? (DB::table('units')->where('id', $row->unit_id)->value('name') ?: '')
+                : ($row->unit ?? '');
+            $designationName = (!empty($row->designation_id))
+                ? (DB::table('designations')->where('id', $row->designation_id)->value('name') ?: '')
+                : ($row->current_rank ?? ($row->designation ?? ''));
+            $facultyTitle = !empty($row->faculty)
+                ? (DB::table('faculty')->where('code', $row->faculty)->value('title') ?: $row->faculty)
+                : '';
+            $departmentTitle = !empty($row->department)
+                ? (DB::table('department')->where('code', $row->department)->value('title') ?: $row->department)
+                : '';
+            $staffCategory = strtolower(trim((string) ($row->staff_category ?? '')));
+            $isAcademic = (str_contains($staffCategory, 'teaching') && !str_contains($staffCategory, 'non'))
+                || (str_contains($staffCategory, 'academic') && !str_contains($staffCategory, 'non'))
+                || ($departmentTitle !== '' && $unitName === '');
+            $departmentLabel = $isAcademic ? 'DEPARTMENT' : 'UNIT';
+            $departmentValue = $isAcademic
+                ? ($departmentTitle ?: $unitName)
+                : ($unitName ?: $departmentTitle);
+
+            $photoPath = $this->firstExistingCardPath([
+                !empty($row->picture) ? storage_path('app/public/picture/' . $row->picture) : null,
+                !empty($row->picture) ? public_path('storage/picture/' . $row->picture) : null,
+                public_path('card/default.jpg'),
+            ]);
+            $logoPath = $this->firstExistingCardPath([
+                public_path('uploads/logo-transparent.png'),
+                public_path('uploads/logo.png'),
+            ]);
+            $registrarPath = $this->firstExistingCardPath([
+                public_path('card/registrar sign.png'),
+                public_path('uploads/registrar sign.png'),
+            ]);
+
+            $name = trim((string) ($row->name ?: 'Staff Member'));
+            $staffId = trim((string) ($row->username ?: $row->staff_id ?: 'Not assigned'));
+            $kinName = trim((string) ($row->kin_name ?: 'Not recorded'));
+            $kinPhone = trim((string) ($row->kin_phone ?: 'Not recorded'));
+            $issueDate = now()->format('d M Y');
+            $expiryDate = null;
+            $qrData = implode("\n", array_filter([$name, $staffId, $designationName, $departmentValue]));
+
+            $options = new Options();
+            $options->set([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => false,
+                'isPhpEnabled' => false,
+                'defaultFont' => 'DejaVu Sans',
+                'chroot' => [public_path(), storage_path()],
+                'tempDir' => storage_path('app/dompdf'),
+                'fontCache' => storage_path('fonts'),
+                'fontDir' => storage_path('fonts'),
+            ]);
+            $dompdf = new Dompdf($options);
+            $designationText = $this->fitStaffCardText($dompdf, $designationName ?: 'Staff', 47, 2, 6.25, 3.8);
+            $departmentText = $this->fitStaffCardText($dompdf, $departmentValue ?: 'Not recorded', 47, 2, 5.7, 3.4);
+            $kinText = $this->fitStaffCardText($dompdf, $kinName, 47, 2, 6.2, 5);
+            $kinPhoneText = $this->fitStaffCardText($dompdf, $kinPhone, 47, 1, 6.8, 5);
+            $html = view('pdf.staff-id-card', [
+                'name' => $name,
+                'staffId' => $staffId,
+                'designationText' => $designationText,
+                'departmentLabel' => $departmentLabel,
+                'departmentText' => $departmentText,
+                'state' => $row->state ?: 'Not recorded',
+                'nationality' => $row->nationality ?: 'Not recorded',
+                'photo' => $this->cardDataUri($photoPath),
+                'logo' => $this->cardDataUri($logoPath),
+                'registrarSignature' => $this->cardDataUri($registrarPath),
+                'qrCode' => $this->staffQrDataUri($qrData),
+                'issueDate' => $issueDate,
+                'expiryDate' => $expiryDate,
+                'kinText' => $kinText,
+                'kinPhoneText' => $kinPhoneText,
+            ])->render();
+
+            $dompdf->loadHtml($html, 'UTF-8');
+            $dompdf->setPaper([0, 0, 153.014173, 242.645669], 'portrait');
+            $dompdf->render();
+
+            $safeName = preg_replace('/[^A-Za-z0-9_-]+/', '_', $staffId ?: $name);
+            return response($dompdf->output(), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="staff-id-card-' . $safeName . '.pdf"',
+                'Cache-Control' => 'private, max-age=0, must-revalidate',
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Staff ID card PDF generation failed', [
+                'staff_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'The staff ID card could not be generated right now.');
+        }
+    }
+
+    private function firstExistingCardPath(array $paths): string
+    {
+        foreach ($paths as $path) {
+            if ($path && is_file($path) && is_readable($path)) {
+                return $path;
+            }
+        }
+
+        return '';
+    }
+
+    private function cardDataUri(string $path): string
+    {
+        if ($path === '' || !is_file($path)) {
+            return '';
+        }
+
+        $mime = function_exists('mime_content_type') ? mime_content_type($path) : null;
+        $mime = $mime ?: ('image/' . strtolower(pathinfo($path, PATHINFO_EXTENSION)));
+
+        return 'data:' . $mime . ';base64,' . base64_encode((string) file_get_contents($path));
+    }
+
+    private function staffQrDataUri(string $value): string
+    {
+        if ($value === '') {
+            return '';
+        }
+
+        try {
+            $options = new \chillerlan\QRCode\QROptions([
+                'outputInterface' => \chillerlan\QRCode\Output\QRGdImagePNG::class,
+                'scale' => 5,
+                'imageBase64' => true,
+                'quietzoneSize' => 4,
+            ]);
+
+            return (new \chillerlan\QRCode\QRCode($options))->render($value);
+        } catch (\Throwable $e) {
+            \Log::warning('Staff ID card QR generation failed', ['error' => $e->getMessage()]);
+            return '';
+        }
+    }
+
+    /** Fit next-of-kin values into the compact emergency-contact area on the card. */
+    private function fitStaffCardText(Dompdf $pdf, string $text, float $widthMm, int $maxLines, float $maximum, float $minimum): array
+    {
+        $text = mb_strtoupper(trim(preg_replace('/\s+/u', ' ', $text)));
+        $metrics = $pdf->getFontMetrics();
+        $font = $metrics->getFont('DejaVu Sans', 'bold');
+        $width = $widthMm * 72 / 25.4;
+
+        for ($size = $maximum; $size >= $minimum - 0.01; $size -= 0.2) {
+            $lines = [];
+            $line = '';
+            // Split at spaces and after slashes so long compound designations can wrap cleanly.
+            $words = preg_split('/\s+|(?<=\/)/u', $text, -1, PREG_SPLIT_NO_EMPTY);
+            foreach ($words as $word) {
+                $candidate = $line === '' ? $word : $line . ' ' . $word;
+                if ($line !== '' && $metrics->getTextWidth($candidate, $font, $size) > $width) {
+                    $lines[] = $line;
+                    $line = $word;
+                } else {
+                    $line = $candidate;
+                }
+            }
+            $lines[] = $line;
+            $widest = max(array_map(fn ($value) => $metrics->getTextWidth($value, $font, $size), $lines));
+            if (count($lines) <= $maxLines && $widest <= $width) {
+                return ['text' => implode("\n", $lines), 'size' => round($size, 2)];
+            }
+        }
+
+        return ['text' => $text, 'size' => $minimum];
+    }
+
     public function downloadAuditForm()
     {
         if (!session()->has('log')) {

@@ -87,8 +87,10 @@ class StudentIdCardController extends Controller
 
             $facultyTitle = DB::table('faculty')->where('code', $student->faculty)->value('title')
                 ?: ($student->faculty ?: 'Not recorded');
-            $programTitle = DB::table('program')->where('code', $student->program)->value('title')
-                ?: ($student->program ?: 'Not recorded');
+            $programRecord = DB::table('program')
+                ->where('code', $student->program)
+                ->first(['title', 'duration']);
+            $programTitle = $programRecord?->title ?: ($student->program ?: 'Not recorded');
 
             $photoPath = $this->firstExistingPath([
                 $student->picture ? public_path('storage/picture/' . $student->picture) : null,
@@ -104,6 +106,7 @@ class StudentIdCardController extends Controller
             ]);
 
             $logoPath = $this->firstExistingPath([
+                public_path('uploads/logo-transparent.png'),
                 public_path('uploads/logo.png'),
             ]);
             $registrarSignaturePath = $this->firstExistingPath([
@@ -113,7 +116,11 @@ class StudentIdCardController extends Controller
             $matric = trim((string) ($student->username ?: $student->jamb_no ?: 'Not assigned'));
             $fullName = trim((string) ($student->fullname ?: 'Student'));
             $issueDate = $this->formatCardDate($student->issue_date, now()->format('d M Y'));
-            $expiryDate = $this->formatCardDate($student->expire_date, now()->copy()->addYears(5)->format('d M Y'));
+            $expiryDate = $this->expiryDateForProgramme(
+                $student->issue_date,
+                $programRecord?->duration,
+                $student->expire_date
+            );
             $qrData = implode("\n", array_filter([
                 $matric,
                 $fullName,
@@ -283,6 +290,27 @@ class StudentIdCardController extends Controller
         } catch (\Throwable $e) {
             return $fallback;
         }
+    }
+
+    /** Calculate an undergraduate card expiry from the programme duration. */
+    private function expiryDateForProgramme($issueValue, $duration, $storedExpiry): string
+    {
+        $years = (int) $duration;
+        if ($years <= 0 && is_string($duration) && preg_match('/\d+/', $duration, $matches)) {
+            $years = (int) $matches[0];
+        }
+
+        if ($years > 0) {
+            try {
+                return \Carbon\Carbon::parse($issueValue ?: now())
+                    ->addYears($years)
+                    ->format('d M Y');
+            } catch (\Throwable $e) {
+                // Fall back to the stored date below when an old issue date is invalid.
+            }
+        }
+
+        return $this->formatCardDate($storedExpiry, now()->copy()->addYears(5)->format('d M Y'));
     }
     public function create(Request $req)
     {

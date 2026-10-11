@@ -28,11 +28,6 @@
                         {{-- <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createStudent"><i class="fas fa-plus"></i> {{ ('Add New') }}</a> --}}
                         {{-- <button href="#" class="btn btn-dark uploadAction" data-bs-toggle="modal"
                             data-bs-target="#importStudent"><i class="fas fa-upload"></i> {{ 'Upload' }}</button> --}}
-                        @if (strtoupper(session('username')) == 'SP11913' || strtoupper(session('username')) == 'SU')
-                            <button href="#" class="btn btn-dark" data-bs-toggle="modal"
-                                data-bs-target="#importPayment"><i class="fas fa-upload"></i>
-                                {{ 'Upload Payment' }}</button>
-                        @endif
                     </div>
 
                     <div class="card-block">
@@ -281,89 +276,6 @@
     </div>
 </div>
 <!-- End Content-->
-<!-- Show modal content -->
-<div id="importPayment" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
-    aria-hidden="true">
-    <div class="modal-dialog modal-md" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="myModalLabel">Upload Payments</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"><span
-                        aria-hidden="true">&times;</span></button>
-            </div>
-            <div class="card">
-
-                <form class="form-group" action="upload-payment" method="POST" enctype="multipart/form-data">
-                    <div class="card-body">
-                        <!-- Details View Start -->
-                        @csrf
-                        {{-- Service --}}
-                        <div class="form-group">
-                            <label for="program1">Service</label>
-                            <select class="form-control" name="service" required>
-                                <option value="">Select Service</option>
-                                <option value="school fees">School Fees</option>
-                                <option value="hostel fees">Hostel Fees</option>
-                            </select>
-                        </div>
-                        {{-- Type --}}
-                        <div class="form-group">
-                            <label for="program1">Type</label>
-                            <select class="form-control" name="upload_type" required>
-                                <option value="">Select Type</option>
-                                <option value="full">Full Payment</option>
-                                <option value="part">Part Payment </option>
-                            </select>
-                        </div>
-                        {{-- Sponsor --}}
-                        <div class="form-group">
-                            <label for="sponsor">Sponsor</label>
-                            <select class="form-control" name="sponsor" required>
-                                <option value="">Select Sponsor</option>
-                                <option value="self sponsor">Self Sponsor</option>
-                                <option value="nelfund">NELFUND</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="session">Session</label>
-                            <select class="form-control" name="session" required>
-                                <option value="">Select Session</option>
-                                <option value="2018/2019">2018/2019</option>
-                                <option value="2019/2020">2019/2020</option>
-                                <option value="2020/2021">2020/2021</option>
-                                <option value="2021/2022">2021/2022</option>
-                                <option value="2022/2023">2022/2023</option>
-                                <option value="2023/2024">2023/2024</option>
-                                <option value="2024/2025">2024/2025</option>
-                                <option value="2025/2026">2025/2026</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="file"></label>
-                            <input type="file" name="file" id="file" accept=".xlsx, .xls"
-                                class="form-control" required>
-                        </div>
-                        <br>
-
-                        <div class="alert alert-warning" role="alert">
-                            <strong>Warning!</strong> Make sure you have selected the correct faculty, department and
-                            program. If you select the wrong one, the data will be uploaded to the wrong program. Please
-                            make sure you have selected the correct one.
-                        </div>
-                        <br>
-                        {{-- Add check box and warning the user about his selections --}}
-                        <input type="checkbox" name="check" id="check" required>
-                        <label for="check"> I have read the instructions and I am sure about my selection</label>
-
-                        <!-- Details View End -->
-                        <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-success">Upload</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
 <div id="importStudent" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
     aria-hidden="true">
     <div class="modal-dialog modal-md" role="document">

@@ -50,6 +50,9 @@
                     <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#exportPaidStudentsModal"><i class="fas fa-file-excel me-1"></i> Paid export</button>
                     <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#exportUnpaidStudentsModal"><i class="fas fa-user-clock me-1"></i> Unpaid export</button>
                     <button type="button" class="btn btn-info text-white" data-bs-toggle="modal" data-bs-target="#bulkVerifyModal"><i class="fas fa-check-circle me-1"></i> Verify RRR</button>
+                     @if (in_array(strtoupper((string) session('username')), ['SP11913', 'SU'], true))
+                         <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#importPayment"><i class="fas fa-upload me-1"></i> Upload payment</button>
+                     @endif
                 </div>
             </div>
         </div>
@@ -138,6 +141,71 @@
         </div>
     </div>
 </div>
+
+@if (in_array(strtoupper((string) session('username')), ['SP11913', 'SU'], true))
+    <div id="importPayment" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="importPaymentLabel" aria-hidden="true">
+        <div class="modal-dialog modal-md modal-dialog-centered modal-dialog-scrollable" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <div>
+                        <h5 class="modal-title mb-1" id="importPaymentLabel">Upload payment records</h5>
+                        <small>Import payment records into the collection.</small>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{ url('/upload-payment') }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label" for="paymentUploadService">Service</label>
+                            <select class="form-select" name="service" id="paymentUploadService" required>
+                                <option value="">Select service</option>
+                                <option value="school fees">School Fees</option>
+                                <option value="hostel fees">Hostel Fees</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="paymentUploadType">Payment type</label>
+                            <select class="form-select" name="upload_type" id="paymentUploadType" required>
+                                <option value="">Select payment type</option>
+                                <option value="full">Full Payment</option>
+                                <option value="part">Part Payment</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="paymentUploadSponsor">Sponsor</label>
+                            <select class="form-select" name="sponsor" id="paymentUploadSponsor" required>
+                                <option value="">Select sponsor</option>
+                                <option value="self sponsor">Self Sponsor</option>
+                                <option value="nelfund">NELFUND</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="paymentUploadSession">Session</label>
+                            <select class="form-select" name="session" id="paymentUploadSession" required>
+                                <option value="">Select session</option>
+                                @foreach (($session ?? collect()) as $sessionOption)
+                                    <option value="{{ $sessionOption->title }}" {{ $sessionOption->title === ($fees_session ?? session('system_session')) ? 'selected' : '' }}>{{ $sessionOption->title }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="paymentUploadFile">Excel file</label>
+                            <input type="file" name="file" id="paymentUploadFile" accept=".xlsx,.xls" class="form-control" required>
+                        </div>
+                        <div class="alert alert-warning mb-0" role="alert">
+                            Confirm the service, payment type, sponsor and session before uploading. The imported records will appear in this collection.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-upload me-1"></i> Upload records</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+@endif
             <div class="col-sm-12 fees-section">
                 <div class="card">
                     <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">

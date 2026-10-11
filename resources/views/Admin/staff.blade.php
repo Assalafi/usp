@@ -213,6 +213,12 @@
                                                     <i class="far fa-edit"></i>
                                                 </a>
 
+                                                <a href="/staff id card/{{ $row->id }}"
+                                                    class="btn btn-icon btn-info btn-sm updateAction" target="_blank"
+                                                    title="Generate staff ID card">
+                                                    <i class="fas fa-id-card"></i>
+                                                </a>
+
                                                 <button type="button"
                                                     class="btn btn-icon btn-danger btn-sm deleteAction"
                                                     data-bs-toggle="modal"

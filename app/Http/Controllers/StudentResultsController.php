@@ -91,4 +91,100 @@ class StudentResultsController extends Controller
 
         return $dompdf->stream($filename, ['Attachment' => true]);
     }
+
+    /**
+     * Download the same approved academic record for an administrator or
+     * authorised staff member from the admin student-details page.
+     */
+    public function downloadForAdmin(Request $request, string $id)
+    {
+        if (!session()->has('log') || !in_array(session('accType'), ['Admin', 'Staff'], true)) {
+            return redirect('/')->with('error', 'Unauthorized access');
+        }
+
+        $student = DB::table('students')
+            ->leftJoin('program', 'students.program', '=', 'program.code')
+            ->where('students.id', $id)
+            ->select(
+                'students.fullname',
+                'students.username',
+                'students.program',
+                'students.level',
+                'program.title as program_title'
+            )
+            ->first();
+
+        if (!$student) {
+            abort(404, 'Student record not found.');
+        }
+
+        $currentSession = DB::table('session')->where('status', '1')->value('title');
+        $selectedSession = (string) $request->input('session', $currentSession ?: 'all');
+        $selectedSession = $selectedSession !== '' ? $selectedSession : ($currentSession ?: 'all');
+        $isAllSessions = strtolower($selectedSession) === 'all';
+        $studentId = $student->username;
+
+        $resultsQuery = DB::table('results')
+            ->leftJoin('course', 'results.code', '=', 'course.code')
+            ->where([
+                'results.username' => $studentId,
+                'results.approve' => 'vc',
+            ]);
+
+        if (!$isAllSessions) {
+            $resultsQuery->where('results.session', $selectedSession);
+        }
+
+        $results = $resultsQuery
+            ->select('results.*', 'course.title as course_title', 'course.unit as course_unit')
+            ->orderBy('results.session', 'DESC')
+            ->orderBy('results.level', 'ASC')
+            ->orderBy('results.semester', 'ASC')
+            ->orderBy('results.code', 'ASC')
+            ->get();
+
+        $historyQuery = DB::table('session_history')->where('username', $studentId);
+        if (!$isAllSessions) {
+            $historyQuery->where('session', $selectedSession);
+        }
+        $history = $historyQuery->orderBy('session', 'DESC')->first();
+
+        $calculationUnits = $results->sum(fn ($result) => $isAllSessions
+            ? (is_numeric($result->unit ?? null) && (float) $result->unit > 0 ? (float) $result->unit : 0)
+            : (is_numeric($result->course_unit ?? null) && (float) $result->course_unit > 0 ? (float) $result->course_unit : 0));
+        $calculationProducts = $results->sum(fn ($result) => (float) ($result->ugp ?? 0));
+        $calculatedCgpa = $calculationUnits > 0 ? $calculationProducts / $calculationUnits : null;
+        $historyCgpa = is_numeric($history->cgpa ?? null) ? (float) $history->cgpa : null;
+
+        $gradeOrder = ['A', 'B', 'C', 'D', 'E', 'F'];
+        $gradeCounts = collect($gradeOrder)->mapWithKeys(function ($grade) use ($results) {
+            return [$grade => $results->filter(fn ($result) => strtoupper((string) ($result->grade ?? '')) === $grade)->count()];
+        });
+
+        $viewData = [
+            'results' => $results,
+            'student' => $student,
+            'selectedSession' => $selectedSession,
+            'isAllSessions' => $isAllSessions,
+            'historyCgpa' => $historyCgpa,
+            'calculatedCgpa' => $calculatedCgpa,
+            'gradeCounts' => $gradeCounts,
+            'generatedAt' => now(),
+        ];
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $options->set('defaultFont', 'Helvetica');
+        $options->set('chroot', public_path());
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml(view('Student.results-pdf', $viewData)->render());
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $safeStudentId = preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) $studentId);
+        $filename = 'academic-record-' . trim($safeStudentId, '-') . '-' . ($isAllSessions ? 'all-sessions' : preg_replace('/[^A-Za-z0-9_-]+/', '-', $selectedSession)) . '.pdf';
+
+        return $dompdf->stream($filename, ['Attachment' => true]);
+    }
 }
