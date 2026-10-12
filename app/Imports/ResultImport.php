@@ -14,6 +14,7 @@ class ResultImport implements ToCollection
         'inserted' => 0,
         'updated' => 0,
         'resits' => 0,
+        'cleaned_registrations' => 0,
         'skipped' => 0,
         'failed' => 0,
         'details' => [],
@@ -113,6 +114,7 @@ class ResultImport implements ToCollection
             }
 
             $previousSession = $this->previousSession();
+            $stalePreviousRegistration = false;
             if ($previousSession && $previousSession > '2022/2023') {
                 $hasPreviousRegistration = DB::table('student_course_registration')
                     ->where(['username' => $id, 'code' => $this->course, 'session' => $previousSession])
@@ -121,8 +123,10 @@ class ResultImport implements ToCollection
                     ->where(['username' => $id, 'code' => $this->course, 'session' => $previousSession])
                     ->exists();
                 if ($hasPreviousRegistration && !$hasPreviousResult) {
-                    $this->addIssue($excelRow, $id, 'skipped', "The previous session ($previousSession) has no uploaded result for this student.");
-                    continue;
+                    // A registration without any result is stale/incomplete. It
+                    // is cleaned up only inside the transaction that saves the
+                    // current result, so a failed row leaves the old data intact.
+                    $stalePreviousRegistration = true;
                 }
             }
 
@@ -198,7 +202,7 @@ class ResultImport implements ToCollection
             ];
 
             try {
-                $operation = DB::transaction(function () use ($id, $records) {
+                $transaction = DB::transaction(function () use ($id, $records, $previousSession, $stalePreviousRegistration) {
                     $existing = DB::table('results')
                         ->where([
                             'username' => $id,
@@ -210,28 +214,49 @@ class ResultImport implements ToCollection
                         ->first();
 
                     if ($existing && strtolower((string) ($existing->approve ?? 'system')) !== 'system') {
-                        return 'protected';
+                        return ['operation' => 'protected', 'removed_registrations' => 0];
                     }
+
+                    $removedRegistrations = 0;
+                    if ($stalePreviousRegistration && $previousSession) {
+                        $removedRegistrations = DB::table('student_course_registration')
+                            ->where([
+                                'username' => $id,
+                                'code' => $this->course,
+                                'session' => $previousSession,
+                            ])
+                            ->lockForUpdate()
+                            ->delete();
+                    }
+
                     if ($existing) {
                         DB::table('results')->where('id', $existing->id)->update($records);
-                        return 'updated';
+                        return ['operation' => 'updated', 'removed_registrations' => $removedRegistrations];
                     }
 
                     DB::table('results')->insert($records);
-                    return 'inserted';
+                    return ['operation' => 'inserted', 'removed_registrations' => $removedRegistrations];
                 });
 
+                $operation = $transaction['operation'];
                 if ($operation === 'protected') {
                     $this->addIssue($excelRow, $id, 'skipped', 'A result for this session is already submitted or approved and cannot be overwritten.');
                     continue;
                 }
 
                 $this->report[$operation]++;
+                $removedRegistrations = (int) ($transaction['removed_registrations'] ?? 0);
+                if ($removedRegistrations > 0) {
+                    $this->report['cleaned_registrations'] += $removedRegistrations;
+                }
                 if ($resultUnit === 0 && $previousApprovedResult) {
                     $this->report['resits']++;
                     $message = ucfirst($operation) . ' as a resit; result unit is 0 because a previous result is VC-approved.';
                 } else {
                     $message = ucfirst($operation) . ' successfully.';
+                }
+                if ($removedRegistrations > 0) {
+                    $message .= " Removed $removedRegistrations stale previous-session course registration" . ($removedRegistrations === 1 ? '' : 's') . '.';
                 }
                 $this->addDetail($excelRow, $id, 'success', $message);
             } catch (QueryException $exception) {

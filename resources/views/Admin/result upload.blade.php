@@ -203,7 +203,7 @@
                     <div class="result-upload-stat danger"><strong>{{ $report['not_uploaded'] ?? 0 }}</strong><small>Not uploaded</small></div>
                 </div>
                 <div class="result-upload-table-wrap">
-                    <div class="result-upload-notice"><i class="fas fa-lightbulb"></i> Results are saved as <strong>Lecturer submitted</strong> and must still pass the normal Department, Faculty, Course System, Senate, and VC approval stages. @if(($report['resits'] ?? 0) > 0)<strong>{{ $report['resits'] }} resit result(s)</strong> were recorded with zero result units because a previous result was VC-approved.@endif</div>
+                    <div class="result-upload-notice"><i class="fas fa-lightbulb"></i> Results are saved as <strong>Lecturer submitted</strong> and must still pass the normal Department, Faculty, Course System, Senate, and VC approval stages. @if(($report['resits'] ?? 0) > 0)<strong>{{ $report['resits'] }} resit result(s)</strong> were recorded with zero result units because a previous result was VC-approved.@endif @if(($report['cleaned_registrations'] ?? 0) > 0)<strong>{{ $report['cleaned_registrations'] }} stale course registration(s)</strong> without a previous result were removed automatically.@endif</div>
 
                     @if ($issues->isNotEmpty())
                         <div class="result-upload-table-title"><i class="fas fa-triangle-exclamation"></i> Rows not uploaded ({{ $issues->count() }})</div>
