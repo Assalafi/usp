@@ -25,11 +25,13 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 | Exposes remedial student (bed_type = 3) hostel operations to the
 | School of Basic and Remedial Studies portal.
 */
-Route::prefix('v1/hostel')->middleware(['hostel.api'])->group(function () {
+Route::prefix('v1/hostel')->middleware(['hostel.api', 'throttle:120,1'])->group(function () {
     Route::get('overview', [\App\Http\Controllers\Api\HostelApiController::class, 'overview']);
     Route::get('blocks', [\App\Http\Controllers\Api\HostelApiController::class, 'blocks']);
     Route::get('rooms', [\App\Http\Controllers\Api\HostelApiController::class, 'rooms']);
     Route::get('beds', [\App\Http\Controllers\Api\HostelApiController::class, 'beds']);
+    Route::get('pin-status', [\App\Http\Controllers\Api\HostelApiController::class, 'pinStatus']);
+    Route::post('validate-pin', [\App\Http\Controllers\Api\HostelApiController::class, 'validatePin']);
     Route::post('reserve', [\App\Http\Controllers\Api\HostelApiController::class, 'reserve']);
     Route::get('status', [\App\Http\Controllers\Api\HostelApiController::class, 'status']);
     Route::post('release', [\App\Http\Controllers\Api\HostelApiController::class, 'release']);

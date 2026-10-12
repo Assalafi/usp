@@ -42,6 +42,8 @@ class HostelApiController extends Controller
         $reservedBeds = DB::table('hostel')
             ->where('bed_type', self::REMEDIAL_BED_TYPE)
             ->where('status', 1)
+            ->where('flag', 0)
+            ->when($gender !== '', fn ($q) => $q->where('gender', $gender))
             ->count();
 
         return response()->json([
@@ -150,6 +152,99 @@ class HostelApiController extends Controller
     }
 
     /**
+     * Check whether Student Affairs has assigned a hostel PIN to this
+     * registration number. The PIN itself is never returned over the API.
+     */
+    public function pinStatus(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'registration_number' => 'required|string|max:50',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
+        }
+
+        $validated = DB::table('hostel_pin')
+            ->where('username', trim((string) $request->registration_number))
+            ->exists();
+
+        return response()->json([
+            'success' => true,
+            'data' => ['validated' => $validated],
+        ]);
+    }
+
+    /**
+     * Assign an unused Student Affairs PIN to an SBRS registration number.
+     * This mirrors the UG validation flow while keeping the SBRS account out
+     * of the UG users table.
+     */
+    public function validatePin(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'registration_number' => 'required|string|max:50',
+            'pin' => 'required|string|max:64',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
+        }
+
+        $registrationNumber = trim((string) $request->registration_number);
+        $pinValue = trim((string) $request->pin);
+
+        try {
+            return DB::transaction(function () use ($registrationNumber, $pinValue) {
+                $existing = DB::table('hostel_pin')
+                    ->where('username', $registrationNumber)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing) {
+                    if (hash_equals((string) ($existing->pin ?? ''), $pinValue)) {
+                        return response()->json([
+                            'success' => true,
+                            'message' => 'Hostel PIN already validated for this student.',
+                            'data' => ['validated' => true],
+                        ]);
+                    }
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'A hostel PIN is already linked to this student. Contact Student Affairs if you need help.',
+                    ], 409);
+                }
+
+                $pin = DB::table('hostel_pin')
+                    ->where('pin', $pinValue)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$pin) {
+                    return response()->json(['success' => false, 'message' => 'Invalid hostel PIN.'], 422);
+                }
+
+                if (strtolower(trim((string) ($pin->username ?? ''))) !== 'awaiting') {
+                    return response()->json(['success' => false, 'message' => 'This hostel PIN has already been used.'], 409);
+                }
+
+                DB::table('hostel_pin')->where('id', $pin->id)->update([
+                    'username' => $registrationNumber,
+                    'updated_at' => now(),
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Hostel PIN validated successfully.',
+                    'data' => ['validated' => true],
+                ]);
+            });
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json(['success' => false, 'message' => 'The hostel PIN could not be validated right now. Please try again.'], 500);
+        }
+    }
+
+    /**
      * Reserve a bed for a remedial student.
      */
     public function reserve(Request $request)
@@ -174,69 +269,87 @@ class HostelApiController extends Controller
             return response()->json(['success' => false, 'message' => 'Invalid registration number.'], 422);
         }
 
-        DB::beginTransaction();
         try {
-            // Check for existing reservation by this student
-            $existing = DB::table('hostel')
-                ->where('occupant', $registrationNumber)
-                ->where('bed_type', self::REMEDIAL_BED_TYPE)
-                ->first();
+            return DB::transaction(function () use ($request, $registrationNumber, $gender) {
+                // A PIN must be assigned before a remedial/SBRS reservation
+                // can be created. This check is server-side and cannot be
+                // bypassed by calling the API directly.
+                $hasPin = DB::table('hostel_pin')
+                    ->where('username', $registrationNumber)
+                    ->lockForUpdate()
+                    ->exists();
 
-            if ($existing) {
+                if (!$hasPin) {
+                    return response()->json(['success' => false, 'message' => 'Validate your hostel PIN before reserving a bed space.'], 422);
+                }
+
+                // Lock both the student's existing allocation and the target
+                // bed. This prevents two concurrent requests from assigning
+                // the same bed or giving one student multiple allocations.
+                $existing = DB::table('hostel')
+                    ->where('occupant', $registrationNumber)
+                    ->where('bed_type', self::REMEDIAL_BED_TYPE)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'You already have a reserved bed: ' . $existing->hall . ' | ' . $existing->block . ' | ' . $existing->room . ' | ' . $existing->bed,
+                    ], 409);
+                }
+
+                $bed = DB::table('hostel')
+                    ->where('hall', $request->hall)
+                    ->where('block', $request->block)
+                    ->where('room', $request->room)
+                    ->where('bed', $request->bed)
+                    ->where('bed_type', self::REMEDIAL_BED_TYPE)
+                    ->where('status', 0)
+                    ->where('flag', 0)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$bed) {
+                    return response()->json(['success' => false, 'message' => 'Bed space is no longer available. Please select another.'], 409);
+                }
+
+                if (strtoupper($bed->gender) !== $gender) {
+                    return response()->json(['success' => false, 'message' => 'Gender mismatch for this bed space.'], 422);
+                }
+
+                $updated = DB::table('hostel')
+                    ->where('id', $bed->id)
+                    ->where('status', 0)
+                    ->update([
+                        'occupant' => $registrationNumber,
+                        'status' => 1,
+                        'updated_at' => now(),
+                    ]);
+
+                if ($updated !== 1) {
+                    return response()->json(['success' => false, 'message' => 'Bed space is no longer available. Please select another.'], 409);
+                }
+
                 return response()->json([
-                    'success' => false,
-                    'message' => 'You already have a reserved bed: ' . $existing->hall . ' | ' . $existing->block . ' | ' . $existing->room . ' | ' . $existing->bed,
-                ], 409);
-            }
-
-            // Locate the target bed (remedial, free, matching gender)
-            $bed = DB::table('hostel')
-                ->where('hall', $request->hall)
-                ->where('block', $request->block)
-                ->where('room', $request->room)
-                ->where('bed', $request->bed)
-                ->where('bed_type', self::REMEDIAL_BED_TYPE)
-                ->where('status', 0)
-                ->where('flag', 0)
-                ->first();
-
-            if (!$bed) {
-                return response()->json(['success' => false, 'message' => 'Bed space is no longer available. Please select another.'], 409);
-            }
-
-            if (strtoupper($bed->gender) !== $gender) {
-                return response()->json(['success' => false, 'message' => 'Gender mismatch for this bed space.'], 422);
-            }
-
-            // Occupy the bed
-            DB::table('hostel')
-                ->where('id', $bed->id)
-                ->update([
-                    'occupant' => $registrationNumber,
-                    'status' => 1,
-                    'updated_at' => date('Y-m-d H:i:s'),
+                    'success' => true,
+                    'message' => 'Bed reserved successfully.',
+                    'data' => [
+                        'hall' => $bed->hall,
+                        'block' => $bed->block,
+                        'room' => $bed->room,
+                        'bed' => $bed->bed,
+                        'amount' => $bed->amount,
+                        'hostel_amount' => $bed->hostel_amount,
+                        'category' => $bed->category,
+                        'occupant' => $registrationNumber,
+                        'status' => 1,
+                    ],
                 ]);
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Bed reserved successfully.',
-                'data' => [
-                    'hall' => $bed->hall,
-                    'block' => $bed->block,
-                    'room' => $bed->room,
-                    'bed' => $bed->bed,
-                    'amount' => $bed->amount,
-                    'hostel_amount' => $bed->hostel_amount,
-                    'category' => $bed->category,
-                    'occupant' => $registrationNumber,
-                    'status' => 1,
-                ],
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Failed to reserve bed: ' . $e->getMessage()], 500);
+            });
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json(['success' => false, 'message' => 'Failed to reserve bed. Please try again.'], 500);
         }
     }
 
@@ -296,24 +409,38 @@ class HostelApiController extends Controller
             return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
         }
 
-        $reservation = DB::table('hostel')
-            ->where('occupant', trim($request->registration_number))
-            ->where('bed_type', self::REMEDIAL_BED_TYPE)
-            ->first();
+        try {
+            return DB::transaction(function () use ($request) {
+                $reservation = DB::table('hostel')
+                    ->where('occupant', trim($request->registration_number))
+                    ->where('bed_type', self::REMEDIAL_BED_TYPE)
+                    ->lockForUpdate()
+                    ->first();
 
-        if (!$reservation) {
-            return response()->json(['success' => false, 'message' => 'No reservation found to release.'], 404);
+                if (!$reservation) {
+                    return response()->json(['success' => false, 'message' => 'No reservation found to release.'], 404);
+                }
+
+                if ((string) $reservation->hostel_payment === '1') {
+                    return response()->json(['success' => false, 'message' => 'A paid reservation cannot be released here. Contact Student Affairs for a refund or correction.'], 409);
+                }
+
+                DB::table('hostel')
+                    ->where('id', $reservation->id)
+                    ->update([
+                        'occupant' => '',
+                        'status' => 0,
+                        'hostel_payment' => '0',
+                        'payment_method' => null,
+                        'updated_at' => now(),
+                    ]);
+
+                return response()->json(['success' => true, 'message' => 'Reservation released successfully.']);
+            });
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json(['success' => false, 'message' => 'The reservation could not be released right now.'], 500);
         }
-
-        DB::table('hostel')
-            ->where('id', $reservation->id)
-            ->update([
-                'occupant' => '',
-                'status' => 0,
-                'updated_at' => date('Y-m-d H:i:s'),
-            ]);
-
-        return response()->json(['success' => true, 'message' => 'Reservation released successfully.']);
     }
 
     /**
@@ -324,37 +451,62 @@ class HostelApiController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'registration_number' => 'required|string|max:50',
+            'rrr' => 'required|string|max:64',
+            'amount' => 'required|numeric|min:0.01',
         ]);
         if ($validator->fails()) {
             return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
         }
 
-        $reservation = DB::table('hostel')
-            ->where('occupant', trim($request->registration_number))
-            ->where('bed_type', self::REMEDIAL_BED_TYPE)
-            ->first();
+        try {
+            return DB::transaction(function () use ($request) {
+                $reservation = DB::table('hostel')
+                    ->where('occupant', trim($request->registration_number))
+                    ->where('bed_type', self::REMEDIAL_BED_TYPE)
+                    ->lockForUpdate()
+                    ->first();
 
-        if (!$reservation) {
-            return response()->json(['success' => false, 'message' => 'No reservation found for this student.'], 404);
+                if (!$reservation) {
+                    return response()->json(['success' => false, 'message' => 'No reservation found for this student.'], 404);
+                }
+
+                $expected = round((float) $reservation->amount, 2);
+                $received = round((float) $request->amount, 2);
+                if (abs($expected - $received) > 0.009) {
+                    return response()->json(['success' => false, 'message' => 'The payment amount does not match the hostel fee.'], 422);
+                }
+
+                if ((string) $reservation->hostel_payment === '1') {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Hostel payment was already confirmed.',
+                        'data' => ['hostel_payment' => '1'],
+                    ]);
+                }
+
+                DB::table('hostel')
+                    ->where('id', $reservation->id)
+                    ->update([
+                        'hostel_payment' => '1',
+                        'payment_method' => 'Online',
+                        'updated_at' => now(),
+                    ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Hostel payment confirmed.',
+                    'data' => [
+                        'hall' => $reservation->hall,
+                        'block' => $reservation->block,
+                        'room' => $reservation->room,
+                        'bed' => $reservation->bed,
+                        'hostel_payment' => '1',
+                    ],
+                ]);
+            });
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json(['success' => false, 'message' => 'The hostel payment could not be confirmed right now.'], 500);
         }
-
-        DB::table('hostel')
-            ->where('id', $reservation->id)
-            ->update([
-                'hostel_payment' => '1',
-                'updated_at' => date('Y-m-d H:i:s'),
-            ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Hostel payment confirmed.',
-            'data' => [
-                'hall' => $reservation->hall,
-                'block' => $reservation->block,
-                'room' => $reservation->room,
-                'bed' => $reservation->bed,
-                'hostel_payment' => '1',
-            ],
-        ]);
     }
 }
