@@ -117,7 +117,7 @@
                             <select id="resultCourse" name="course" required>
                                 <option value="">Select a course</option>
                                 @foreach ($lecturerCourses as $course)
-                                    <option value="{{ $course->code }}" @selected((string) $selectedCourse === (string) $course->code)>
+                                    <option value="{{ $course->code }}"{{ (string) $selectedCourse === (string) $course->code ? ' selected' : '' }}>
                                         {{ $course->code }}{{ $course->title ? ' — ' . $course->title : '' }}{{ isset($course->unit) ? ' (' . $course->unit . ' units)' : '' }}
                                     </option>
                                 @endforeach
@@ -133,7 +133,7 @@
                             <select id="resultSession" name="session" required>
                                 <option value="">Select session</option>
                                 @foreach ($sessions as $item)
-                                    <option value="{{ $item->title }}" @selected((string) $selectedSession === (string) $item->title)>{{ $item->title }}{{ (string) $item->title === (string) $currentSession ? ' — current' : '' }}</option>
+                                    <option value="{{ $item->title }}"{{ (string) $selectedSession === (string) $item->title ? ' selected' : '' }}>{{ $item->title }}{{ (string) $item->title === (string) $currentSession ? ' — current' : '' }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -148,11 +148,11 @@
                             <label for="resultPer">Score format <span>*</span></label>
                             <select id="resultPer" name="per" required>
                                 <option value="">Select score format</option>
-                                <option value="70" @selected($selectedPer === '70')>30 / 70 (CA / Exam)</option>
-                                <option value="30" @selected($selectedPer === '30')>70 / 30 (CA / Exam)</option>
-                                <option value="60" @selected($selectedPer === '60')>40 / 60 (CA / Exam)</option>
-                                <option value="40" @selected($selectedPer === '40')>60 / 40 (CA / Exam)</option>
-                                <option value="100" @selected($selectedPer === '100')>0 / 100 (Exam only)</option>
+                                <option value="70"{{ $selectedPer === '70' ? ' selected' : '' }}>30 / 70 (CA / Exam)</option>
+                                <option value="30"{{ $selectedPer === '30' ? ' selected' : '' }}>70 / 30 (CA / Exam)</option>
+                                <option value="60"{{ $selectedPer === '60' ? ' selected' : '' }}>40 / 60 (CA / Exam)</option>
+                                <option value="40"{{ $selectedPer === '40' ? ' selected' : '' }}>60 / 40 (CA / Exam)</option>
+                                <option value="100"{{ $selectedPer === '100' ? ' selected' : '' }}>0 / 100 (Exam only)</option>
                             </select>
                             <small>The spreadsheet must contain the CA and examination values in columns C and D.</small>
                         </div>
