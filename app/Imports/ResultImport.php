@@ -2,17 +2,22 @@
 
 namespace App\Imports;
 
+use Illuminate\Database\QueryException;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Hash;
-use App\Models\GradingSystem;
-use App\Models\Student;
 
 class ResultImport implements ToCollection
 {
-    protected $data = [];
-    protected $firstRow = true; // Flag to exclude the first row
+    protected array $report = [
+        'total_rows' => 0,
+        'inserted' => 0,
+        'updated' => 0,
+        'resits' => 0,
+        'skipped' => 0,
+        'failed' => 0,
+        'details' => [],
+    ];
 
     private $faculty;
     private $department;
@@ -40,197 +45,285 @@ class ResultImport implements ToCollection
         $this->session = $session;
     }
 
-    public function collection(Collection $rowss)
+    public function report(): array
+    {
+        $this->report['successful'] = $this->report['inserted'] + $this->report['updated'];
+        $this->report['not_uploaded'] = $this->report['skipped'] + $this->report['failed'];
+
+        return $this->report;
+    }
+
+    public function collection(Collection $rows): void
     {
         set_time_limit(0);
-        $data = DB::table('course')
-            ->where(['code' => $this->course])
-            ->get();
-        foreach ($data as $rows) {
+
+        $course = DB::table('course')->where('code', $this->course)->first();
+        if (!$course) {
+            $this->addIssue(1, null, 'failed', 'The selected course does not exist.');
+            return;
         }
-        foreach ($rowss as $row) {
-            if ($this->firstRow) {
-                $this->firstRow = false;
+
+        $seen = [];
+        $firstNonEmptyRow = true;
+
+        foreach ($rows as $index => $row) {
+            $excelRow = $index + 1;
+            if ($this->isEmptyRow($row)) {
                 continue;
             }
-            // Check if email field is not empty
-            if (!empty($row[1])) {
-                $id = strtoupper(str_replace(' ', '', $row[1]));
-                //echo $id;
-                $students = DB::table('students')
-                    ->where(['username' => $id])
-                    ->select('program', 'level', 'department')
-                    ->first();
 
-                //dd($students -> program);
-
-                if (isset($students)) {
-                    $std_program = $students->program;
-                    $std_level = $students->level;
-                    $std_department = $students->department;
-                    $std_duration = DB::table('program')
-                        ->where(['code' => $std_program])
-                        ->select('duration')
-                        ->value('duration');
-                    $grading = DB::table('program_course_registration')
-                        ->where([
-                            'code' => $rows->code,
-                            'program' => $std_program,
-                        ])
-                        ->select('grading')
-                        ->value('grading');
-
-                    $currentYear = date('Y');
-                    $getYear = explode('/', $id);
-                    $getYear = '20' . $getYear[0];
-
-                    $year = $id[0] . $id[1];
-                    $ca = strtoupper(str_replace(' ', '', $row[2]));
-                    $exam = strtoupper(str_replace(' ', '', $row[3]));
-                    $ca = (double) $ca;
-                    $exam = (double) $exam;
-                    $total = (double) $ca + (double) $exam;
-                    //$total = (int) $total;
-                    // round total
-                    $total = round($total, 0, PHP_ROUND_HALF_UP);
-                    //dd($total);
-
-
-                    $unit = $rows->unit;
-                    $level = $rows->level;
-                    $remark = 'PASS';
-
-                    // If the semester is RESIT, cap the total at 50 so the
-                    // grading is computed against a maximum of 50 marks.
-                    if (strtoupper($this->semester) === 'RESIT' && $total > 50) {
-                        $total = 50;
-                    }
-
-                        //dd($total);
-
-                    $gradings = DB::table('grading_system')
-                        ->where(function ($query) use ($getYear) {
-                            $query
-                                ->where(function ($innerQuery) use ($getYear) {
-                                    $innerQuery
-                                        ->where('to', '!=', 'current')
-                                        ->where('from', '<=', $getYear)
-                                        ->where('to', '>=', $getYear);
-                                })
-                                ->orWhere(function ($innerQuery) use (
-                                    $getYear
-                                ) {
-                                    $innerQuery
-                                        ->where('to', '=', 'current')
-                                        ->where('from', '<=', $getYear);
-                                });
-                        })
-                        ->where('min_score', '<=', $total)
-                        ->where('max_score', '>=', $total)
-                        ->where('name', $grading)
-                        ->get();
-                    //dd($total);
-
-                    foreach ($gradings as $gs) {
-                        $grade = $gs->grade;
-                        $point = $unit * $gs->point;
-                        $remark = $gs->remark;
-                        $records['grading'] = $gs->ref;
-                        $records['username'] = $id;
-                        $records['code'] = $rows->code;
-                        $records['ca'] = $ca;
-                        $records['exam'] = $exam;
-                        $records['total'] = $total;
-                        $records['per'] = $this->per;
-                        $records['grade'] = $grade;
-                        $records['remark'] = $remark;
-                        $records['ugp'] = $point;
-                        $records['semester'] = $this->semester;
-                        $records['session'] = $this->session;
-                        $records['level'] = $rows->level;
-                        $records['current_level'] = $std_level;
-                        $records['final_level'] = $std_duration * 100;
-                        $records['program'] = $rows->program;
-                        $records['department'] = $std_department;
-                        $records['lecturer'] = session('username');
-                        $records['updated_at'] = NOW();
-
-                        //dd($grade);
-                        if ($point > 0) {
-                            $records['point'] = $point / $unit;
-                        } else {
-                            $records['point'] = $point;
-                        }
-
-
-
-                        $checking = DB::table('results')
-                            ->select('id', 'approve')
-                            ->where([
-                                'username' => $id,
-                                'code' => $this->course,
-                                'session' => $this->session,
-                                'semester' => $this->semester,
-                            ])
-                            ->where('approve', '!=', 'system')
-                            ->first();
-                        if ($checking) {
-
-                        } else {
-                            // A previous upload is only a genuine completed attempt
-                            // after it has passed the final VC approval stage. An
-                            // unapproved/mistaken upload must not turn the next
-                            // session's normal result into a zero-unit resit.
-                            $previousApprovedResult = DB::table('results')
-                                ->where([
-                                    'username' => $id,
-                                    'code' => $this->course,
-                                    'approve' => 'vc',
-                                ])
-                                ->where('session', '<', $this->session)
-                                ->exists();
-
-                            if ($previousApprovedResult) {
-                                $records['unit'] = 0;
-                            } else {
-                                $records['unit'] = $rows->unit;
-                            }
-
-                            try {
-                                DB::table('results')->insert($records);
-                            } catch (QueryException $e) {
-                                if ($e->errorInfo[1] == 1062) {
-                                    DB::table('results')
-                                        ->where([
-                                            'username' => $id,
-                                            'code' => $rows->code,
-                                            'session' => $this->session,
-                                            'semester' => $this->semester,
-                                        ])
-                                        ->update($records);
-                                } else {
-                                }
-                            } catch (\Exception $e) {
-                                if ($e->errorInfo[1] == 1062) {
-                                    echo 'Double';
-                                    DB::table('results')
-                                        ->where([
-                                            'username' => $id,
-                                            'code' => $rows->code,
-                                            'session' => $this->session,
-                                            'semester' => $this->semester,
-                                        ])
-                                        ->update($records);
-                                } else {
-                                }
-                            } finally {
-                            }
-                        }
-
-                    }
-                    //dd($gradings);
+            if ($firstNonEmptyRow) {
+                $firstNonEmptyRow = false;
+                if ($this->looksLikeHeader($row)) {
+                    continue;
                 }
             }
+
+            $this->report['total_rows']++;
+            $id = $this->normaliseId($this->cell($row, 1));
+            $ca = $this->score($this->cell($row, 2));
+            $exam = $this->score($this->cell($row, 3));
+
+            if ($id === '') {
+                $this->addIssue($excelRow, null, 'skipped', 'Matric number is missing.');
+                continue;
+            }
+            if (isset($seen[$id])) {
+                $this->addIssue($excelRow, $id, 'skipped', 'This matric number appears more than once in the uploaded file.');
+                continue;
+            }
+            $seen[$id] = true;
+
+            if ($ca === null || $exam === null) {
+                $this->addIssue($excelRow, $id, 'skipped', 'CA and examination scores must both be numeric.');
+                continue;
+            }
+            if ($ca < 0 || $ca > 100 || $exam < 0 || $exam > 100) {
+                $this->addIssue($excelRow, $id, 'skipped', 'Scores must be between 0 and 100.');
+                continue;
+            }
+
+            $student = DB::table('students')
+                ->where('username', $id)
+                ->select('program', 'level', 'department')
+                ->first();
+            if (!$student) {
+                $this->addIssue($excelRow, $id, 'skipped', 'Matric number was not found in the student records.');
+                continue;
+            }
+
+            $previousSession = $this->previousSession();
+            if ($previousSession && $previousSession > '2022/2023') {
+                $hasPreviousRegistration = DB::table('student_course_registration')
+                    ->where(['username' => $id, 'code' => $this->course, 'session' => $previousSession])
+                    ->exists();
+                $hasPreviousResult = DB::table('results')
+                    ->where(['username' => $id, 'code' => $this->course, 'session' => $previousSession])
+                    ->exists();
+                if ($hasPreviousRegistration && !$hasPreviousResult) {
+                    $this->addIssue($excelRow, $id, 'skipped', "The previous session ($previousSession) has no uploaded result for this student.");
+                    continue;
+                }
+            }
+
+            $stdDuration = DB::table('program')->where('code', $student->program)->value('duration');
+            $gradingName = DB::table('program_course_registration')
+                ->where(['code' => $course->code, 'program' => $student->program])
+                ->value('grading');
+            if (!$gradingName) {
+                $this->addIssue($excelRow, $id, 'skipped', 'No grading configuration exists for this student programme and course.');
+                continue;
+            }
+
+            $total = round($ca + $exam, 0, PHP_ROUND_HALF_UP);
+            if ($total > 100) {
+                $this->addIssue($excelRow, $id, 'skipped', 'The combined CA and examination score is above 100.');
+                continue;
+            }
+            if (strtoupper((string) $this->semester) === 'RESIT' && $total > 50) {
+                $total = 50;
+            }
+
+            $entryYear = $this->entryYear($id);
+            $grading = DB::table('grading_system')
+                ->where(function ($query) use ($entryYear) {
+                    $query->where(function ($inner) use ($entryYear) {
+                        $inner->where('to', '!=', 'current')
+                            ->where('from', '<=', $entryYear)
+                            ->where('to', '>=', $entryYear);
+                    })->orWhere(function ($inner) use ($entryYear) {
+                        $inner->where('to', 'current')->where('from', '<=', $entryYear);
+                    });
+                })
+                ->where('min_score', '<=', $total)
+                ->where('max_score', '>=', $total)
+                ->where('name', $gradingName)
+                ->first();
+
+            if (!$grading) {
+                $this->addIssue($excelRow, $id, 'skipped', 'No matching grading rule was found for this score.');
+                continue;
+            }
+
+            $courseUnit = (int) ($course->unit ?? 0);
+            $product = $courseUnit * (float) $grading->point;
+            $previousApprovedResult = DB::table('results')
+                ->where(['username' => $id, 'code' => $this->course, 'approve' => 'vc'])
+                ->where('session', '<', $this->session)
+                ->exists();
+            $resultUnit = $previousApprovedResult ? 0 : $courseUnit;
+
+            $records = [
+                'grading' => $grading->ref,
+                'username' => $id,
+                'code' => $course->code,
+                'ca' => $ca,
+                'exam' => $exam,
+                'total' => $total,
+                'per' => $this->per,
+                'grade' => $grading->grade,
+                'remark' => $grading->remark,
+                'ugp' => $product,
+                'unit' => $resultUnit,
+                'point' => $courseUnit > 0 ? $product / $courseUnit : 0,
+                'semester' => $this->semester,
+                'session' => $this->session,
+                'level' => $course->level ?? null,
+                'current_level' => $student->level,
+                'final_level' => ((int) ($stdDuration ?? 0)) * 100,
+                'program' => $course->program,
+                'department' => $student->department,
+                'lecturer' => session('username'),
+                'updated_at' => now(),
+            ];
+
+            try {
+                $operation = DB::transaction(function () use ($id, $records) {
+                    $existing = DB::table('results')
+                        ->where([
+                            'username' => $id,
+                            'code' => $this->course,
+                            'session' => $this->session,
+                            'semester' => $this->semester,
+                        ])
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($existing && strtolower((string) ($existing->approve ?? 'system')) !== 'system') {
+                        return 'protected';
+                    }
+                    if ($existing) {
+                        DB::table('results')->where('id', $existing->id)->update($records);
+                        return 'updated';
+                    }
+
+                    DB::table('results')->insert($records);
+                    return 'inserted';
+                });
+
+                if ($operation === 'protected') {
+                    $this->addIssue($excelRow, $id, 'skipped', 'A result for this session is already submitted or approved and cannot be overwritten.');
+                    continue;
+                }
+
+                $this->report[$operation]++;
+                if ($resultUnit === 0 && $previousApprovedResult) {
+                    $this->report['resits']++;
+                    $message = ucfirst($operation) . ' as a resit; result unit is 0 because a previous result is VC-approved.';
+                } else {
+                    $message = ucfirst($operation) . ' successfully.';
+                }
+                $this->addDetail($excelRow, $id, 'success', $message);
+            } catch (QueryException $exception) {
+                $this->addIssue($excelRow, $id, 'failed', 'The database could not save this result. No change was made for this row.');
+            } catch (\Throwable $exception) {
+                report($exception);
+                $this->addIssue($excelRow, $id, 'failed', 'An unexpected error occurred while saving this row.');
+            }
         }
+    }
+
+    private function addIssue(int $row, ?string $username, string $status, string $message): void
+    {
+        if ($status === 'skipped') {
+            $this->report['skipped']++;
+        } else {
+            $this->report['failed']++;
+        }
+        $this->addDetail($row, $username, $status, $message);
+    }
+
+    private function addDetail(int $row, ?string $username, string $status, string $message): void
+    {
+        $this->report['details'][] = [
+            'row' => $row,
+            'username' => $username ?: '—',
+            'status' => $status,
+            'message' => $message,
+        ];
+    }
+
+    private function cell($row, int $index): mixed
+    {
+        if ($row instanceof Collection) {
+            return $row->get($index);
+        }
+        if (is_array($row)) {
+            return $row[$index] ?? null;
+        }
+        if ($row instanceof \ArrayAccess) {
+            return $row->offsetExists($index) ? $row[$index] : null;
+        }
+        return null;
+    }
+
+    private function isEmptyRow($row): bool
+    {
+        foreach (range(0, 3) as $index) {
+            if (trim((string) $this->cell($row, $index)) !== '') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private function looksLikeHeader($row): bool
+    {
+        $text = strtolower(implode(' ', array_map(
+            fn ($value) => trim((string) $value),
+            array_map(fn ($index) => $this->cell($row, $index), range(0, 3))
+        )));
+        return (bool) preg_match('/matric|username|student|exam|score|ca/', $text);
+    }
+
+    private function normaliseId($value): string
+    {
+        return strtoupper((string) preg_replace('/\s+/', '', trim((string) $value)));
+    }
+
+    private function score($value): ?float
+    {
+        $value = trim((string) $value);
+        if ($value === '' || !is_numeric(str_replace(',', '', $value))) {
+            return null;
+        }
+        return (float) str_replace(',', '', $value);
+    }
+
+    private function entryYear(string $username): string
+    {
+        $parts = explode('/', $username);
+        return isset($parts[0]) && preg_match('/^\d{2}$/', $parts[0])
+            ? '20' . $parts[0]
+            : (string) date('Y');
+    }
+
+    private function previousSession(): ?string
+    {
+        if (!preg_match('/^(\d{4})\/(\d{4})$/', (string) $this->session, $matches)) {
+            return null;
+        }
+        $start = (int) $matches[1] - 1;
+        return $start . '/' . (int) $matches[1];
     }
 }

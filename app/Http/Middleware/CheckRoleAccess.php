@@ -20,6 +20,7 @@ class CheckRoleAccess
 
     protected $courseAllocationPages = [
         'results',
+        'results/upload',
         'approve results',
         'my-lecture-timetable',
         'exam timetable',
@@ -55,9 +56,12 @@ class CheckRoleAccess
         // Check course allocation
         $encodedPage = str_replace(' ', '%20', $page);
         if (in_array($page, $this->courseAllocationPages) || in_array($encodedPage, $this->courseAllocationPages)) {
-            $hasCourseAllocation = \Illuminate\Support\Facades\DB::table('course_allocation')
-                ->where('username', session('username'))
-                ->exists();
+            $allocationQuery = \Illuminate\Support\Facades\DB::table('course_allocation')
+                ->where('username', session('username'));
+            if ($page === 'results/upload') {
+                $allocationQuery->where('type', 'MAIN');
+            }
+            $hasCourseAllocation = $allocationQuery->exists();
             if ($hasCourseAllocation) {
                 return $next($request);
             }
@@ -99,7 +103,7 @@ class CheckRoleAccess
             'ca timetable', 'fees due', 'fees type', 'fees master list',
             'students list', 'student id card', 'course allocation',
             'course material', 'attendance', 'assignment', 'student exit',
-            'status', 'results', 'approve results', 'program course registration',
+            'status', 'results', 'results/upload', 'approve results', 'program course registration',
             'student course registration', 'summary of graduation',
             'press release', 'computation record', 'transcript',
             'school fees', 'hostel fees', 'staff',

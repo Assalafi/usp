@@ -474,6 +474,8 @@
                 <ul class="pcoded-submenu">
                     <li class="@if ($page == 'results') active @endif"><a href="/results"
                             class="">Course Results</a></li>
+                    <li class="@if ($page == 'result upload') active @endif"><a href="/results/upload"
+                            class="">Upload Results</a></li>
                     <li class="@if ($page == 'course system allocation') active @endif"><a href="/course system allocation"
                             class="">Course System Allocation</a></li>
                     <li class="@if ($page == 'corrigenda') active @endif"><a href="/corrigenda"

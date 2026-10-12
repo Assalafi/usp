@@ -14,14 +14,12 @@
                         <a href="{{ url('uploads/result template.xlsx') }}" class="btn btn-primary"
                             download="result template.xlsx"><i class="fas fa-download"></i> Download Template</a>
                         @if (session('accType') == 'Staff')
-                            <button href="#" class="btn btn-dark" data-bs-toggle="modal"
-                                data-bs-target="#import"><i class="fas fa-upload"></i> {{ 'Import' }}</button>
+                            <a href="{{ route('results.upload.page') }}" class="btn btn-dark"><i class="fas fa-upload"></i> Upload results</a>
                             <button href="#" class="btn btn-secondary" data-bs-toggle="modal"
                                 data-bs-target="#exportStudent"><i class="fas fa-download"></i>
                                 {{ 'Registered Students' }}</button>
                         @else
-                            <button href="#" class="btn btn-dark uploadAction" data-bs-toggle="modal"
-                                data-bs-target="#import"><i class="fas fa-upload"></i> {{ 'Import' }}</button>
+                            <a href="{{ route('results.upload.page') }}" class="btn btn-dark"><i class="fas fa-upload"></i> Upload results</a>
                             <button href="#" class="btn btn-secondary" data-bs-toggle="modal"
                                 data-bs-target="#exportStudent"><i class="fas fa-download"></i>
                                 {{ 'Registered Students' }}</button>
@@ -372,6 +370,8 @@
 <!-- End Content-->
 <!-- Show modal content -->
 @if (session('accType') == 'Staff')
+    {{-- Result entry now uses the dedicated /results/upload workspace. --}}
+    @if (false)
     <div id="import" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-md" role="document">
@@ -442,6 +442,7 @@
             </div>
         </div>
     </div>
+    @endif
 
     <div id="exportStudent" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
         aria-hidden="true">
@@ -502,6 +503,7 @@
         </div>
     </div>
 @else
+    @if (false)
     <div id="import" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-md" role="document">
@@ -602,6 +604,7 @@
             </div>
         </div>
     </div>
+    @endif
     <div id="exportStudent" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-md" role="document">
@@ -828,26 +831,3 @@
         </div>
     </div>
 </div>
-
-<script>
-    function updateProgress() {
-        document.getElementById('uploadBeforeProgress').style.display = 'none';
-        document.getElementById('progress-bar').style.display = 'block';
-
-        fetch('/import-progress')
-            .then(response => response.json())
-            .then(data => {
-                const progressBar = document.getElementById('progress-bar');
-                progressBar.style.width = `${data.progress}%`;
-                progressBar.textContent = `${data.progress}%`;
-
-                // Stop polling if progress reaches 100%
-                if (data.progress < 100) {
-                    setTimeout(updateProgress, 1000); // Poll every second
-                } else {
-                    alert("Import completed successfully!");
-                }
-            })
-            .catch(error => console.error('Error fetching progress:', error));
-    }
-</script>

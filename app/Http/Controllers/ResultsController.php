@@ -353,80 +353,125 @@ class ResultsController extends Controller
             ->with('success', 'Record Deleted!!!');
     }
 
+    /**
+     * Dedicated result-upload workspace. Keeping this separate from the
+     * results table makes the upload context clear and gives us a place to
+     * return a row-by-row processing report.
+     */
+    public function uploadPage(Request $request)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        return view('main', $this->uploadPageData([
+            'page' => 'result upload',
+            'title' => 'Upload Course Results',
+        ]));
+    }
+
     public function upload(Request $request)
     {
         if (!session()->has('log')) {
             return redirect('/');
         }
+
         $request->validate([
-            'file' => 'required|file|mimes:xlsx,xls',
+            'file' => 'required|file|mimes:xlsx,xls|max:15360',
+            'course' => 'required|string|max:50',
+            'session' => ['required', 'string', 'regex:/^\d{4}\/\d{4}$/'],
+            'semester' => 'required|string|max:25',
+            'per' => 'required|in:70,30,60,40,100',
         ]);
 
-        if ($request->hasFile('file')) {
-            $file = $request->file('file');
-            $faculty = 'faculty';
-            $department = 'department';
-            $program = 'program';
-            $level = 'level';
-            $course = $request->course;
-            $per = $request->per;
-            $semester = $request->semester;
-            $session = $request->session;
-
-            // check if results table does not have last session, then ask the user to upload last session result before uploading current session result
-            // Extract the year parts from the session (assuming format like '2024/2025')
-            if (preg_match('/^(\d{4})\/(\d{4})$/', $session, $matches)) {
-                $currentStartYear = (int) $matches[1];
-                $previousStartYear = $currentStartYear - 1;
-                $previousEndYear = $currentStartYear;
-                $previousSession = $previousStartYear . '/' . $previousEndYear;
-
-                // Check if there are results for the previous session
-                $previousSessionResults = DB::table('results')
-                    ->where([
-                        'code' => $request->course,
-                        'session' => $previousSession
-                    ])
-                    ->limit(1)
-                    ->exists();
-                // Check if code exist in student_course_registration
-                $lastReg = DB::table('student_course_registration')
-                    ->where([
-                        'code' => $request->course,
-                        'session' => $previousSession
-                    ])
-                    ->limit(1)
-                    ->exists();
-
-                // Make sure the provious session started from 2023/2024 if is below it just skip
-                if (!$previousSessionResults && $lastReg && $previousSession > '2022/2023') {
-                    return redirect()
-                        ->back()
-                        ->with('error', "Please upload results for the previous session ($previousSession) before uploading results for the current session ($session).");
-                }
+        $course = (string) $request->input('course');
+        if (session('accType') === 'Staff') {
+            $assigned = DB::table('course_allocation')
+                ->where([
+                    'username' => session('username'),
+                    'course' => $course,
+                    'type' => 'MAIN',
+                ])
+                ->exists();
+            if (!$assigned) {
+                return redirect()->route('results.upload.page')
+                    ->withErrors(['course' => 'You can only upload results for a course assigned to you.'])
+                    ->withInput();
             }
-
-            // Load the uploaded file using Maatwebsite/Excel
-            $import = new ResultImport(
-                $faculty,
-                $department,
-                $program,
-                $course,
-                $per,
-                $semester,
-                $session
-            );
-            Excel::import($import, $file);
-
-            // Now, $data contains all the rows from the Excel file with non-empty emails
-            return redirect()
-                ->back()
-                ->with('success', 'File imported successfully.');
         }
 
-        return redirect()
-            ->back()
-            ->with('error', 'File not found or other error occurred.');
+        if (!DB::table('course')->where('code', $course)->exists()) {
+            return redirect()->route('results.upload.page')
+                ->withErrors(['course' => 'The selected course could not be found.'])
+                ->withInput();
+        }
+
+        try {
+            $import = new ResultImport(
+                null,
+                null,
+                null,
+                $course,
+                $request->input('per'),
+                $request->input('semester'),
+                $request->input('session')
+            );
+            Excel::import($import, $request->file('file'));
+            $report = $import->report();
+
+            return view('main', $this->uploadPageData([
+                'page' => 'result upload',
+                'title' => 'Upload Course Results',
+                'uploadReport' => $report,
+                'uploadContext' => [
+                    'course' => $course,
+                    'session' => $request->input('session'),
+                    'semester' => $request->input('semester'),
+                    'per' => $request->input('per'),
+                    'filename' => $request->file('file')->getClientOriginalName(),
+                ],
+            ]));
+        } catch (\Throwable $exception) {
+            report($exception);
+            return view('main', $this->uploadPageData([
+                'page' => 'result upload',
+                'title' => 'Upload Course Results',
+                'uploadError' => 'The spreadsheet could not be processed. Check that it is the official result template and try again.',
+            ]));
+        }
+    }
+
+    private function uploadPageData(array $extra = []): array
+    {
+        $currentSession = \App\Http\Controllers\SystemSettingsController::getResultsSession();
+        $isStaff = session('accType') === 'Staff';
+
+        if ($isStaff) {
+            $courses = DB::table('course_allocation as allocation')
+                ->leftJoin('course', 'course.code', '=', 'allocation.course')
+                ->where('allocation.username', session('username'))
+                ->where('allocation.type', 'MAIN')
+                ->select(
+                    'allocation.course as code',
+                    'course.title',
+                    'course.unit'
+                )
+                ->groupBy('allocation.course', 'course.title', 'course.unit')
+                ->orderBy('allocation.course')
+                ->get();
+        } else {
+            $courses = DB::table('course')
+                ->select('code', 'title', 'unit')
+                ->orderBy('code')
+                ->get();
+        }
+
+        return array_merge([
+            'lecturerCourses' => $courses,
+            'sessions' => DB::table('session')->select('title')->orderByDesc('title')->get(),
+            'currentSession' => $currentSession,
+            'isStaffUploader' => $isStaff,
+        ], $extra);
     }
 
     public function uploadss(Request $request)
@@ -465,6 +510,7 @@ class ResultsController extends Controller
             'course' => 'required|string',
             'per' => 'required|string',
             'semester' => 'required|string',
+            'session' => 'required|string',
         ]);
 
         $filePath = $request->file_path;
@@ -482,7 +528,8 @@ class ResultsController extends Controller
             $request->program,
             $request->course,
             $request->per,
-            $request->semester
+            $request->semester,
+            $request->session
         );
         $import->collection(collect($data));
 

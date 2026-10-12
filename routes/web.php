@@ -1306,6 +1306,12 @@ Route::post('/voting', [ElectionVotingController::class, 'voting']);
 Route::get('/election live', [ElectionVotingController::class, 'live'])->middleware('role');
 
 Route::get('/pending-results', [ResultsController::class, 'pendingResults']);
+Route::get('/results/upload', [ResultsController::class, 'uploadPage'])
+    ->middleware('role')
+    ->name('results.upload.page');
+Route::post('/results/upload', [ResultsController::class, 'upload'])
+    ->middleware('role')
+    ->name('results.upload');
 Route::post('/update-med', [ResultsController::class, 'updateMed']);
 // delete result
 Route::post('/delete-results', [ResultsController::class, 'deleteResults']);
