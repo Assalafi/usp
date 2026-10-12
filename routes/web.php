@@ -1309,6 +1309,9 @@ Route::get('/pending-results', [ResultsController::class, 'pendingResults']);
 Route::get('/results/upload', [ResultsController::class, 'uploadPage'])
     ->middleware('role')
     ->name('results.upload.page');
+Route::get('/results/export', [ResultsController::class, 'exportExcel'])
+    ->middleware('role')
+    ->name('results.export');
 Route::post('/results/upload', [ResultsController::class, 'upload'])
     ->middleware('role')
     ->name('results.upload');

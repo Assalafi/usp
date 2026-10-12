@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ResultsExport;
 use App\Imports\ResultImport;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -61,6 +62,14 @@ class ResultsController extends Controller
             ->select('title')
             ->orderBy('title', 'ASC')
             ->get();
+        $data['resultLevels'] = DB::table('results')
+            ->whereNotNull('level')
+            ->where('level', '!=', '')
+            ->select('level')
+            ->distinct()
+            ->orderByRaw("CASE WHEN level REGEXP '^[0-9]+$' THEN CAST(level AS UNSIGNED) ELSE 999999 END")
+            ->orderBy('level', 'ASC')
+            ->pluck('level');
         $data['lecturerCourses'] = DB::table('course_allocation')
             ->where(['username' => session('username'), 'type' => 'MAIN'])
             ->select('course')
@@ -77,6 +86,39 @@ class ResultsController extends Controller
         $data['page'] = $this->page;
         $data['title'] = $this->title;
         return view('main', $data);
+    }
+
+    /**
+     * Download final approved results for administrators.
+     *
+     * All filters are optional. The export intentionally uses only VC-approved
+     * records so an academic workbook can never include a draft or an
+     * intermediate approval stage.
+     */
+    public function exportExcel(Request $req)
+    {
+        if (!session()->has('log') || session('accType') !== 'Admin') {
+            abort(403, 'Only administrators can export results.');
+        }
+
+        $filters = $req->validate([
+            'faculty' => ['nullable', 'string', 'max:50'],
+            'department' => ['nullable', 'string', 'max:50'],
+            'level' => ['nullable', 'string', 'max:30'],
+            'session' => ['nullable', 'string', 'max:30'],
+            'semester' => ['nullable', 'string', 'max:30'],
+        ]);
+
+        foreach ($filters as $key => $value) {
+            if ($value === 'all') {
+                $filters[$key] = null;
+            }
+        }
+
+        return Excel::download(
+            new ResultsExport($filters),
+            'approved-results-' . now()->format('Y-m-d_His') . '.xlsx'
+        );
     }
 
     public function pendingResults(Request $req)

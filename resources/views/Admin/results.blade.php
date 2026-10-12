@@ -25,6 +25,13 @@
                                 {{ 'Registered Students' }}</button>
                         @endif
 
+                        @if (session('accType') == 'Admin')
+                            <button type="button" class="btn btn-success" data-bs-toggle="modal"
+                                data-bs-target="#exportResults">
+                                <i class="fas fa-file-excel"></i> Export approved results
+                            </button>
+                        @endif
+
                         <button href="#" class="btn btn-danger" style="float: right" data-bs-toggle="modal"
                             data-bs-target="#deleteResults"><i class="fas fa-trash"></i> {{ 'Delete Result' }}</button>
                     </div>
@@ -681,6 +688,135 @@
         </div>
     </div>
 
+@endif
+
+@if (session('accType') == 'Admin')
+    <div id="exportResults" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="exportResultsLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title mb-1" id="exportResultsLabel">
+                            <i class="fas fa-file-excel text-success me-2"></i>Export approved results
+                        </h5>
+                        <small class="text-muted">Only final VC-approved results are included.</small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="GET" action="{{ route('results.export') }}" id="approvedResultsExportForm">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="alert alert-light border mb-3">
+                            <i class="fas fa-layer-group text-primary me-1"></i>
+                            Results are arranged in the workbook by <strong>faculty, department, level and semester</strong>.
+                            Leave any filter as <strong>All</strong> to include every matching record.
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="resultsExportFaculty">Faculty</label>
+                                <select class="form-select" id="resultsExportFaculty" name="faculty">
+                                    <option value="all">All faculties</option>
+                                    @foreach (($faculty ?? collect()) as $facultyRow)
+                                        <option value="{{ $facultyRow->code }}">{{ $facultyRow->title }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="resultsExportDepartment">Department</label>
+                                <select class="form-select" id="resultsExportDepartment" name="department" disabled>
+                                    <option value="all">All departments</option>
+                                </select>
+                                <div class="form-text">Choose a faculty first to narrow departments.</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="resultsExportLevel">Level</label>
+                                <select class="form-select" id="resultsExportLevel" name="level">
+                                    <option value="all">All levels</option>
+                                    @foreach (($resultLevels ?? collect()) as $resultLevel)
+                                        <option value="{{ $resultLevel }}">{{ $resultLevel }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="resultsExportSession">Academic session</label>
+                                <select class="form-select" id="resultsExportSession" name="session">
+                                    <option value="all">All sessions</option>
+                                    @foreach (($session ?? collect()) as $sessionRow)
+                                        <option value="{{ $sessionRow->title }}">{{ $sessionRow->title }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="resultsExportSemester">Semester</label>
+                                <select class="form-select" id="resultsExportSemester" name="semester">
+                                    <option value="all">All semesters</option>
+                                    <option value="FIRST">First Semester</option>
+                                    <option value="SECOND">Second Semester</option>
+                                    <option value="THIRD">Third Semester</option>
+                                    <option value="RESIT">Resit Semester</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success" id="approvedResultsExportSubmit">
+                            <i class="fas fa-download me-1"></i> Download Excel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const faculty = document.getElementById('resultsExportFaculty');
+            const department = document.getElementById('resultsExportDepartment');
+            const form = document.getElementById('approvedResultsExportForm');
+            const submit = document.getElementById('approvedResultsExportSubmit');
+            if (!faculty || !department || !form) return;
+
+            faculty.addEventListener('change', async function () {
+                const selectedFaculty = faculty.value;
+                department.innerHTML = '<option value="all">All departments</option>';
+                department.disabled = selectedFaculty === 'all';
+                if (selectedFaculty === 'all') return;
+
+                department.disabled = true;
+                department.innerHTML = '<option value="all">Loading departments...</option>';
+                try {
+                    const token = form.querySelector('input[name="_token"]')?.value || '';
+                    const response = await fetch(@json(url('department ajax')), {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'text/html',
+                            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                            'X-CSRF-TOKEN': token
+                        },
+                        body: new URLSearchParams({ _token: token, faculty: selectedFaculty })
+                    });
+                    if (!response.ok) throw new Error('Department request failed');
+                    department.innerHTML = await response.text();
+                    if (department.options.length) {
+                        department.options[0].value = 'all';
+                        department.options[0].textContent = 'All departments';
+                    }
+                } catch (error) {
+                    department.innerHTML = '<option value="all">All departments</option>';
+                    window.alert('Departments could not be loaded. You can still export all departments.');
+                } finally {
+                    department.disabled = false;
+                }
+            });
+
+            form.addEventListener('submit', function () {
+                submit.disabled = true;
+                submit.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Preparing Excel...';
+            });
+        });
+    </script>
 @endif
 <!-- Show modal content -->
 <div id="create" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
