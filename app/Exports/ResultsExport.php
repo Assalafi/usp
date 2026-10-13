@@ -2,9 +2,9 @@
 
 namespace App\Exports;
 
+use Generator;
 use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Concerns\FromQuery;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\FromGenerator;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
@@ -13,11 +13,10 @@ use Maatwebsite\Excel\Events\AfterSheet;
 /**
  * Export the final, VC-approved undergraduate results.
  *
- * The query deliberately remains a query export instead of loading the whole
- * result set into memory. This matters when an administrator exports all
- * faculties and sessions at once.
+ * The rows are read through a database cursor so an administrator can export
+ * all faculties without re-running a large sorted query for every page.
  */
-class ResultsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithEvents
+class ResultsExport implements FromGenerator, WithHeadings, WithMapping, WithEvents
 {
     private array $filters;
     private int $serialNumber = 0;
@@ -36,11 +35,6 @@ class ResultsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoS
             // owned by the programme catalogue. Joining the catalogue keeps
             // faculty filters reliable even for older result rows.
             ->leftJoin('program as result_program', 'result_program.code', '=', 'results.program')
-            ->leftJoin('faculty as result_faculty', 'result_faculty.code', '=', 'result_program.faculty')
-            ->leftJoin('department as result_department', function ($join) {
-                $join->on('result_department.code', '=', 'result_program.department')
-                    ->on('result_department.faculty', '=', 'result_program.faculty');
-            })
             ->where('results.approve', 'vc')
             ->select([
                 'results.username as id_no',
@@ -72,15 +66,28 @@ class ResultsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoS
         }
 
         // Keep the workbook in the requested academic cascade. Titles are
-        // used for faculty/department ordering, while level and semester use
-        // their natural academic order.
+        // not exported, so the stable catalogue codes are used for faculty
+        // and department ordering. This avoids joining two more catalogue
+        // tables for every one of a large export's chunks.
         return $query
-            ->orderByRaw("COALESCE(result_faculty.title, result_program.faculty, '') ASC")
-            ->orderByRaw("COALESCE(result_department.title, results.department, result_program.department, '') ASC")
-            ->orderByRaw("CASE WHEN results.level REGEXP '^[0-9]+$' THEN CAST(results.level AS UNSIGNED) ELSE 999999 END ASC")
-            ->orderByRaw("FIELD(UPPER(results.semester), 'FIRST', 'SECOND', 'THIRD', 'RESIT') ASC")
+            ->orderByRaw("COALESCE(result_program.faculty, '') ASC")
+            ->orderByRaw("COALESCE(NULLIF(results.department, ''), result_program.department, '') ASC")
+            ->orderByRaw("CASE results.level WHEN '100' THEN 1 WHEN '200' THEN 2 WHEN '300' THEN 3 WHEN '400' THEN 4 WHEN '500' THEN 5 WHEN '600' THEN 6 WHEN '700' THEN 7 WHEN '800' THEN 8 ELSE 999999 END ASC")
+            ->orderByRaw("CASE UPPER(results.semester) WHEN 'FIRST' THEN 1 WHEN 'SECOND' THEN 2 WHEN 'THIRD' THEN 3 WHEN 'RESIT' THEN 4 ELSE 999999 END ASC")
             ->orderBy('results.session', 'ASC')
             ->orderBy('results.username', 'ASC');
+    }
+
+    /**
+     * Read the sorted result set with one database cursor. The old query
+     * export paged in 100-row chunks, repeating the expensive all-faculty
+     * sort thousands of times before Excel could finish.
+     */
+    public function generator(): Generator
+    {
+        foreach ($this->query()->cursor() as $row) {
+            yield $row;
+        }
     }
 
     public function map($row): array
@@ -132,7 +139,6 @@ class ResultsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoS
                         'vertical' => 'center',
                     ],
                 ]);
-                $sheet->getStyle('A:G')->getAlignment()->setVertical('center');
                 $sheet->getColumnDimension('A')->setWidth(8);
                 $sheet->getColumnDimension('B')->setWidth(18);
                 $sheet->getColumnDimension('G')->setWidth(20);
