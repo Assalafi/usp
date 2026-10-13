@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exports\ResultsExport;
 use App\Imports\ResultImport;
+use App\Support\StreamingXlsxExporter;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -116,17 +117,22 @@ class ResultsController extends Controller
         }
 
         // The approved result set can be very large (hundreds of thousands of
-        // rows).  PhpSpreadsheet has to build the XLSX package in memory, so the
-        // normal web-request limit (512 MB on production) is not enough for this
-        // administrator-only export.  Raise the limit for this request only;
-        // other requests keep their normal PHP-FPM limit.
+        // rows). Generate the XLSX package directly from the database cursor so
+        // PhpSpreadsheet does not retain every cell in the PHP-FPM worker.
         @set_time_limit(0);
-        @ini_set('memory_limit', '2048M');
 
-        return Excel::download(
-            new ResultsExport($filters),
-            'approved-results-' . now()->format('Y-m-d_His') . '.xlsx'
+        $export = new ResultsExport($filters);
+        $xlsxPath = StreamingXlsxExporter::create(
+            $export->generator(),
+            $export->headings(),
+            static fn ($row): array => $export->map($row)
         );
+
+        return response()->download(
+            $xlsxPath,
+            'approved-results-' . now()->format('Y-m-d_His') . '.xlsx',
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        )->deleteFileAfterSend(true);
     }
 
     public function pendingResults(Request $req)
