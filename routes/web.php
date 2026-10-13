@@ -31,6 +31,7 @@ use App\Http\Controllers\StudentIdCardController;
 use App\Http\Controllers\StudentCourseRegistrationController;
 use App\Http\Controllers\StudentResultsController;
 use App\Http\Controllers\AdminStudentResultsController;
+use App\Http\Controllers\ProgramCourseRegistrationController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\IdCardFeesController;
 use App\Models\ProgramCourseRegistration;
@@ -1427,6 +1428,11 @@ Route::get('/pdf-viewers', function (Request $request) {
 });
 
 Route::match(['get', 'post'], '/generate-session-history', [App\Http\Controllers\SessionHistoryController::class, 'generateFromEntry']);
+
+// Curriculum preview uses the same filters as the programme course registration page.
+Route::get('/program-course-registration/preview', [ProgramCourseRegistrationController::class, 'previewPdf'])
+    ->name('program-course-registration.preview')
+    ->middleware('role');
 
 $links = [
     'faculty',

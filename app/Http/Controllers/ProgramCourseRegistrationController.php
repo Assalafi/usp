@@ -8,6 +8,8 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
 use App\Models\CourseStructure;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 class ProgramCourseRegistrationController extends Controller
 {
@@ -247,6 +249,130 @@ class ProgramCourseRegistrationController extends Controller
         $id = DB::table($this->table)->where('id',$req->id)->delete();
 
         return redirect()->back()->with('success', 'Record Delete!!!');
+    }
+
+    /**
+     * Render the current curriculum filters as an inline PDF preview.
+     * The query intentionally mirrors the programme-course-registration page,
+     * but does not apply the first-visit 100-row limit.
+     */
+    public function previewPdf(Request $req)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        // This preview route uses a hyphenated URL, so do not derive the
+        // database table name from the first URL segment here.
+        $query = DB::table('program_course_registration as pcr')
+            ->leftJoin('course as c', 'c.code', '=', 'pcr.code')
+            ->leftJoin('program as p', 'p.code', '=', 'pcr.program')
+            ->leftJoin('department as d', 'd.code', '=', 'p.department')
+            ->leftJoin('faculty as f', 'f.code', '=', 'd.faculty')
+            ->leftJoin('course_structure as cs', 'cs.id', '=', 'pcr.structure_id')
+            ->select(
+                'pcr.*',
+                'c.title as course_title',
+                'p.title as program_title',
+                'd.title as department_title',
+                'f.title as faculty_title',
+                'cs.name as structure_name',
+                'cs.from_session as structure_from_session',
+                'cs.to_session as structure_to_session'
+            );
+
+        if (in_array(session('appointment'), ['HOD', 'DEAN'], true) && session('faculty')) {
+            $query->where('f.code', session('faculty'));
+        }
+
+        $filterMap = [
+            'faculty' => 'f.code',
+            'department' => 'p.department',
+            'program' => 'pcr.program',
+            'level' => 'pcr.level',
+            'semester' => 'pcr.semester',
+            'form' => 'pcr.form',
+            'structure_id' => 'pcr.structure_id',
+            'type' => 'pcr.type',
+            'grading' => 'pcr.grading',
+        ];
+
+        foreach ($filterMap as $input => $column) {
+            $value = $req->input($input);
+            if ($value !== null && $value !== '') {
+                $query->where($column, $value);
+            }
+        }
+
+        if ($req->filled('q')) {
+            $search = trim((string) $req->input('q'));
+            $query->where(function ($builder) use ($search) {
+                $builder->where('pcr.code', 'like', '%' . $search . '%')
+                    ->orWhere('c.title', 'like', '%' . $search . '%')
+                    ->orWhere('p.title', 'like', '%' . $search . '%');
+            });
+        }
+
+        $rows = $query
+            ->orderBy('f.title')
+            ->orderBy('d.title')
+            ->orderBy('p.title')
+            ->orderBy('pcr.level')
+            ->orderBy('pcr.semester')
+            ->orderBy('pcr.code')
+            ->get();
+
+        $lookup = function (string $table, string $column, $value, string $fallback = 'All') {
+            if ($value === null || $value === '') {
+                return $fallback;
+            }
+
+            return DB::table($table)->where($column, $value)->value('title') ?: (string) $value;
+        };
+
+        $structure = $req->filled('structure_id')
+            ? DB::table('course_structure')->where('id', $req->input('structure_id'))->first()
+            : null;
+
+        $filters = [
+            'Curriculum structure' => $structure
+                ? ($structure->name . ' · ' . $structure->from_session . '–' . $structure->to_session)
+                : 'All structures',
+            'Faculty / college' => $lookup('faculty', 'code', $req->input('faculty'), 'All faculties'),
+            'Department' => $lookup('department', 'code', $req->input('department'), 'All departments'),
+            'Programme' => $lookup('program', 'code', $req->input('program'), 'All programmes'),
+            'Level' => $req->filled('level') ? $req->input('level') . ' level' : 'All levels',
+            'Semester' => $req->filled('semester') ? $req->input('semester') : 'All semesters',
+            'Course type' => $req->filled('type') ? $req->input('type') : 'Core and elective',
+            'Student form' => $req->filled('form') ? $req->input('form') : 'All forms',
+        ];
+        if ($req->filled('q')) {
+            $filters['Search'] = trim((string) $req->input('q'));
+        }
+
+        $logoData = null;
+        $logoPath = public_path('uploads/logo.png');
+        if (is_file($logoPath)) {
+            $logoData = 'data:image/png;base64,' . base64_encode((string) file_get_contents($logoPath));
+        }
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('defaultFont', 'DejaVu Sans');
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml(view('pdf.program-course-registration-preview', [
+            'rows' => $rows,
+            'filters' => $filters,
+            'logoData' => $logoData,
+        ])->render(), 'UTF-8');
+        $dompdf->setPaper('A4', 'landscape');
+        $dompdf->render();
+
+        return response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="curriculum-preview-' . now()->format('Ymd-His') . '.pdf"',
+        ]);
     }
 
     private function normalisePrerequisites(?string $value): ?string
