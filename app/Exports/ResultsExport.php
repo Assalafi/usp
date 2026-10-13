@@ -38,12 +38,18 @@ class ResultsExport implements FromGenerator, WithHeadings, WithMapping, WithEve
             ->leftJoin('faculty as result_faculty', 'result_faculty.code', '=', 'result_program.faculty')
             ->leftJoin('department as result_department', 'result_department.code', '=', 'results.department')
             ->leftJoin('department as program_department', 'program_department.code', '=', 'result_program.department')
+            ->leftJoin('faculty as result_department_faculty', 'result_department_faculty.code', '=', 'result_department.faculty')
+            ->leftJoin('faculty as program_department_faculty', 'program_department_faculty.code', '=', 'program_department.faculty')
             ->leftJoin('course as result_course', 'result_course.code', '=', 'results.code')
             ->where('results.approve', 'vc')
             ->select([
                 'result_faculty.code as faculty_code',
                 'result_faculty.title as faculty_title',
                 'result_program.faculty as program_faculty_code',
+                'result_department_faculty.code as result_department_faculty_code',
+                'result_department_faculty.title as result_department_faculty_title',
+                'program_department_faculty.code as program_department_faculty_code',
+                'program_department_faculty.title as program_department_faculty_title',
                 'result_department.code as result_department_code',
                 'result_department.title as result_department_title',
                 'program_department.code as program_department_code',
@@ -108,7 +114,7 @@ class ResultsExport implements FromGenerator, WithHeadings, WithMapping, WithEve
 
         return [
             $this->serialNumber,
-            $this->titleOrCode($row->faculty_title ?? null, $row->faculty_code ?? $row->program_faculty_code ?? null),
+            $this->facultyName($row),
             $this->departmentName($row),
             (string) ($row->level ?? ''),
             (string) ($row->semester ?? ''),
@@ -189,6 +195,21 @@ class ResultsExport implements FromGenerator, WithHeadings, WithMapping, WithEve
         return $this->titleOrCode(
             $row->result_department_title ?? $row->program_department_title ?? null,
             $row->result_department_code ?? $row->program_department_code ?? $row->department ?? null
+        );
+    }
+
+    private function facultyName(object $row): string
+    {
+        return $this->titleOrCode(
+            $row->faculty_title
+                ?? $row->result_department_faculty_title
+                ?? $row->program_department_faculty_title
+                ?? null,
+            $row->faculty_code
+                ?? $row->program_faculty_code
+                ?? $row->result_department_faculty_code
+                ?? $row->program_department_faculty_code
+                ?? null
         );
     }
 }
