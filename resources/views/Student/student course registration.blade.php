@@ -1,6 +1,9 @@
 @php
     use App\Models\Student;
     use Illuminate\Support\Facades\DB;
+    use Illuminate\Support\Facades\Schema;
+
+    $hasPrerequisites = Schema::hasColumn('program_course_registration', 'prerequisites');
 
     $courseFlag = DB::table('program')
         ->where('code', session('program'))
@@ -14,6 +17,16 @@
 
     $selectedSession = request('session', session('system_session'));
 
+    $registeredSelect = [
+        'scr.*',
+        'course.title',
+        'pcr.change_semester',
+        'pcr.type as programme_type',
+    ];
+    if ($hasPrerequisites) {
+        $registeredSelect[] = 'pcr.prerequisites';
+    }
+
     $registeredCourses = DB::table('student_course_registration as scr')
         ->join('course', 'scr.code', '=', 'course.code')
         ->leftJoin('program_course_registration as pcr', function ($join) {
@@ -23,32 +36,32 @@
         })
         ->where('scr.username', session('id_number'))
         ->where('scr.session', $selectedSession)
-        ->select(
-            'scr.*',
-            'course.title',
-            'pcr.change_semester',
-            'pcr.type as programme_type'
-        )
+        ->select($registeredSelect)
         ->orderBy('scr.level')
         ->orderBy('scr.semester')
         ->orderBy('scr.code')
         ->get();
+
+    $availableSelect = [
+        'course.code',
+        'course.title',
+        'course.unit',
+        'pcr.semester',
+        'pcr.type',
+        'pcr.level',
+        'pcr.elective',
+        'pcr.change_semester',
+    ];
+    if ($hasPrerequisites) {
+        $availableSelect[] = 'pcr.prerequisites';
+    }
 
     $availableCourses = DB::table('program_course_registration as pcr')
         ->join('course', 'pcr.code', '=', 'course.code')
         ->where('pcr.program', session('program'))
         ->where('pcr.structure_id', session('structure_id'))
         ->where('pcr.level', '<=', $studentCurrentLevel)
-        ->select(
-            'course.code',
-            'course.title',
-            'course.unit',
-            'pcr.semester',
-            'pcr.type',
-            'pcr.level',
-            'pcr.elective',
-            'pcr.change_semester'
-        )
+        ->select($availableSelect)
         ->orderBy('pcr.level')
         ->orderBy('pcr.semester')
         ->orderBy('pcr.type')
@@ -224,6 +237,9 @@
                                                     <span class="ug-course-main"><strong>{{ $course->code }}</strong><span>{{ $course->title ?: 'Course title unavailable' }}</span></span>
                                                 </label>
                                                 <div class="ug-select-meta"><span class="ug-unit-pill">{{ $course->unit }} unit{{ (int) $course->unit === 1 ? '' : 's' }}</span><span class="ug-type {{ strtoupper($course->type) === 'CORE' ? 'core' : 'elective' }}">{{ ucfirst(strtolower($course->type)) }}</span></div>
+                                                @if (!empty($course->prerequisites))
+                                                    <div class="ug-prerequisite-note"><i class="fas fa-link"></i><span><strong>Prerequisite:</strong> {{ $course->prerequisites }}</span></div>
+                                                @endif
                                                 @if ($changeAllowed)
                                                     <label class="ug-change-semester"><span><i class="fas fa-calendar-alt"></i> Choose semester</span><select class="course-semester" data-code="{{ $course->code }}" aria-label="Semester for {{ $course->code }}"><option value="FIRST" {{ $course->semester === 'FIRST' ? 'selected' : '' }}>First semester</option><option value="SECOND" {{ $course->semester === 'SECOND' ? 'selected' : '' }}>Second semester</option></select></label>
                                                 @else
@@ -265,6 +281,7 @@
     .ug-unregister-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#f8fafc;border:1px solid #e5ebf3;border-radius:11px;padding:10px 12px;margin:-4px 0 16px}.ug-unregister-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.ug-unregister-actions>span{font-size:.75rem;color:#7b899c}.ug-danger-button{border:1px solid #f0c5c9;border-radius:8px;background:#fff;color:#b23f4b;padding:7px 10px;font-size:.75rem;font-weight:700;cursor:pointer}.ug-danger-button:hover{background:#fff3f4}.ug-danger-button:disabled{opacity:.45;cursor:not-allowed}.ug-danger-button.subtle{background:#fff7f7}.ug-registered-card{position:relative;padding-left:42px}.ug-registered-check{position:absolute;left:14px;top:15px;cursor:pointer}.ug-registered-check input{position:absolute;opacity:0}.ug-registered-check span{display:block;width:19px;height:19px;border:2px solid #c6d3e2;border-radius:5px;background:#fff}.ug-registered-check input:checked+span{background:#b23f4b;border-color:#b23f4b;box-shadow:inset 0 0 0 4px #fff}
     .ug-course-hero{background:#fff;color:#19365e;border:1px solid #e2eaf4;border-left:5px solid #3ea1e4;box-shadow:0 8px 24px rgba(29,61,103,.07);align-items:center}.ug-hero-copy{display:flex;align-items:center;gap:15px}.ug-hero-icon{width:48px;height:48px;display:grid;place-items:center;border-radius:14px;background:#e9f4ff;color:#1971c7;font-size:1.3rem;flex:0 0 auto}.ug-course-hero .ug-eyebrow{color:#477398;opacity:1}.ug-course-hero h1{color:#183b64}.ug-course-hero p{color:#637990;opacity:1}.ug-course-stats{grid-template-columns:repeat(5,minmax(0,1fr))}.ug-session-stat{min-width:0}.ug-session-stat-content{min-width:0;flex:1}.ug-session-stat-content small{white-space:nowrap}.ug-session-stat-content form{margin-top:3px}.ug-session-stat-content select{width:100%;border:1px solid #d4e1ee;border-radius:7px;background:#f8fbfe;color:#24578e;font-size:.78rem;font-weight:700;padding:5px 7px}.ug-session-stat .ug-stat-icon{background:#e9f4ff;color:#1971c7}
     .ug-level-section{border:1px solid #e4ebf3;border-radius:13px;padding:0 14px;margin-bottom:12px;background:#fff}.ug-level-heading{list-style:none;padding:13px 0;margin:0;border:0;cursor:pointer}.ug-level-heading::-webkit-details-marker{display:none}.ug-level-heading:after{content:'+';width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#eff5fb;color:#3370a9;font-weight:700}.ug-level-section[open]>.ug-level-heading:after{content:'−';background:#e8f3ff;color:#1769ce}.ug-level-section[open]{border-color:#cddff2;box-shadow:0 4px 14px rgba(44,111,192,.06)}.ug-level-section .ug-course-grid{padding:0 0 15px}.ug-level-section .ug-level-heading>div{min-width:0}
+    .ug-prerequisite-note{display:flex;align-items:flex-start;gap:6px;margin:8px 0 0 31px;padding:7px 8px;border-radius:8px;background:#fff8e8;color:#8a610c;font-size:.7rem;line-height:1.35}.ug-prerequisite-note i{margin-top:2px;color:#b57908}.ug-prerequisite-note strong{font-weight:800}
     @media (max-width:767px){.ug-course-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.ug-session-stat{grid-column:1/-1}.ug-session-stat-content select{min-height:34px}.ug-hero-copy{align-items:flex-start}.ug-hero-icon{width:40px;height:40px;font-size:1.05rem}}
     /* Saved courses use the same compact code-and-title treatment as Results > Course grades. */
     .ug-registered-card{display:flex;align-items:center;gap:11px;min-height:55px;padding:9px 11px 9px 42px;grid-template-columns:none;column-gap:0;row-gap:0}

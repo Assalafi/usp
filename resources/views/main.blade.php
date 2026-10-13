@@ -496,7 +496,9 @@
                         @endif
                     </style>
                     <!-- Start Content-->
-                    @if ($page == 'update password')
+                    @if ($page == 'program course registration')
+                        @include('Admin.program-course-registration-modern')
+                    @elseif ($page == 'update password')
                         @include($page)
                     @elseif($page == 'election general' && session('accType') == 'Staff')
                         @include('Staff/' . $page)
