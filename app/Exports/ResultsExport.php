@@ -192,24 +192,30 @@ class ResultsExport implements FromGenerator, WithHeadings, WithMapping, WithEve
 
     private function departmentName(object $row): string
     {
+        $title = $row->result_department_title
+            ?: ($row->program_department_title ?? null);
+        $code = $row->result_department_code
+            ?: ($row->program_department_code ?: ($row->department ?? null));
+
         return $this->titleOrCode(
-            $row->result_department_title ?? $row->program_department_title ?? null,
-            $row->result_department_code ?? $row->program_department_code ?? $row->department ?? null
+            $title,
+            $code
         );
     }
 
     private function facultyName(object $row): string
     {
+        $title = $row->faculty_title
+            ?: ($row->result_department_faculty_title
+                ?: ($row->program_department_faculty_title ?? null));
+        $code = $row->faculty_code
+            ?: ($row->program_faculty_code
+                ?: ($row->result_department_faculty_code
+                    ?: ($row->program_department_faculty_code ?? null)));
+
         return $this->titleOrCode(
-            $row->faculty_title
-                ?? $row->result_department_faculty_title
-                ?? $row->program_department_faculty_title
-                ?? null,
-            $row->faculty_code
-                ?? $row->program_faculty_code
-                ?? $row->result_department_faculty_code
-                ?? $row->program_department_faculty_code
-                ?? null
+            $title,
+            $code
         );
     }
 }
