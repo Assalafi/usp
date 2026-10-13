@@ -115,6 +115,14 @@ class ResultsController extends Controller
             }
         }
 
+        // The approved result set can be very large (hundreds of thousands of
+        // rows).  PhpSpreadsheet has to build the XLSX package in memory, so the
+        // normal web-request limit (512 MB on production) is not enough for this
+        // administrator-only export.  Raise the limit for this request only;
+        // other requests keep their normal PHP-FPM limit.
+        @set_time_limit(0);
+        @ini_set('memory_limit', '2048M');
+
         return Excel::download(
             new ResultsExport($filters),
             'approved-results-' . now()->format('Y-m-d_His') . '.xlsx'
