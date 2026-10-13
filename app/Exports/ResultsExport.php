@@ -31,12 +31,25 @@ class ResultsExport implements FromGenerator, WithHeadings, WithMapping, WithEve
     public function query()
     {
         $query = DB::table('results')
-            // Results keep the programme/department codes, while faculty is
-            // owned by the programme catalogue. Joining the catalogue keeps
-            // faculty filters reliable even for older result rows.
+            // Results keep programme/department/course codes. Resolve each
+            // code to its human-readable title so the workbook remains useful
+            // when it is shared outside the portal.
             ->leftJoin('program as result_program', 'result_program.code', '=', 'results.program')
+            ->leftJoin('faculty as result_faculty', 'result_faculty.code', '=', 'result_program.faculty')
+            ->leftJoin('department as result_department', 'result_department.code', '=', 'results.department')
+            ->leftJoin('department as program_department', 'program_department.code', '=', 'result_program.department')
+            ->leftJoin('course as result_course', 'result_course.code', '=', 'results.code')
             ->where('results.approve', 'vc')
             ->select([
+                'result_faculty.code as faculty_code',
+                'result_faculty.title as faculty_title',
+                'result_program.faculty as program_faculty_code',
+                'result_department.code as result_department_code',
+                'result_department.title as result_department_title',
+                'program_department.code as program_department_code',
+                'program_department.title as program_department_title',
+                'results.code as course_code',
+                'result_course.title as course_title',
                 'results.username as id_no',
                 'results.ca',
                 'results.exam',
@@ -65,16 +78,15 @@ class ResultsExport implements FromGenerator, WithHeadings, WithMapping, WithEve
             }
         }
 
-        // Keep the workbook in the requested academic cascade. Titles are
-        // not exported, so the stable catalogue codes are used for faculty
-        // and department ordering. This avoids joining two more catalogue
-        // tables for every one of a large export's chunks.
+        // Keep the workbook in the requested academic cascade: faculty,
+        // department, level, semester, session, then course and student.
         return $query
             ->orderByRaw("COALESCE(result_program.faculty, '') ASC")
             ->orderByRaw("COALESCE(NULLIF(results.department, ''), result_program.department, '') ASC")
             ->orderByRaw("CASE results.level WHEN '100' THEN 1 WHEN '200' THEN 2 WHEN '300' THEN 3 WHEN '400' THEN 4 WHEN '500' THEN 5 WHEN '600' THEN 6 WHEN '700' THEN 7 WHEN '800' THEN 8 ELSE 999999 END ASC")
             ->orderByRaw("CASE UPPER(results.semester) WHEN 'FIRST' THEN 1 WHEN 'SECOND' THEN 2 WHEN 'THIRD' THEN 3 WHEN 'RESIT' THEN 4 ELSE 999999 END ASC")
             ->orderBy('results.session', 'ASC')
+            ->orderBy('results.code', 'ASC')
             ->orderBy('results.username', 'ASC');
     }
 
@@ -96,6 +108,13 @@ class ResultsExport implements FromGenerator, WithHeadings, WithMapping, WithEve
 
         return [
             $this->serialNumber,
+            $this->titleOrCode($row->faculty_title ?? null, $row->faculty_code ?? $row->program_faculty_code ?? null),
+            $this->departmentName($row),
+            (string) ($row->level ?? ''),
+            (string) ($row->semester ?? ''),
+            (string) ($row->session ?? ''),
+            (string) ($row->course_code ?? ''),
+            (string) ($row->course_title ?? $row->course_code ?? ''),
             (string) ($row->id_no ?? ''),
             $row->ca,
             $row->exam,
@@ -109,6 +128,13 @@ class ResultsExport implements FromGenerator, WithHeadings, WithMapping, WithEve
     {
         return [
             'SN',
+            'FACULTY',
+            'DEPARTMENT',
+            'LEVEL',
+            'SEMESTER',
+            'SESSION',
+            'COURSE CODE',
+            'COURSE TITLE',
             'ID NO.',
             'CA',
             'EXAM',
@@ -124,8 +150,8 @@ class ResultsExport implements FromGenerator, WithHeadings, WithMapping, WithEve
             AfterSheet::class => static function (AfterSheet $event): void {
                 $sheet = $event->sheet->getDelegate();
                 $sheet->freezePane('A2');
-                $sheet->setAutoFilter('A1:G1');
-                $sheet->getStyle('A1:G1')->applyFromArray([
+                $sheet->setAutoFilter('A1:N1');
+                $sheet->getStyle('A1:N1')->applyFromArray([
                     'font' => [
                         'bold' => true,
                         'color' => ['rgb' => 'FFFFFF'],
@@ -140,9 +166,29 @@ class ResultsExport implements FromGenerator, WithHeadings, WithMapping, WithEve
                     ],
                 ]);
                 $sheet->getColumnDimension('A')->setWidth(8);
-                $sheet->getColumnDimension('B')->setWidth(18);
-                $sheet->getColumnDimension('G')->setWidth(20);
+                $sheet->getColumnDimension('B')->setWidth(30);
+                $sheet->getColumnDimension('C')->setWidth(30);
+                $sheet->getColumnDimension('D')->setWidth(12);
+                $sheet->getColumnDimension('E')->setWidth(14);
+                $sheet->getColumnDimension('F')->setWidth(14);
+                $sheet->getColumnDimension('G')->setWidth(16);
+                $sheet->getColumnDimension('H')->setWidth(42);
+                $sheet->getColumnDimension('I')->setWidth(20);
+                $sheet->getColumnDimension('N')->setWidth(20);
             },
         ];
+    }
+
+    private function titleOrCode(?string $title, ?string $code): string
+    {
+        return trim((string) ($title ?: $code ?: ''));
+    }
+
+    private function departmentName(object $row): string
+    {
+        return $this->titleOrCode(
+            $row->result_department_title ?? $row->program_department_title ?? null,
+            $row->result_department_code ?? $row->program_department_code ?? $row->department ?? null
+        );
     }
 }

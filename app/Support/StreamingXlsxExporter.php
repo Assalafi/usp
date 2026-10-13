@@ -45,11 +45,7 @@ final class StreamingXlsxExporter
             fwrite($sheet, '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>');
             fwrite($sheet, '<sheetFormatPr defaultRowHeight="15"/>');
             fwrite($sheet, '<cols>');
-            fwrite($sheet, '<col min="1" max="1" width="8" customWidth="1"/>');
-            fwrite($sheet, '<col min="2" max="2" width="20" customWidth="1"/>');
-            fwrite($sheet, '<col min="3" max="5" width="12" customWidth="1"/>');
-            fwrite($sheet, '<col min="6" max="6" width="12" customWidth="1"/>');
-            fwrite($sheet, '<col min="7" max="7" width="18" customWidth="1"/>');
+            self::writeColumnDefinitions($sheet, count($headings));
             fwrite($sheet, '</cols><sheetData>');
 
             self::writeRow($sheet, $headings, 1, true);
@@ -64,7 +60,8 @@ final class StreamingXlsxExporter
                 }
             }
 
-            fwrite($sheet, '</sheetData><autoFilter ref="A1:G' . $lastRow . '"/><pageMargins left="0.25" right="0.25" top="0.5" bottom="0.5" header="0.3" footer="0.3"/></worksheet>');
+            $lastColumn = self::columnName(count($headings));
+            fwrite($sheet, '</sheetData><autoFilter ref="A1:' . $lastColumn . $lastRow . '"/><pageMargins left="0.25" right="0.25" top="0.5" bottom="0.5" header="0.3" footer="0.3"/></worksheet>');
             fclose($sheet);
 
             file_put_contents($workbookPath, self::workbookXml());
@@ -140,6 +137,24 @@ final class StreamingXlsxExporter
         }
 
         return $name;
+    }
+
+    /**
+     * Keep the most useful context columns readable in Excel while allowing
+     * the writer to support any heading count without changing the sheet XML.
+     *
+     * @param resource $handle
+     */
+    private static function writeColumnDefinitions($handle, int $columnCount): void
+    {
+        $widths = [
+            8, 30, 30, 12, 14, 14, 16, 42, 20, 10, 10, 10, 10, 16,
+        ];
+
+        for ($column = 1; $column <= $columnCount; $column++) {
+            $width = $widths[$column - 1] ?? 18;
+            fwrite($handle, '<col min="' . $column . '" max="' . $column . '" width="' . $width . '" customWidth="1"/>');
+        }
     }
 
     private static function xml(string $value): string
