@@ -382,6 +382,13 @@ class ProgramCourseRegistrationController extends Controller
         }
 
         $rows = $query
+            // Keep the PDF in the same order used by the curriculum selector:
+            // active/current structures first, followed by their academic
+            // session range, then the structure name. This prevents courses
+            // from different curriculum versions being mixed together.
+            ->orderByDesc('cs.status')
+            ->orderByDesc('cs.from_session')
+            ->orderBy('cs.name')
             ->orderBy('f.title')
             ->orderBy('d.title')
             ->orderBy('p.title')
