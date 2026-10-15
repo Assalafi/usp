@@ -1,5 +1,5 @@
 @php
-    $filter = $selectedFilters ?? request()->only(['faculty', 'department', 'program', 'level', 'semester', 'form', 'structure_id', 'type', 'grading', 'q']);
+    $filter = $selectedFilters ?? request()->only(['faculty', 'department', 'program', 'level', 'semester', 'structure_id', 'type', 'grading', 'q']);
     $filter = is_array($filter) ? $filter : [];
     $recordCount = is_countable($data ?? []) ? count($data) : 0;
     $levelCount = collect($data ?? [])->pluck('level')->filter()->unique()->count();
@@ -53,7 +53,6 @@
             <div class="pcr-field"><label for="filterLevel">Level</label><select class="form-select" id="filterLevel" name="level"><option value="">All levels</option>@foreach([100,200,300,400,500,600,700] as $level)<option value="{{ $level }}" {{ (string)($filter['level'] ?? '') === (string)$level ? 'selected' : '' }}>{{ $level }} level</option>@endforeach</select></div>
             <div class="pcr-field"><label for="filterSemester">Semester</label><select class="form-select" id="filterSemester" name="semester"><option value="">All semesters</option>@foreach($semester ?? [] as $item)<option value="{{ $item->semester }}" {{ ($filter['semester'] ?? '') === $item->semester ? 'selected' : '' }}>{{ $item->semester }}</option>@endforeach</select></div>
             <div class="pcr-field"><label for="filterType">Course type</label><select class="form-select" id="filterType" name="type"><option value="">Core and elective</option><option value="CORE" {{ ($filter['type'] ?? '') === 'CORE' ? 'selected' : '' }}>Core</option><option value="ELECTIVE" {{ ($filter['type'] ?? '') === 'ELECTIVE' ? 'selected' : '' }}>Elective</option></select></div>
-            <div class="pcr-field"><label for="filterForm">Student form</label><select class="form-select" id="filterForm" name="form"><option value="">All forms</option><option value="NEW" {{ ($filter['form'] ?? '') === 'NEW' ? 'selected' : '' }}>New student</option><option value="FORMER" {{ ($filter['form'] ?? '') === 'FORMER' ? 'selected' : '' }}>Former / returning</option></select></div>
         </div><div class="pcr-filter-footer"><div class="pcr-structure-note"><i class="fas fa-circle-info"></i><span id="structureDescription">Use the filters to open one curriculum mapping. Course units and titles remain linked to the master course catalogue.</span></div><div class="pcr-filter-actions"><a href="{{ url($page) }}" class="btn btn-light pcr-btn">Reset</a><a id="pcrPdfPreview" href="{{ route('program-course-registration.preview', $filter) }}" target="_blank" rel="noopener" class="btn pcr-btn pcr-pdf-btn"><i class="fas fa-file-pdf me-1"></i> Preview filtered PDF</a><button type="submit" class="btn btn-primary pcr-btn"><i class="fas fa-search me-1"></i> Apply filters</button></div></div><div class="pcr-field mt-3"><label for="filterSearch">Search within the curriculum</label><input class="form-control" id="filterSearch" name="q" value="{{ $filter['q'] ?? '' }}" placeholder="Course code, course title or programme name"></div></form>
     </div>
 
@@ -72,6 +71,11 @@
 <div class="modal fade pcr-modal" id="createCourseModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5><i class="fas fa-circle-plus me-2"></i>Add courses to a curriculum</h5><p>Choose the academic context first. Course details are copied from the master catalogue.</p></div><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><form method="POST" action="{{ url('create ' . $page) }}" id="createPcrForm"><div class="modal-body">@csrf<div class="pcr-step"><span>1</span> Academic context</div><div class="pcr-form-section"><h6>Where should these courses belong?</h6><div class="row g-3"><div class="col-md-6"><div class="pcr-field"><label for="createStructure">Curriculum structure *</label><select class="form-select" id="createStructure" name="structure_id" required><option value="">Select structure</option>@foreach($courseStructure ?? [] as $structure)<option value="{{ $structure->id }}">{{ $structure->name }} · {{ $structure->from_session }}–{{ $structure->to_session }}{{ $structure->status ? ' · Active' : '' }}</option>@endforeach</select></div></div><div class="col-md-6"><div class="pcr-field"><label for="createForm">Student form *</label><select class="form-select" id="createForm" name="form" required><option value="">Select form</option><option value="NEW">New student</option><option value="FORMER">Former / returning</option></select></div></div><div class="col-md-4"><div class="pcr-field"><label for="createFaculty">Faculty / college *</label><select class="form-select" id="createFaculty" name="faculty" required><option value="">Select faculty</option>@foreach($faculty ?? [] as $item)<option value="{{ $item->code }}">{{ $item->title }} ({{ $item->code }})</option>@endforeach</select></div></div><div class="col-md-4"><div class="pcr-field"><label for="createDepartment">Department *</label><select class="form-select" id="createDepartment" name="department" required disabled><option value="">Select faculty first</option></select></div></div><div class="col-md-4"><div class="pcr-field"><label for="createProgram">Programme *</label><select class="form-select" id="createProgram" name="program" required disabled><option value="">Select department first</option></select></div></div></div></div><div class="pcr-step"><span>2</span> Course selection</div><div class="pcr-form-section"><h6>Choose from the master course catalogue</h6><div class="row g-2 align-items-end"><div class="col-md-9"><div class="pcr-field"><label for="coursePickerSearch">Search course code or title</label><input class="form-control" id="coursePickerSearch" autocomplete="off" placeholder="Type ACC101 or accounting"></div></div><div class="col-md-3"><button type="button" class="btn btn-outline-primary pcr-btn w-100" id="addPickedCourse"><i class="fas fa-plus me-1"></i> Add course</button></div></div><div id="coursePickerResults" class="list-group mt-2" style="max-height:180px;overflow:auto;display:none"></div><div class="pcr-field mt-3"><label for="createCodes">Selected course codes *</label><textarea class="form-control" id="createCodes" name="code" rows="3" required placeholder="Selected codes will appear here"></textarea><small>Use the search above or enter codes separated by commas, spaces or new lines.</small></div><div class="pcr-code-preview mt-3" id="codePreview"><span class="text-muted small">Course previews will appear here.</span></div></div><div class="pcr-danger-note"><i class="fas fa-circle-info mt-1"></i><span>Existing mappings with the same programme, structure and course code will be refreshed from the master course catalogue. Other curriculum settings are preserved.</span></div></div><div class="modal-footer"><button type="button" class="btn btn-light pcr-btn" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary pcr-btn" id="createPcrSubmit"><i class="fas fa-save me-1"></i> Save curriculum courses</button></div></form></div></div></div>
 
 <div class="modal fade pcr-modal" id="editCourseModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><h5><i class="fas fa-pen-to-square me-2"></i>Edit curriculum mapping</h5><p id="editCourseHeading">Update the academic placement and registration rules.</p></div><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><form method="POST" action="{{ url('update ' . $page) }}"><div class="modal-body">@csrf<input type="hidden" name="id" id="editId"><div class="pcr-form-section"><div class="row g-3"><div class="col-md-6"><div class="pcr-field"><label>Course</label><div class="form-control bg-light" id="editCourseDisplay">—</div></div></div><div class="col-md-6"><div class="pcr-field"><label>Programme</label><div class="form-control bg-light" id="editProgramDisplay">—</div></div></div></div></div><div class="row g-3"><div class="col-md-4"><div class="pcr-field"><label for="editLevel">Level *</label><select class="form-select" name="level" id="editLevel" required>@foreach([100,200,300,400,500,600,700] as $level)<option value="{{ $level }}">{{ $level }}</option>@endforeach</select></div></div><div class="col-md-4"><div class="pcr-field"><label for="editSemester">Semester *</label><select class="form-select" name="semester" id="editSemester" required>@foreach($semester ?? [] as $item)<option value="{{ $item->semester }}">{{ $item->semester }}</option>@endforeach</select></div></div><div class="col-md-4"><div class="pcr-field"><label for="editStructure">Curriculum structure *</label><select class="form-select" name="structure_id" id="editStructure" required>@foreach($courseStructure ?? [] as $structure)<option value="{{ $structure->id }}">{{ $structure->name }} ({{ $structure->from_session }}–{{ $structure->to_session }})</option>@endforeach</select></div></div><div class="col-md-4"><div class="pcr-field"><label for="editType">Course type *</label><select class="form-select" name="type" id="editType" required><option value="CORE">Core</option><option value="ELECTIVE">Elective</option></select></div></div><div class="col-md-4"><div class="pcr-field"><label for="editElective">Elective group</label><select class="form-select" name="elective" id="editElective"><option value="0">Not an elective</option>@for($i=1;$i<=10;$i++)<option value="{{ $i }}">Group {{ $i }}</option>@endfor</select></div></div><div class="col-md-4"><div class="pcr-field"><label for="editForm">Student form *</label><select class="form-select" name="form" id="editForm" required><option value="NEW">New student</option><option value="FORMER">Former / returning</option></select></div></div><div class="col-md-4"><div class="pcr-field"><label for="editChangeSemester">Semester change</label><select class="form-select" name="change_semester" id="editChangeSemester" required><option value="0">Not allowed</option><option value="1">Allowed</option></select></div></div><div class="col-md-4"><div class="pcr-field"><label for="editDe">Direct entry</label><select class="form-select" name="de" id="editDe" required><option value="0">No</option><option value="1">Yes</option></select></div></div><div class="col-md-4"><div class="pcr-field"><label for="editGrading">Grading system *</label><select class="form-select" name="grading" id="editGrading" required>@foreach($grading ?? [] as $item)<option value="{{ $item->name }}">{{ $item->name }}</option>@endforeach</select></div></div></div></div><div class="modal-footer"><button type="button" class="btn btn-light pcr-btn" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary pcr-btn"><i class="fas fa-save me-1"></i> Save changes</button></div></form></div></div></div>
+
+<style>
+.pcr-course-placement{display:flex;flex-direction:column;gap:6px;align-items:flex-end;min-width:190px}.pcr-direct-entry-choice{font-size:.72rem;color:#2f5d83;display:flex;align-items:center;gap:6px;white-space:nowrap}.pcr-direct-entry-choice input{accent-color:#1769ce}.direct-entry-status{background:#fff4df;color:#9a6200!important;border:1px solid #f2d79f}.pcr-mobile-top>.direct-entry-status{margin-top:6px;display:inline-flex}
+@media(max-width:767px){.pcr-course-placement{align-items:flex-start;min-width:0}.pcr-direct-entry-choice{white-space:normal}}
+</style>
 
 <script>
 (()=>{
@@ -99,6 +103,54 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // Curriculum structures now determine every course mapping. Hide the old
+    // new/returning-student control from legacy records without deleting the
+    // column, so old data remains safe while it is no longer used.
+    ['createForm', 'editForm'].forEach(function (id) {
+        const field = document.getElementById(id);
+        if (field) {
+            field.disabled = true;
+            const wrapper = field.closest('.pcr-field')?.parentElement;
+            if (wrapper) wrapper.remove();
+        }
+    });
+
+    const directLabel = document.querySelector('label[for="editDe"]');
+    if (directLabel) directLabel.textContent = 'Direct-entry foundation course';
+    const directField = document.getElementById('editDe');
+    if (directField) {
+        const note = document.createElement('small');
+        note.className = 'd-block text-muted mt-1';
+        note.textContent = 'Choose Yes when a lower-level course is required for students admitted directly into 200 level.';
+        directField.parentElement.appendChild(note);
+    }
+
+    document.querySelectorAll('.edit-pcr').forEach(function (button) {
+        const row = button.closest('tr');
+        const badge = row?.querySelector('.pcr-badge.semester');
+        if (badge) {
+            badge.className = 'pcr-badge direct-entry-status';
+            badge.textContent = String(button.dataset.de || '0') === '1' ? 'Direct-entry foundation' : 'Standard course';
+        }
+        const mobile = button.closest('.pcr-mobile-card');
+        const unitsMeta = mobile ? Array.from(mobile.querySelectorAll('.pcr-mobile-meta>div')).find(function (item) {
+            return item.querySelector('small')?.textContent.trim() === 'Units / form';
+        }) : null;
+        const oldFormText = unitsMeta?.querySelector('strong');
+        if (unitsMeta) unitsMeta.querySelector('small').textContent = 'Units';
+        if (oldFormText) oldFormText.textContent = oldFormText.textContent.replace(/\s*·\s*(NEW|FORMER|ALL)$/i, '').trim();
+        if (mobile && String(button.dataset.de || '0') === '1') {
+            const tag = document.createElement('span');
+            tag.className = 'pcr-badge direct-entry-status';
+            tag.textContent = 'Direct-entry foundation';
+            mobile.querySelector('.pcr-mobile-top')?.appendChild(tag);
+        }
+    });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('createPcrForm');
     const codesField = document.getElementById('createCodes');
     const preview = document.getElementById('codePreview');
@@ -109,11 +161,17 @@ document.addEventListener('DOMContentLoaded', function () {
         return [String(item.code || '').toUpperCase(), item];
     }));
     const groups = {};
+    const directEntry = {};
     const mapInput = document.createElement('input');
     mapInput.type = 'hidden';
     mapInput.name = 'elective_map';
     mapInput.id = 'electiveMap';
     form.appendChild(mapInput);
+    const directEntryInput = document.createElement('input');
+    directEntryInput.type = 'hidden';
+    directEntryInput.name = 'de_map';
+    directEntryInput.id = 'directEntryMap';
+    form.appendChild(directEntryInput);
 
     const selectedCodes = function () {
         return [...new Set(String(codesField.value || '').toUpperCase().split(/[\s,;]+/).map(function (code) {
@@ -129,12 +187,18 @@ document.addEventListener('DOMContentLoaded', function () {
             if (groups[code]) clean[code] = Number(groups[code]);
         });
         mapInput.value = JSON.stringify(clean);
+        const directClean = {};
+        Object.keys(directEntry).forEach(function (code) {
+            directClean[code] = Number(directEntry[code] || 0);
+        });
+        directEntryInput.value = JSON.stringify(directClean);
     };
     const render = function () {
         const codes = selectedCodes();
         if (!codes.length) {
             preview.innerHTML = '<span class="text-muted small">Course previews will appear here.</span>';
             mapInput.value = '{}';
+            directEntryInput.value = '{}';
             return;
         }
         preview.innerHTML = codes.map(function (code) {
@@ -147,8 +211,24 @@ document.addEventListener('DOMContentLoaded', function () {
             })).join('');
             return '<div class="pcr-code-row"><div class="pcr-code-info"><strong>' + code + '</strong><small>' + (item.title || 'Course title unavailable') + ' · ' + (item.level || '—') + ' level · ' + (item.semester || '—') + '</small></div>' + (isElective ? '<select class="pcr-elective-select" data-elective-code="' + code + '" aria-label="Elective group for ' + code + '">' + options + '</select>' : '<span class="pcr-core-label">Core course</span>') + '</div>';
         }).join('');
+        preview.querySelectorAll('.pcr-code-row').forEach(function (row) {
+            const codeNode = row.querySelector('.pcr-code-info strong');
+            const code = codeNode ? codeNode.textContent.trim() : '';
+            if (!catalogMap[code]) return;
+            if (String(catalogMap[code].level || '') !== '100') return;
+            const placement = document.createElement('div');
+            placement.className = 'pcr-course-placement';
+            placement.innerHTML = '<label class="pcr-direct-entry-choice"><input type="checkbox" data-direct-entry-code="' + code + '" ' + (String(directEntry[code] || 0) === '1' ? 'checked' : '') + '> Direct-entry foundation course</label>';
+            row.appendChild(placement);
+        });
         preview.querySelectorAll('[data-elective-code]').forEach(function (select) {
             select.addEventListener('change', syncMap);
+        });
+        preview.querySelectorAll('[data-direct-entry-code]').forEach(function (checkbox) {
+            checkbox.addEventListener('change', function () {
+                directEntry[checkbox.dataset.directEntryCode] = checkbox.checked ? 1 : 0;
+                syncMap();
+            });
         });
         syncMap();
     };

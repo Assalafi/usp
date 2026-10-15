@@ -14,6 +14,9 @@
         ?? session('current_level')
         ?? session('level')
         ?? 0);
+    $studentEntryMode = strtoupper((string) (Student::where('user_id', session('id'))->value('mode_of_entry')
+        ?? Student::where('username', session('id_number'))->value('mode_of_entry')
+        ?? ''));
 
     $selectedSession = request('session', session('system_session'));
 
@@ -22,6 +25,7 @@
         'course.title',
         'pcr.change_semester',
         'pcr.type as programme_type',
+        'pcr.de as programme_de',
     ];
     if ($hasPrerequisites) {
         $registeredSelect[] = 'pcr.prerequisites';
@@ -32,7 +36,8 @@
         ->leftJoin('program_course_registration as pcr', function ($join) {
             $join->on('scr.code', '=', 'pcr.code')
                 ->where('pcr.program', session('program'))
-                ->where('pcr.structure_id', session('structure_id'));
+                ->where('pcr.structure_id', session('structure_id'))
+                ->whereColumn('pcr.level', 'scr.level');
         })
         ->where('scr.username', session('id_number'))
         ->where('scr.session', $selectedSession)
@@ -51,6 +56,7 @@
         'pcr.level',
         'pcr.elective',
         'pcr.change_semester',
+        'pcr.de',
     ];
     if ($hasPrerequisites) {
         $availableSelect[] = 'pcr.prerequisites';
@@ -162,7 +168,7 @@
                                                 @php $canChangeSemester = (string) ($course->change_semester ?? '0') === '1'; @endphp
                                                 <article class="ug-registered-card">
                                                     <label class="ug-registered-check" title="Select {{ $course->code }}"><input type="checkbox" class="registered-choice" value="{{ $course->id }}"><span></span></label>
-                                                    <div class="ug-registered-main"><strong class="ug-course-code">{{ $course->code }}</strong><small class="ug-course-name">{{ $course->title ?: 'Course title unavailable' }}</small></div>
+                                                    <div class="ug-registered-main"><strong class="ug-course-code">{{ $course->code }}</strong><small class="ug-course-name">{{ $course->title ?: 'Course title unavailable' }}</small>@if ($studentEntryMode === 'DE' && (int) ($course->programme_de ?? 0) === 1 && (int) $course->level < $studentCurrentLevel)<span class="ug-foundation-pill">Direct-entry foundation</span>@endif</div>
                                                     <div class="ug-course-actions">
                                                         @if ($canChangeSemester)
                                                             <form action="{{ url('/change-semester') }}" method="POST" class="ug-semester-form">
@@ -221,7 +227,7 @@
                                 @endphp
                                 <details class="ug-level-section {{ $isCurrentLevel ? 'current-level' : 'carryover-level' }}" {{ $isCurrentLevel ? 'open' : '' }}>
                                     <summary class="ug-level-heading">
-                                        <div><span class="ug-level-number">{{ $level }}</span><div><h3>{{ $isCurrentLevel ? 'Your current level' : 'Carryover courses from ' . $level . ' level' }}</h3><p>{{ $levelCourses->count() }} course{{ $levelCourses->count() === 1 ? '' : 's' }} to choose from</p></div></div>
+                                        <div><span class="ug-level-number">{{ $level }}</span><div><h3>{{ $isCurrentLevel ? 'Your current level' : (($studentEntryMode === 'DE' && (int) $level < $studentCurrentLevel) ? 'Foundation courses for direct entry' : 'Carryover courses from ' . $level . ' level') }}</h3><p>{{ $levelCourses->count() }} course{{ $levelCourses->count() === 1 ? '' : 's' }} to choose from</p></div></div>
                                         <label class="ug-select-all"><input type="checkbox" class="select-level" data-level="{{ $level }}"><span>Select all</span></label>
                                     </summary>
                                     <div class="ug-course-grid">
@@ -229,6 +235,7 @@
                                             @php
                                                 $courseData = ['code' => $course->code, 'semester' => $course->semester, 'type' => $course->type, 'unit' => $course->unit, 'level' => $course->level];
                                                 $changeAllowed = (string) ($course->change_semester ?? '0') === '1';
+                                                $isDirectEntryFoundation = $studentEntryMode === 'DE' && (int) ($course->de ?? 0) === 1 && (int) $course->level < $studentCurrentLevel;
                                             @endphp
                                             <article class="ug-select-card {{ in_array($course->code, $registeredCodes) ? 'is-registered' : '' }}">
                                                 <label class="ug-course-select-label">
@@ -236,7 +243,7 @@
                                                     <span class="ug-checkmark"><i class="fas fa-check"></i></span>
                                                     <span class="ug-course-main"><strong>{{ $course->code }}</strong><span>{{ $course->title ?: 'Course title unavailable' }}</span></span>
                                                 </label>
-                                                <div class="ug-select-meta"><span class="ug-unit-pill">{{ $course->unit }} unit{{ (int) $course->unit === 1 ? '' : 's' }}</span><span class="ug-type {{ strtoupper($course->type) === 'CORE' ? 'core' : 'elective' }}">{{ ucfirst(strtolower($course->type)) }}</span></div>
+                                                <div class="ug-select-meta"><span class="ug-unit-pill">{{ $course->unit }} unit{{ (int) $course->unit === 1 ? '' : 's' }}</span><span class="ug-type {{ strtoupper($course->type) === 'CORE' ? 'core' : 'elective' }}">{{ ucfirst(strtolower($course->type)) }}</span>@if ($isDirectEntryFoundation)<span class="ug-foundation-pill">Direct-entry foundation</span>@endif</div>
                                                 @if (!empty($course->prerequisites))
                                                     <div class="ug-prerequisite-note"><i class="fas fa-link"></i><span><strong>Prerequisite:</strong> {{ $course->prerequisites }}</span></div>
                                                 @endif
@@ -288,6 +295,9 @@
     .ug-registered-main{min-width:0;flex:1}.ug-registered-main .ug-course-code{display:block;grid-row:auto;font-size:.78rem;line-height:1.15}.ug-registered-main .ug-course-name{display:block;margin-top:3px;color:#71849a;font-size:.67rem;font-weight:400;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ug-course-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto;grid-column:auto;border-top:0;padding:0;margin:0}.ug-semester-form{display:flex;align-items:center;gap:0}.ug-semester-form select{font-size:.7rem;padding:5px 7px;min-width:70px}.ug-delete-button{font-size:.7rem;padding:5px 0}.ug-delete-button i{margin-right:3px}
     @media (max-width:767px){.ug-registered-card{display:flex;align-items:center;min-height:53px;padding:9px 9px 9px 42px}.ug-registered-main .ug-course-code{font-size:.75rem}.ug-registered-main .ug-course-name{font-size:.63rem}.ug-course-actions{gap:6px}.ug-semester-form select{min-width:64px;font-size:.66rem;padding:5px}.ug-delete-button{font-size:0}.ug-delete-button i{font-size:.78rem;margin:0}}
     .ug-registered-card{background:#fbfdff;transition:border-color .18s ease,box-shadow .18s ease,background .18s ease}.ug-registered-card:hover{border-color:#a9cde9;box-shadow:0 4px 14px rgba(44,111,192,.08)}.ug-registered-card:has(.registered-choice:checked){background:#fff8f8;border-color:#edc2c7}.ug-registered-main .ug-course-code{letter-spacing:.01em}.ug-course-actions .ug-semester-form select{border-color:#c9dbea;background:#fff}.ug-delete-button{border-radius:7px}.ug-delete-button:hover{background:#fff0f1;color:#a72f3d}
+</style>
+<style>
+    .ug-foundation-pill{font-size:.68rem;background:#fff4df;color:#996000;border:1px solid #f2d79f;border-radius:20px;padding:4px 8px;font-weight:700}
 </style>
 
 <script>

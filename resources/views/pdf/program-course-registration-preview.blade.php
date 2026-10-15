@@ -38,7 +38,7 @@
         .records .semester { width: 7%; }
         .records .unit { width: 5%; text-align: center; }
         .records .type { width: 6%; }
-        .records .form { width: 6%; }
+        .records .direct { width: 10%; }
         .records .prereq { width: 10%; }
         .muted { color: #64748b; font-size: 7px; }
         .code { color: #1d4ed8; font-weight: bold; }
@@ -100,7 +100,7 @@
                     <th class="semester">Semester</th>
                     <th class="unit">Units</th>
                     <th class="type">Type</th>
-                    <th class="form">Form</th>
+                    <th class="direct">Direct entry</th>
                     <th class="prereq">Prerequisite</th>
                 </tr>
             </thead>
@@ -117,7 +117,7 @@
                         <td>{{ $row->semester }}</td>
                         <td class="unit">{{ $row->unit ?? 0 }}</td>
                         <td>{{ strtoupper($row->type ?: 'CORE') }}</td>
-                        <td>{{ strtoupper($row->form ?: 'ALL') }}</td>
+                        <td>{{ (int) ($row->de ?? 0) === 1 ? 'Foundation course' : 'No' }}</td>
                         <td>{{ $row->prerequisites ?: '—' }}</td>
                     </tr>
                 @endforeach

@@ -189,25 +189,45 @@ class StudentCourseRegistrationController extends Controller
         }
         $datas = $req->all();
         if ($datas['register'] == 'new') {
+            $structureId = session('structure_id');
+            if (!$structureId) {
+                return redirect()->back()->with('error', 'Your academic curriculum has not been assigned yet. Please contact your department before registering courses.');
+            }
+            $studentEntryMode = strtoupper((string) Student::where('username', session('id_number'))->value('mode_of_entry'));
+
             if (session('system_session') == session('student_session')) {
                 if (session('current_level') == '200') {
                     $data = DB::table('program_course_registration')
-                        ->where(function ($query) use ($datas) {
-                            $query
-                                ->where(['program' => session('program'), 'level' => '200', 'type' => 'CORE'])
-                                ->orWhere(function ($query) use ($datas) {
-                                    $query->where(['program' => session('program'), 'de' => '1']);
-                                })
-                                ->orWhere(function ($query) use ($datas) {
-                                    $query->where(['program' => session('program'), 'de' => '1']);
-                                });
+                        ->where('program', session('program'))
+                        ->where('structure_id', $structureId)
+                        ->where('type', 'CORE')
+                        ->when($studentEntryMode === 'DE', function ($query) {
+                            $query->where(function ($query) {
+                                $query->where('level', '200')
+                                    ->orWhere(function ($query) {
+                                        $query->where('de', '1')->where('level', '100');
+                                    });
+                            });
+                        }, function ($query) {
+                            $query->where('level', '200');
                         })
+                        ->orderBy('level')->orderBy('semester')->orderBy('code')
                         ->get();
                 } else {
-                    $data = DB::table('program_course_registration')->where(['program' => session('program'), 'level' => session('current_level'), 'type' => 'CORE', 'form' => 'NEW'])->get();
+                    $data = DB::table('program_course_registration')
+                        ->where([
+                            'program' => session('program'),
+                            'structure_id' => $structureId,
+                            'level' => session('current_level'),
+                            'type' => 'CORE',
+                        ])
+                        ->orderBy('semester')->orderBy('code')
+                        ->get();
                 }
 
-                DB::table($this->table)->where('username', session('id_number'))->delete();
+                DB::table($this->table)
+                    ->where(['username' => session('id_number'), 'session' => session('system_session')])
+                    ->delete();
                 foreach ($data as $row) {
                     $datass['username'] = session('id_number');
                     $datass['session'] = session('system_session');
@@ -221,9 +241,14 @@ class StudentCourseRegistrationController extends Controller
 
                 return redirect()->back()->with('success', 'Record Created!!!');
             } elseif (strpos(session('faculty'), '.PG') !== false) {
-                $data = DB::table('program_course_registration')->where(['program' => session('program'), 'type' => 'CORE'])->get();
+                $data = DB::table('program_course_registration')
+                    ->where(['program' => session('program'), 'structure_id' => $structureId, 'type' => 'CORE'])
+                    ->orderBy('level')->orderBy('semester')->orderBy('code')
+                    ->get();
 
-                DB::table($this->table)->where('username', session('id_number'))->delete();
+                DB::table($this->table)
+                    ->where(['username' => session('id_number'), 'session' => session('system_session')])
+                    ->delete();
                 foreach ($data as $row) {
                     $datass['username'] = session('id_number');
                     $datass['session'] = session('system_session');
@@ -256,15 +281,26 @@ class StudentCourseRegistrationController extends Controller
         if ($selectedCourses == null) {
             return redirect()->back()->with('error', 'No courses selected!!!');
         }
+        $student = Student::where('username', $username)->first();
+        if (!$student || !$student->structure_id) {
+            return redirect()->back()->with('error', 'The student has no academic curriculum assigned. Assign a curriculum structure before registering courses.');
+        }
         foreach ($selectedCourses as $row) {
             $check = 1;
             $courseJson = json_decode($row);
 
-            $semester = $courseJson->semester;
-            $type = $courseJson->type;
             $code = $courseJson->code;
-            $unit = $courseJson->unit;
             $level = $courseJson->level;
+
+            $programmeCourse = DB::table('program_course_registration')
+                ->where('program', $student->program)
+                ->where('structure_id', $student->structure_id)
+                ->where('code', $code)
+                ->where('level', $level)
+                ->first();
+            if (!$programmeCourse) {
+                continue;
+            }
 
             // updateOrCreate
             StudentCourseRegistration::updateOrCreate(
@@ -272,10 +308,10 @@ class StudentCourseRegistrationController extends Controller
                 [
                     'username' => $username,
                     'session' => $session,
-                    'semester' => $semester,
-                    'type' => $type,
+                    'semester' => $programmeCourse->semester,
+                    'type' => $programmeCourse->type,
                     'code' => $code,
-                    'unit' => $unit,
+                    'unit' => $programmeCourse->unit,
                     'level' => $level,
                 ]
             );
@@ -300,9 +336,10 @@ class StudentCourseRegistrationController extends Controller
         }
 
         $courseQuery = DB::table('program_course_registration')
-            ->where('program', session('program'));
-        if (session('structure_id')) {
-            $courseQuery->where('structure_id', session('structure_id'));
+            ->where('program', session('program'))
+            ->where('structure_id', session('structure_id'));
+        if (!session('structure_id')) {
+            return redirect()->back()->with('error', 'Your academic curriculum has not been assigned yet. Please contact your department before registering courses.');
         }
         $programmeCourses = $courseQuery->get()->keyBy(function ($course) {
             return $course->code . '|' . $course->level;
@@ -356,13 +393,30 @@ class StudentCourseRegistrationController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
-        $datas = DB::table('students')->select('level', 'session_of_entry', 'program')->where(['session_of_entry' => '2024/2025', 'level' => '200'])->where('id_no', '!=', '0')->get();
+        $datas = DB::table('students')->select('username', 'level', 'session_of_entry', 'program', 'structure_id', 'mode_of_entry')->where(['session_of_entry' => '2024/2025', 'level' => '200'])->where('id_no', '!=', '0')->get();
         foreach ($datas as $rows) {
-            $data = DB::table('program_course_registration')->where(['program' => $rows->program, 'level' => '200', 'type' => 'CORE'])->orWhere(['program' => $rows->program, 'de' => '1'])->get();
+            if (!$rows->structure_id) {
+                continue;
+            }
+            $data = DB::table('program_course_registration')
+                ->where('program', $rows->program)
+                ->where('structure_id', $rows->structure_id)
+                ->where('type', 'CORE')
+                ->when(strtoupper((string) $rows->mode_of_entry) === 'DE', function ($query) {
+                    $query->where(function ($query) {
+                        $query->where('level', '200')
+                            ->orWhere(function ($query) {
+                                $query->where('de', '1')->where('level', '100');
+                            });
+                    });
+                }, function ($query) {
+                    $query->where('level', '200');
+                })
+                ->get();
 
-            DB::table($this->table)->where('username', $rows->id_number)->delete();
+            DB::table($this->table)->where(['username' => $rows->username, 'session' => '2024/2025'])->delete();
             foreach ($data as $row) {
-                $datass['username'] = $rows->id_number;
+                $datass['username'] = $rows->username;
                 $datass['session'] = '2024/2025';
                 $datass['semester'] = $row->semester;
                 $datass['type'] = $row->type;
@@ -437,18 +491,24 @@ class StudentCourseRegistrationController extends Controller
             // Process each student in the current batch
             foreach ($students as $student) {
                 // Fetch courses for the student's program and level
-                $courses = DB::table('program_course_registration')
-                    ->where(function ($query) use ($student) {
-                        $query
-                            ->where(['program' => $student->program, 'level' => '200', 'type' => 'CORE'])
-                            ->orWhere(function ($query) use ($student) {
-                                $query->where(['program' => $student->program, 'de' => '1']);
-                            })
-                            ->orWhere(function ($query) use ($student) {
-                                $query->where(['program' => $student->program, 'de' => '1']);
+                if (!$student->structure_id) {
+                    continue;
+                }
+                $courseQuery = DB::table('program_course_registration')
+                    ->where('program', $student->program)
+                    ->where('structure_id', $student->structure_id)
+                    ->where('type', 'CORE');
+                if ($student->level_of_entry === '200') {
+                    $courseQuery->where(function ($query) {
+                        $query->where('level', '200')
+                            ->orWhere(function ($query) {
+                                $query->where('de', '1')->where('level', '100');
                             });
-                    })
-                    ->get();
+                    });
+                } else {
+                    $courseQuery->where('level', $student->level_of_entry ?: '100');
+                }
+                $courses = $courseQuery->orderBy('level')->orderBy('semester')->orderBy('code')->get();
 
                 // Delete existing course registrations for the student
                 StudentCourseRegistration::where(['username' => $student->username, 'session' => $session])->delete();
@@ -588,39 +648,29 @@ class StudentCourseRegistrationController extends Controller
             // Process each student in the current batch
             foreach ($students as $student) { 
 
-                $studentModel = Student::where('username', $student->username)->first();
-                $structureId = $studentModel ? $studentModel->structure_id : null;
-                   // Delete existing course registrations for the student
-                StudentCourseRegistration::where(['username' => $student->username])->delete();
-
-                // Fetch courses for the student's program and level
-                if($student->session_of_entry == $req->session){
-                    if($level == '200'){
-                    $courses = DB::table('program_course_registration')->where(['program' => $student->program, 'level' => $level, 'type' => 'CORE', 'form' => 'NEW', 'de' => '1', 'structure_id' => $structureId])->get();
-            
-                // Insert new course registrations for the student
-                foreach ($courses as $course) {
-                    $courseData = [
-                        'username' => $student->username,
-                        'session' => $session,
-                        'semester' => $course->semester,
-                        'type' => $course->type,
-                        'code' => $course->code,
-                        'unit' => $course->unit,
-                        'level' => $course->level,
-                    ];
-
-                    StudentCourseRegistration::insert($courseData);
-                }
-                    }
-                    $courses = DB::table('program_course_registration')->where(['program' => $student->program, 'level' => $level, 'type' => 'CORE', 'form' => 'NEW', 'structure_id' => $structureId])->get();
-                    
-                }else{
-                    $courses = DB::table('program_course_registration')->where(['program' => $student->program, 'level' => $level, 'type' => 'CORE', 'form' => 'FORMER', 'structure_id' => $structureId])->get();
+                $structureId = $student->structure_id;
+                if (!$structureId) {
+                    continue;
                 }
 
-                // Delete existing course registrations for the student
-                //StudentCourseRegistration::where(['username' => $student->username, 'session' => $session, 'level' => $level])->delete();
+                // Rebuild only this session from the student's curriculum structure.
+                StudentCourseRegistration::where(['username' => $student->username, 'session' => $session])->delete();
+
+                $courseQuery = DB::table('program_course_registration')
+                    ->where('program', $student->program)
+                    ->where('structure_id', $structureId)
+                    ->where('type', 'CORE');
+                if ($student->session_of_entry == $req->session && $level == '200' && strtoupper((string) $student->mode_of_entry) === 'DE') {
+                    $courseQuery->where(function ($query) use ($level) {
+                        $query->where('level', $level)
+                            ->orWhere(function ($query) {
+                                $query->where('de', '1')->where('level', '100');
+                            });
+                    });
+                } else {
+                    $courseQuery->where('level', $level);
+                }
+                $courses = $courseQuery->orderBy('level')->orderBy('semester')->orderBy('code')->get();
 
                 // Insert new course registrations for the student
                 foreach ($courses as $course) {
@@ -720,7 +770,9 @@ class StudentCourseRegistrationController extends Controller
         foreach ($codes as $key => $code) {
             if ($code != 'NIL') {
                 $cod = explode(',', $code);
-                $data = DB::table('program_course_registration')->where(['program' => session('program'), 'code' => $cod[0]])->get();
+                $data = DB::table('program_course_registration')
+                    ->where(['program' => session('program'), 'structure_id' => session('structure_id'), 'code' => $cod[0]])
+                    ->get();
                 foreach ($data as $row) {
                     $datass['username'] = session('id_number');
                     $datass['session'] = $req->session;
@@ -774,10 +826,11 @@ class StudentCourseRegistrationController extends Controller
 
         $courseQuery = DB::table('program_course_registration')
             ->where('program', session('program'))
+            ->where('structure_id', session('structure_id'))
             ->where('code', $registration->code)
             ->where('level', $registration->level);
-        if (session('structure_id')) {
-            $courseQuery->where('structure_id', session('structure_id'));
+        if (!session('structure_id')) {
+            return redirect()->back()->with('error', 'Your academic curriculum has not been assigned yet. Please contact your department before changing a course semester.');
         }
         $programmeCourse = $courseQuery->first();
 

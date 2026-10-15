@@ -56,7 +56,8 @@ class ProgramCourseRegistrationController extends Controller
                 'cs.from_session as structure_from_session',
                 'cs.to_session as structure_to_session',
                 'cs.status as structure_status'
-            );
+            )
+            ->whereNotNull('pcr.structure_id');
 
         // A HOD owns the complete academic register for the department. This
         // intentionally includes every programme in that department.
@@ -72,7 +73,6 @@ class ProgramCourseRegistrationController extends Controller
             'program' => 'pcr.program',
             'level' => 'pcr.level',
             'semester' => 'pcr.semester',
-            'form' => 'pcr.form',
             'structure_id' => 'pcr.structure_id',
             'type' => 'pcr.type',
             'grading' => 'pcr.grading',
@@ -149,15 +149,14 @@ class ProgramCourseRegistrationController extends Controller
             'department' => ['required', 'string', 'max:20'],
             'program' => ['required', 'string', 'max:20'],
             'code' => ['required', 'string', 'max:10000'],
-            'form' => ['required', 'in:NEW,FORMER'],
             'structure_id' => ['required', 'integer', 'exists:course_structure,id'],
             'elective_map' => ['nullable', 'string', 'max:10000'],
+            'de_map' => ['nullable', 'string', 'max:10000'],
         ]);
 
         $program = strtoupper(trim($validated['program']));
         $faculty = strtoupper(trim($validated['faculty']));
         $department = strtoupper(trim($validated['department']));
-        $form = strtoupper($validated['form']);
         $structureId = (int) $validated['structure_id'];
 
         if ($this->isHod()) {
@@ -216,8 +215,29 @@ class ProgramCourseRegistrationController extends Controller
             }
         }
 
+        $directEntryCourses = [];
+        if ($req->filled('de_map')) {
+            $decoded = json_decode((string) $req->input('de_map'), true);
+            if (!is_array($decoded)) {
+                return redirect()->back()->withInput()->with('error', 'The direct-entry course selections could not be read. Please review the course list and try again.');
+            }
+            foreach ($decoded as $code => $value) {
+                $normalisedCode = strtoupper(trim((string) $code));
+                if (!isset($courses[$normalisedCode])) {
+                    continue;
+                }
+                if (!in_array((int) $value, [0, 1], true)) {
+                    return redirect()->back()->withInput()->with('error', 'Direct-entry course selections must be marked Yes or No.');
+                }
+                if ((int) $value === 1 && (string) ($courses[$normalisedCode]->level ?? '') !== '100') {
+                    return redirect()->back()->withInput()->with('error', $normalisedCode . ' is not a 100-level course. Mark direct-entry foundation only on 100-level courses.');
+                }
+                $directEntryCourses[$normalisedCode] = (int) $value;
+            }
+        }
+
         try {
-            DB::transaction(function () use ($courses, $electiveGroups, $program, $form, $structureId) {
+            DB::transaction(function () use ($courses, $electiveGroups, $directEntryCourses, $program, $structureId) {
                 foreach ($courses as $row) {
                     $type = strtoupper((string) ($row->type ?: 'CORE'));
                     DB::table($this->table)->updateOrInsert(
@@ -228,7 +248,7 @@ class ProgramCourseRegistrationController extends Controller
                             'level' => $row->level,
                             'type' => $type,
                             'elective' => $type === 'ELECTIVE' ? $electiveGroups[strtoupper((string) $row->code)] : 0,
-                            'form' => $form,
+                            'de' => $directEntryCourses[strtoupper((string) $row->code)] ?? 0,
                             'updated_at' => now(),
                         ]
                     );
@@ -255,7 +275,6 @@ class ProgramCourseRegistrationController extends Controller
             'type' => ['required', 'in:CORE,ELECTIVE'],
             'elective' => ['nullable', 'integer', 'min:0', 'max:20'],
             'change_semester' => ['required', 'boolean'],
-            'form' => ['required', 'in:NEW,FORMER'],
             'structure_id' => ['required', 'integer', 'exists:course_structure,id'],
             'de' => ['required', 'boolean'],
             'grading' => ['required', 'string', 'max:50'],
@@ -263,7 +282,10 @@ class ProgramCourseRegistrationController extends Controller
         ]);
 
         $validated['type'] = strtoupper($validated['type']);
-        $validated['form'] = strtoupper($validated['form']);
+
+        if ((int) $validated['de'] === 1 && (string) $validated['level'] !== '100') {
+            return redirect()->back()->withInput()->with('error', 'Direct-entry foundation marking is only available for 100-level courses.');
+        }
 
         if ($this->isHod() && !$this->hodOwnsMapping((int) $req->input('id'))) {
             return redirect()->back()->with('error', 'This programme is outside your department.');
@@ -345,7 +367,8 @@ class ProgramCourseRegistrationController extends Controller
                 'cs.name as structure_name',
                 'cs.from_session as structure_from_session',
                 'cs.to_session as structure_to_session'
-            );
+            )
+            ->whereNotNull('pcr.structure_id');
 
         if ($this->isHod() && session('department')) {
             $query->where('p.department', session('department'));
@@ -359,7 +382,6 @@ class ProgramCourseRegistrationController extends Controller
             'program' => 'pcr.program',
             'level' => 'pcr.level',
             'semester' => 'pcr.semester',
-            'form' => 'pcr.form',
             'structure_id' => 'pcr.structure_id',
             'type' => 'pcr.type',
             'grading' => 'pcr.grading',
@@ -419,7 +441,6 @@ class ProgramCourseRegistrationController extends Controller
             'Level' => $req->filled('level') ? $req->input('level') . ' level' : 'All levels',
             'Semester' => $req->filled('semester') ? $req->input('semester') : 'All semesters',
             'Course type' => $req->filled('type') ? $req->input('type') : 'Core and elective',
-            'Student form' => $req->filled('form') ? $req->input('form') : 'All forms',
         ];
         if ($req->filled('q')) {
             $filters['Search'] = trim((string) $req->input('q'));

@@ -233,7 +233,7 @@ Route::get('/register-courses', function (Request $req) {
         $datas = DB::table('students')
             ->where(['session_of_entry' => $session, 'faculty' => $faculty])
             ->where('id_no', '!=', 0)
-            ->select('id', 'username', 'department', 'program', 'id_no')
+            ->select('id', 'username', 'department', 'program', 'id_no', 'structure_id')
             ->orderBy('id')  // Ensure consistent ordering (replace 'id' with your unique column if needed)
             ->skip($offset)
             ->take($limit)
@@ -246,7 +246,12 @@ Route::get('/register-courses', function (Request $req) {
 
         // Process each record in the current batch
         foreach ($datas as $rows) {
-            $data = DB::table('program_course_registration')->where(['program' => $rows->program, 'level' => '100', 'type' => 'CORE', 'form' => 'FORMER'])->get();
+            if (!$rows->structure_id) {
+                continue;
+            }
+            $data = DB::table('program_course_registration')
+                ->where(['program' => $rows->program, 'level' => '100', 'type' => 'CORE', 'structure_id' => $rows->structure_id])
+                ->get();
 
             DB::table('student_course_registration')->where(['username' => $rows->username, 'session' => $session])->delete();
             foreach ($data as $row) {
