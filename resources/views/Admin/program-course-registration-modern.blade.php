@@ -209,15 +209,17 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    document.querySelectorAll('#pcrTable tbody tr, #pcrMobileList .pcr-mobile-card').forEach(function (row) {
-        const edit = row.querySelector('.edit-pcr');
-        const value = edit ? prerequisites[String(edit.dataset.id)] : '';
-        if (!value) return;
-        const note = document.createElement('small');
-        note.className = 'd-block text-warning mt-1';
-        note.innerHTML = '<i class="fas fa-link me-1"></i>Prerequisite: ' + value;
-        const target = row.querySelector('.pcr-course-title') || row.querySelector('.pcr-mobile-meta');
-        if (target) target.appendChild(note);
-    });
+    if (!@json($isHod)) {
+        document.querySelectorAll('#pcrTable tbody tr, #pcrMobileList .pcr-mobile-card').forEach(function (row) {
+            const edit = row.querySelector('.edit-pcr');
+            const value = edit ? prerequisites[String(edit.dataset.id)] : '';
+            if (!value) return;
+            const note = document.createElement('small');
+            note.className = 'd-block text-warning mt-1';
+            note.innerHTML = '<i class="fas fa-link me-1"></i>Prerequisite: ' + value;
+            const target = row.querySelector('.pcr-course-title') || row.querySelector('.pcr-mobile-meta');
+            if (target) target.appendChild(note);
+        });
+    }
 });
 </script>
