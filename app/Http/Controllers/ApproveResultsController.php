@@ -1062,8 +1062,14 @@ class ApproveResultsController extends Controller
             $getYear = explode('/', $id);
             $getYear = '20' . $getYear[0];
 
-            $std_program = DB::table('students')->where(['username' => $id])->select('program')->value('program');
-            $grading = DB::table('program_course_registration')->where(['code' => $code, 'program' => $std_program])->select('grading')->value('grading');
+            $std_program = DB::table('students')->where(['username' => $id])->select('program', 'structure_id')->first();
+            if (!$std_program || !$std_program->structure_id) {
+                continue;
+            }
+            $grading = DB::table('program_course_registration')
+                ->where(['code' => $code, 'program' => $std_program?->program, 'structure_id' => $std_program?->structure_id])
+                ->select('grading')
+                ->value('grading');
 
             $year = $id[0] . $id[1];
 

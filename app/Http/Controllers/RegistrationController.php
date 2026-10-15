@@ -2675,7 +2675,14 @@ class RegistrationController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
-        $data = DB::table('program_course_registration')->where(['program' => $req->program, 'code' => $req->code])->limit(1)->get();
+        $student = Student::where('username', $req->username)->first();
+        if (!$student || !$student->structure_id) {
+            return redirect()->back()->with('error', 'The student has no curriculum structure assigned. Assign the correct structure before adding a course.');
+        }
+        $data = DB::table('program_course_registration')
+            ->where(['program' => $student->program, 'code' => $req->code, 'structure_id' => $student->structure_id])
+            ->limit(1)
+            ->get();
         $flag = 0;
         foreach ($data as $row) {
             $datass['username'] = $req->username;

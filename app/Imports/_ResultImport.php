@@ -45,10 +45,14 @@ class ResultImport implements ToCollection
             if (!empty($row[1])) {
                 $id = strtoupper(str_replace(' ', '', $row[1]));
                 //echo $id;
-                $std_program = DB::table('students')->where(['username' => $id])->select('program')->value('program');
-                $std_level = DB::table('students')->where(['username' => $id])->select('level')->value('level');
+                $student = DB::table('students')->where(['username' => $id])->select('program', 'level', 'structure_id')->first();
+                if (!$student || !$student->structure_id) {
+                    continue;
+                }
+                $std_program = $student->program;
+                $std_level = $student->level;
                 $std_duration = DB::table('program')->where(['code' => $std_program])->select('duration')->value('duration');
-                $grading = DB::table('program_course_registration')->where(['code' => $rows->code, 'program' => $rows->program])->select('grading')->value('grading');
+                $grading = DB::table('program_course_registration')->where(['code' => $rows->code, 'program' => $std_program, 'structure_id' => $student->structure_id])->select('grading')->value('grading');
 
                 $currentYear = date('Y');
                 $getYear = explode("/", $id);

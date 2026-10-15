@@ -130,9 +130,14 @@ class ResultImport implements ToCollection
                 }
             }
 
+            if (!$student->structure_id) {
+                $this->addIssue($excelRow, $id, 'skipped', 'The student has no curriculum structure assigned.');
+                continue;
+            }
+
             $stdDuration = DB::table('program')->where('code', $student->program)->value('duration');
             $gradingName = DB::table('program_course_registration')
-                ->where(['code' => $course->code, 'program' => $student->program])
+                ->where(['code' => $course->code, 'program' => $student->program, 'structure_id' => $student->structure_id])
                 ->value('grading');
             if (!$gradingName) {
                 $this->addIssue($excelRow, $id, 'skipped', 'No grading configuration exists for this student programme and course.');

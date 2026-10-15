@@ -379,7 +379,11 @@ Route::match(['get', 'post'], '/apply-result', [ApproveResultsController::class,
 Route::get('/session-history-return', function () {
     $datas = DB::table('session_history')->where(['next_session' => '2023/2024'])->get();
     foreach ($datas as $rows) {
-        $data = DB::table('program_course_registration')->where(['program' => $rows->program, 'level' => $rows->level, 'type' => 'CORE'])->get();
+        $structureId = DB::table('students')->where('username', $rows->username)->value('structure_id');
+        if (!$structureId) {
+            continue;
+        }
+        $data = DB::table('program_course_registration')->where(['program' => $rows->program, 'level' => $rows->level, 'type' => 'CORE', 'structure_id' => $structureId])->get();
         // DB::table('student_course_registration')->where('username', session('id_number'))->delete();
         foreach ($data as $row) {
             $datass['username'] = $rows->username;

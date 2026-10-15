@@ -246,10 +246,13 @@ class ResultsController extends Controller
 
         $std_program = DB::table('students')
             ->where(['username' => $id])
-            ->select('program')
-            ->value('program');
+            ->select('program', 'structure_id')
+            ->first();
+        if (!$std_program || !$std_program->structure_id) {
+            return redirect()->back()->with('error', 'The student has no curriculum structure assigned, so this result cannot be graded safely.');
+        }
         $grading = DB::table('program_course_registration')
-            ->where(['code' => $code, 'program' => $std_program])
+            ->where(['code' => $code, 'program' => $std_program?->program, 'structure_id' => $std_program?->structure_id])
             ->select('grading')
             ->value('grading');
         $data = DB::table('results')
@@ -740,10 +743,13 @@ class ResultsController extends Controller
 
                 $std_program = DB::table('students')
                     ->where(['username' => $username])
-                    ->select('program')
-                    ->value('program');
+                    ->select('program', 'structure_id')
+                    ->first();
+                if (!$std_program || !$std_program->structure_id) {
+                    return redirect()->back()->with('error', 'The student has no curriculum structure assigned, so this correction cannot be graded safely.');
+                }
                 $grading = DB::table('program_course_registration')
-                    ->where(['code' => $code, 'program' => $std_program])
+                    ->where(['code' => $code, 'program' => $std_program?->program, 'structure_id' => $std_program?->structure_id])
                     ->select('grading')
                     ->value('grading');
                 $data = DB::table('corrigenda')

@@ -41,7 +41,11 @@
             ->orderByDesc('session')->orderBy('semester')->orderBy('code')->get();
         $courseCodes = $registeredCourses->pluck('code')->filter()->unique()->values();
         $courseTitles = $courseCodes->isEmpty() ? collect() : DB::table('course')->whereIn('code', $courseCodes)->pluck('title', 'code');
-        $addCourses = DB::table('program_course_registration')->where('program', $row->program)->orderBy('code')->get();
+        $addCourses = DB::table('program_course_registration')
+            ->where('program', $row->program)
+            ->where('structure_id', $row->structure_id)
+            ->orderBy('level')->orderBy('semester')->orderBy('code')
+            ->get();
 
         $invoices = DB::table('invoices')->where('username', $row->user_id)->orderByDesc('updated_at')->orderByDesc('id')->get();
         $paidInvoices = $invoices->filter(fn ($invoice) => in_array(strtolower((string) ($invoice->status ?? '')), ['paid', 'successful', 'success'], true));
