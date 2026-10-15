@@ -138,6 +138,7 @@ class ProgramCourseRegistrationController extends Controller
             'code' => ['required', 'string', 'max:10000'],
             'form' => ['required', 'in:NEW,FORMER'],
             'structure_id' => ['required', 'integer', 'exists:course_structure,id'],
+            'elective_map' => ['nullable', 'string', 'max:10000'],
         ]);
 
         $program = strtoupper(trim($validated['program']));
@@ -166,22 +167,48 @@ class ProgramCourseRegistrationController extends Controller
             return redirect()->back()->withInput()->with('error', 'Enter at least one course code from the master course catalogue.');
         }
 
-        $courses = DB::table('course')->whereIn('code', $codes->all())->get()->keyBy('code');
+        $courses = DB::table('course')->whereIn('code', $codes->all())->get()->keyBy(fn ($course) => strtoupper((string) $course->code));
         $missing = $codes->diff($courses->keys())->values();
         if ($missing->isNotEmpty()) {
             return redirect()->back()->withInput()->with('error', 'These course codes were not found: ' . $missing->implode(', ') . '. Nothing was changed.');
         }
 
+        $electiveGroups = [];
+        if ($req->filled('elective_map')) {
+            $decoded = json_decode((string) $req->input('elective_map'), true);
+            if (!is_array($decoded)) {
+                return redirect()->back()->withInput()->with('error', 'The elective groups could not be read. Please select the group beside each elective course and try again.');
+            }
+            foreach ($decoded as $code => $group) {
+                $normalisedCode = strtoupper(trim((string) $code));
+                if (!isset($courses[$normalisedCode])) {
+                    continue;
+                }
+                if (filter_var($group, FILTER_VALIDATE_INT) === false || (int) $group < 1 || (int) $group > 20) {
+                    return redirect()->back()->withInput()->with('error', 'Every elective course must be linked to a valid elective group from 1 to 20.');
+                }
+                $electiveGroups[$normalisedCode] = (int) $group;
+            }
+        }
+
+        foreach ($courses as $course) {
+            if (strtoupper((string) ($course->type ?: 'CORE')) === 'ELECTIVE' && !isset($electiveGroups[strtoupper((string) $course->code)])) {
+                return redirect()->back()->withInput()->with('error', 'Select an elective group for ' . $course->code . ' before saving. Courses in the same elective group are linked together for student registration.');
+            }
+        }
+
         try {
-            DB::transaction(function () use ($courses, $program, $form, $structureId) {
+            DB::transaction(function () use ($courses, $electiveGroups, $program, $form, $structureId) {
                 foreach ($courses as $row) {
+                    $type = strtoupper((string) ($row->type ?: 'CORE'));
                     DB::table($this->table)->updateOrInsert(
                         ['program' => $program, 'code' => $row->code, 'structure_id' => $structureId],
                         [
                             'unit' => $row->unit,
                             'semester' => $row->semester,
                             'level' => $row->level,
-                            'type' => strtoupper($row->type ?: 'CORE'),
+                            'type' => $type,
+                            'elective' => $type === 'ELECTIVE' ? $electiveGroups[strtoupper((string) $row->code)] : 0,
                             'form' => $form,
                             'updated_at' => now(),
                         ]

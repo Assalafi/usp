@@ -81,6 +81,82 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('createPcrForm');
+    const codesField = document.getElementById('createCodes');
+    const preview = document.getElementById('codePreview');
+    if (!form || !codesField || !preview) return;
+
+    const catalog = @json(collect($courseCatalog ?? [])->values());
+    const catalogMap = Object.fromEntries(catalog.map(function (item) {
+        return [String(item.code || '').toUpperCase(), item];
+    }));
+    const groups = {};
+    const mapInput = document.createElement('input');
+    mapInput.type = 'hidden';
+    mapInput.name = 'elective_map';
+    mapInput.id = 'electiveMap';
+    form.appendChild(mapInput);
+
+    const selectedCodes = function () {
+        return [...new Set(String(codesField.value || '').toUpperCase().split(/[\s,;]+/).map(function (code) {
+            return code.trim();
+        }).filter(Boolean))];
+    };
+    const syncMap = function () {
+        preview.querySelectorAll('[data-elective-code]').forEach(function (select) {
+            groups[select.dataset.electiveCode] = select.value;
+        });
+        const clean = {};
+        Object.keys(groups).forEach(function (code) {
+            if (groups[code]) clean[code] = Number(groups[code]);
+        });
+        mapInput.value = JSON.stringify(clean);
+    };
+    const render = function () {
+        const codes = selectedCodes();
+        if (!codes.length) {
+            preview.innerHTML = '<span class="text-muted small">Course previews will appear here.</span>';
+            mapInput.value = '{}';
+            return;
+        }
+        preview.innerHTML = codes.map(function (code) {
+            const item = catalogMap[code];
+            if (!item) return '<div class="pcr-code-row"><div class="pcr-code-info"><strong>' + code + '</strong><small class="text-danger">Course not found in the master catalogue</small></div></div>';
+            const isElective = String(item.type || 'CORE').toUpperCase() === 'ELECTIVE';
+            const options = ['<option value="">Select group</option>'].concat(Array.from({length: 20}, function (_, index) {
+                const value = index + 1;
+                return '<option value="' + value + '" ' + (String(groups[code] || '') === String(value) ? 'selected' : '') + '>Elective group ' + value + '</option>';
+            })).join('');
+            return '<div class="pcr-code-row"><div class="pcr-code-info"><strong>' + code + '</strong><small>' + (item.title || 'Course title unavailable') + ' · ' + (item.level || '—') + ' level · ' + (item.semester || '—') + '</small></div>' + (isElective ? '<select class="pcr-elective-select" data-elective-code="' + code + '" aria-label="Elective group for ' + code + '">' + options + '</select>' : '<span class="pcr-core-label">Core course</span>') + '</div>';
+        }).join('');
+        preview.querySelectorAll('[data-elective-code]').forEach(function (select) {
+            select.addEventListener('change', syncMap);
+        });
+        syncMap();
+    };
+    codesField.addEventListener('input', render);
+    form.addEventListener('submit', function (event) {
+        render();
+        const missing = selectedCodes().filter(function (code) {
+            const item = catalogMap[code];
+            return item && String(item.type || 'CORE').toUpperCase() === 'ELECTIVE' && !groups[code];
+        });
+        if (missing.length) {
+            event.preventDefault();
+            const button = document.getElementById('createPcrSubmit');
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-save me-1"></i> Save curriculum courses';
+            }
+            alert('Select an elective group for: ' + missing.join(', ') + '. Courses in the same group are linked together for student registration.');
+        }
+    });
+    render();
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
     const filterForm = document.getElementById('pcrFilterForm');
     const pdfPreview = document.getElementById('pcrPdfPreview');
     const pdfPreviewBase = @json(route('program-course-registration.preview'));

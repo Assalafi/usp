@@ -1,6 +1,7 @@
 /* Dedicated fallback stylesheet for the programme curriculum workspace.
  * Kept outside the shared layout so the page remains styled even when a
  * browser, proxy, or cached parent layout drops inline page styles. */
+.pcr-code-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px;border-bottom:1px solid #edf1f7;background:#fff}.pcr-code-row:last-child{border-bottom:0}.pcr-code-row .pcr-code-info{min-width:0}.pcr-code-row .pcr-code-info strong{display:block;color:#1d4ed8;font-size:12px}.pcr-code-row .pcr-code-info small{display:block;margin-top:2px;color:#64748b;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pcr-code-row .pcr-elective-select{width:150px;min-height:34px;padding:4px 8px;border:1px solid #f3c76a;border-radius:8px;color:#8a5a00;background:#fffaf0;font-size:11px;font-weight:700}.pcr-code-row .pcr-core-label{color:#15803d;font-size:11px;font-weight:700;white-space:nowrap}
 .pcr-page{--primary:#2563eb;--navy:#0f172a;--muted:#64748b;--line:#e2e8f0;display:block!important;min-height:calc(100vh - 70px);padding:18px 0 28px!important;background:#f4f7fb!important;color:#172033!important}
 .pcr-page,.pcr-page *{box-sizing:border-box}
 .pcr-page>.page-wrapper{width:100%;max-width:1440px;margin:0 auto;padding:0 18px}
