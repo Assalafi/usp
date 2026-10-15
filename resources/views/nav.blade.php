@@ -171,6 +171,15 @@
                 </li>
             @endif
 
+            @if (strtoupper((string) session('appointment')) === 'HOD')
+                <li class="nav-item @if ($page == 'program course registration') active @endif">
+                    <a href="/program course registration" class="nav-link">
+                        <span class="pcoded-micon"><i class="fas fa-book-open"></i></span>
+                        <span class="pcoded-mtext">Programme Courses</span>
+                    </a>
+                </li>
+            @endif
+
             <li class="nav-item">
                 <a href="/election general" class="nav-link">
                     <span class="pcoded-micon"><i class="fas fa-thumbs-up"></i></span>

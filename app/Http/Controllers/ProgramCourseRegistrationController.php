@@ -36,6 +36,7 @@ class ProgramCourseRegistrationController extends Controller
     public function index(Request $req)
     {
         if(!session()->has('log')){return redirect('/');}
+        $isHod = $this->isHod();
         $table = $this->table;
         $query = DB::table($table . ' as pcr')
             ->leftJoin('course as c', 'c.code', '=', 'pcr.code')
@@ -57,8 +58,11 @@ class ProgramCourseRegistrationController extends Controller
                 'cs.status as structure_status'
             );
 
-        // Academic officers should only see mappings in their own faculty.
-        if (in_array(session('appointment'), ['HOD', 'DEAN'], true) && session('faculty')) {
+        // A HOD owns the complete academic register for the department. This
+        // intentionally includes every programme in that department.
+        if ($isHod && session('department')) {
+            $query->where('p.department', session('department'));
+        } elseif (session('appointment') === 'DEAN' && session('faculty')) {
             $query->where('f.code', session('faculty'));
         }
 
@@ -94,7 +98,7 @@ class ProgramCourseRegistrationController extends Controller
             ->contains(fn ($key) => $req->filled($key)) || $req->filled('q');
 
         // Keep the first visit light while allowing a structure/program filter to show its full mapping.
-        if (!$hasFilters) {
+        if (!$hasFilters && !$isHod) {
             $query->where('pcr.status', '3')->limit(100);
         }
 
@@ -123,6 +127,12 @@ class ProgramCourseRegistrationController extends Controller
             ->orderBy('code')
             ->get();
         $data['selectedFilters'] = $req->only(array_merge(array_keys($filterMap), ['q']));
+        $data['isHod'] = $isHod;
+        $data['canManage'] = !$isHod || $this->hodCanManage();
+        $data['hodDepartment'] = $isHod ? DB::table('department')->where('code', session('department'))->first(['code', 'title', 'faculty']) : null;
+        $data['hodPrograms'] = $isHod
+            ? DB::table('program')->where('department', session('department'))->select('code', 'title')->orderBy('title')->get()
+            : collect();
         $data['page'] = $this->page;
         $data['title'] = $this->title;
         return view('main',$data);
@@ -131,6 +141,9 @@ class ProgramCourseRegistrationController extends Controller
     public function create(Request $req)
     {
         if(!session()->has('log')){return redirect('/');}
+        if ($this->isHod() && !$this->hodCanManage()) {
+            return redirect()->back()->with('error', 'You have view-only access to programme courses. Please contact the main administrator if changes are needed.');
+        }
         $validated = $req->validate([
             'faculty' => ['required', 'string', 'max:20'],
             'department' => ['required', 'string', 'max:20'],
@@ -146,6 +159,12 @@ class ProgramCourseRegistrationController extends Controller
         $department = strtoupper(trim($validated['department']));
         $form = strtoupper($validated['form']);
         $structureId = (int) $validated['structure_id'];
+
+        if ($this->isHod()) {
+            // Never trust a department or faculty posted by a browser.
+            $department = strtoupper((string) session('department'));
+            $faculty = strtoupper((string) session('faculty'));
+        }
         $codes = collect(preg_split('/[\s,;]+/', strtoupper($validated['code']), -1, PREG_SPLIT_NO_EMPTY))
             ->map(fn ($code) => preg_replace('/[^A-Z0-9.\/-]/', '', trim($code)))
             ->filter()
@@ -226,6 +245,9 @@ class ProgramCourseRegistrationController extends Controller
     public function update(Request $req)
     {
         if(!session()->has('log')){return redirect('/');}
+        if ($this->isHod() && !$this->hodCanManage()) {
+            return redirect()->back()->with('error', 'You have view-only access to programme courses. Please contact the main administrator if changes are needed.');
+        }
         $validated = $req->validate([
             'id' => ['required', 'integer', 'exists:program_course_registration,id'],
             'level' => ['required', 'string', 'max:5'],
@@ -242,14 +264,25 @@ class ProgramCourseRegistrationController extends Controller
 
         $validated['type'] = strtoupper($validated['type']);
         $validated['form'] = strtoupper($validated['form']);
+
+        if ($this->isHod() && !$this->hodOwnsMapping((int) $req->input('id'))) {
+            return redirect()->back()->with('error', 'This programme is outside your department.');
+        }
         if(($validated['elective'] ?? 0) == 0 && $validated['type'] == 'ELECTIVE'){
             return redirect()->back()->with('error', 'You Must Select Elective Number');
         }
         if($validated['type'] == 'CORE'){
             $validated['elective'] = 0;
         }
-        $validated['prerequisites'] = $this->normalisePrerequisites($validated['prerequisites'] ?? null);
-        if ($validated['prerequisites']) {
+        // Prerequisites are intentionally not part of the HOD workflow yet.
+        // Preserve any existing academic record instead of asking the HOD to
+        // re-enter it when updating placement details.
+        if ($this->isHod()) {
+            unset($validated['prerequisites']);
+        } else {
+            $validated['prerequisites'] = $this->normalisePrerequisites($validated['prerequisites'] ?? null);
+        }
+        if (!empty($validated['prerequisites'])) {
             $prerequisiteCodes = collect(explode(',', $validated['prerequisites']))
                 ->map(fn ($code) => trim($code))
                 ->filter()
@@ -273,6 +306,12 @@ class ProgramCourseRegistrationController extends Controller
     public function delete(Request $req)
     {
         if(!session()->has('log')){return redirect('/');}
+        if ($this->isHod() && !$this->hodCanManage()) {
+            return redirect()->back()->with('error', 'You have view-only access to programme courses. Please contact the main administrator if changes are needed.');
+        }
+        if ($this->isHod() && !$this->hodOwnsMapping((int) $req->input('id'))) {
+            return redirect()->back()->with('error', 'This programme is outside your department.');
+        }
         $id = DB::table($this->table)->where('id',$req->id)->delete();
 
         return redirect()->back()->with('success', 'Record Delete!!!');
@@ -308,7 +347,9 @@ class ProgramCourseRegistrationController extends Controller
                 'cs.to_session as structure_to_session'
             );
 
-        if (in_array(session('appointment'), ['HOD', 'DEAN'], true) && session('faculty')) {
+        if ($this->isHod() && session('department')) {
+            $query->where('p.department', session('department'));
+        } elseif (session('appointment') === 'DEAN' && session('faculty')) {
             $query->where('f.code', session('faculty'));
         }
 
@@ -411,5 +452,46 @@ class ProgramCourseRegistrationController extends Controller
             ->values();
 
         return $codes->isEmpty() ? null : $codes->implode(', ');
+    }
+
+    private function isHod(): bool
+    {
+        return session('accType') === 'Staff' && strtoupper((string) session('appointment')) === 'HOD';
+    }
+
+    private function hodCanManage(): bool
+    {
+        if (!$this->isHod()) {
+            return true;
+        }
+
+        try {
+            $mode = (string) SystemSettingsController::get('hod_program_course_management_mode', 'view');
+            if ($mode === 'all') {
+                return true;
+            }
+            if ($mode !== 'selected') {
+                return false;
+            }
+
+            $users = json_decode((string) SystemSettingsController::get('hod_program_course_management_users', '[]'), true);
+            return is_array($users) && in_array((string) session('username'), array_map('strval', $users), true);
+        } catch (\Throwable $e) {
+            report($e);
+            return false;
+        }
+    }
+
+    private function hodOwnsMapping(int $id): bool
+    {
+        if (!$this->isHod()) {
+            return true;
+        }
+
+        return DB::table($this->table . ' as pcr')
+            ->join('program as p', 'p.code', '=', 'pcr.program')
+            ->where('pcr.id', $id)
+            ->where('p.department', session('department'))
+            ->exists();
     }
 }

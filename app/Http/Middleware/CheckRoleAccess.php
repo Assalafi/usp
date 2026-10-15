@@ -53,6 +53,14 @@ class CheckRoleAccess
             return $next($request);
         }
 
+        // Every Head of Department may review the programme-course register.
+        // Editing is authorised separately by the controller and the academic
+        // settings, so a HOD is never locked out simply because editing is off.
+        if (strtoupper((string) session('appointment')) === 'HOD'
+            && in_array($page, ['program course registration', 'program-course-registration/preview'], true)) {
+            return $next($request);
+        }
+
         // Check course allocation
         $encodedPage = str_replace(' ', '%20', $page);
         if (in_array($page, $this->courseAllocationPages) || in_array($encodedPage, $this->courseAllocationPages)) {

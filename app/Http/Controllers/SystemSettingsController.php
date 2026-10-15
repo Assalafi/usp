@@ -44,11 +44,30 @@ class SystemSettingsController extends Controller
                 ->get();
         }
 
+        $hodStaff = collect();
+        $hodManagementUsers = [];
+        if ($category === 'academic') {
+            $hodStaff = DB::table('staff as s')
+                ->leftJoin('department as d', 'd.code', '=', 's.department')
+                ->whereRaw('UPPER(s.appointment) = ?', ['HOD'])
+                ->where('s.status', '1')
+                ->select('s.username', 's.name', 's.department', 'd.title as department_title')
+                ->orderBy('s.name')
+                ->orderBy('s.username')
+                ->get();
+
+            $hodUsersSetting = $settings->firstWhere('key', 'hod_program_course_management_users');
+            $hodManagementUsers = json_decode((string) ($hodUsersSetting->value ?? '[]'), true);
+            $hodManagementUsers = is_array($hodManagementUsers) ? $hodManagementUsers : [];
+        }
+
         $data = [
             'page' => 'general settings',
             'categories' => $categories,
             'currentCategory' => $category,
             'settings' => $settings,
+            'hodStaff' => $hodStaff,
+            'hodManagementUsers' => $hodManagementUsers,
         ];
 
         return view('main', $data);
@@ -114,6 +133,43 @@ class SystemSettingsController extends Controller
         }
 
         $settings = $request->except('_token');
+
+        // The HOD programme-course policy is stored as a simple academic
+        // setting, while the selected usernames are kept as JSON so the
+        // setting page can safely submit multiple staff members.
+        if (array_key_exists('hod_program_course_management_mode', $settings)
+            || array_key_exists('hod_program_course_management_users', $settings)) {
+            $mode = (string) ($settings['hod_program_course_management_mode'] ?? 'view');
+            if (!in_array($mode, ['view', 'all', 'selected'], true)) {
+                return response()->json(['error' => 'Choose a valid HOD access option.'], 422);
+            }
+
+            $selected = $settings['hod_program_course_management_users'] ?? [];
+            if (!is_array($selected)) {
+                $selected = [$selected];
+            }
+            $selected = collect($selected)
+                ->map(fn ($username) => trim((string) $username))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($mode === 'selected' && empty($selected)) {
+                return response()->json(['error' => 'Select at least one Head of Department, or choose another access option.'], 422);
+            }
+
+            DB::table('system_settings')->where('key', 'hod_program_course_management_mode')->update([
+                'value' => $mode,
+                'updated_at' => now(),
+            ]);
+            DB::table('system_settings')->where('key', 'hod_program_course_management_users')->update([
+                'value' => json_encode($selected),
+                'updated_at' => now(),
+            ]);
+
+            unset($settings['hod_program_course_management_mode'], $settings['hod_program_course_management_users']);
+        }
 
         // Handle recruitment settings via API
         if (isset($settings['recruitment_status']) || isset($settings['recruitment_closed_message'])) {

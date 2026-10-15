@@ -319,8 +319,49 @@
                                     <strong>Academic Configuration:</strong> These settings control academic operations.
                                 </div>
 
+                                @php
+                                    $hodCourseMode = \App\Http\Controllers\SystemSettingsController::get('hod_program_course_management_mode', 'view');
+                                    $hodCourseUsers = $hodManagementUsers ?? [];
+                                @endphp
+
+                                <div class="card border-primary shadow-sm mb-4">
+                                    <div class="card-header bg-light d-flex align-items-center justify-content-between gap-2">
+                                        <div>
+                                            <h5 class="mb-1 text-primary"><i class="fas fa-user-tie me-2"></i>Programme course access for Heads of Department</h5>
+                                            <p class="mb-0 text-muted">Heads of Department can always review the programmes in their department. Choose who may add, edit or remove programme courses.</p>
+                                        </div>
+                                        <span class="badge bg-primary">Academic records</span>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row g-3 align-items-start">
+                                            <div class="col-lg-5">
+                                                <label class="form-label fw-bold" for="hod_program_course_management_mode">Editing access</label>
+                                                <select class="form-control form-control-lg" id="hod_program_course_management_mode" name="hod_program_course_management_mode">
+                                                    <option value="view" {{ $hodCourseMode === 'view' ? 'selected' : '' }}>Review only</option>
+                                                    <option value="all" {{ $hodCourseMode === 'all' ? 'selected' : '' }}>All Heads of Department may manage</option>
+                                                    <option value="selected" {{ $hodCourseMode === 'selected' ? 'selected' : '' }}>Only selected Heads of Department may manage</option>
+                                                </select>
+                                                <small class="text-muted d-block mt-2">Review only keeps the page available without allowing changes.</small>
+                                            </div>
+                                            <div class="col-lg-7">
+                                                <label class="form-label fw-bold" for="hod_program_course_management_users">Heads of Department who may manage</label>
+                                                <select class="form-control" id="hod_program_course_management_users" name="hod_program_course_management_users[]" multiple size="6" {{ $hodCourseMode === 'selected' ? '' : 'disabled' }}>
+                                                    @forelse($hodStaff ?? [] as $hod)
+                                                        <option value="{{ $hod->username }}" {{ in_array((string) $hod->username, array_map('strval', $hodCourseUsers), true) ? 'selected' : '' }}>
+                                                            {{ $hod->name ?: $hod->username }} — {{ $hod->department_title ?: $hod->department ?: 'Department not set' }}
+                                                        </option>
+                                                    @empty
+                                                        <option disabled>No active Head of Department records were found.</option>
+                                                    @endforelse
+                                                </select>
+                                                <small class="text-muted d-block mt-2">Hold Ctrl (Windows) or Command (Mac) to select more than one person.</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div class="row">
-                                    @foreach ($settings as $setting)
+                                    @foreach ($settings->reject(fn ($setting) => in_array($setting->key, ['hod_program_course_management_mode', 'hod_program_course_management_users'], true)) as $setting)
                                         <div class="col-md-6 mb-4">
                                             <div class="card border h-100">
                                                 <div class="card-body">
@@ -795,6 +836,10 @@
 
 <script>
     $(document).ready(function() {
+        $('#hod_program_course_management_mode').on('change', function() {
+            $('#hod_program_course_management_users').prop('disabled', $(this).val() !== 'selected');
+        });
+
         // Handle form submission
         $('#settingsForm').submit(function(e) {
             e.preventDefault();
