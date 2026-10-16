@@ -57,7 +57,7 @@ class CheckRoleAccess
         // Editing is authorised separately by the controller and the academic
         // settings, so a HOD is never locked out simply because editing is off.
         if (strtoupper((string) session('appointment')) === 'HOD'
-            && in_array($page, ['program course registration', 'program-course-registration/preview'], true)) {
+            && in_array($page, ['program course registration', 'program-course-registration/preview', 'program-course-registration/submit-review'], true)) {
             return $next($request);
         }
 

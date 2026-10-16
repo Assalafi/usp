@@ -1442,6 +1442,9 @@ Route::match(['get', 'post'], '/generate-session-history', [App\Http\Controllers
 Route::get('/program-course-registration/preview', [ProgramCourseRegistrationController::class, 'previewPdf'])
     ->name('program-course-registration.preview')
     ->middleware('role');
+Route::post('/program-course-registration/submit-review', [ProgramCourseRegistrationController::class, 'submitReview'])
+    ->name('program-course-registration.submit-review')
+    ->middleware('role');
 
 $links = [
     'faculty',

@@ -8,6 +8,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
 use App\Models\CourseStructure;
+use App\Services\HodCurriculumReviewService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -121,6 +122,14 @@ class ProgramCourseRegistrationController extends Controller
             ->orderByDesc('from_session')
             ->orderBy('name')
             ->get();
+        $activeStructure = $data['courseStructure']->firstWhere('status', 1) ?: $data['courseStructure']->first();
+        $requestedReviewStructure = $req->input('review_structure_id');
+        if ($requestedReviewStructure === null && $isHod && $req->filled('structure_id')) {
+            $requestedReviewStructure = $req->input('structure_id');
+        }
+        $reviewStructureId = (int) ($requestedReviewStructure ?: ($activeStructure?->id ?? 0));
+        $data['reviewStructureId'] = $reviewStructureId;
+        $data['reviewStructure'] = $data['courseStructure']->firstWhere('id', $reviewStructureId);
         $data['courseCatalog'] = DB::table('course')
             ->select('code', 'title', 'unit', 'level', 'semester', 'type')
             ->whereIn('status', [1, 3])
@@ -132,6 +141,33 @@ class ProgramCourseRegistrationController extends Controller
         $data['hodDepartment'] = $isHod ? DB::table('department')->where('code', session('department'))->first(['code', 'title', 'faculty']) : null;
         $data['hodPrograms'] = $isHod
             ? DB::table('program')->where('department', session('department'))->select('code', 'title')->orderBy('title')->get()
+            : collect();
+        $username = (string) session('username');
+        $data['hodReview'] = ($isHod && $reviewStructureId > 0)
+            ? HodCurriculumReviewService::forHod($username, $reviewStructureId)
+            : null;
+        $data['hodReviewTracking'] = !$isHod
+            ? DB::table('staff as s')
+                ->leftJoin('department as d', 'd.code', '=', 's.department')
+                ->leftJoin('hod_curriculum_reviews as hcr', function ($join) use ($reviewStructureId) {
+                    $join->on('hcr.hod_username', '=', 's.username')
+                        ->where('hcr.structure_id', '=', $reviewStructureId);
+                })
+                ->whereRaw('UPPER(s.appointment) = ?', ['HOD'])
+                ->where('s.status', '1')
+                ->select(
+                    's.username',
+                    's.name',
+                    's.department',
+                    'd.title as department_title',
+                    DB::raw("COALESCE(hcr.status, 'pending') as review_status"),
+                    'hcr.submitted_at',
+                    'hcr.last_changed_at',
+                    'hcr.last_change_action'
+                )
+                ->orderBy('s.name')
+                ->orderBy('s.username')
+                ->get()
             : collect();
         $data['page'] = $this->page;
         $data['title'] = $this->title;
@@ -259,6 +295,13 @@ class ProgramCourseRegistrationController extends Controller
             return redirect()->back()->withInput()->with('error', 'The curriculum could not be saved. Please try again.');
         }
 
+        HodCurriculumReviewService::invalidateMapping(
+            $structureId,
+            $department,
+            'Programme courses added or refreshed',
+            (string) session('username')
+        );
+
         return redirect()->back()->with('success', $courses->count() . ' course mapping(s) saved successfully.');
     }
 
@@ -316,11 +359,34 @@ class ProgramCourseRegistrationController extends Controller
                 return redirect()->back()->withInput()->with('error', 'These prerequisite course codes were not found: ' . $missingPrerequisites->implode(', ') . '.');
             }
         }
+        $existing = DB::table($this->table . ' as pcr')
+            ->join('program as p', 'p.code', '=', 'pcr.program')
+            ->where('pcr.id', $req->id)
+            ->select('pcr.structure_id', 'p.department')
+            ->first();
         unset($validated['id']);
         if (!Schema::hasColumn($this->table, 'prerequisites')) {
             unset($validated['prerequisites']);
         }
         DB::table($this->table)->where('id', $req->id)->update(array_merge($validated, ['updated_at' => now()]));
+
+        if ($existing) {
+            HodCurriculumReviewService::invalidateMapping(
+                (int) $existing->structure_id,
+                (string) $existing->department,
+                'Programme course placement updated',
+                (string) session('username')
+            );
+        }
+        $updatedDepartment = (string) DB::table('program')
+            ->where('code', DB::table($this->table)->where('id', $req->id)->value('program'))
+            ->value('department');
+        HodCurriculumReviewService::invalidateMapping(
+            (int) $validated['structure_id'],
+            $updatedDepartment,
+            'Programme course placement updated',
+            (string) session('username')
+        );
 
         return redirect()->back()->with('success', 'Course mapping updated successfully.');
     }
@@ -334,9 +400,56 @@ class ProgramCourseRegistrationController extends Controller
         if ($this->isHod() && !$this->hodOwnsMapping((int) $req->input('id'))) {
             return redirect()->back()->with('error', 'This programme is outside your department.');
         }
+        $existing = DB::table($this->table . ' as pcr')
+            ->join('program as p', 'p.code', '=', 'pcr.program')
+            ->where('pcr.id', $req->id)
+            ->select('pcr.structure_id', 'p.department')
+            ->first();
         $id = DB::table($this->table)->where('id',$req->id)->delete();
 
+        if ($existing) {
+            HodCurriculumReviewService::invalidateMapping(
+                (int) $existing->structure_id,
+                (string) $existing->department,
+                'Programme course removed',
+                (string) session('username')
+            );
+        }
+
         return redirect()->back()->with('success', 'Record Delete!!!');
+    }
+
+    public function submitReview(Request $req)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+        if (!$this->isHod()) {
+            return redirect()->back()->with('error', 'Only a Head of Department can submit a curriculum review.');
+        }
+
+        $validated = $req->validate([
+            'structure_id' => ['required', 'integer', 'exists:course_structure,id'],
+        ]);
+        $structureId = (int) $validated['structure_id'];
+        $department = strtoupper(trim((string) session('department')));
+
+        $mappingCount = DB::table($this->table . ' as pcr')
+            ->join('program as p', 'p.code', '=', 'pcr.program')
+            ->where('p.department', $department)
+            ->where('pcr.structure_id', $structureId)
+            ->count();
+        if ($mappingCount < 1) {
+            return redirect()->back()->with('error', 'There are no programme courses for this curriculum structure in your department yet.');
+        }
+
+        HodCurriculumReviewService::submit(
+            (string) session('username'),
+            $department,
+            $structureId
+        );
+
+        return redirect()->back()->with('success', 'Your department curriculum review has been submitted. Any later change will require a new confirmation.');
     }
 
     /**

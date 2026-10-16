@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\CourseStructure;
+use App\Services\HodCurriculumReviewService;
 
 
 class CourseStructureController extends Controller
@@ -38,7 +39,12 @@ class CourseStructureController extends Controller
         $datas = $req->all();
         unset($datas['_token']);
         $datas = array_map('strtoupper', $datas);
-        DB::table($this->table)->insert($datas);
+        $id = DB::table($this->table)->insertGetId($datas);
+        HodCurriculumReviewService::invalidateStructure(
+            (int) $id,
+            'Curriculum structure created',
+            (string) session('username')
+        );
         return redirect()->back()->with('success', 'Record Created!!!');
     }
     
@@ -52,6 +58,11 @@ class CourseStructureController extends Controller
         unset($datas['_token']);
         $datas = array_map('strtoupper', $datas);
         DB::table($this->table)->where('id',$id)->update($datas);
+        HodCurriculumReviewService::invalidateStructure(
+            (int) $id,
+            'Curriculum structure updated',
+            (string) session('username')
+        );
 
         return redirect()->back()->with('success', 'Record Updated!!!');
     }
@@ -60,6 +71,11 @@ class CourseStructureController extends Controller
     {
         if(!session()->has('log')){return redirect('/');}
         $id = DB::table($this->table)->where('id',$req->id)->delete();
+        HodCurriculumReviewService::invalidateStructure(
+            (int) $req->id,
+            'Curriculum structure removed',
+            (string) session('username')
+        );
 
         return redirect()->back()->with('success', 'Record Delete!!!');
     }
