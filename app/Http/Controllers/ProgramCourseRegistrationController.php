@@ -588,6 +588,76 @@ class ProgramCourseRegistrationController extends Controller
         ]);
     }
 
+    /**
+     * Download the administration summary of HOD curriculum confirmations for
+     * one structure. This uses the same tracking query as the page so the
+     * report always matches what Admin is viewing.
+     */
+    public function reviewSummaryPdf(Request $req)
+    {
+        if (!session()->has('log') || session('accType') !== 'Admin') {
+            return redirect('/')->with('error', 'Only an administrator can download the HOD review summary.');
+        }
+
+        $validated = $req->validate([
+            'structure_id' => ['required', 'integer', 'exists:course_structure,id'],
+        ]);
+        $structureId = (int) $validated['structure_id'];
+        $structure = DB::table('course_structure')->where('id', $structureId)->first();
+
+        $reviews = DB::table('staff as s')
+            ->leftJoin('department as d', 'd.code', '=', 's.department')
+            ->leftJoin('hod_curriculum_reviews as hcr', function ($join) use ($structureId) {
+                $join->on(DB::raw('BINARY hcr.hod_username'), '=', DB::raw('BINARY s.username'))
+                    ->where('hcr.structure_id', '=', $structureId);
+            })
+            ->whereRaw('UPPER(s.appointment) = ?', ['HOD'])
+            ->where('s.status', '1')
+            ->select(
+                's.username',
+                's.name',
+                's.department',
+                'd.title as department_title',
+                DB::raw("COALESCE(hcr.status, 'pending') as review_status"),
+                'hcr.submitted_at',
+                'hcr.last_changed_at',
+                'hcr.last_change_action'
+            )
+            ->orderByRaw("CASE WHEN COALESCE(hcr.status, 'pending') = 'submitted' THEN 0 ELSE 1 END")
+            ->orderBy('d.title')
+            ->orderBy('s.name')
+            ->orderBy('s.username')
+            ->get();
+
+        $submittedCount = $reviews->where('review_status', 'submitted')->count();
+        $pendingCount = $reviews->count() - $submittedCount;
+        $logoData = null;
+        $logoPath = public_path('uploads/logo.png');
+        if (is_file($logoPath)) {
+            $logoData = 'data:image/png;base64,' . base64_encode((string) file_get_contents($logoPath));
+        }
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('defaultFont', 'DejaVu Sans');
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml(view('pdf.hod-curriculum-review-summary', [
+            'structure' => $structure,
+            'reviews' => $reviews,
+            'submittedCount' => $submittedCount,
+            'pendingCount' => $pendingCount,
+            'logoData' => $logoData,
+        ])->render(), 'UTF-8');
+        $dompdf->setPaper('A4', 'landscape');
+        $dompdf->render();
+
+        return response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="hod-curriculum-review-' . $structureId . '-' . now()->format('Ymd-His') . '.pdf"',
+        ]);
+    }
+
     private function normalisePrerequisites(?string $value): ?string
     {
         $codes = collect(preg_split('/[\s,;]+/', strtoupper((string) $value), -1, PREG_SPLIT_NO_EMPTY))

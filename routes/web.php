@@ -1445,6 +1445,9 @@ Route::get('/program-course-registration/preview', [ProgramCourseRegistrationCon
 Route::post('/program-course-registration/submit-review', [ProgramCourseRegistrationController::class, 'submitReview'])
     ->name('program-course-registration.submit-review')
     ->middleware('role');
+Route::get('/program-course-registration/review-summary', [ProgramCourseRegistrationController::class, 'reviewSummaryPdf'])
+    ->name('program-course-registration.review-summary')
+    ->middleware('role');
 
 $links = [
     'faculty',

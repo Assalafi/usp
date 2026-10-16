@@ -73,10 +73,11 @@
     @else
         <section class="pcr-tab-panel" id="pcr-tab-tracking" role="tabpanel" aria-labelledby="pcr-tab-tracking-button" hidden>
         <div class="pcr-review-card pcr-review-admin mb-4">
-            <div class="pcr-review-admin-top"><div><span class="pcr-review-kicker">Administration</span><h2>Curriculum review tracking</h2><p>Monitor which Heads of Department have confirmed the selected curriculum structure. Existing records start as pending until the HOD submits a confirmation.</p></div><form method="GET" action="{{ url($page) }}" class="pcr-review-structure-form"><label for="reviewStructureId">Curriculum structure</label><select id="reviewStructureId" name="review_structure_id" class="form-select form-select-sm" onchange="this.form.submit()">@foreach($courseStructure ?? [] as $structure)<option value="{{ $structure->id }}" {{ $reviewStructureId === (int) $structure->id ? 'selected' : '' }}>{{ $structure->name }} ({{ $structure->from_session }}–{{ $structure->to_session }})</option>@endforeach</select></form></div>
+            <div class="pcr-review-admin-top"><div><span class="pcr-review-kicker">Administration</span><h2>Curriculum review tracking</h2><p>Monitor which Heads of Department have confirmed the selected curriculum structure. Existing records start as pending until the HOD submits a confirmation.</p></div><div class="pcr-review-admin-actions"><form method="GET" action="{{ url($page) }}" class="pcr-review-structure-form"><label for="reviewStructureId">Curriculum structure</label><select id="reviewStructureId" name="review_structure_id" class="form-select form-select-sm" onchange="try{sessionStorage.setItem('pcr-active-tab','pcr-tab-tracking')}catch(e){};this.form.submit()">@foreach($courseStructure ?? [] as $structure)<option value="{{ $structure->id }}" {{ $reviewStructureId === (int) $structure->id ? 'selected' : '' }}>{{ $structure->name }} ({{ $structure->from_session }}–{{ $structure->to_session }})</option>@endforeach</select></form>@if($reviewStructure)<a class="btn btn-outline-primary pcr-btn pcr-review-pdf" href="{{ route('program-course-registration.review-summary', ['structure_id' => $reviewStructureId]) }}"><i class="fas fa-file-pdf me-1"></i> Download PDF summary</a>@endif</div></div>
             @if($reviewStructure)
-                <div class="pcr-review-admin-summary"><span><strong>{{ $hodReviewTracking->where('review_status', 'submitted')->count() }}</strong> submitted</span><span><strong>{{ $hodReviewTracking->where('review_status', '!=', 'submitted')->count() }}</strong> pending review</span><span><strong>{{ $hodReviewTracking->count() }}</strong> active HODs</span></div>
-                <div class="table-responsive"><table class="table pcr-review-table align-middle mb-0"><thead><tr><th>Head of Department</th><th>Department</th><th>Status</th><th>Submitted</th><th>Latest curriculum change</th></tr></thead><tbody>@forelse($hodReviewTracking as $review)<tr><td><strong>{{ $review->name ?: 'Unnamed HOD' }}</strong><small class="d-block text-muted">{{ $review->username }}</small></td><td>{{ $review->department_title ?: $review->department }}</td><td><span class="pcr-review-status {{ $review->review_status === 'submitted' ? 'is-submitted' : 'is-pending' }}"><i class="fas {{ $review->review_status === 'submitted' ? 'fa-check' : 'fa-clock' }} me-1"></i>{{ $review->review_status === 'submitted' ? 'Submitted' : 'Pending review' }}</span></td><td>{{ $review->submitted_at ? \Illuminate\Support\Carbon::parse($review->submitted_at)->format('j M Y, g:i a') : '—' }}</td><td>{{ $review->last_changed_at ? \Illuminate\Support\Carbon::parse($review->last_changed_at)->format('j M Y, g:i a') : 'No change recorded' }}@if($review->last_change_action)<small class="d-block text-muted">{{ $review->last_change_action }}</small>@endif</td></tr>@empty<tr><td colspan="5" class="text-center text-muted py-4">No active Heads of Department were found.</td></tr>@endforelse</tbody></table></div>
+                <div class="pcr-review-admin-summary"><span><strong>{{ $hodReviewTracking->where('review_status', 'submitted')->count() }}</strong> submitted</span><span><strong>{{ $hodReviewTracking->where('review_status', '!=', 'submitted')->count() }}</strong> pending review</span><span><strong>{{ $hodReviewTracking->count() }}</strong> active HODs</span><span class="pcr-review-checked"><i class="fas fa-clock me-1"></i>Updated {{ now()->format('j M Y, g:i a') }}</span></div>
+                <div class="pcr-review-tools"><div class="input-group input-group-sm"><span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span><input type="search" class="form-control border-start-0" id="hodReviewSearch" placeholder="Search HOD or department" aria-label="Search HOD submissions"></div><select class="form-select form-select-sm" id="hodReviewStatus" aria-label="Filter HOD submission status"><option value="all">All statuses</option><option value="submitted">Submitted</option><option value="pending">Pending review</option></select><span class="pcr-review-visible" id="hodReviewVisible">{{ $hodReviewTracking->count() }} shown</span></div>
+                <div class="table-responsive"><table class="table pcr-review-table align-middle mb-0"><thead><tr><th>Head of Department</th><th>Department</th><th>Status</th><th>Submitted</th><th>Latest curriculum change</th></tr></thead><tbody>@forelse($hodReviewTracking as $review)<tr data-review-status="{{ $review->review_status === 'submitted' ? 'submitted' : 'pending' }}" data-review-search="{{ strtolower(($review->name ?: '') . ' ' . ($review->username ?: '') . ' ' . ($review->department_title ?: $review->department ?: '')) }}"><td><strong>{{ $review->name ?: 'Unnamed HOD' }}</strong><small class="d-block text-muted">{{ $review->username }}</small></td><td>{{ $review->department_title ?: $review->department }}</td><td><span class="pcr-review-status {{ $review->review_status === 'submitted' ? 'is-submitted' : 'is-pending' }}"><i class="fas {{ $review->review_status === 'submitted' ? 'fa-check' : 'fa-clock' }} me-1"></i>{{ $review->review_status === 'submitted' ? 'Submitted' : 'Pending review' }}</span></td><td>{{ $review->submitted_at ? \Illuminate\Support\Carbon::parse($review->submitted_at)->format('j M Y, g:i a') : '—' }}</td><td>{{ $review->last_changed_at ? \Illuminate\Support\Carbon::parse($review->last_changed_at)->format('j M Y, g:i a') : 'No change recorded' }}@if($review->last_change_action)<small class="d-block text-muted">{{ $review->last_change_action }}</small>@endif</td></tr>@empty<tr><td colspan="5" class="text-center text-muted py-4">No active Heads of Department were found.</td></tr>@endforelse</tbody></table><div id="hodReviewNoMatch" class="pcr-review-empty" hidden><i class="fas fa-search"></i><span>No HOD matches the selected search and status filter.</span></div></div>
             @else
                 <div class="pcr-review-empty"><i class="fas fa-layer-group"></i><span>Create a curriculum structure to start HOD review tracking.</span></div>
             @endif
@@ -123,6 +124,10 @@
 <style>
 .pcr-course-placement{display:flex;flex-direction:column;gap:6px;align-items:flex-end;min-width:190px}.pcr-direct-entry-choice{font-size:.72rem;color:#2f5d83;display:flex;align-items:center;gap:6px;white-space:nowrap}.pcr-direct-entry-choice input{accent-color:#1769ce}.direct-entry-status{background:#fff4df;color:#9a6200!important;border:1px solid #f2d79f}.pcr-mobile-top>.direct-entry-status{margin-top:6px;display:inline-flex}#pcrTable .pcr-badge.semester,.pcr-mobile-meta>div:last-child{display:none}
 @media(max-width:767px){.pcr-course-placement{align-items:flex-start;min-width:0}.pcr-direct-entry-choice{white-space:normal}}
+</style>
+
+<style>
+.pcr-review-admin-actions{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;justify-content:flex-end}.pcr-review-admin-actions .pcr-review-structure-form{min-width:250px}.pcr-review-pdf{white-space:nowrap}.pcr-review-checked{font-size:12px!important;color:#64748b!important;background:#fff!important;border-color:transparent!important}.pcr-review-tools{display:flex;align-items:center;gap:10px;margin:0 0 12px}.pcr-review-tools .input-group{max-width:360px}.pcr-review-tools select{max-width:170px}.pcr-review-visible{margin-left:auto;color:#64748b;font-size:12px;white-space:nowrap}.pcr-review-table tr.is-filtered-out{display:none}.pcr-review-tools+.table-responsive #hodReviewNoMatch{margin-top:10px}@media(max-width:767px){.pcr-review-admin-actions{display:block}.pcr-review-admin-actions .pcr-review-structure-form{min-width:0;margin-top:12px}.pcr-review-pdf{margin-top:10px;width:100%}.pcr-review-tools{display:grid;grid-template-columns:1fr auto}.pcr-review-tools .input-group{max-width:none;grid-column:1 / -1}.pcr-review-visible{margin-left:0}}
 </style>
 
 <script>
@@ -195,6 +200,30 @@ document.addEventListener('DOMContentLoaded', function () {
     let saved = null;
     try { saved = window.sessionStorage.getItem(storageKey); } catch (error) { saved = null; }
     activate(validPanel(saved) ? saved : 'pcr-tab-register', false);
+
+    const reviewSearch = document.getElementById('hodReviewSearch');
+    const reviewStatus = document.getElementById('hodReviewStatus');
+    const reviewVisible = document.getElementById('hodReviewVisible');
+    const reviewNoMatch = document.getElementById('hodReviewNoMatch');
+    const reviewRows = Array.from(document.querySelectorAll('.pcr-review-table tbody tr[data-review-status]'));
+    const applyReviewFilter = function () {
+        if (!reviewRows.length) return;
+        const search = String(reviewSearch?.value || '').trim().toLowerCase();
+        const status = String(reviewStatus?.value || 'all');
+        let visible = 0;
+        reviewRows.forEach(function (row) {
+            const matchesSearch = !search || String(row.dataset.reviewSearch || '').includes(search);
+            const matchesStatus = status === 'all' || row.dataset.reviewStatus === status;
+            const show = matchesSearch && matchesStatus;
+            row.classList.toggle('is-filtered-out', !show);
+            if (show) visible += 1;
+        });
+        if (reviewVisible) reviewVisible.textContent = visible + (visible === 1 ? ' shown' : ' shown');
+        if (reviewNoMatch) reviewNoMatch.hidden = visible !== 0;
+    };
+    reviewSearch?.addEventListener('input', applyReviewFilter);
+    reviewStatus?.addEventListener('change', applyReviewFilter);
+    applyReviewFilter();
 });
 </script>
 
