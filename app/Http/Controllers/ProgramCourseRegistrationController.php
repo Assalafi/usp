@@ -150,7 +150,11 @@ class ProgramCourseRegistrationController extends Controller
             ? DB::table('staff as s')
                 ->leftJoin('department as d', 'd.code', '=', 's.department')
                 ->leftJoin('hod_curriculum_reviews as hcr', function ($join) use ($reviewStructureId) {
-                    $join->on('hcr.hod_username', '=', 's.username')
+                    // Legacy staff/user tables use a different MySQL
+                    // collation from the new review table. A binary
+                    // comparison keeps the join safe without altering either
+                    // existing table's data or collation.
+                    $join->on(DB::raw('BINARY hcr.hod_username'), '=', DB::raw('BINARY s.username'))
                         ->where('hcr.structure_id', '=', $reviewStructureId);
                 })
                 ->whereRaw('UPPER(s.appointment) = ?', ['HOD'])
