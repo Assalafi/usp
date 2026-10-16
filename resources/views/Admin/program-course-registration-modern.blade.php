@@ -28,7 +28,7 @@
 <link rel="stylesheet" href="{{ asset('css/program-course-registration.css') }}?v=20261013-2">
 <style>
     .pcr-page{background:#f4f7fb;padding-bottom:28px}.pcr-page .pcr-hero{background:#fff;color:#0f172a;border:1px solid #dbe5f0;border-left:5px solid #2563eb;box-shadow:0 10px 26px rgba(15,23,42,.06)}.pcr-page .pcr-hero .card-body{padding:26px 30px}.pcr-kicker{color:#2563eb;opacity:1}.pcr-hero h1{color:#0f172a}.pcr-hero p{color:#64748b}.pcr-hero-actions .btn-light{color:#1d4ed8;border:1px solid #bfdbfe}.pcr-stat-row{margin-top:20px}.pcr-stat{border-color:#dbe5f0;background:#f8fbff;color:#0f172a}.pcr-stat strong{color:#0f3b82}.pcr-stat span{color:#64748b}.pcr-panel{box-shadow:0 8px 22px rgba(15,23,42,.045)}.pcr-modal .modal-dialog{max-height:calc(100vh - 2rem);margin:1rem auto}.pcr-modal .modal-content{max-height:calc(100vh - 2rem);display:flex}.pcr-modal form{min-height:0;display:flex;flex-direction:column}.pcr-modal .modal-body{min-height:0;max-height:calc(100vh - 150px);overflow-y:auto;overscroll-behavior:contain}.pcr-modal .modal-footer{flex:0 0 auto}.pcr-pdf-btn{white-space:nowrap}.pcr-filter-actions .pcr-pdf-btn{border-color:#bfdbfe;color:#1d4ed8;background:#eff6ff}.pcr-filter-actions .pcr-pdf-btn:hover{color:#fff;background:#2563eb;border-color:#2563eb}.pcr-view-only{display:inline-flex;align-items:center;padding:.55rem .9rem;border-radius:.5rem;background:#eef2ff;color:#4338ca;font-weight:700}.pcr-readonly .pcr-actions{display:none!important}
-    .pcr-review-card{border:1px solid #dbe5f0;border-radius:18px;background:#fff;box-shadow:0 8px 22px rgba(15,23,42,.045);padding:22px 24px;display:flex;gap:18px}.pcr-review-hod{border-left:5px solid #0f766e}.pcr-review-icon{width:46px;height:46px;display:grid;place-items:center;border-radius:14px;background:#dff7f2;color:#0f766e;font-size:20px;flex:0 0 auto}.pcr-review-content{min-width:0;flex:1}.pcr-review-heading,.pcr-review-admin-top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.pcr-review-kicker{display:block;text-transform:uppercase;letter-spacing:.08em;font-size:11px;font-weight:800;color:#64748b;margin-bottom:4px}.pcr-review-card h2{font-size:19px;line-height:1.2;margin:0;color:#0f172a;font-weight:800}.pcr-review-card p{color:#64748b;max-width:850px}.pcr-review-status{display:inline-flex;align-items:center;white-space:nowrap;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800}.pcr-review-status.is-submitted{background:#dcfce7;color:#166534}.pcr-review-status.is-pending{background:#fff7df;color:#9a6700}.pcr-review-meta{display:flex;flex-wrap:wrap;gap:14px;color:#475569;font-size:13px}.pcr-review-meta span{display:inline-flex;align-items:center;gap:7px}.pcr-review-meta i{color:#2563eb}.pcr-review-meta small{color:#64748b}.pcr-review-empty{display:flex;gap:9px;align-items:center;color:#64748b;background:#f8fafc;border-radius:10px;padding:12px 14px}.pcr-review-empty i{color:#2563eb}.pcr-review-admin{display:block;border-left:5px solid #2563eb}.pcr-review-admin-top{margin-bottom:16px}.pcr-review-admin-top p{margin:5px 0 0;max-width:720px}.pcr-review-structure-form{min-width:250px}.pcr-review-structure-form label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px}.pcr-review-admin-summary{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}.pcr-review-admin-summary span{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px;color:#475569;font-size:13px}.pcr-review-admin-summary strong{color:#0f172a;font-size:16px;margin-right:4px}.pcr-review-table{font-size:13px}.pcr-review-table th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;background:#f8fafc;white-space:nowrap}.pcr-review-table td{color:#334155}.pcr-review-table small{font-size:11px}@media(max-width:767px){.pcr-page .pcr-hero .card-body{padding:22px 18px}.pcr-modal .modal-dialog{max-height:calc(100vh - 1rem);margin:.5rem auto}.pcr-modal .modal-content{max-height:calc(100vh - 1rem)}.pcr-modal .modal-body{max-height:calc(100vh - 132px);padding:16px}.pcr-filter-actions .pcr-pdf-btn{flex-basis:100%}.pcr-review-card{padding:18px 16px;gap:12px}.pcr-review-heading,.pcr-review-admin-top{display:block}.pcr-review-status{margin-top:10px}.pcr-review-structure-form{min-width:0;margin-top:14px}.pcr-review-table{min-width:720px}}
+    .pcr-review-card{border:1px solid #dbe5f0;border-radius:18px;background:#fff;box-shadow:0 8px 22px rgba(15,23,42,.045);padding:22px 24px;display:flex;gap:18px}.pcr-review-hod{border-left:5px solid #0f766e}.pcr-review-icon{width:46px;height:46px;display:grid;place-items:center;border-radius:14px;background:#dff7f2;color:#0f766e;font-size:20px;flex:0 0 auto}.pcr-review-content{min-width:0;flex:1}.pcr-review-heading,.pcr-review-admin-top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.pcr-review-kicker{display:block;text-transform:uppercase;letter-spacing:.08em;font-size:11px;font-weight:800;color:#64748b;margin-bottom:4px}.pcr-review-card h2{font-size:19px;line-height:1.2;margin:0;color:#0f172a;font-weight:800}.pcr-review-card p{color:#64748b;max-width:850px}.pcr-review-status{display:inline-flex;align-items:center;white-space:nowrap;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800}.pcr-review-status.is-submitted{background:#dcfce7;color:#166534}.pcr-review-status.is-pending{background:#fff7df;color:#9a6700}.pcr-review-meta{display:flex;flex-wrap:wrap;gap:14px;color:#475569;font-size:13px}.pcr-review-meta span{display:inline-flex;align-items:center;gap:7px}.pcr-review-meta i{color:#2563eb}.pcr-review-meta small{color:#64748b}.pcr-review-empty{display:flex;gap:9px;align-items:center;color:#64748b;background:#f8fafc;border-radius:10px;padding:12px 14px}.pcr-review-empty i{color:#2563eb}.pcr-review-empty i{color:#2563eb}.pcr-review-admin{display:block;border-left:5px solid #2563eb}.pcr-review-admin-top{margin-bottom:16px}.pcr-review-admin-top p{margin:5px 0 0;max-width:720px}.pcr-review-structure-form{min-width:250px}.pcr-review-structure-form label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px}.pcr-review-admin-summary{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}.pcr-review-admin-summary span{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px;color:#475569;font-size:13px}.pcr-review-admin-summary strong{color:#0f172a;font-size:16px;margin-right:4px}.pcr-review-table{font-size:13px}.pcr-review-table th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;background:#f8fafc;white-space:nowrap}.pcr-review-table td{color:#334155}.pcr-review-table small{font-size:11px}.pcr-tabs{display:flex;gap:10px;align-items:stretch;margin:0 0 18px;padding:6px;border:1px solid #dbe5f0;border-radius:16px;background:#eaf1f9;box-shadow:0 6px 18px rgba(15,23,42,.04)}.pcr-tab{border:0;background:transparent;color:#475569;border-radius:11px;display:flex;align-items:center;gap:9px;padding:11px 15px;cursor:pointer;text-align:left;transition:background .18s ease,color .18s ease,box-shadow .18s ease;min-width:210px}.pcr-tab i{font-size:16px;color:#64748b}.pcr-tab span{display:block;font-size:14px;font-weight:800;line-height:1.1}.pcr-tab small{display:block;font-size:11px;color:#64748b;margin-top:3px}.pcr-tab:hover{background:#fff;color:#1d4ed8}.pcr-tab:hover i,.pcr-tab.is-active i{color:#2563eb}.pcr-tab.is-active{background:#fff;color:#0f172a;box-shadow:0 4px 12px rgba(37,99,235,.13)}.pcr-tab-panel[hidden]{display:none!important}.pcr-tab-panel{animation:pcrTabIn .18s ease}.pcr-tab-panel.is-active{display:block}@keyframes pcrTabIn{from{opacity:.2;transform:translateY(3px)}to{opacity:1;transform:none}}@media(max-width:767px){.pcr-page .pcr-hero .card-body{padding:22px 18px}.pcr-modal .modal-dialog{max-height:calc(100vh - 1rem);margin:.5rem auto}.pcr-modal .modal-content{max-height:calc(100vh - 1rem)}.pcr-modal .modal-body{max-height:calc(100vh - 132px);padding:16px}.pcr-filter-actions .pcr-pdf-btn{flex-basis:100%}.pcr-review-card{padding:18px 16px;gap:12px}.pcr-review-heading,.pcr-review-admin-top{display:block}.pcr-review-status{margin-top:10px}.pcr-review-structure-form{min-width:0;margin-top:14px}.pcr-review-table{min-width:720px}.pcr-tabs{overflow-x:auto;gap:7px;margin-left:-2px;margin-right:-2px}.pcr-tab{min-width:180px;padding:10px 12px}.pcr-tab small{display:none}}
 </style>
 
 <div class="main-body pcr-page {{ $isHod && !$canManage ? 'pcr-readonly' : '' }}"><div class="page-wrapper">
@@ -44,7 +44,18 @@
     @if(session('error'))<div class="alert alert-danger d-flex align-items-center gap-2 border-0 shadow-sm"><i class="fas fa-triangle-exclamation"></i><span>{{ session('error') }}</span></div>@endif
     @if($errors->any())<div class="alert alert-danger border-0 shadow-sm"><strong>Please review the form:</strong><ul class="mb-0 mt-1">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
+    <div class="pcr-tabs" role="tablist" aria-label="Curriculum workspace sections">
+        <button type="button" class="pcr-tab is-active" id="pcr-tab-register-button" role="tab" aria-selected="true" aria-controls="pcr-tab-register" data-pcr-tab="pcr-tab-register"><i class="fas fa-book-open"></i><span>Course register</span><small>Review and manage courses</small></button>
+        @if($isHod)
+            <button type="button" class="pcr-tab" id="pcr-tab-review-button" role="tab" aria-selected="false" aria-controls="pcr-tab-review" data-pcr-tab="pcr-tab-review"><i class="fas fa-clipboard-check"></i><span>My review</span><small>Confirm your structure</small></button>
+        @else
+            <button type="button" class="pcr-tab" id="pcr-tab-tracking-button" role="tab" aria-selected="false" aria-controls="pcr-tab-tracking" data-pcr-tab="pcr-tab-tracking"><i class="fas fa-chart-column"></i><span>HOD submissions</span><small>Monitor confirmations</small></button>
+        @endif
+    </div>
+
+    <div class="pcr-tab-panels">
     @if($isHod)
+        <section class="pcr-tab-panel" id="pcr-tab-review" role="tabpanel" aria-labelledby="pcr-tab-review-button" hidden>
         <div class="pcr-review-card pcr-review-hod mb-4">
             <div class="pcr-review-icon"><i class="fas fa-clipboard-check"></i></div>
             <div class="pcr-review-content">
@@ -58,7 +69,9 @@
                 @endif
             </div>
         </div>
+        </section>
     @else
+        <section class="pcr-tab-panel" id="pcr-tab-tracking" role="tabpanel" aria-labelledby="pcr-tab-tracking-button" hidden>
         <div class="pcr-review-card pcr-review-admin mb-4">
             <div class="pcr-review-admin-top"><div><span class="pcr-review-kicker">Administration</span><h2>Curriculum review tracking</h2><p>Monitor which Heads of Department have confirmed the selected curriculum structure. Existing records start as pending until the HOD submits a confirmation.</p></div><form method="GET" action="{{ url($page) }}" class="pcr-review-structure-form"><label for="reviewStructureId">Curriculum structure</label><select id="reviewStructureId" name="review_structure_id" class="form-select form-select-sm" onchange="this.form.submit()">@foreach($courseStructure ?? [] as $structure)<option value="{{ $structure->id }}" {{ $reviewStructureId === (int) $structure->id ? 'selected' : '' }}>{{ $structure->name }} ({{ $structure->from_session }}–{{ $structure->to_session }})</option>@endforeach</select></form></div>
             @if($reviewStructure)
@@ -68,8 +81,10 @@
                 <div class="pcr-review-empty"><i class="fas fa-layer-group"></i><span>Create a curriculum structure to start HOD review tracking.</span></div>
             @endif
         </div>
+        </section>
     @endif
 
+    <section class="pcr-tab-panel is-active" id="pcr-tab-register" role="tabpanel" aria-labelledby="pcr-tab-register-button">
     <div class="pcr-panel"><div class="pcr-panel-header"><div><h2><i class="fas fa-sliders me-2 text-primary"></i>{{ $isHod ? 'Find programme courses' : 'Find a curriculum' }}</h2><p>{{ $isHod ? 'Choose a programme, level or semester to review its approved courses.' : 'Start with the structure, then narrow the mapping by academic entity.' }}</p></div><span class="pcr-badge structure"><i class="fas fa-eye me-1"></i> {{ $isHod ? 'Department view' : 'Academic register' }}</span></div>
         <form class="pcr-filter" id="pcrFilterForm" method="GET" action="{{ url($page) }}"><div class="pcr-filter-grid">
             <div class="pcr-field"><label for="filterStructure"><i class="fas fa-layer-group"></i> Curriculum structure</label><select class="form-select" id="filterStructure" name="structure_id"><option value="">All structures</option>@foreach($courseStructure ?? [] as $structure)<option value="{{ $structure->id }}" {{ (string)($filter['structure_id'] ?? '') === (string)$structure->id ? 'selected' : '' }}>{{ $structure->name }} · {{ $structure->from_session }}–{{ $structure->to_session }}</option>@endforeach</select><small id="structureHelp">Choose a structure to keep a programme curriculum consistent.</small></div>
@@ -96,6 +111,8 @@
         @else
             <div class="pcr-empty"><i class="fas fa-book-open"></i><h3>No programme courses found</h3><p>{{ $isHod ? 'There are no approved course records for the selected academic filters.' : 'Select a structure and academic entity, or add courses to create the first mapping for this programme.' }}</p>@if($canManage)<button type="button" class="btn btn-primary pcr-btn mt-3" data-bs-toggle="modal" data-bs-target="#createCourseModal"><i class="fas fa-plus me-1"></i> Add courses</button>@endif</div>
         @endif
+    </div>
+    </section>
     </div>
 </div></div>
 
@@ -130,6 +147,55 @@
     const ci=document.getElementById('createCodes'),preview=document.getElementById('codePreview'),picker=document.getElementById('coursePickerSearch'),pickerResults=document.getElementById('coursePickerResults'),addPicked=document.getElementById('addPickedCourse');const selectedCodes=()=>[...new Set((ci?.value||'').toUpperCase().split(/[\s,;]+/).map(x=>x.trim()).filter(Boolean))];const renderCodes=()=>{const codes=selectedCodes();if(!codes.length){preview.innerHTML='<span class="text-muted small">Course previews will appear here.</span>';return}preview.innerHTML=codes.map(code=>{const x=catalogMap[code];return `<span class="pcr-code-chip">${code}${x?` <small>${x.title} · ${x.unit||0} unit(s)</small>`:' <small class="text-danger">not found</small>'}</span>`}).join('')};const addCode=code=>{const codes=selectedCodes();if(code&&!codes.includes(code)){codes.push(code);ci.value=codes.join(', ');renderCodes()}};const renderPicker=()=>{const q=(picker?.value||'').trim().toLowerCase();if(!pickerResults||!q){if(pickerResults)pickerResults.style.display='none';return}const matches=catalog.filter(x=>`${x.code} ${x.title}`.toLowerCase().includes(q)).slice(0,12);pickerResults.innerHTML=matches.length?matches.map(x=>`<button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" data-pick-code="${x.code}"><span><strong>${x.code}</strong><small class="d-block text-muted">${x.title}</small></span><span class="badge bg-light text-primary">${x.unit||0} unit(s)</span></button>`).join(''):'<div class="list-group-item text-muted small">No matching course was found.</div>';pickerResults.style.display='block';pickerResults.querySelectorAll('[data-pick-code]').forEach(b=>b.addEventListener('click',()=>{addCode(b.dataset.pickCode);picker.value='';pickerResults.style.display='none'}))};picker?.addEventListener('input',renderPicker);addPicked?.addEventListener('click',()=>{const exact=String(picker?.value||'').trim().toUpperCase();if(catalogMap[exact]){addCode(exact);picker.value='';pickerResults.style.display='none'}else renderPicker()});ci?.addEventListener('input',renderCodes);document.getElementById('createPcrForm')?.addEventListener('submit',e=>{const missing=selectedCodes().filter(x=>!catalogMap[x]);if(missing.length){e.preventDefault();alert(`These course codes were not found in the master catalogue:\n\n${missing.join(', ')}`)}});
     document.querySelectorAll('.edit-pcr').forEach(btn=>btn.addEventListener('click',()=>{const d=btn.dataset;document.getElementById('editId').value=d.id;document.getElementById('editCourseDisplay').textContent=`${d.code} — ${d.courseTitle||'Course title not found'}`;document.getElementById('editProgramDisplay').textContent=`${d.programTitle} (${d.program})`;const map={editLevel:'level',editSemester:'semester',editType:'type',editElective:'elective',editChangeSemester:'changeSemester',editForm:'form',editStructure:'structure',editDe:'de',editGrading:'grading'};Object.entries(map).forEach(([id,key])=>{const field=document.getElementById(id);if(field)field.value=d[key]??''});document.getElementById('editCourseHeading').textContent=`Update ${d.code} in ${d.programTitle}. Course units remain controlled by the master catalogue.`}));document.getElementById('editType')?.addEventListener('change',e=>{const x=document.getElementById('editElective');x.disabled=e.target.value!=='ELECTIVE';if(e.target.value!=='ELECTIVE')x.value='0'});document.querySelectorAll('.pcr-modal form').forEach(form=>form.addEventListener('submit',()=>{const button=form.querySelector('button[type="submit"]');if(button){button.disabled=true;button.innerHTML='<span class="spinner-border spinner-border-sm me-1" role="status"></span>Saving…'}}));
 })();
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const tabButtons = Array.from(document.querySelectorAll('[data-pcr-tab]'));
+    const tabPanels = Array.from(document.querySelectorAll('.pcr-tab-panel'));
+    if (!tabButtons.length || !tabPanels.length) return;
+
+    const storageKey = 'pcr-active-tab';
+    const validPanel = function (id) {
+        return tabPanels.some(function (panel) { return panel.id === id; });
+    };
+    const activate = function (id, remember) {
+        if (!validPanel(id)) id = 'pcr-tab-register';
+        tabButtons.forEach(function (button) {
+            const active = button.dataset.pcrTab === id;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-selected', active ? 'true' : 'false');
+            button.tabIndex = active ? 0 : -1;
+        });
+        tabPanels.forEach(function (panel) {
+            const active = panel.id === id;
+            panel.hidden = !active;
+            panel.classList.toggle('is-active', active);
+        });
+        if (remember) {
+            try { window.sessionStorage.setItem(storageKey, id); } catch (error) { /* private browsing */ }
+        }
+    };
+
+    tabButtons.forEach(function (button, index) {
+        button.addEventListener('click', function () { activate(button.dataset.pcrTab, true); });
+        button.addEventListener('keydown', function (event) {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            let next = index;
+            if (event.key === 'ArrowLeft') next = (index - 1 + tabButtons.length) % tabButtons.length;
+            if (event.key === 'ArrowRight') next = (index + 1) % tabButtons.length;
+            if (event.key === 'Home') next = 0;
+            if (event.key === 'End') next = tabButtons.length - 1;
+            tabButtons[next].focus();
+            activate(tabButtons[next].dataset.pcrTab, true);
+        });
+    });
+
+    let saved = null;
+    try { saved = window.sessionStorage.getItem(storageKey); } catch (error) { saved = null; }
+    activate(validPanel(saved) ? saved : 'pcr-tab-register', false);
+});
 </script>
 
 <script>
