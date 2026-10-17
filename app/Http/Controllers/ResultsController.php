@@ -441,6 +441,17 @@ class ResultsController extends Controller
             'session' => ['required', 'string', 'regex:/^\d{4}\/\d{4}$/'],
             'semester' => 'required|string|max:25',
             'per' => 'required|in:70,30,60,40,100',
+        ], [
+            'file.required' => 'Choose the Excel result spreadsheet before processing.',
+            'file.file' => 'The selected upload is not a valid file. Choose the Excel spreadsheet again.',
+            'file.mimes' => 'Upload the official Excel result template in .xlsx or .xls format.',
+            'file.max' => 'The spreadsheet is too large. Please keep it below 15 MB or split the upload into smaller files.',
+            'course.required' => 'Select the course whose results you are uploading.',
+            'session.required' => 'Select the academic session for these results.',
+            'session.regex' => 'Select a valid academic session, for example 2025/2026.',
+            'semester.required' => 'Select the semester for these results.',
+            'per.required' => 'Select the score format used in the spreadsheet.',
+            'per.in' => 'Choose one of the available CA and examination score formats.',
         ]);
 
         $course = (string) $request->input('course');
@@ -454,14 +465,14 @@ class ResultsController extends Controller
                 ->exists();
             if (!$assigned) {
                 return redirect()->route('results.upload.page')
-                    ->withErrors(['course' => 'You can only upload results for a course assigned to you.'])
+                    ->withErrors(['course' => 'This course is not assigned to your account. Select one of your assigned courses or contact the Course Coordinator.'])
                     ->withInput();
             }
         }
 
         if (!DB::table('course')->where('code', $course)->exists()) {
             return redirect()->route('results.upload.page')
-                ->withErrors(['course' => 'The selected course could not be found.'])
+                ->withErrors(['course' => 'The selected course is not available. Return to the course list and select a valid course.'])
                 ->withInput();
         }
 
@@ -495,7 +506,7 @@ class ResultsController extends Controller
             return view('main', $this->uploadPageData([
                 'page' => 'result upload',
                 'title' => 'Upload Course Results',
-                'uploadError' => 'The spreadsheet could not be processed. Check that it is the official result template and try again.',
+                'uploadError' => 'We could not read this spreadsheet. Download the official template, keep the column headings unchanged, save it as an Excel file (.xlsx or .xls), and upload it again. If the problem continues, contact Academic Records.',
             ]));
         }
     }

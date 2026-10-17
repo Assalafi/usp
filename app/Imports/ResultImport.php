@@ -60,7 +60,7 @@ class ResultImport implements ToCollection
 
         $course = DB::table('course')->where('code', $this->course)->first();
         if (!$course) {
-            $this->addIssue(1, null, 'failed', 'The selected course does not exist.');
+            $this->addIssue(1, null, 'failed', 'The selected course is no longer available. Return to the course list, select the course again, and try once more.');
             return;
         }
 
@@ -86,21 +86,21 @@ class ResultImport implements ToCollection
             $exam = $this->score($this->cell($row, 3));
 
             if ($id === '') {
-                $this->addIssue($excelRow, null, 'skipped', 'Matric number is missing.');
+                $this->addIssue($excelRow, null, 'skipped', 'No student ID was entered. Enter the student\'s matric number in column B.');
                 continue;
             }
             if (isset($seen[$id])) {
-                $this->addIssue($excelRow, $id, 'skipped', 'This matric number appears more than once in the uploaded file.');
+                $this->addIssue($excelRow, $id, 'skipped', 'This student ID appears more than once in the file. Keep one row for this student and remove the duplicate.');
                 continue;
             }
             $seen[$id] = true;
 
             if ($ca === null || $exam === null) {
-                $this->addIssue($excelRow, $id, 'skipped', 'CA and examination scores must both be numeric.');
+                $this->addIssue($excelRow, $id, 'skipped', 'Enter numbers only for the CA and examination scores in columns C and D.');
                 continue;
             }
             if ($ca < 0 || $ca > 100 || $exam < 0 || $exam > 100) {
-                $this->addIssue($excelRow, $id, 'skipped', 'Scores must be between 0 and 100.');
+                $this->addIssue($excelRow, $id, 'skipped', 'Each CA and examination score must be between 0 and 100. Check columns C and D.');
                 continue;
             }
 
@@ -113,7 +113,7 @@ class ResultImport implements ToCollection
                 ->select('program', 'level', 'department', 'structure_id')
                 ->first();
             if (!$student) {
-                $this->addIssue($excelRow, $id, 'skipped', 'Matric number was not found in the student records.');
+                $this->addIssue($excelRow, $id, 'skipped', 'This student ID was not found in the university records. Check the number and correct it before uploading.');
                 continue;
             }
 
@@ -157,7 +157,7 @@ class ResultImport implements ToCollection
             }
 
             if ($structureId <= 0) {
-                $this->addIssue($excelRow, $id, 'skipped', 'The student has no curriculum structure assigned, and it could not be safely inferred from the matric number.');
+                $this->addIssue($excelRow, $id, 'skipped', 'The student\'s programme structure is not set up for this course. Ask the Department or Academic Records office to assign the correct structure before uploading.');
                 continue;
             }
 
@@ -166,13 +166,13 @@ class ResultImport implements ToCollection
                 ->where(['code' => $course->code, 'program' => $student->program, 'structure_id' => $structureId])
                 ->value('grading');
             if (!$gradingName) {
-                $this->addIssue($excelRow, $id, 'skipped', 'No grading configuration exists for this student programme and course.');
+                $this->addIssue($excelRow, $id, 'skipped', 'This course has not been added to the student\'s programme structure. Ask the Department or Academic Records office to add it before uploading.');
                 continue;
             }
 
             $total = round($ca + $exam, 0, PHP_ROUND_HALF_UP);
             if ($total > 100) {
-                $this->addIssue($excelRow, $id, 'skipped', 'The combined CA and examination score is above 100.');
+                $this->addIssue($excelRow, $id, 'skipped', 'The CA and examination scores add up to more than 100. Check the values in columns C and D.');
                 continue;
             }
             if (strtoupper((string) $this->semester) === 'RESIT' && $total > 50) {
@@ -196,7 +196,7 @@ class ResultImport implements ToCollection
                 ->first();
 
             if (!$grading) {
-                $this->addIssue($excelRow, $id, 'skipped', 'No matching grading rule was found for this score.');
+                $this->addIssue($excelRow, $id, 'skipped', 'This total score does not match the approved grading scale for the student\'s programme. Confirm the scores or ask Academic Records to check the grading scale.');
                 continue;
             }
 
@@ -271,7 +271,7 @@ class ResultImport implements ToCollection
 
                 $operation = $transaction['operation'];
                 if ($operation === 'protected') {
-                    $this->addIssue($excelRow, $id, 'skipped', 'A result for this session is already submitted or approved and cannot be overwritten.');
+                    $this->addIssue($excelRow, $id, 'skipped', 'A result for this session and semester has already been submitted or approved. It cannot be replaced here; use the correction process if a change is needed.');
                     continue;
                 }
 
@@ -282,19 +282,19 @@ class ResultImport implements ToCollection
                 }
                 if ($resultUnit === 0 && $previousApprovedResult) {
                     $this->report['resits']++;
-                    $message = ucfirst($operation) . ' as a resit; result unit is 0 because a previous result is VC-approved.';
+                    $message = ucfirst($operation) . ' as a resit. An earlier approved attempt exists, so this attempt will not add the course units again.';
                 } else {
-                    $message = ucfirst($operation) . ' successfully.';
+                    $message = ucfirst($operation) . ' and saved for approval.';
                 }
                 if ($removedRegistrations > 0) {
-                    $message .= " Removed $removedRegistrations stale previous-session course registration" . ($removedRegistrations === 1 ? '' : 's') . '.';
+                    $message .= " An old course-registration entry from the previous session was also removed because no result had been recorded.";
                 }
                 $this->addDetail($excelRow, $id, 'success', $message);
             } catch (QueryException $exception) {
-                $this->addIssue($excelRow, $id, 'failed', 'The database could not save this result. No change was made for this row.');
+                $this->addIssue($excelRow, $id, 'failed', 'The result could not be saved at this time. No change was made for this student. Try again; if it continues, contact Academic Records.');
             } catch (\Throwable $exception) {
                 report($exception);
-                $this->addIssue($excelRow, $id, 'failed', 'An unexpected error occurred while saving this row.');
+                $this->addIssue($excelRow, $id, 'failed', 'A temporary system problem prevented this result from being saved. No change was made. Try again or contact Academic Records.');
             }
         }
     }
