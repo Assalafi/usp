@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\UsersImport;
 use App\Imports\CourseImport;
@@ -28,28 +29,97 @@ class CourseController extends Controller
 
     public function index(Request $req)
     {
-        if(!session()->has('log')){return redirect('/');}
-        if ($req->has('_token')) {
-            $data = $req->all();
-            unset($data['_token']);
-            $filteredData = array_filter($data);
-            $query = DB::table($this->table);
-            foreach ($filteredData as $key => $value) {
-                $query->where($key, $value);
-            }
-            $data['data'] = $query->orderBy('code', 'ASC')->get();
-        }else{
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
 
-            $data['data'] = DB::table($this->table)->where(['status' => '3'])->orderBy('id', 'DESC')->orderBy('code', 'ASC')->limit(100)->get();
+        $filters = [
+            'search' => trim((string) $req->query('search', '')),
+            'faculty' => trim((string) $req->query('faculty', '')),
+            'department' => trim((string) $req->query('department', '')),
+            'program' => trim((string) $req->query('program', '')),
+            'type' => trim((string) $req->query('type', '')),
+            'class' => trim((string) $req->query('class', '')),
+            'unit' => trim((string) $req->query('unit', '')),
+            'level' => trim((string) $req->query('level', '')),
+            'semester' => trim((string) $req->query('semester', '')),
+            'status' => trim((string) $req->query('status', '1')),
+        ];
+        $filters = array_map(static fn ($value) => $value === 'all' ? '' : $value, $filters);
+
+        $isRestrictedFaculty = in_array(session('appointment'), ['HOD', 'DEAN'], true);
+        if ($isRestrictedFaculty && session('faculty')) {
+            $filters['faculty'] = (string) session('faculty');
         }
-        if(session('appointment') == 'HOD' || session('appointment') == 'DEAN'){
-            $data['faculty'] = DB::table('faculty')->where(['code' => session('faculty')])->select('code', 'title')->orderBy('title', 'ASC')->get();
-        }else{
-            $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
+
+        $perPage = (int) $req->query('per_page', 50);
+        $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 50;
+
+        $query = DB::table('course as c')
+            ->leftJoin('program as p', 'p.code', '=', 'c.program')
+            ->leftJoin('department as d', 'd.code', '=', 'c.department')
+            ->leftJoin('faculty as f', 'f.code', '=', 'c.faculty')
+            ->select([
+                'c.id', 'c.code', 'c.title', 'c.type', 'c.class', 'c.unit',
+                'c.level', 'c.semester', 'c.faculty', 'c.department', 'c.program',
+                'c.status', 'c.user', 'p.title as program_title',
+                'd.title as department_title', 'f.title as faculty_title',
+            ]);
+
+        foreach (['faculty', 'department', 'program', 'type', 'class', 'unit', 'level', 'semester', 'status'] as $column) {
+            if ($filters[$column] !== '') {
+                $query->where('c.' . $column, $filters[$column]);
+            }
         }
+        if ($filters['search'] !== '') {
+            $search = '%' . $filters['search'] . '%';
+            $query->where(function ($scopedQuery) use ($search): void {
+                $scopedQuery->where('c.code', 'like', $search)
+                    ->orWhere('c.title', 'like', $search);
+            });
+        }
+
+        $data['data'] = $query
+            ->orderBy('c.code')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        if ($isRestrictedFaculty) {
+            $data['faculty'] = DB::table('faculty')
+                ->where('code', session('faculty'))
+                ->select('code', 'title')
+                ->orderBy('title')
+                ->get();
+        } else {
+            $data['faculty'] = Cache::remember('course.filter.faculties', 600, static fn () => DB::table('faculty')
+                ->where('status', '1')
+                ->select('code', 'title')
+                ->orderBy('title')
+                ->get());
+        }
+        $data['filterDepartments'] = $filters['faculty'] !== ''
+            ? DB::table('department')->where('faculty', $filters['faculty'])->select('code', 'title')->orderBy('title')->get()
+            : collect();
+        $data['filterPrograms'] = $filters['department'] !== ''
+            ? DB::table('program')->where('department', $filters['department'])->select('code', 'title')->orderBy('title')->get()
+            : collect();
+        $data['courseLevels'] = Cache::remember('course.filter.levels', 600, static fn () => DB::table('course')
+            ->whereNotNull('level')->where('level', '!=', '')
+            ->select('level')->distinct()
+            ->orderByRaw("CASE WHEN level REGEXP '^[0-9]+$' THEN CAST(level AS UNSIGNED) ELSE 999999 END")
+            ->orderBy('level')->pluck('level'));
+        $data['courseUnits'] = Cache::remember('course.filter.units', 600, static fn () => DB::table('course')
+            ->select('unit')->distinct()->orderBy('unit')->pluck('unit'));
+        $data['courseSemesters'] = Cache::remember('course.filter.semesters', 600, static fn () => DB::table('course')
+            ->whereNotNull('semester')->where('semester', '!=', '')
+            ->select('semester')->distinct()->orderBy('semester')->pluck('semester'));
+        $data['semesters'] = $data['courseSemesters'];
+        $data['academicSessions'] = Cache::remember('course.filter.sessions', 600, static fn () => DB::table('session')
+            ->select('title')->orderByDesc('title')->get());
         $data['page'] = $this->page;
         $data['title'] = $this->title;
-        $data['get_courses'] = DB::table('course')->orderBy('code', 'ASC')->get();
+        $data['filters'] = $filters;
+        $data['perPage'] = $perPage;
         return view('main',$data);
     }
 
