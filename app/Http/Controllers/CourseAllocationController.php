@@ -98,6 +98,7 @@ class CourseAllocationController extends Controller
             ? DB::table('program')->where('department', $filters['department'])->select('code', 'title')->orderBy('title')->get()
             : collect();
         $data['sessions'] = Cache::remember('course-allocation.filter.sessions', 600, static fn () => DB::table('session')->select('title')->orderByDesc('title')->get());
+        $data['currentSession'] = $currentSession;
         $createDepartment = $filters['department'] ?: (string) session('department', '');
         $data['createDepartment'] = $createDepartment;
         $data['courses'] = DB::table('course')->where('status', '1')->select('code', 'title', 'department')->when($createDepartment !== '', static function ($courseQuery) use ($createDepartment): void {
@@ -181,62 +182,79 @@ class CourseAllocationController extends Controller
 
     public function create(Request $req)
     {
-        // Check for session log
         if (!session()->has('log')) {
             return redirect('/');
         }
-        ini_set('memory_limit', '1024M');
 
-        // Get all request data
-        $datas = $req->all();
-        $datas['username'] = strtoupper($datas['username']);
-        $datas['created_at'] = now();
-        $datas['updated_at'] = now();
+        $username = strtoupper(trim((string) $req->input('username')));
+        $courseCode = strtoupper(preg_replace('/\s+/', '', (string) $req->input('course')));
+        $type = strtoupper(trim((string) $req->input('type')));
+        $session = trim((string) $req->input('session'));
+        $req->merge(['username' => $username, 'course' => $courseCode, 'type' => $type, 'session' => $session]);
 
-        // Validate programs field
-        if (!isset($datas['programs'])) {
-            return redirect()->back()->with('error', 'You Must Select Atleast ONE Program');
+        $validated = $req->validate([
+            'username' => ['required', 'string', 'max:100'],
+            'course' => ['required', 'string', 'max:50'],
+            'type' => ['required', 'in:MAIN,SUPPORT'],
+            'session' => ['required', 'string', 'max:25', 'exists:session,title'],
+            'programs' => ['required', 'array', 'min:1'],
+            'programs.*' => ['required', 'string', 'max:50'],
+        ], [
+            'username.required' => 'Enter the staff ID for the lecturer or coordinator.',
+            'course.required' => 'Choose a course before saving the allocation.',
+            'type.required' => 'Choose whether this person is the course coordinator or a course lecturer.',
+            'session.required' => 'Choose the academic session for this allocation.',
+            'programs.required' => 'Select at least one programme linked to this course.',
+        ]);
+
+        $staff = DB::table('staff')->where('username', $username)->select('name', 'user_id')->first();
+        if (!$staff) {
+            return redirect()->back()->withInput()->with('error', 'The staff ID was not found. Check the ID and try again.');
         }
 
-        // Encode programs field
-        $datas['programs'] = json_encode($req->programs);
-
-        // Fetch course details (use first() instead of get() to avoid looping unnecessarily)
-        $course = DB::table('course')
-            ->where('code', $datas['course'])
-            ->select('faculty', 'department', 'program', 'title')
-            ->first();
-
-        if ($course) {
-            $datas['faculty'] = $course->faculty;
-            $datas['department'] = $course->department;
-            $datas['program'] = $course->program;
+        $course = DB::table('course')->where('code', $courseCode)
+            ->select('faculty', 'department', 'program', 'title')->first();
+        if (!$course) {
+            return redirect()->back()->withInput()->with('error', 'The course code was not found. Select a course from the list and try again.');
         }
 
-        // Fetch staff details (use first() instead of get())
-        $staff = DB::table('staff')
-            ->where('username', $datas['username'])
-            ->select('name', 'user_id')
-            ->first();
-        $check = 0;
-
-        if ($staff) {
-            $datas['name'] = $staff->name;
-            $datas['user_id'] = $staff->user_id;
-            $check = 1;
+        $programs = collect($validated['programs'])->map(static fn ($program) => strtoupper(trim($program)))->unique()->values()->all();
+        $availablePrograms = DB::table('program_course_registration')->where('code', $courseCode)->pluck('program')->map(static fn ($program) => strtoupper(trim($program)))->all();
+        if (empty($availablePrograms)) {
+            return redirect()->back()->withInput()->with('error', 'This course is not linked to any programme yet. Link the course to a programme before allocating it.');
         }
-        if ($check == 0) {
-            return redirect()->back()->with('error', 'Staff Not Found');
+        if ($invalidPrograms = array_diff($programs, $availablePrograms)) {
+            return redirect()->back()->withInput()->with('error', 'One or more selected programmes are not linked to this course. Refresh the course selection and try again.');
         }
 
-        // Remove unnecessary fields and convert values to uppercase
-        unset($datas['_token']);
-        $datas = array_map('strtoupper', $datas);
+        $duplicate = DB::table($this->table)
+            ->where('username', $username)
+            ->where('course', $courseCode)
+            ->where('session', $session)
+            ->exists();
+        if ($duplicate) {
+            return redirect()->back()->withInput()->with('error', 'This staff member is already assigned to this course for the selected session.');
+        }
 
-        // Insert data into the table
-        DB::table($this->table)->insert($datas);
+        DB::transaction(function () use ($staff, $course, $username, $courseCode, $type, $session, $programs): void {
+            DB::table($this->table)->insert([
+                'user_id' => $staff->user_id,
+                'username' => $username,
+                'name' => $staff->name,
+                'course' => $courseCode,
+                'type' => $type,
+                'faculty' => $course->faculty,
+                'department' => $course->department,
+                'program' => $course->program,
+                'programs' => json_encode($programs),
+                'session' => $session,
+                'status' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
 
-        return redirect()->back()->with('success', 'Record Created!!!');
+        return redirect()->back()->with('success', 'Course allocation created successfully.');
     }
 
     public function update(Request $req)
@@ -244,30 +262,55 @@ class CourseAllocationController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
-        $datas = $req->all();
-        $id = $datas['id'];
-        $datas['username'] = strtoupper($datas['username']);
-        $course = DB::table('course')->where(['code' => $datas['course']])->select('faculty', 'department', 'program', 'title')->get();
-        foreach ($course as $row) {
-            $datas['faculty'] = $row->faculty;
-            $datas['department'] = $row->department;
-            $datas['program'] = $row->program;
+        $id = (int) $req->input('id');
+        $username = strtoupper(trim((string) $req->input('username')));
+        $type = strtoupper(trim((string) $req->input('type')));
+        $req->merge(['username' => $username, 'type' => $type]);
+        $validated = $req->validate([
+            'id' => ['required', 'integer', 'exists:course_allocation,id'],
+            'username' => ['required', 'string', 'max:100'],
+            'course' => ['required', 'string', 'max:50'],
+            'type' => ['required', 'in:MAIN,SUPPORT'],
+        ], [
+            'username.required' => 'Enter the staff ID for the lecturer or coordinator.',
+            'type.required' => 'Choose the assignment role.',
+        ]);
+
+        $existing = DB::table($this->table)->where('id', $id)->select('course', 'session')->first();
+        if (!$existing) {
+            return redirect()->back()->with('error', 'This allocation no longer exists. Refresh the page and try again.');
         }
-        $staff = DB::table('staff')->where('username', $datas['username'])->select('name', 'user_id')->get();
-        $check = 0;
-        foreach ($staff as $row) {
-            $datas['name'] = $row->name;
-            $datas['user_id'] = $row->user_id;
-            $check = 1;
+        $courseCode = strtoupper(preg_replace('/\s+/', '', (string) $validated['course']));
+        $staff = DB::table('staff')->where('username', $username)->select('name', 'user_id')->first();
+        if (!$staff) {
+            return redirect()->back()->withInput()->with('error', 'The staff ID was not found. Check the ID and try again.');
         }
-        if ($check == 0) {
-            return redirect()->back()->with('error', 'Staff Not Found');
+        $course = DB::table('course')->where('code', $courseCode)->select('faculty', 'department', 'program')->first();
+        if (!$course) {
+            return redirect()->back()->withInput()->with('error', 'The course code was not found.');
         }
-        unset($datas['id']);
-        unset($datas['_token']);
-        $datas = array_map('strtoupper', $datas);
-        DB::table($this->table)->where('id', $id)->update($datas);
-        return redirect()->back()->with('success', 'Record Updated!!!');
+        $duplicate = DB::table($this->table)
+            ->where('username', $username)->where('course', $courseCode)->where('session', $existing->session)
+            ->where('id', '!=', $id)->exists();
+        if ($duplicate) {
+            return redirect()->back()->withInput()->with('error', 'This staff member is already assigned to this course for the selected session.');
+        }
+
+        DB::transaction(function () use ($id, $staff, $course, $username, $courseCode, $type): void {
+            DB::table($this->table)->where('id', $id)->update([
+                'user_id' => $staff->user_id,
+                'username' => $username,
+                'name' => $staff->name,
+                'course' => $courseCode,
+                'type' => $type,
+                'faculty' => $course->faculty,
+                'department' => $course->department,
+                'program' => $course->program,
+                'updated_at' => now(),
+            ]);
+        });
+
+        return redirect()->back()->with('success', 'Course allocation updated successfully.');
     }
 
     public function delete(Request $req)
