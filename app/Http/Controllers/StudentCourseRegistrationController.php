@@ -34,7 +34,9 @@ class StudentCourseRegistrationController extends Controller
             return redirect('/');
         }
 
-        // Get filter parameters
+        // Students retain the existing current-session behaviour. Administrators
+        // override this below and must deliberately choose a filter before
+        // records are loaded.
         $session = $req->session ?? session('system_session');
 
         // Fetch all available sessions for dropdown
@@ -61,59 +63,87 @@ class StudentCourseRegistrationController extends Controller
                     ->get();
             }
         } else {
-            $semester = $req->semester;
+            $session = trim((string) $req->input('session', ''));
+            $data['session'] = $session;
+            $semester = trim((string) $req->input('semester', ''));
             $data['semester'] = $semester;
-            $course_code = $req->course_code;
+            $course_code = trim((string) $req->input('course_code', ''));
             $data['course_code'] = $course_code;
-            $username = $req->username;
+            $username = trim((string) $req->input('username', ''));
             $data['username'] = $username;
+            $level = trim((string) $req->input('level', ''));
+            $type = strtoupper(trim((string) $req->input('type', '')));
+            $data['level'] = $level;
+            $data['type'] = $type;
 
             // Build query with filters
-            $query = DB::table($this->table);
+            $query = DB::table($this->table . ' as scr')
+                ->leftJoin('course', 'scr.code', '=', 'course.code')
+                ->select('scr.*', 'course.title as course_title');
 
             if ($username) {
-                $query->where('username', 'like', '%' . $username . '%');
-                $getStudent = DB::table('students')->where('username', $username)->first();
-                $studentProgram = $getStudent->program;
-                $studentLevel = $getStudent->level;
-                
-                // Get student's structure_id based on entry year
+                $query->where('scr.username', 'like', '%' . $username . '%');
+                // Course registration is available when an exact student ID
+                // is supplied. A partial search remains useful for filtering,
+                // but must not guess which student's curriculum to register.
                 $studentModel = Student::where('username', $username)->first();
-                $structureId = $studentModel ? $studentModel->structure_id : null;
-
-                $data['getProgramCourses'] = DB::table('program_course_registration')
-                    ->where(['program' => $studentProgram, 'structure_id' => $structureId])
-                    ->orderBy('level')->orderBy('semester')->orderBy('code')->get();
+                if ($studentModel) {
+                    $structureId = $studentModel->getRawOriginal('structure_id')
+                        ?: $studentModel->getAttribute('structure_id');
+                    if ($studentModel->program && $structureId) {
+                        $data['getProgramCourses'] = DB::table('program_course_registration as pcr')
+                            ->leftJoin('course', 'pcr.code', '=', 'course.code')
+                            ->where(['pcr.program' => $studentModel->program, 'pcr.structure_id' => $structureId])
+                            ->select('pcr.*', 'course.title')
+                            ->orderBy('pcr.level')->orderBy('pcr.semester')->orderBy('pcr.code')->get();
+                        $data['registerStudent'] = $studentModel;
+                    }
+                }
             }
 
             if ($session) {
-                $query->where('session', $session);
+                $query->where('scr.session', $session);
             }
 
             if ($semester) {
-                $query->where('semester', $semester);
+                $query->where('scr.semester', $semester);
             }
 
             if ($course_code) {
-                $query->where('code', 'like', '%' . $course_code . '%');
+                $query->where('scr.code', 'like', '%' . $course_code . '%');
+            }
+            if ($level !== '') {
+                $query->where('scr.level', $level);
+            }
+            if (in_array($type, ['CORE', 'ELECTIVE'], true)) {
+                $query->whereRaw('UPPER(scr.type) = ?', [$type]);
             }
 
+            $hasFilters = $username !== '' || $session !== '' || $semester !== '' || $course_code !== '' || $level !== '' || $type !== '';
+            $data['hasFilters'] = $hasFilters;
+
             // Only execute the query if at least one filter is provided
-            if ($username || $session || $semester || $course_code) {
-                // dd($query);
+            if ($hasFilters) {
+                $summaryQuery = clone $query;
                 $data['data'] = $query
-                    ->orderBy('session', 'DESC')
-                    ->orderBy('level', 'DESC')
-                    ->orderBy('semester', 'ASC')
-                    ->orderBy('code', 'ASC')
-                    ->orderBy('username', 'ASC')
+                    ->orderBy('scr.session', 'DESC')
+                    ->orderBy('scr.level', 'DESC')
+                    ->orderBy('scr.semester', 'ASC')
+                    ->orderBy('scr.code', 'ASC')
+                    ->orderBy('scr.username', 'ASC')
                     ->paginate(50)
                     ->appends([
                         'username' => $username,
                         'session' => $session,
                         'semester' => $semester,
-                        'course_code' => $course_code
+                        'course_code' => $course_code,
+                        'level' => $level,
+                        'type' => $type,
                     ]);
+                $data['summary'] = [
+                    'records' => $summaryQuery->count(),
+                    'units' => (float) $summaryQuery->sum('scr.unit'),
+                ];
             } else {
                 // Return empty paginated results if no filters
                 $data['data'] = DB::table($this->table)
@@ -121,6 +151,7 @@ class StudentCourseRegistrationController extends Controller
                     ->orderBy('semester', 'ASC')
                     ->whereRaw('1 = 0')  // This will always be false
                     ->paginate(50);
+                $data['summary'] = ['records' => 0, 'units' => 0];
             }
         }
 
