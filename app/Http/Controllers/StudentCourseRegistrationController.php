@@ -329,65 +329,31 @@ class StudentCourseRegistrationController extends Controller
             $req->input('courses', []),
             $req->input('desktop_courses', [])
         )));
-        $session = trim((string) $req->input('session', session('system_session')));
-        $username = trim((string) session('id_number'));
-        $student = Student::where('username', $username)->first();
-
-        if (!$student || $username === '') {
-            return redirect()->back()->with('error', 'We could not identify your student record. Please sign in again.');
-        }
-
-        if ($session === '' || !DB::table('session')->where('title', $session)->exists()) {
-            return redirect()->back()->with('error', 'Please choose a valid academic session before saving your registration.');
-        }
-
+        $session = $req->input('session', session('system_session'));
+        $username = session('id_number');
         if (empty($selectedCourses)) {
             return redirect()->back()->with('error', 'No courses selected!!!');
         }
 
-        $program = session('program') ?: $student->program;
-        // Use the curriculum selected at login first. The Student model also
-        // exposes a computed structure accessor for legacy records, so keep
-        // the raw database value as the next fallback.
-        $structureId = session('structure_id')
-            ?: $student->getRawOriginal('structure_id')
-            ?: $student->getAttribute('structure_id');
-        if (!$program || !$structureId) {
+        $courseQuery = DB::table('program_course_registration')
+            ->where('program', session('program'))
+            ->where('structure_id', session('structure_id'));
+        if (!session('structure_id')) {
             return redirect()->back()->with('error', 'Your academic curriculum has not been assigned yet. Please contact your department before registering courses.');
         }
-
-        $courseQuery = DB::table('program_course_registration')
-            ->where('program', $program)
-            ->where('structure_id', $structureId)
-            ->get();
-        $programmeCourses = $courseQuery->keyBy(function ($course) {
-            return strtoupper(trim((string) $course->code)) . '|' . (int) $course->level;
+        $programmeCourses = $courseQuery->get()->keyBy(function ($course) {
+            return $course->code . '|' . $course->level;
         });
 
         $rows = [];
-        $seen = [];
         foreach ($selectedCourses as $row) {
-            $courseJson = is_string($row) ? json_decode($row) : null;
+            $courseJson = json_decode($row);
             if (!$courseJson || empty($courseJson->code) || empty($courseJson->level)) {
                 continue;
             }
 
-            $code = strtoupper(trim((string) $courseJson->code));
-            $level = (int) $courseJson->level;
-            $course = $programmeCourses->get($code . '|' . $level);
+            $course = $programmeCourses->get($courseJson->code . '|' . $courseJson->level);
             if (!$course) {
-                continue;
-            }
-
-            // A student can register only courses in their assigned curriculum,
-            // and only at or below their current level (including DE foundation courses).
-            $currentLevel = (int) ($student->level ?: session('current_level') ?: 0);
-            if ($currentLevel > 0 && $level > $currentLevel) {
-                continue;
-            }
-
-            $uniqueKey = $code . '|' . $level;
-            if (isset($seen[$uniqueKey])) {
                 continue;
             }
 
@@ -397,15 +363,14 @@ class StudentCourseRegistrationController extends Controller
                 $semester = $course->semester;
             }
 
-            $seen[$uniqueKey] = true;
             $rows[] = [
                 'username' => $username,
                 'session' => $session,
                 'semester' => $semester,
                 'type' => $course->type,
-                'code' => $code,
+                'code' => $course->code,
                 'unit' => $course->unit,
-                'level' => $level,
+                'level' => $course->level,
             ];
         }
 
@@ -415,13 +380,9 @@ class StudentCourseRegistrationController extends Controller
 
         DB::transaction(function () use ($username, $session, $rows) {
             StudentCourseRegistration::where(['username' => $username, 'session' => $session])->delete();
-            $now = now();
-            $rows = array_map(function (array $row) use ($now) {
-                $row['created_at'] = $now;
-                $row['updated_at'] = $now;
-                return $row;
-            }, $rows);
-            StudentCourseRegistration::insert($rows);
+            foreach ($rows as $row) {
+                StudentCourseRegistration::create($row);
+            }
         });
 
         return redirect()->back()->with('success', $session . ' courses registered successfully.');

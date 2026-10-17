@@ -74,32 +74,23 @@
         ->orderBy('course.code')
         ->get();
 
-    $registeredCodes = $registeredCourses->pluck('code')->map(fn ($code) => strtoupper(trim((string) $code)))->all();
+    $registeredCodes = $registeredCourses->pluck('code')->all();
 
     // A failed course is carried into the current session by the academic system.
     // We keep the codes so they can be highlighted, but every earlier-level course
     // remains available for a student who needs to carry it over.
-    // Carryovers are based on the latest approved result, not simply on a
-    // course being below the student's current level. This keeps the page
-    // honest: earlier-level courses are options, while only an approved F is
-    // marked as a genuine carryover.
-    $carryoverCodes = collect();
-    if (Schema::hasTable('results')) {
-        $approvedResults = DB::table('results')
-            ->where('username', session('id_number'))
-            ->where('approve', 'vc')
-            ->whereNotNull('code')
-            ->orderByDesc('session')
-            ->orderByDesc('id')
-            ->get(['code', 'grade']);
-
-        $latestResultByCode = $approvedResults->groupBy(fn ($result) => strtoupper(trim((string) $result->code)))
-            ->map(fn ($rows) => $rows->first());
-        $carryoverCodes = $latestResultByCode
-            ->filter(fn ($result) => strtoupper(trim((string) ($result->grade ?? ''))) === 'F')
-            ->keys()
-            ->values();
-    }
+    $carryoverCodes = DB::table('student_course_registration as scr')
+        ->join('program_course_registration as pcr', function ($join) {
+            $join->on('scr.code', '=', 'pcr.code')
+                ->where('pcr.program', session('program'))
+                ->where('pcr.structure_id', session('structure_id'));
+        })
+        ->where('scr.username', session('id_number'))
+        ->where('scr.session', $selectedSession)
+        ->where('pcr.level', '<', $studentCurrentLevel)
+        ->pluck('scr.code')
+        ->unique()
+        ->values();
 
     $allCourseLevels = $availableCourses->groupBy('level');
     $currentLevelKey = $allCourseLevels->keys()->first(function ($level) use ($studentCurrentLevel) {
@@ -128,10 +119,6 @@
     })->sum(function ($level) use ($courseLevels) {
         return $courseLevels->get($level, collect())->count();
     });
-    $confirmedCarryoverCount = $availableCourses->filter(function ($course) use ($carryoverCodes, $studentCurrentLevel) {
-        return (int) $course->level < $studentCurrentLevel
-            && $carryoverCodes->contains(strtoupper(trim((string) $course->code)));
-    })->count();
     $sessions = DB::table('session')->orderBy('title', 'desc')->get();
 @endphp
 
@@ -157,11 +144,9 @@
                 <section id="registeredPanel" class="ug-panel" role="tabpanel">
                     <div class="ug-panel-heading">
                         <div>
-                            <div class="ug-heading-kicker"><i class="fas fa-circle-check"></i> {{ $selectedSession }}</div>
-                            <h2>Saved course registration</h2>
-                            <p>{{ $registeredCourses->count() ? 'These are the courses currently saved for this session. You can remove a course or change an eligible semester.' : 'Nothing is saved for this session yet. Choose your courses to begin.' }}</p>
+                            <h2>Courses saved for this session</h2>
+                            <p>{{ $registeredCourses->count() ? 'Review your saved courses for ' . $selectedSession . '. You can remove a course or change an eligible semester.' : 'Nothing has been saved for this session yet.' }}</p>
                         </div>
-                        <button type="button" class="ug-primary-button ug-heading-action" data-target="selectPanel"><i class="fas fa-plus"></i> Add courses</button>
                     </div>
 
                     @if ($registeredCourses->count())
@@ -183,7 +168,7 @@
                                                 @php $canChangeSemester = (string) ($course->change_semester ?? '0') === '1'; @endphp
                                                 <article class="ug-registered-card">
                                                     <label class="ug-registered-check" title="Select {{ $course->code }}"><input type="checkbox" class="registered-choice" value="{{ $course->id }}"><span></span></label>
-                                                    <div class="ug-registered-main"><strong class="ug-course-code">{{ $course->code }}</strong><small class="ug-course-name">{{ $course->title ?: 'Course title unavailable' }}</small><div class="ug-course-badges">@if ($carryoverCodes->contains(strtoupper(trim((string) $course->code))))<span class="ug-carryover-pill"><i class="fas fa-rotate-left"></i> Carryover</span>@endif @if ($studentEntryMode === 'DE' && (int) ($course->programme_de ?? 0) === 1 && (int) $course->level < $studentCurrentLevel)<span class="ug-foundation-pill">Direct-entry foundation</span>@endif</div></div>
+                                                    <div class="ug-registered-main"><strong class="ug-course-code">{{ $course->code }}</strong><small class="ug-course-name">{{ $course->title ?: 'Course title unavailable' }}</small>@if ($studentEntryMode === 'DE' && (int) ($course->programme_de ?? 0) === 1 && (int) $course->level < $studentCurrentLevel)<span class="ug-foundation-pill">Direct-entry foundation</span>@endif</div>
                                                     <div class="ug-course-actions">
                                                         @if ($canChangeSemester)
                                                             <form action="{{ url('/change-semester') }}" method="POST" class="ug-semester-form">
@@ -219,9 +204,8 @@
                 <section id="selectPanel" class="ug-panel" role="tabpanel" hidden>
                     <div class="ug-panel-heading">
                         <div>
-                            <div class="ug-heading-kicker"><i class="fas fa-book-open"></i> {{ $selectedSession }}</div>
-                            <h2>Select your courses</h2>
-                            <p>Open your level, tick the courses you will take, then save once. Your current level is shown first.</p>
+                            <h2>Build your registration</h2>
+                            <p>Choose the courses you will take this session. Courses marked “Choose semester” can be moved between semesters.</p>
                         </div>
                         <button type="button" class="ug-clear-button" id="clearCourses"><i class="fas fa-rotate-left"></i> Clear selection</button>
                     </div>
@@ -231,17 +215,10 @@
                             @csrf
                             <input type="hidden" name="session" value="{{ $selectedSession }}">
                             @if ($carryoverCount > 0)
-                                <div class="ug-carryover-note"><i class="fas fa-circle-exclamation"></i><span><strong>{{ $confirmedCarryoverCount ? $confirmedCarryoverCount . ' carryover course' . ($confirmedCarryoverCount === 1 ? '' : 's') . ' found.' : 'Earlier-level courses are available.' }}</strong> Your current level is shown first. If you still need a course from a lower level, open <strong>Earlier-level courses</strong> and select it here. Only courses you tick will be saved.</span></div>
+                                <div class="ug-carryover-note"><i class="fas fa-circle-exclamation"></i><span><strong>Earlier-level courses are available as carryovers.</strong> Your current level is shown first. If you still need a course from a lower level, select it under “Carryover courses” and register it here.</span></div>
                             @else
                                 <div class="ug-help-note"><i class="fas fa-circle-info"></i><span>Your current level is shown first. Select the courses you need, then click <strong>Save registration</strong>. You can review your choices before saving.</span></div>
                             @endif
-
-                            <div class="ug-selection-tools" role="search" aria-label="Find courses">
-                                <label class="ug-search-field" for="courseSearch"><i class="fas fa-search"></i><input id="courseSearch" type="search" placeholder="Search by course code or title" autocomplete="off"><span class="sr-only">Search by course code or title</span></label>
-                                <label class="ug-filter-field" for="courseTypeFilter"><span>Type</span><select id="courseTypeFilter"><option value="ALL">All types</option><option value="CORE">Core courses</option><option value="ELECTIVE">Elective courses</option></select></label>
-                                <label class="ug-filter-field" for="courseSemesterFilter"><span>Semester</span><select id="courseSemesterFilter"><option value="ALL">All semesters</option><option value="FIRST">First semester</option><option value="SECOND">Second semester</option><option value="THIRD">Third semester</option></select></label>
-                                <span class="ug-visible-count" id="visibleCourseCount" aria-live="polite">{{ $availableCourses->count() }} courses</span>
-                            </div>
 
                             @foreach ($levels as $level)
                                 @php
@@ -250,7 +227,7 @@
                                 @endphp
                                 <details class="ug-level-section {{ $isCurrentLevel ? 'current-level' : 'carryover-level' }}" {{ $isCurrentLevel ? 'open' : '' }}>
                                     <summary class="ug-level-heading">
-                                        <div><span class="ug-level-number">{{ $level }}</span><div><h3>{{ $isCurrentLevel ? 'Your current level' : (($studentEntryMode === 'DE' && (int) $level < $studentCurrentLevel) ? 'Foundation courses for direct entry' : 'Earlier-level courses') }}</h3><p>{{ $levelCourses->count() }} course{{ $levelCourses->count() === 1 ? '' : 's' }}{{ !$isCurrentLevel ? ' · select only if needed' : '' }}</p></div></div>
+                                        <div><span class="ug-level-number">{{ $level }}</span><div><h3>{{ $isCurrentLevel ? 'Your current level' : (($studentEntryMode === 'DE' && (int) $level < $studentCurrentLevel) ? 'Foundation courses for direct entry' : 'Carryover courses from ' . $level . ' level') }}</h3><p>{{ $levelCourses->count() }} course{{ $levelCourses->count() === 1 ? '' : 's' }} to choose from</p></div></div>
                                         <label class="ug-select-all"><input type="checkbox" class="select-level" data-level="{{ $level }}"><span>Select all</span></label>
                                     </summary>
                                     <div class="ug-course-grid">
@@ -260,14 +237,13 @@
                                                 $changeAllowed = (string) ($course->change_semester ?? '0') === '1';
                                                 $isDirectEntryFoundation = $studentEntryMode === 'DE' && (int) ($course->de ?? 0) === 1 && (int) $course->level < $studentCurrentLevel;
                                             @endphp
-                                            @php $isConfirmedCarryover = $carryoverCodes->contains(strtoupper(trim((string) $course->code))); @endphp
-                                            <article class="ug-select-card {{ in_array(strtoupper(trim((string) $course->code)), $registeredCodes, true) ? 'is-registered' : '' }}" data-course-card data-search="{{ strtolower(trim(($course->code ?? '') . ' ' . ($course->title ?? ''))) }}" data-course-type="{{ strtoupper($course->type) }}" data-course-semester="{{ strtoupper($course->semester) }}">
+                                            <article class="ug-select-card {{ in_array($course->code, $registeredCodes) ? 'is-registered' : '' }}">
                                                 <label class="ug-course-select-label">
-                                                    <input type="checkbox" class="course-choice" name="courses[]" value="{{ json_encode($courseData) }}" data-level="{{ $level }}" data-code="{{ $course->code }}" data-unit="{{ $course->unit }}" {{ in_array(strtoupper(trim((string) $course->code)), $registeredCodes, true) ? 'checked' : '' }}>
+                                                    <input type="checkbox" class="course-choice" name="courses[]" value="{{ json_encode($courseData) }}" data-level="{{ $level }}" data-code="{{ $course->code }}" data-unit="{{ $course->unit }}" {{ in_array($course->code, $registeredCodes) ? 'checked' : '' }}>
                                                     <span class="ug-checkmark"><i class="fas fa-check"></i></span>
                                                     <span class="ug-course-main"><strong>{{ $course->code }}</strong><span>{{ $course->title ?: 'Course title unavailable' }}</span></span>
                                                 </label>
-                                                <div class="ug-select-meta"><span class="ug-unit-pill">{{ $course->unit }} unit{{ (int) $course->unit === 1 ? '' : 's' }}</span><span class="ug-type {{ strtoupper($course->type) === 'CORE' ? 'core' : 'elective' }}">{{ ucfirst(strtolower($course->type)) }}</span>@if ($isConfirmedCarryover)<span class="ug-carryover-pill"><i class="fas fa-rotate-left"></i> Carryover</span>@endif @if ($isDirectEntryFoundation)<span class="ug-foundation-pill">Direct-entry foundation</span>@endif</div>
+                                                <div class="ug-select-meta"><span class="ug-unit-pill">{{ $course->unit }} unit{{ (int) $course->unit === 1 ? '' : 's' }}</span><span class="ug-type {{ strtoupper($course->type) === 'CORE' ? 'core' : 'elective' }}">{{ ucfirst(strtolower($course->type)) }}</span>@if ($isDirectEntryFoundation)<span class="ug-foundation-pill">Direct-entry foundation</span>@endif</div>
                                                 @if (!empty($course->prerequisites))
                                                     <div class="ug-prerequisite-note"><i class="fas fa-link"></i><span><strong>Prerequisite:</strong> {{ $course->prerequisites }}</span></div>
                                                 @endif
@@ -284,9 +260,8 @@
 
                             <div class="ug-save-bar">
                                 <div><strong><span id="saveCount">0</span> course<span id="savePlural">s</span> selected</strong><span><span id="saveUnits">0</span> total units</span></div>
-                                <button type="submit" class="ug-primary-button" id="saveRegistration"><i class="fas fa-save"></i><span>Save registration</span></button>
+                                <button type="submit" class="ug-primary-button" id="saveRegistration"><i class="fas fa-save"></i> Save registration</button>
                             </div>
-                            <div class="ug-no-course-match" id="noCourseMatch" hidden><i class="fas fa-search"></i><strong>No courses match your search.</strong><span>Try another code, title, type or semester.</span></div>
                         </form>
                     @else
                         <div class="ug-empty-state"><span><i class="fas fa-book-open"></i></span><h3>No courses are available</h3><p>Please contact your department if you believe this is incorrect.</p></div>
@@ -324,10 +299,6 @@
 <style>
     .ug-foundation-pill{font-size:.68rem;background:#fff4df;color:#996000;border:1px solid #f2d79f;border-radius:20px;padding:4px 8px;font-weight:700}
 </style>
-<style>
-    .ug-heading-kicker{display:inline-flex;align-items:center;gap:6px;color:#3576ae;font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-bottom:5px}.ug-heading-kicker i{color:#3ea1e4}.ug-heading-action{font-size:.78rem;padding:9px 12px}.ug-course-badges{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:5px}.ug-carryover-pill{display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:3px 7px;background:#fff2d8;border:1px solid #f2d39a;color:#96610b;font-size:.62rem;font-weight:800;line-height:1.1}.ug-carryover-pill i{font-size:.58rem}.ug-selection-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-5px 0 16px;padding:10px;background:#f7fafc;border:1px solid #e3ebf3;border-radius:11px}.ug-search-field{display:flex;align-items:center;gap:8px;min-width:210px;flex:1;border:1px solid #d7e2ec;border-radius:8px;background:#fff;padding:0 10px;color:#7a91a7}.ug-search-field i{font-size:.77rem}.ug-search-field input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#264968;padding:8px 0;font-size:.76rem}.ug-filter-field{display:flex;align-items:center;gap:6px;color:#71869b;font-size:.68rem;font-weight:700}.ug-filter-field select{border:1px solid #d7e2ec;border-radius:8px;background:#fff;color:#315a7c;padding:7px 8px;font-size:.72rem;font-weight:700}.ug-visible-count{color:#72879a;font-size:.69rem;font-weight:700;margin-left:auto;white-space:nowrap}.ug-select-card.is-filtered-out{display:none}.ug-level-section.is-filtered-out{display:none}.ug-no-course-match{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin:10px 0 0;padding:22px 12px;border:1px dashed #cddce9;border-radius:10px;background:#fbfdff;color:#71869b;font-size:.78rem}.ug-no-course-match i{color:#5895c2}.ug-no-course-match strong{color:#40617d}.ug-save-bar .ug-primary-button:disabled{opacity:.62;cursor:not-allowed;box-shadow:none}.ug-panel-heading h2{letter-spacing:-.01em}.ug-level-section.current-level{border-top:3px solid #3ea1e4}.ug-level-section.carryover-level{border-top:3px solid #edbd57}.ug-select-card:focus-within{outline:2px solid #9bc9e8;outline-offset:1px}.ug-course-select-label input:focus-visible+.ug-checkmark{outline:2px solid #1769ce;outline-offset:2px}
-    @media (max-width:767px){.ug-panel-heading{position:relative}.ug-heading-action{width:100%;margin-top:12px}.ug-selection-tools{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:9px}.ug-search-field{grid-column:1/-1;min-width:0}.ug-filter-field{display:flex;flex-direction:column;align-items:stretch;gap:3px}.ug-filter-field select{width:100%;min-height:34px}.ug-visible-count{grid-column:1/-1;margin:0;text-align:right}.ug-course-badges{margin-top:4px}.ug-save-bar{padding:10px;gap:8px}.ug-save-bar>div{min-width:0}.ug-save-bar strong{font-size:.8rem}.ug-save-bar>div>span{font-size:.68rem}.ug-save-bar .ug-primary-button{min-width:145px}.ug-save-bar .ug-primary-button span{display:inline}.ug-no-course-match{font-size:.73rem;text-align:center}}
-</style>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -340,11 +311,6 @@
         const saveUnits = document.getElementById('saveUnits');
         const savePlural = document.getElementById('savePlural');
         const levelSections = Array.from(document.querySelectorAll('.ug-level-section'));
-        const courseSearch = document.getElementById('courseSearch');
-        const courseTypeFilter = document.getElementById('courseTypeFilter');
-        const courseSemesterFilter = document.getElementById('courseSemesterFilter');
-        const visibleCourseCount = document.getElementById('visibleCourseCount');
-        const noCourseMatch = document.getElementById('noCourseMatch');
 
         // Keep the level list easy to scan: opening one level closes the others.
         levelSections.forEach(section => {
@@ -367,48 +333,6 @@
                 const checkbox = card.querySelector('.course-choice');
                 card.classList.toggle('is-selected', checkbox && checkbox.checked);
             });
-            document.querySelectorAll('.select-level').forEach(master => {
-                const levelChoices = choices.filter(input => input.dataset.level === master.dataset.level);
-                const levelSelected = levelChoices.filter(input => input.checked).length;
-                master.checked = levelChoices.length > 0 && levelSelected === levelChoices.length;
-                master.indeterminate = levelSelected > 0 && levelSelected < levelChoices.length;
-            });
-        }
-
-        function updateCourseFilter() {
-            const search = (courseSearch?.value || '').trim().toLowerCase();
-            const type = courseTypeFilter?.value || 'ALL';
-            const semester = courseSemesterFilter?.value || 'ALL';
-            let visible = 0;
-            let firstMatchingSection = null;
-
-            document.querySelectorAll('[data-course-card]').forEach(card => {
-                const matchesSearch = !search || (card.dataset.search || '').includes(search);
-                const matchesType = type === 'ALL' || card.dataset.courseType === type;
-                const matchesSemester = semester === 'ALL' || card.dataset.courseSemester === semester;
-                const show = matchesSearch && matchesType && matchesSemester;
-                card.classList.toggle('is-filtered-out', !show);
-                if (show) visible += 1;
-            });
-
-            levelSections.forEach(section => {
-                const sectionVisible = section.querySelectorAll('[data-course-card]:not(.is-filtered-out)').length;
-                section.classList.toggle('is-filtered-out', sectionVisible === 0);
-                if (sectionVisible && search && !firstMatchingSection) firstMatchingSection = section;
-            });
-            if (search && firstMatchingSection) {
-                levelSections.forEach(section => { section.open = section === firstMatchingSection; });
-            }
-            if (visibleCourseCount) visibleCourseCount.textContent = `${visible} course${visible === 1 ? '' : 's'} shown`;
-            if (noCourseMatch) noCourseMatch.hidden = visible !== 0;
-        }
-
-        function notifySelection(message) {
-            if (typeof window.swal === 'function') {
-                window.swal('Choose a course', message, 'info');
-            } else {
-                window.alert(message);
-            }
         }
 
         function showPanel(target) {
@@ -430,16 +354,6 @@
                 updateSummary();
             });
         });
-        [courseSearch, courseTypeFilter, courseSemesterFilter].forEach(control => {
-            control?.addEventListener('input', updateCourseFilter);
-            control?.addEventListener('change', updateCourseFilter);
-        });
-        courseSearch?.addEventListener('keydown', event => {
-            if (event.key === 'Escape') {
-                courseSearch.value = '';
-                updateCourseFilter();
-            }
-        });
         document.getElementById('clearCourses')?.addEventListener('click', function () {
             choices.forEach(input => input.checked = false);
             document.querySelectorAll('.select-level').forEach(input => { input.checked = false; input.indeterminate = false; });
@@ -450,7 +364,7 @@
             const selected = choices.filter(input => input.checked);
             if (!selected.length) {
                 event.preventDefault();
-                notifySelection('Select at least one course before saving your registration.');
+                alert('Please select at least one course before saving your registration.');
                 return;
             }
             selected.forEach(input => {
@@ -462,13 +376,7 @@
                 }
             });
             const saveButton = document.getElementById('saveRegistration');
-            if (saveButton) { saveButton.disabled = true; saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Saving registration…</span>'; }
-        });
-        document.querySelectorAll('.ug-semester-form').forEach(form => {
-            form.addEventListener('submit', function () {
-                const button = this.querySelector('select');
-                if (button) button.disabled = true;
-            });
+            if (saveButton) { saveButton.disabled = true; saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; }
         });
         window.removeRegisteredCourse = function (id, code) {
             if (!confirm(`Remove ${code} from your registration?`)) return;
@@ -519,6 +427,5 @@
         });
         updateRegisteredSelection();
         updateSummary();
-        updateCourseFilter();
     });
 </script>
