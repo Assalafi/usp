@@ -36,54 +36,114 @@ class ResultsController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
-        $session = \App\Http\Controllers\SystemSettingsController::getResultsSession();
-        if ($req->has('_token')) {
-            $data = $req->all();
-            unset($data['_token']);
-            unset($data['faculty']);
-            unset($data['department']);
-            unset($data['program']);
-            $filteredData = array_filter($data);
-            $query = DB::table($this->table);
-            foreach ($filteredData as $key => $value) {
-                $query->where($key, $value);
-            }
-            $data['data'] = $query->get();
-        } else {
-            $data['data'] = DB::table($this->table)
-                ->where(['session' => 'none'])
-                ->get();
+        $isStaff = session('accType') === 'Staff';
+        $resultsSession = \App\Http\Controllers\SystemSettingsController::getResultsSession();
+
+        $filters = [
+            'faculty' => trim((string) $req->query('faculty', '')),
+            'department' => trim((string) $req->query('department', '')),
+            'program' => trim((string) $req->query('program', '')),
+            'code' => trim((string) $req->query('code', '')),
+            'session' => trim((string) $req->query('session', '')),
+            'semester' => trim((string) $req->query('semester', '')),
+            'level' => trim((string) $req->query('level', '')),
+            'approve' => trim((string) $req->query('approve', '')),
+            'username' => trim((string) $req->query('username', '')),
+        ];
+        $filters = array_map(static fn ($value) => $value === 'all' ? '' : $value, $filters);
+        $hasFilters = collect($filters)->contains(static fn ($value) => $value !== '');
+
+        $perPage = (int) $req->query('per_page', 50);
+        $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 50;
+
+        $query = DB::table('results as r')
+            ->select([
+                'r.id', 'r.username', 'r.code', 'r.ca', 'r.exam', 'r.total',
+                'r.grade', 'r.session', 'r.semester', 'r.approve', 'r.lecturer',
+                'r.corrigenda', 'r.program', 'r.department', 'r.unit', 'r.point',
+                'r.remark',
+            ]);
+
+        if ($filters['faculty'] !== '') {
+            $query->join('program as filter_program', 'filter_program.code', '=', 'r.program')
+                ->where('filter_program.faculty', $filters['faculty']);
         }
-        $data['faculty'] = DB::table('faculty')
-            ->where(['status' => '1'])
+
+        foreach (['department', 'program', 'code', 'session', 'semester', 'level', 'approve'] as $column) {
+            if ($filters[$column] !== '') {
+                $query->where('r.' . $column, $filters[$column]);
+            }
+        }
+        if ($filters['username'] !== '') {
+            $query->where('r.username', 'like', '%' . $filters['username'] . '%');
+        }
+
+        if ($isStaff) {
+            $assignedCourses = DB::table('course_allocation')
+                ->where(['username' => session('username'), 'type' => 'MAIN'])
+                ->pluck('course');
+            if ($assignedCourses->isEmpty()) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('r.code', $assignedCourses);
+            }
+        }
+
+        // Do not load the entire results table when the page is first opened.
+        // A filter is required before rows are read, and all filtered results
+        // are loaded with a bounded, server-side paginator.
+        if (!$hasFilters) {
+            $query->whereRaw('1 = 0');
+        }
+        $data['data'] = $query
+            ->orderByDesc('r.id')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $data['faculty'] = Cache::remember('results.filter.faculties', 600, static fn () => DB::table('faculty')
+            ->where('status', '1')
             ->select('code', 'title')
             ->orderBy('title', 'ASC')
-            ->get();
-        $data['session'] = DB::table('session')
+            ->get());
+        $data['session'] = Cache::remember('results.filter.sessions', 600, static fn () => DB::table('session')
             ->select('title')
             ->orderBy('title', 'ASC')
-            ->get();
-        $data['resultLevels'] = DB::table('results')
+            ->get());
+        $data['resultLevels'] = Cache::remember('results.filter.levels', 600, static fn () => DB::table('course')
             ->whereNotNull('level')
             ->where('level', '!=', '')
             ->select('level')
             ->distinct()
             ->orderByRaw("CASE WHEN level REGEXP '^[0-9]+$' THEN CAST(level AS UNSIGNED) ELSE 999999 END")
             ->orderBy('level', 'ASC')
-            ->pluck('level');
+            ->pluck('level'));
+        $data['filterDepartments'] = $filters['faculty'] !== ''
+            ? DB::table('department')->where('faculty', $filters['faculty'])->select('code', 'title')->orderBy('title')->get()
+            : collect();
+        $data['filterPrograms'] = $filters['department'] !== ''
+            ? DB::table('program')->where('department', $filters['department'])->select('code', 'title')->orderBy('title')->get()
+            : collect();
+        $data['selectedCourse'] = $filters['code'] !== ''
+            ? DB::table('course')->where('code', $filters['code'])->select('code', 'title', 'unit')->first()
+            : null;
         $data['lecturerCourses'] = DB::table('course_allocation')
             ->where(['username' => session('username'), 'type' => 'MAIN'])
             ->select('course')
             ->groupBy('course')
             ->orderBy('course', 'ASC')
             ->get();
-        $data['myUploads'] = DB::table('results')
-            ->where(['lecturer' => session('username')])
-            ->select('code')
-            ->distinct('code')
-            ->orderBy('code', 'ASC')
+        // The delete dialog only needs courses assigned to the lecturer. Do
+        // not scan the million-row results table just to build this list.
+        $data['myUploads'] = DB::table('course_allocation')
+            ->where(['username' => session('username'), 'type' => 'MAIN'])
+            ->select('course as code')
+            ->groupBy('course')
+            ->orderBy('course', 'ASC')
             ->get();
-        $data['sessions'] = $session;
+        $data['sessions'] = $resultsSession;
+        $data['filters'] = $filters;
+        $data['hasResultFilters'] = $hasFilters;
+        $data['perPage'] = $perPage;
         $data['page'] = $this->page;
         $data['title'] = $this->title;
         return view('main', $data);

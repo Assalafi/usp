@@ -1,144 +1,55 @@
+<style>
+    .results-page-card{border:0;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(34,61,92,.08)}
+    .results-page-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;background:linear-gradient(135deg,#0b78b7,#3ea1e4);color:#fff;padding:24px 26px;border:0}
+    .results-page-heading h5{margin:4px 0 4px;font-size:1.35rem;font-weight:700;color:#fff}.results-page-heading p{margin:0;color:rgba(255,255,255,.82);font-size:.83rem}.results-page-kicker{font-size:.68rem;letter-spacing:.13em;font-weight:700;color:rgba(255,255,255,.78)}
+    .results-page-count{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:9px 13px;font-size:.74rem;white-space:nowrap}
+    .results-page-actions{display:flex;flex-wrap:wrap;gap:9px;padding:18px 26px;border-bottom:1px solid #edf1f5}.results-page-actions .btn{border-radius:9px;font-size:.77rem;font-weight:600}.results-delete-action{margin-left:auto}
+    .results-filter-block{padding:19px 26px 23px;background:#fbfdff}.results-filter-intro{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}.results-filter-intro strong{display:block;color:#253b53;font-size:.91rem}.results-filter-intro small{display:block;color:#8291a3;margin-top:3px}.results-clear-filter{font-size:.75rem;color:#267eaf;text-decoration:none;font-weight:600}.results-filter-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}.results-filter-field label{display:block;color:#53677d;font-size:.72rem;font-weight:700;margin:0 0 6px}.results-filter-field .form-control{height:40px;border-radius:9px;border:1px solid #dce6ef;font-size:.78rem;background:#fff}.results-filter-submit{display:flex;align-items:end}.results-filter-submit .btn{height:40px;width:100%;border-radius:9px;font-size:.77rem;font-weight:700}.results-empty-state{text-align:center!important;padding:58px 15px!important;color:#8a99a9}.results-empty-state i{display:block;font-size:2rem;color:#9ac6df;margin-bottom:12px}.results-empty-state strong,.results-empty-state span{display:block}.results-empty-state strong{color:#42566d;font-size:.9rem}.results-empty-state span{font-size:.78rem;margin-top:5px}.results-status{display:inline-flex;align-items:center;white-space:nowrap;border-radius:999px;padding:5px 9px;font-size:.68rem;font-weight:700;background:#eef2f6;color:#657589}.results-status.submitted{background:#fff3d9;color:#946500}.results-status.approved{background:#e4f6ec;color:#197447}.results-status.final{background:#dff1ff;color:#14618a}.results-pagination-wrap{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-top:18px;padding-top:15px;border-top:1px solid #edf1f5}.results-pagination-summary{font-size:.76rem;color:#7c8c9e}.results-pagination-wrap .pagination{margin:0}.results-pagination-wrap .page-link{border-radius:7px!important;margin-left:4px;border:1px solid #dbe6ef;color:#347da5;font-size:.75rem}.results-pagination-wrap .page-item.active .page-link{background:#3ea1e4;border-color:#3ea1e4;color:#fff}
+    @media (max-width:992px){.results-filter-form{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media (max-width:680px){.results-page-heading{align-items:flex-start;flex-direction:column;padding:20px}.results-page-count{font-size:.7rem}.results-page-actions,.results-filter-block{padding-left:17px;padding-right:17px}.results-page-actions .btn{flex:1 1 calc(50% - 9px);min-height:39px}.results-delete-action{margin-left:0}.results-filter-form{grid-template-columns:1fr;gap:11px}.results-filter-submit{margin-top:3px}.results-pagination-wrap{align-items:flex-start;flex-direction:column}.results-pagination-wrap>div:last-child{max-width:100%;overflow:auto}.results-pagination-wrap .pagination{flex-wrap:nowrap}}
+</style>
 <!-- Start Content-->
 <div class="main-body">
     <div class="page-wrapper">
         <!-- [ Main Content ] start -->
         <div class="row">
             <div class="col-sm-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>{{ strtoupper($page) }}</h5>
+                <div class="card results-page-card">
+                    <div class="card-header results-page-heading">
+                        <div>
+                            <span class="results-page-kicker">ACADEMIC RECORDS</span>
+                            <h5>Course results</h5>
+                            <p>Filter the records you need, then review or manage them safely.</p>
+                        </div>
+                        <span class="results-page-count"><i class="fas fa-database"></i> {{ $hasResultFilters ? number_format($data->total()) . ' matching' : 'Choose filters to begin' }}</span>
                     </div>
-                    <div class="card-block">
-                        {{-- <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#create"><i class="fas fa-plus"></i> {{ ('Add New') }}</a> --}}
-
-                        <a href="{{ url('uploads/result template.xlsx') }}" class="btn btn-primary"
-                            download="result template.xlsx"><i class="fas fa-download"></i> Download Template</a>
-                        @if (session('accType') == 'Staff')
-                            <a href="{{ route('results.upload.page') }}" class="btn btn-dark"><i class="fas fa-upload"></i> Upload results</a>
-                            <button href="#" class="btn btn-secondary" data-bs-toggle="modal"
-                                data-bs-target="#exportStudent"><i class="fas fa-download"></i>
-                                {{ 'Registered Students' }}</button>
-                        @else
-                            <a href="{{ route('results.upload.page') }}" class="btn btn-dark"><i class="fas fa-upload"></i> Upload results</a>
-                            <button href="#" class="btn btn-secondary" data-bs-toggle="modal"
-                                data-bs-target="#exportStudent"><i class="fas fa-download"></i>
-                                {{ 'Registered Students' }}</button>
-                        @endif
-
+                    <div class="card-block results-page-actions">
+                        <a href="{{ url('uploads/result template.xlsx') }}" class="btn btn-primary" download="result template.xlsx"><i class="fas fa-download"></i> Download template</a>
+                        <a href="{{ route('results.upload.page') }}" class="btn btn-dark"><i class="fas fa-upload"></i> Upload results</a>
+                        <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#exportStudent"><i class="fas fa-user-graduate"></i> Registered students</button>
                         @if (session('accType') == 'Admin')
-                            <button type="button" class="btn btn-success" data-bs-toggle="modal"
-                                data-bs-target="#exportResults">
-                                <i class="fas fa-file-excel"></i> Export approved results
-                            </button>
+                            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#exportResults"><i class="fas fa-file-excel"></i> Export approved</button>
                         @endif
-
-                        <button href="#" class="btn btn-danger" style="float: right" data-bs-toggle="modal"
-                            data-bs-target="#deleteResults"><i class="fas fa-trash"></i> {{ 'Delete Result' }}</button>
+                        <button type="button" class="btn btn-outline-danger results-delete-action" data-bs-toggle="modal" data-bs-target="#deleteResults"><i class="fas fa-trash"></i> Delete results</button>
                     </div>
-                    @if (session('accType') == 'Staff')
-
-                        <div class="card-block">
-                            <form class="needs-validation" novalidate method="GET" action="#">
-                                @csrf
-                                <div class="row gx-2">
-                                    <div class="form-group col-md-3">
-                                        <label for="coursef">Course</label>
-                                        <select class="form-control" id="coursef" lang="f" name="code"
-                                            required>
-                                            <option value="">Select Program First</option>
-                                            @foreach ($lecturerCourses as $row)
-                                                <option value="{{ $row->course }}">{{ $row->course }}</option>
-                                            @endforeach
-                                        </select>
-                                        <div class="invalid-feedback"> You must select Course </div>
-                                    </div>
-                                    <div class="form-group col-md-3">
-                                        <label for="session">Session</label>
-                                        <select class="form-control" id="session" name="session" required>
-                                            <option value="{{ $sessions }}">Select Option</option>
-                                            @foreach ($session as $ses)
-                                                <option value="{{ $ses->title }}">{{ $ses->title }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="form-group col-md-3">
-                                        <button type="submit" class="btn btn-info btn-filter"><i
-                                                class="fas fa-search"></i> {{ 'Filter' }}</button>
-                                    </div>
-                                    @if (isset($_GET['code']))
-                                        <div class="form-group col-md-3">
-                                            <a href="/print-result-pdf/{{ $_GET['code'] }}/{{ $_GET['session'] }}"
-                                                type="submit" class="btn btn-info btn-filter"><i
-                                                    class="fas fa-print"></i> Preview</a>
-                                        </div>
-                                    @endif
-
-                                </div>
-                            </form>
-                        </div>
-                    @else
-                        <div class="card-block">
-                            <form class="needs-validation" novalidate method="GET" action="#">
-                                @csrf
-                                <div class="row gx-2">
-                                    <div class="form-group col-md-2">
-                                        <label for="facultyf">Faculty <span>*</span></label>
-                                        <select class="form-control faculty" lang="f" name="faculty"
-                                            id="facultyf">
-                                            <option value="">Select Option</option>
-                                            @foreach ($faculty as $roww)
-                                                <option value="{{ $roww->code }}">{{ $roww->title }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="form-group col-md-2">
-                                        <label for="departmentf">Department</label>
-                                        <select class="form-control department" lang="f" id="departmentf"
-                                            name="department">
-                                            <option value="">Select Faculty First</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group col-md-2">
-                                        <label for="programf">Program</label>
-                                        <select class="form-control program" id="programf" lang="f"
-                                            name="program">
-                                            <option value="">Select Department First</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group col-md-2">
-                                        <label for="coursef">Course</label>
-                                        <select class="form-control" id="coursef" lang="f" name="code"
-                                            required>
-                                            <option value="">Select Program First</option>
-                                        </select>
-                                        <div class="invalid-feedback"> You must select Course </div>
-                                    </div>
-                                    <div class="form-group col-md-2">
-                                        <label for="session">Session</label>
-                                        <select class="form-control" id="session" name="session" required>
-                                            <option value="{{ $sessions }}">Select Option</option>
-                                            @foreach ($session as $ses)
-                                                <option value="{{ $ses->title }}">{{ $ses->title }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="form-group col-md-2">
-                                        <button type="submit" class="btn btn-info btn-filter"><i
-                                                class="fas fa-search"></i> {{ 'Filter' }}</button>
-                                    </div>
-                                    @if (isset($_GET['code']))
-                                        <div class="form-group col-md-2">
-                                            <a href="/print-result-pdf/{{ $_GET['code'] }}/{{ $_GET['session'] }}"
-                                                type="submit" class="btn btn-info btn-filter"><i
-                                                    class="fas fa-print"></i> Preview</a>
-                                        </div>
-                                    @endif
-
-                                </div>
-                            </form>
-                        </div>
-
-                    @endif
+                    <div class="card-block results-filter-block">
+                        <div class="results-filter-intro"><div><strong><i class="fas fa-filter"></i> Find results</strong><small>Use one or more filters. Nothing is loaded until you search.</small></div><a href="{{ url('/results') }}" class="results-clear-filter">Clear all</a></div>
+                        <form class="results-filter-form" method="GET" action="{{ url('/results') }}">
+                            @if (session('accType') !== 'Staff')
+                                <div class="results-filter-field"><label for="facultyf">Faculty</label><select class="form-control faculty" lang="f" name="faculty" id="facultyf"><option value="">All faculties</option>@foreach ($faculty as $roww)<option value="{{ $roww->code }}" {{ ($filters['faculty'] ?? '') === $roww->code ? 'selected' : '' }}>{{ $roww->title }}</option>@endforeach</select></div>
+                                <div class="results-filter-field"><label for="departmentf">Department</label><select class="form-control department" lang="f" id="departmentf" name="department"><option value="">All departments</option>@foreach (($filterDepartments ?? collect()) as $departmentOption)<option value="{{ $departmentOption->code }}" {{ ($filters['department'] ?? '') === $departmentOption->code ? 'selected' : '' }}>{{ $departmentOption->title }}</option>@endforeach</select></div>
+                                <div class="results-filter-field"><label for="programf">Programme</label><select class="form-control program" id="programf" lang="f" name="program"><option value="">All programmes</option>@foreach (($filterPrograms ?? collect()) as $programOption)<option value="{{ $programOption->code }}" {{ ($filters['program'] ?? '') === $programOption->code ? 'selected' : '' }}>{{ $programOption->title }}</option>@endforeach</select></div>
+                            @endif
+                            <div class="results-filter-field"><label for="coursef">Course</label><select class="form-control" id="coursef" lang="f" name="code"><option value="">All courses</option>@if (!empty($selectedCourse))<option value="{{ $selectedCourse->code }}" selected>{{ $selectedCourse->code }} — {{ $selectedCourse->title }}</option>@elseif(session('accType') === 'Staff')@foreach ($lecturerCourses as $row)<option value="{{ $row->course }}" {{ ($filters['code'] ?? '') === $row->course ? 'selected' : '' }}>{{ $row->course }}</option>@endforeach@else<option value="" disabled>Select a programme to choose a course</option>@endif</select></div>
+                            <div class="results-filter-field"><label for="resultsFilterSession">Academic session</label><select class="form-control" id="resultsFilterSession" name="session"><option value="">All sessions</option>@foreach ($session as $ses)<option value="{{ $ses->title }}" {{ ($filters['session'] ?? '') === $ses->title ? 'selected' : '' }}>{{ $ses->title }}{{ (string) $ses->title === (string) ($sessions ?? '') ? ' — current' : '' }}</option>@endforeach</select></div>
+                            <div class="results-filter-field"><label for="resultsFilterSemester">Semester</label><select class="form-control" id="resultsFilterSemester" name="semester"><option value="">All semesters</option><option value="FIRST" {{ ($filters['semester'] ?? '') === 'FIRST' ? 'selected' : '' }}>First semester</option><option value="SECOND" {{ ($filters['semester'] ?? '') === 'SECOND' ? 'selected' : '' }}>Second semester</option><option value="THIRD" {{ ($filters['semester'] ?? '') === 'THIRD' ? 'selected' : '' }}>Third semester</option><option value="RESIT" {{ ($filters['semester'] ?? '') === 'RESIT' ? 'selected' : '' }}>Resit</option></select></div>
+                            <div class="results-filter-field"><label for="resultsFilterLevel">Level</label><select class="form-control" id="resultsFilterLevel" name="level"><option value="">All levels</option>@foreach (($resultLevels ?? collect()) as $resultLevel)<option value="{{ $resultLevel }}" {{ ($filters['level'] ?? '') === (string) $resultLevel ? 'selected' : '' }}>{{ $resultLevel }} level</option>@endforeach</select></div>
+                            @if (session('accType') === 'Admin')<div class="results-filter-field"><label for="resultsFilterApproval">Approval stage</label><select class="form-control" id="resultsFilterApproval" name="approve"><option value="">All stages</option><option value="system" {{ ($filters['approve'] ?? '') === 'system' ? 'selected' : '' }}>Lecturer submitted</option><option value="hod" {{ ($filters['approve'] ?? '') === 'hod' ? 'selected' : '' }}>Department approved</option><option value="dean" {{ ($filters['approve'] ?? '') === 'dean' ? 'selected' : '' }}>Faculty approved</option><option value="cs" {{ ($filters['approve'] ?? '') === 'cs' ? 'selected' : '' }}>Course System approved</option><option value="senate" {{ ($filters['approve'] ?? '') === 'senate' ? 'selected' : '' }}>Senate approved</option><option value="vc" {{ ($filters['approve'] ?? '') === 'vc' ? 'selected' : '' }}>Vice-Chancellor approved</option></select></div>@endif
+                            <div class="results-filter-field"><label for="resultsFilterStudent">Student ID</label><input class="form-control" id="resultsFilterStudent" name="username" value="{{ $filters['username'] ?? '' }}" placeholder="Search student ID"></div>
+                            <div class="results-filter-field"><label for="resultsFilterPageSize">Rows per page</label><select class="form-control" id="resultsFilterPageSize" name="per_page"><option value="25" {{ (int) ($perPage ?? 50) === 25 ? 'selected' : '' }}>25 rows</option><option value="50" {{ (int) ($perPage ?? 50) === 50 ? 'selected' : '' }}>50 rows</option><option value="100" {{ (int) ($perPage ?? 50) === 100 ? 'selected' : '' }}>100 rows</option></select></div>
+                            <div class="results-filter-submit"><button type="submit" class="btn btn-info"><i class="fas fa-search"></i> Search results</button></div>
+                        </form>
+                    </div>
                 </div>
             </div>
 
@@ -147,7 +58,7 @@
                     <div class="card-block">
                         <!-- [ Data table ] start -->
                         <div class="table-responsive">
-                            <table id="export-table" class="display table nowrap table-striped table-hover"
+                            <table id="results-table" class="table table-striped table-hover align-middle"
                                 style="width:100%">
                                 <thead>
                                     <tr>
@@ -160,14 +71,15 @@
                                         <th>{{ 'GRADE' }}</th>
                                         <th>{{ 'SESSION' }}</th>
                                         <th>{{ 'SEMESTER' }}</th>
+                                        <th>{{ 'STATUS' }}</th>
                                         <th>{{ 'ACTION' }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @php
-                                        $sn = 1;
+                                        $sn = $data->firstItem() ?? 1;
                                     @endphp
-                                    @foreach ($data as $row)
+                                    @forelse ($data as $row)
                                         <tr>
                                             <td>{{ $sn++ }}</td>
                                             <td>{{ $row->username }}</td>
@@ -178,6 +90,20 @@
                                             <td>{{ $row->grade }}</td>
                                             <td>{{ $row->session }}</td>
                                             <td>{{ $row->semester }}</td>
+                                            @php
+                                                $approvalLabels = [
+                                                    'system' => 'Lecturer submitted',
+                                                    'hod' => 'Department approved',
+                                                    'dean' => 'Faculty approved',
+                                                    'cs' => 'Course System approved',
+                                                    'senate' => 'Senate approved',
+                                                    'vc' => 'Vice-Chancellor approved',
+                                                ];
+                                                $approval = strtolower((string) ($row->approve ?? ''));
+                                                $approvalLabel = $approvalLabels[$approval] ?? 'Not started';
+                                                $approvalClass = $approval === 'vc' ? 'final' : (in_array($approval, ['hod', 'dean', 'cs', 'senate'], true) ? 'approved' : 'submitted');
+                                            @endphp
+                                            <td><span class="results-status {{ $approvalClass }}">{{ $approvalLabel }}</span></td>
                                             <td>
                                                 {{-- @if ((session('appointment') == 'HOD' || session('accType') == 'Admin') && $row->corrigenda == 0)
                                                     <a href="#" class="btn btn-icon btn-info btn-sm"
@@ -362,9 +288,23 @@
                                                 </div>
                                             </div>
                                         </div>
-                                    @endforeach
+                                    @empty
+                                        <tr>
+                                            <td colspan="11" class="results-empty-state">
+                                                <i class="fas {{ $hasResultFilters ? 'fa-magnifying-glass' : 'fa-filter' }}"></i>
+                                                <strong>{{ $hasResultFilters ? 'No results found' : 'Choose filters to view results' }}</strong>
+                                                <span>{{ $hasResultFilters ? 'Try a different course, session, approval stage, or student ID.' : 'Select at least one filter above, then click Search results.' }}</span>
+                                            </td>
+                                        </tr>
+                                    @endforelse
                                 </tbody>
                             </table>
+                        </div>
+                        <div class="results-pagination-wrap">
+                            <div class="results-pagination-summary">@if ($hasResultFilters) Showing {{ $data->firstItem() ?? 0 }}-{{ $data->lastItem() ?? 0 }} of {{ number_format($data->total()) }} results @else No results loaded @endif</div>
+                            @if ($hasResultFilters && $data->hasPages())
+                                <div>{{ $data->appends(request()->query())->links('pagination::bootstrap-4') }}</div>
+                            @endif
                         </div>
                         <!-- [ Data table ] end -->
                     </div>
