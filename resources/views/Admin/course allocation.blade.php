@@ -1,147 +1,49 @@
+<style>
+    .allocation-page-card{border:0;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(34,61,92,.08)}
+    .allocation-page-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;background:linear-gradient(135deg,#0b78b7,#3ea1e4);color:#fff;padding:24px 26px}.allocation-page-heading h5{margin:4px 0;color:#fff;font-size:1.35rem;font-weight:700}.allocation-page-heading p{margin:0;color:rgba(255,255,255,.82);font-size:.82rem}.allocation-page-kicker{color:rgba(255,255,255,.78);font-size:.68rem;letter-spacing:.13em;font-weight:700}.allocation-page-count{display:inline-flex;align-items:center;gap:8px;padding:9px 13px;border:1px solid rgba(255,255,255,.22);border-radius:999px;background:rgba(255,255,255,.15);font-size:.74rem;white-space:nowrap}
+    .allocation-page-actions{display:flex;flex-wrap:wrap;gap:9px;padding:18px 26px;border-bottom:1px solid #edf1f5}.allocation-page-actions .btn{border-radius:9px;font-size:.77rem;font-weight:600}.allocation-filter{padding:20px 26px 24px;background:#fbfdff}.allocation-filter-intro{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}.allocation-filter-intro strong{display:block;color:#253b53;font-size:.92rem}.allocation-filter-intro small{display:block;margin-top:3px;color:#8291a3}.allocation-clear-filter{color:#267eaf;text-decoration:none;font-size:.75rem;font-weight:600}.allocation-filter-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}.allocation-filter-field label{display:block;margin:0 0 6px;color:#53677d;font-size:.72rem;font-weight:700}.allocation-filter-field .form-control{height:40px;border:1px solid #dce6ef;border-radius:9px;background:#fff;font-size:.78rem}.allocation-filter-submit{display:flex;align-items:end}.allocation-filter-submit .btn{width:100%;height:40px;border-radius:9px;font-size:.77rem;font-weight:700}.allocation-empty{text-align:center!important;padding:58px 15px!important;color:#8a99a9}.allocation-empty i{display:block;margin-bottom:12px;color:#9ac6df;font-size:2rem}.allocation-empty strong,.allocation-empty span{display:block}.allocation-empty strong{color:#42566d;font-size:.9rem}.allocation-empty span{margin-top:5px;font-size:.78rem}.allocation-role{display:inline-flex;padding:5px 9px;border-radius:999px;background:#e4f6ec;color:#197447;font-size:.68rem;font-weight:700}.allocation-role.support{background:#e9f1ff;color:#2d6195}.allocation-pagination{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-top:18px;padding-top:15px;border-top:1px solid #edf1f5}.allocation-pagination-summary{font-size:.76rem;color:#7c8c9e}.allocation-pagination .pagination{margin:0}.allocation-pagination .page-link{margin-left:4px;border:1px solid #dbe6ef;border-radius:7px!important;color:#347da5;font-size:.75rem}.allocation-pagination .page-item.active .page-link{border-color:#3ea1e4;background:#3ea1e4;color:#fff}
+    @media(max-width:992px){.allocation-filter-form{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:680px){.allocation-page-heading{align-items:flex-start;flex-direction:column;padding:20px}.allocation-page-actions,.allocation-filter{padding-right:17px;padding-left:17px}.allocation-page-actions .btn{flex:1 1 calc(50% - 9px);min-height:39px}.allocation-filter-form{grid-template-columns:1fr;gap:11px}.allocation-filter-submit{margin-top:3px}.allocation-pagination{align-items:flex-start;flex-direction:column}.allocation-pagination>div:last-child{max-width:100%;overflow:auto}.allocation-pagination .pagination{flex-wrap:nowrap}}
+</style>
 <!-- Start Content-->
 <div class="main-body">
     <div class="page-wrapper">
-        <!-- [ Main Content ] start -->
         <div class="row">
             <div class="col-sm-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>{{ strtoupper($page) }}</h5>
-                    </div>
-                    <div class="card-block">
-
+                <div class="card allocation-page-card">
+                    <div class="card-header allocation-page-heading"><div><span class="allocation-page-kicker">ACADEMIC WORKLOAD</span><h5>Course allocation</h5><p>Assign course coordinators and lecturers for each academic session.</p></div><span class="allocation-page-count"><i class="fas fa-users-gear"></i> {{ number_format($data->total()) }} matching</span></div>
+                    <div class="card-block allocation-page-actions"><a href="#" class="btn btn-primary createAction" data-bs-toggle="modal" data-bs-target="#create"><i class="fas fa-plus"></i> Add allocation</a><button type="button" class="btn btn-dark uploadAction" data-bs-toggle="modal" data-bs-target="#import"><i class="fas fa-upload"></i> Import allocations</button></div>
+                    <div class="card-block allocation-filter">
+                        <div class="allocation-filter-intro"><div><strong><i class="fas fa-filter"></i> Find allocations</strong><small>Filter by academic entity, staff member, course, role, or session.</small></div><a href="{{ url('/course allocation') }}" class="allocation-clear-filter">Clear all</a></div>
+                        <form method="GET" action="{{ url('/course allocation') }}" class="allocation-filter-form">
+                            <div class="allocation-filter-field"><label for="allocationSearch">Search</label><input class="form-control" id="allocationSearch" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="Staff ID, name, course code or title"></div>
+                            @if ($isAdminAllocation)
+                                <div class="allocation-filter-field"><label for="facultyf">Faculty / college</label><select class="form-control faculty" lang="f" id="facultyf" name="faculty"><option value="">All faculties</option>@foreach ($faculty as $facultyOption)<option value="{{ $facultyOption->code }}" {{ ($filters['faculty'] ?? '') === $facultyOption->code ? 'selected' : '' }}>{{ $facultyOption->title }}</option>@endforeach</select></div>
+                                <div class="allocation-filter-field"><label for="departmentf">Department</label><select class="form-control department" lang="f" id="departmentf" name="department"><option value="">{{ ($filters['faculty'] ?? '') !== '' ? 'All departments' : 'Select faculty first' }}</option>@foreach (($filterDepartments ?? collect()) as $departmentOption)<option value="{{ $departmentOption->code }}" {{ ($filters['department'] ?? '') === $departmentOption->code ? 'selected' : '' }}>{{ $departmentOption->title }}</option>@endforeach</select></div>
+                                <div class="allocation-filter-field"><label for="programf">Programme</label><select class="form-control program" lang="f" id="programf" name="program"><option value="">{{ ($filters['department'] ?? '') !== '' ? 'All programmes' : 'Select department first' }}</option>@foreach (($filterPrograms ?? collect()) as $programOption)<option value="{{ $programOption->code }}" {{ ($filters['program'] ?? '') === $programOption->code ? 'selected' : '' }}>{{ $programOption->title }}</option>@endforeach</select></div>
+                                <div class="allocation-filter-field"><label for="allocationStaff">Staff ID</label><input class="form-control" id="allocationStaff" name="username" value="{{ $filters['username'] ?? '' }}" placeholder="e.g. SP12345"></div>
+                            @endif
+                            <div class="allocation-filter-field"><label for="allocationCourse">Course code</label><input class="form-control" id="allocationCourse" name="course" value="{{ $filters['course'] ?? '' }}" placeholder="e.g. ACC101"></div>
+                            <div class="allocation-filter-field"><label for="allocationType">Assignment role</label><select class="form-control" id="allocationType" name="type"><option value="">All roles</option><option value="MAIN" {{ ($filters['type'] ?? '') === 'MAIN' ? 'selected' : '' }}>Course coordinator</option><option value="SUPPORT" {{ ($filters['type'] ?? '') === 'SUPPORT' ? 'selected' : '' }}>Course lecturer</option></select></div>
+                            <div class="allocation-filter-field"><label for="allocationSession">Academic session</label><select class="form-control" id="allocationSession" name="session"><option value="">All sessions</option>@foreach (($sessions ?? collect()) as $sessionOption)<option value="{{ $sessionOption->title }}" {{ ($filters['session'] ?? '') === $sessionOption->title ? 'selected' : '' }}>{{ $sessionOption->title }}</option>@endforeach</select></div>
+                            <div class="allocation-filter-field"><label for="allocationPageSize">Rows per page</label><select class="form-control" id="allocationPageSize" name="per_page"><option value="25" {{ (int) ($perPage ?? 50) === 25 ? 'selected' : '' }}>25 rows</option><option value="50" {{ (int) ($perPage ?? 50) === 50 ? 'selected' : '' }}>50 rows</option><option value="100" {{ (int) ($perPage ?? 50) === 100 ? 'selected' : '' }}>100 rows</option></select></div>
+                            <div class="allocation-filter-submit"><button type="submit" class="btn btn-info"><i class="fas fa-search"></i> Find allocations</button></div>
+                        </form>
                     </div>
                 </div>
             </div>
             <div class="col-sm-12">
-                <div class="card">
-                    @if (session('accType') == 'Admin' || session('username') == 'SP11913')
-                        <div class="card-block">
-                            <form class="" method="GET" action="#">
-                                @csrf
-                                <div class="row gx-2">
-                                    <div class="form-group col-md-3">
-                                        <label for="facultyf">Faculty <span>*</span></label>
-                                        <select class="form-control faculty" lang="f" name="faculty"
-                                            id="facultyf">
-                                            {{-- get GET value  --}}
-
-                                            <option value="">Select Option</option>
-                                            @foreach ($faculty as $roww)
-                                                <option value="{{ $roww->code }}">{{ $roww->title }} ({{ $roww->code }})</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="form-group col-md-3">
-                                        <label for="departmentf">Department</label>
-                                        <select class="form-control department" lang="f" id="departmentf"
-                                            name="department" required>
-                                            <option value="">Select Faculty First</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group col-md-3">
-                                        <label for="programf">Program</label>
-                                        <select class="form-control" id="programf" lang="f" name="program">
-                                            <option value="">Select Department First</option>
-                                        </select>
-                                    </div>
-                                    {{-- session --}}
-                        <div class="form-group col-md-3">
-                            <label for="session">Session</label>
-                            <select name="session" id="session" class="form-control" required>
-                                <option value="">Select Option</option>
-                                <option value="2025/2026">2025/2026</option>
-                                <option value="2024/2025">2024/2025</option>
-                                <option value="2023/2024">2023/2024</option>
-                                <option value="2022/2023">2022/2023</option>
-                                <option value="2021/2022">2021/2022</option>
-                                <option value="2020/2021">2020/2021</option>
-                                <option value="2019/2020">2019/2020</option>
-                                <option value="2018/2019">2018/2019</option>
-                                <option value="2017/2018">2017/2018</option>
-                                <option value="2016/2017">2016/2017</option>
-                                <option value="2015/2016">2015/2016</option>
-                                <option value="2014/2015">2014/2015</option>
-                                <option value="2013/2014">2013/2014</option>
-                            </select>
-                        </div>
-
-
-                                    <div class="form-group col-md-3">
-                                        <button type="submit" class="btn btn-info btn-filter"><i
-                                                class="fas fa-search"></i>
-                                            {{ 'Filter' }}</button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                    @else
-                    <div class="card-block">
-                        <form class="" method="GET" action="#">
-                            @csrf
-                            <input type="hidden" name="username" value="staff">
-                            <div class="row gx-2">
-                                {{-- session --}}
-                    <div class="form-group col-md-3">
-                        <label for="session">Session</label>
-                        <select name="session" id="session" class="form-control" required>
-                            <option value="">Select Option</option>
-                                <option value="2025/2026">2025/2026</option>
-                            <option value="2024/2025">2024/2025</option>
-                            <option value="2023/2024">2023/2024</option>
-                            <option value="2022/2023">2022/2023</option>
-                            <option value="2021/2022">2021/2022</option>
-                            <option value="2020/2021">2020/2021</option>
-                            <option value="2019/2020">2019/2020</option>
-                            <option value="2018/2019">2018/2019</option>
-                            <option value="2017/2018">2017/2018</option>
-                            <option value="2016/2017">2016/2017</option>
-                            <option value="2015/2016">2015/2016</option>
-                            <option value="2014/2015">2014/2015</option>
-                            <option value="2013/2014">2013/2014</option>
-                        </select>
-                    </div>
-
-
-                                <div class="form-group col-md-3">
-                                    <button type="submit" class="btn btn-info btn-filter"><i
-                                            class="fas fa-search"></i>
-                                        {{ 'Filter' }}</button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    @endif
-                    <div class="card-block">
-                        <!-- [ Data table ] start -->
-                        <a href="#" class="btn btn-primary createAction" data-bs-toggle="modal"
-                            data-bs-target="#create"><i class="fas fa-plus"></i> {{ 'Add New' }}</a>
-                        <div class="table-responsive">
-                            <table id="export-table" class="display table nowrap table-striped table-hover"
-                                style="width:100%">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>{{ 'SP NO' }}</th>
-                                        <th>{{ 'Name' }}</th>
-                                        <th>{{ 'Course' }}</th>
-                                        <th>{{ 'Type' }}</th>
-                                        <th>{{ 'Session' }}</th>
-                                        <th>{{ 'Action' }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @php
-                                        $sn = 1;
-                                    @endphp
-                                    @foreach ($data as $row)
+                <div class="card allocation-page-card"><div class="card-block">
+                    <div class="table-responsive"><table id="course-allocation-table" class="table table-striped table-hover align-middle" style="width:100%"><thead><tr><th>#</th><th>Staff member</th><th>Course</th><th>Faculty / college</th><th>Department</th><th>Programme</th><th>Role</th><th>Session</th><th>Action</th></tr></thead><tbody>
+                                    @php $sn = $data->firstItem() ?? 1; @endphp
+                                    @forelse ($data as $row)
                                         <tr>
                                             <td>{{ $sn++ }}</td>
-                                            <td>{{ $row->username }}</td>
-                                            <td>{{ $row->name }}</td>
-                                            <td>{{ $row->course }}</td>
-                                            <td>{{ $row->type == 'MAIN' ? 'Course Coordinator' : 'Course Lecturer' }}
-                                            </td>
+                                            <td><strong>{{ $row->username }}</strong><small class="d-block text-muted">{{ $row->name ?: 'Staff name unavailable' }}</small></td>
+                                            <td><strong>{{ $row->course }}</strong><small class="d-block text-muted">{{ $row->course_title ?: 'Course title unavailable' }}</small></td>
+                                            <td>{{ $row->faculty_title ?: $row->faculty ?: '—' }}</td>
+                                            <td>{{ $row->department_title ?: $row->department ?: '—' }}</td>
+                                            <td>{{ $row->program_title ?: $row->program ?: '—' }}</td>
+                                            <td><span class="allocation-role {{ $row->type === 'SUPPORT' ? 'support' : '' }}">{{ $row->type === 'MAIN' ? 'Course coordinator' : 'Course lecturer' }}</span></td>
                                             <td>{{ $row->session }}</td>
                                             <td>
                                                 <a href="#" class="btn btn-icon btn-primary btn-sm updateAction"
@@ -176,8 +78,6 @@
                                                                 @csrf
                                                                 <input type="hidden" name="id"
                                                                     value="{{ $row->id }}">
-                                                                <input type="hidden" name="username"
-                                                                    value="{{ $row->username }}">
                                                                 <input type="hidden" name="course"
                                                                     value="{{ $row->course }}">
                                                                 <div class="form-group">
@@ -212,16 +112,11 @@
                                                                     </select>
                                                                 </div> --}}
                                                                 <div class="form-group">
-                                                                    <label for="type">Type</label>
+                                                                    <label for="type">Assignment role</label>
                                                                     <select name="type" id="type"
                                                                         class="form-control" required>
-                                                                        <option value="{{ $row->type }}">Selected:
-                                                                            {{ $row->type == 'Main' ? 'Course Coordinator' : 'Course Lecturer' }}
-                                                                        </option>
-                                                                        <option value="Main">Course Coordinator
-                                                                        </option>
-                                                                        <option value="Support">Course Lecturer
-                                                                        </option>
+                                                                        <option value="MAIN" {{ $row->type === 'MAIN' ? 'selected' : '' }}>Course Coordinator</option>
+                                                                        <option value="SUPPORT" {{ $row->type === 'SUPPORT' ? 'selected' : '' }}>Course Lecturer</option>
                                                                     </select>
                                                                 </div>
                                                                 <!-- Details View End -->
@@ -267,10 +162,13 @@
                                                 </div>
                                             </div>
                                         </div>
-                                    @endforeach
+                                    @empty
+                                        <tr><td colspan="9" class="allocation-empty"><i class="fas fa-users-slash"></i><strong>No allocations found</strong><span>Try another staff member, course, department, role, or session.</span></td></tr>
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>
+                        <div class="allocation-pagination"><div class="allocation-pagination-summary">Showing {{ $data->firstItem() ?? 0 }}-{{ $data->lastItem() ?? 0 }} of {{ number_format($data->total()) }} allocations</div>@if ($data->hasPages())<div>{{ $data->appends(request()->query())->links('pagination::bootstrap-4') }}</div>@endif</div>
                         <!-- [ Data table ] end -->
                     </div>
                 </div>
@@ -315,13 +213,6 @@
         </div>
     </div>
 </div>
-@php
-    if (isset($_GET['department'])) {
-        $dept = $_GET['department'];
-    } else {
-        $dept = session('department');
-    }
-@endphp
 <!-- Show modal content -->
 <div id="create" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
     aria-hidden="true">
@@ -356,7 +247,7 @@
                         <div class="form-group" style="position: relative;">
                             <select class="form-control getAllocationPrograms" name="course" id="course" required style="opacity: 0; height: 0; position: absolute;">
                                 <option value="">Select Option</option>
-                                @foreach ($courses->where('department', $dept) as $course)
+                                @foreach ($courses as $course)
                                     <option value="{{ $course->code }}">{{ $course->code }}: {{ $course->title }}</option>
                                 @endforeach
                             </select>
@@ -478,21 +369,9 @@
                             <label for="session">Session</label>
                             <select name="session" id="session" class="form-control" required>
                                 <option value="">Select Option</option>
-                                <option value="2025/2026">2025/2026</option>
-                                <option value="2024/2025">2024/2025</option>
-                                <option value="2023/2024">2023/2024</option>
-                                <option value="2022/2023">2022/2023</option>
-                                <option value="2021/2022">2021/2022</option>
-                                <option value="2020/2021">2020/2021</option>
-                                <option value="2019/2020">2019/2020</option>
-                                <option value="2018/2019">2018/2019</option>
-                                <option value="2017/2018">2017/2018</option>
-                                <option value="2016/2017">2016/2017</option>
-                                <option value="2015/2016">2015/2016</option>
-                                <option value="2014/2015">2014/2015</option>
-                                <option value="2013/2014">2013/2014</option>
-                                
-                                
+                                @foreach (($sessions ?? collect()) as $sessionOption)
+                                    <option value="{{ $sessionOption->title }}" {{ ($filters['session'] ?? '') === $sessionOption->title ? 'selected' : '' }}>{{ $sessionOption->title }}</option>
+                                @endforeach
                             </select>
                         </div>
                         

@@ -6,6 +6,7 @@ use App\Models\CourseSystemAllocation;
 use App\Models\Faculty;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class CourseAllocationController extends Controller
 {
@@ -30,50 +31,81 @@ class CourseAllocationController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
-        if ($req->has('_token')) {
-            $data = $req->all();
-            unset($data['_token']);
-            $queryC = DB::table('course');
 
+        $isAdmin = session('accType') === 'Admin' || session('username') === 'SP11913';
+        $isHod = session('appointment') === 'HOD';
+        $currentSession = DB::table('session')->where('status', '1')->value('title')
+            ?: DB::table('session')->orderByDesc('title')->value('title');
+        $filters = [
+            'search' => trim((string) $req->query('search', '')),
+            'faculty' => trim((string) $req->query('faculty', '')),
+            'department' => trim((string) $req->query('department', '')),
+            'program' => trim((string) $req->query('program', '')),
+            'course' => trim((string) $req->query('course', '')),
+            'username' => trim((string) $req->query('username', '')),
+            'type' => strtoupper(trim((string) $req->query('type', ''))),
+            'session' => trim((string) $req->query('session', $currentSession)),
+        ];
+        $filters = array_map(static fn ($value) => $value === 'all' ? '' : $value, $filters);
 
-            if ($req->has('username')) {
-                $data['faculty'] = session('faculty');
-                $data['department'] = session('department');
-
-                if (session('appointment') == 'HOD') {
-                    $query = DB::table($this->table)->where(['department' => session('department'), 'session' => $data['session']]);
-                } else {
-                    $query = DB::table($this->table)->where(['username' => session('username'), 'session' => $data['session']]);
-                }
-            }else{
-                $query = DB::table($this->table);
+        if (!$isAdmin) {
+            $filters['username'] = $isHod ? '' : (string) session('username');
+            if ($isHod && session('department')) {
+                $filters['department'] = (string) session('department');
             }
-
-            unset($data['username']);
-
-            $filteredData = array_filter($data);
-            foreach ($filteredData as $key => $value) {
-                $query->where($key, $value);
-            }
-            unset($data['session']);
-            $filteredData = array_filter($data);
-            foreach ($filteredData as $key => $value) {
-                $queryC->where($key, $value);
-            }
-            $data['data'] = $query->orderBy('course', 'ASC')->get();
-            // dd($data['data']);
-            $data['courses'] = $queryC->orderBy('code', 'ASC')->get();
-        } else {
-            $session = DB::table('session')->where(['status' => '1'])->first()->title;
-            if (session('appointment') == 'HOD') {
-                $data['data'] = DB::table($this->table)->where(['department' => session('department'), 'session' => $session])->get();
-            } else {
-                $data['data'] = DB::table($this->table)->where(['username' => session('username'), 'session' => $session])->get();
-            }
-            $data['courses'] = DB::table('course')->where(['status' => '1'])->select('code', 'title', 'department')->orderBy('code', 'ASC')->get();
         }
-        $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
-        $data['staff'] = DB::table('staff')->where(['status' => '1'])->select('username', 'name', 'department')->orderBy('username', 'ASC')->get();
+
+        $facultyLookup = DB::table('faculty')->select('code', DB::raw('MAX(title) as title'))->groupBy('code');
+        $departmentLookup = DB::table('department')->select('code', DB::raw('MAX(title) as title'))->groupBy('code');
+        $programLookup = DB::table('program')->select('code', DB::raw('MAX(title) as title'))->groupBy('code');
+        $query = DB::table('course_allocation as ca')
+            ->leftJoin('course as c', 'c.code', '=', 'ca.course')
+            ->leftJoinSub($facultyLookup, 'f', 'f.code', '=', 'ca.faculty')
+            ->leftJoinSub($departmentLookup, 'd', 'd.code', '=', 'ca.department')
+            ->leftJoinSub($programLookup, 'p', 'p.code', '=', 'ca.program')
+            ->select([
+                'ca.id', 'ca.user_id', 'ca.username', 'ca.name', 'ca.course', 'ca.type',
+                'ca.faculty', 'ca.department', 'ca.program', 'ca.programs', 'ca.session',
+                'ca.status', 'c.title as course_title', 'f.title as faculty_title',
+                'd.title as department_title', 'p.title as program_title',
+            ]);
+
+        foreach (['faculty', 'department', 'program', 'course', 'username', 'type', 'session'] as $column) {
+            if ($filters[$column] !== '') {
+                $query->where('ca.' . $column, $filters[$column]);
+            }
+        }
+        if ($filters['search'] !== '') {
+            $search = '%' . $filters['search'] . '%';
+            $query->where(function ($scopedQuery) use ($search): void {
+                $scopedQuery->where('ca.username', 'like', $search)
+                    ->orWhere('ca.name', 'like', $search)
+                    ->orWhere('ca.course', 'like', $search)
+                    ->orWhere('c.title', 'like', $search);
+            });
+        }
+
+        $perPage = (int) $req->query('per_page', 50);
+        $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 50;
+        $data['data'] = $query->orderBy('ca.course')->orderBy('ca.username')->paginate($perPage)->withQueryString();
+
+        $data['faculty'] = Cache::remember('course-allocation.filter.faculties', 600, static fn () => DB::table('faculty')
+            ->where('status', '1')->select('code', 'title')->orderBy('title')->get());
+        $data['filterDepartments'] = $filters['faculty'] !== ''
+            ? DB::table('department')->where('faculty', $filters['faculty'])->select('code', 'title')->orderBy('title')->get()
+            : collect();
+        $data['filterPrograms'] = $filters['department'] !== ''
+            ? DB::table('program')->where('department', $filters['department'])->select('code', 'title')->orderBy('title')->get()
+            : collect();
+        $data['sessions'] = Cache::remember('course-allocation.filter.sessions', 600, static fn () => DB::table('session')->select('title')->orderByDesc('title')->get());
+        $createDepartment = $filters['department'] ?: (string) session('department', '');
+        $data['createDepartment'] = $createDepartment;
+        $data['courses'] = DB::table('course')->where('status', '1')->select('code', 'title', 'department')->when($createDepartment !== '', static function ($courseQuery) use ($createDepartment): void {
+            $courseQuery->where('department', $createDepartment);
+        })->orderBy('code')->get();
+        $data['filters'] = $filters;
+        $data['perPage'] = $perPage;
+        $data['isAdminAllocation'] = $isAdmin;
         $data['page'] = $this->page;
         $data['title'] = $this->title;
         return view('main', $data);

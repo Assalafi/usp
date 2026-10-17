@@ -55,10 +55,13 @@ class CourseController extends Controller
         $perPage = (int) $req->query('per_page', 50);
         $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 50;
 
+        $facultyLookup = DB::table('faculty')->select('code', DB::raw('MAX(title) as title'))->groupBy('code');
+        $departmentLookup = DB::table('department')->select('code', DB::raw('MAX(title) as title'))->groupBy('code');
+        $programLookup = DB::table('program')->select('code', DB::raw('MAX(title) as title'))->groupBy('code');
         $query = DB::table('course as c')
-            ->leftJoin('program as p', 'p.code', '=', 'c.program')
-            ->leftJoin('department as d', 'd.code', '=', 'c.department')
-            ->leftJoin('faculty as f', 'f.code', '=', 'c.faculty')
+            ->leftJoinSub($programLookup, 'p', 'p.code', '=', 'c.program')
+            ->leftJoinSub($departmentLookup, 'd', 'd.code', '=', 'c.department')
+            ->leftJoinSub($facultyLookup, 'f', 'f.code', '=', 'c.faculty')
             ->select([
                 'c.id', 'c.code', 'c.title', 'c.type', 'c.class', 'c.unit',
                 'c.level', 'c.semester', 'c.faculty', 'c.department', 'c.program',
