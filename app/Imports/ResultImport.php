@@ -106,7 +106,11 @@ class ResultImport implements ToCollection
 
             $student = DB::table('students')
                 ->where('username', $id)
-                ->select('program', 'level', 'department')
+                // The curriculum structure is required to resolve the
+                // programme-specific grading configuration below. Keep it in
+                // the select list; omitting it makes every structured student
+                // fail the upload with a generic processing error.
+                ->select('program', 'level', 'department', 'structure_id')
                 ->first();
             if (!$student) {
                 $this->addIssue($excelRow, $id, 'skipped', 'Matric number was not found in the student records.');
