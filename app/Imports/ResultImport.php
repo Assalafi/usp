@@ -134,14 +134,36 @@ class ResultImport implements ToCollection
                 }
             }
 
-            if (!$student->structure_id) {
-                $this->addIssue($excelRow, $id, 'skipped', 'The student has no curriculum structure assigned.');
+            // Some legacy student records predate curriculum structures and
+            // therefore contain 0. Infer their structure only when the
+            // matriculation year and the selected programme/course identify
+            // exactly one matching structure. Never guess when the mapping is
+            // ambiguous.
+            $structureId = (int) ($student->structure_id ?? 0);
+            if ($structureId <= 0) {
+                $entryYear = (int) $this->entryYear($id);
+                $matchingStructures = DB::table('course_structure as cs')
+                    ->join('program_course_registration as pcr', 'pcr.structure_id', '=', 'cs.id')
+                    ->where('pcr.program', $student->program)
+                    ->where('pcr.code', $course->code)
+                    ->where('cs.from_session', '<=', (string) $entryYear)
+                    ->where('cs.to_session', '>=', (string) $entryYear)
+                    ->distinct()
+                    ->pluck('cs.id');
+
+                if ($matchingStructures->count() === 1) {
+                    $structureId = (int) $matchingStructures->first();
+                }
+            }
+
+            if ($structureId <= 0) {
+                $this->addIssue($excelRow, $id, 'skipped', 'The student has no curriculum structure assigned, and it could not be safely inferred from the matric number.');
                 continue;
             }
 
             $stdDuration = DB::table('program')->where('code', $student->program)->value('duration');
             $gradingName = DB::table('program_course_registration')
-                ->where(['code' => $course->code, 'program' => $student->program, 'structure_id' => $student->structure_id])
+                ->where(['code' => $course->code, 'program' => $student->program, 'structure_id' => $structureId])
                 ->value('grading');
             if (!$gradingName) {
                 $this->addIssue($excelRow, $id, 'skipped', 'No grading configuration exists for this student programme and course.');
