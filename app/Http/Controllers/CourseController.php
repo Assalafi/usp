@@ -128,20 +128,36 @@ class CourseController extends Controller
 
     public function create(Request $req)
     {
-        if(!session()->has('log')){return redirect('/');}
-        $datas = $req->all();
-        unset($datas['_token']);
-        $datas['code'] = strtoupper(str_replace(' ', '', $datas['code']));
-        $datas = array_map('strtoupper', $datas);
-        try {
-            DB::table($this->table)->insert($datas);
-        } catch (QueryException $e) {
-            return redirect()->back()->with('error', 'Record Already Exist');
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Record Already Exist');
-        } finally {
-            return redirect()->back()->with('success', 'Record Created!!!');
+        if (!session()->has('log')) {
+            return redirect('/');
         }
+
+        $req->merge($this->normaliseCourseInput($req));
+        $validated = $req->validate($this->courseRules(), $this->courseMessages());
+
+        if ($contextError = $this->academicContextError($validated)) {
+            return redirect()->back()->withInput()->with('error', $contextError);
+        }
+        if (DB::table($this->table)->where('code', $validated['code'])->exists()) {
+            return redirect()->back()->withInput()->with('error', 'A course with this code already exists. Use a different course code.');
+        }
+
+        try {
+            DB::transaction(function () use ($validated): void {
+                DB::table($this->table)->insert([
+                    ...$validated,
+                    'status' => 1,
+                    'user' => session('username', 'system'),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            });
+        } catch (\Throwable $exception) {
+            report($exception);
+            return redirect()->back()->withInput()->with('error', 'The course could not be created. Check the details and try again.');
+        }
+
+        return redirect()->back()->with('success', 'Course created successfully.');
     }
 
     public function upload(Request $request)
@@ -167,32 +183,129 @@ class CourseController extends Controller
 
     public function update(Request $req)
     {
-        if(!session()->has('log')){return redirect('/');}
-        $datas = $req->all();
-        $id = $datas['id'];
-        $datas['code'] = strtoupper(str_replace(' ', '', $datas['code']));
-        unset($datas['id']);
-        unset($datas['_token']);
-        $datas = array_map('strtoupper', $datas);
-
-        try {
-            DB::table($this->table)->where('id',$id)->update($datas);
-        } catch (QueryException $e) {
-            return redirect()->back()->with('error', 'Record Already Exist');
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Record Already Exist');
-        } finally {
-            return redirect()->back()->with('success', 'Record Updated!!!');
+        if (!session()->has('log')) {
+            return redirect('/');
         }
 
+        $req->merge($this->normaliseCourseInput($req));
+        $validated = $req->validate($this->courseRules(true), $this->courseMessages());
+        $id = (int) $validated['id'];
+        unset($validated['id']);
 
+        if (!DB::table($this->table)->where('id', $id)->exists()) {
+            return redirect()->back()->withInput()->with('error', 'This course no longer exists. Refresh the page and try again.');
+        }
+        if ($contextError = $this->academicContextError($validated)) {
+            return redirect()->back()->withInput()->with('error', $contextError);
+        }
+        if (DB::table($this->table)->where('code', $validated['code'])->where('id', '!=', $id)->exists()) {
+            return redirect()->back()->withInput()->with('error', 'A different course already uses this code. Use a different course code.');
+        }
+
+        try {
+            DB::transaction(function () use ($id, $validated): void {
+                DB::table($this->table)->where('id', $id)->update([
+                    ...$validated,
+                    'updated_at' => now(),
+                ]);
+            });
+        } catch (\Throwable $exception) {
+            report($exception);
+            return redirect()->back()->withInput()->with('error', 'The course could not be updated. Check the details and try again.');
+        }
+
+        return redirect()->back()->with('success', 'Course updated successfully.');
+    }
+
+    private function normaliseCourseInput(Request $req): array
+    {
+        $code = strtoupper(preg_replace('/\s+/', '', (string) $req->input('code')));
+        $normalise = static fn ($value): string => strtoupper(trim((string) $value));
+
+        return [
+            'code' => $code,
+            'title' => $normalise($req->input('title')),
+            'type' => $normalise($req->input('type')),
+            'class' => $normalise($req->input('class')),
+            'unit' => (int) $req->input('unit', 0),
+            'level' => trim((string) $req->input('level')),
+            'semester' => $normalise($req->input('semester')),
+            'faculty' => $normalise($req->input('faculty')),
+            'department' => $normalise($req->input('department')),
+            'program' => $normalise($req->input('program')),
+        ];
+    }
+
+    private function courseRules(bool $withId = false): array
+    {
+        return [
+            'id' => $withId ? ['required', 'integer', 'exists:course,id'] : ['sometimes'],
+            'code' => ['required', 'string', 'max:50', 'regex:/^[A-Z0-9][A-Z0-9._\/-]*$/'],
+            'title' => ['required', 'string', 'max:255'],
+            'type' => ['required', 'string', 'max:100'],
+            'class' => ['required', 'string', 'max:100'],
+            'unit' => ['required', 'integer', 'min:0', 'max:50'],
+            'level' => ['required', 'string', 'max:5', 'regex:/^\d{3}$/'],
+            'semester' => ['required', 'string', 'max:100'],
+            'faculty' => ['required', 'string', 'max:10', 'exists:faculty,code'],
+            'department' => ['required', 'string', 'max:10', 'exists:department,code'],
+            'program' => ['required', 'string', 'max:10', 'exists:program,code'],
+        ];
+    }
+
+    private function courseMessages(): array
+    {
+        return [
+            'code.required' => 'Enter a course code, for example ACC101.',
+            'code.regex' => 'Course code may contain letters, numbers, hyphens, slashes, dots, or underscores only.',
+            'title.required' => 'Enter the full course title.',
+            'type.required' => 'Choose the course type.',
+            'class.required' => 'Choose the class format.',
+            'unit.required' => 'Enter the credit unit for this course.',
+            'unit.integer' => 'Credit units must be a whole number.',
+            'level.required' => 'Choose the course level.',
+            'level.regex' => 'Choose a valid level such as 100, 200, or 300.',
+            'semester.required' => 'Choose the semester for this course.',
+            'faculty.required' => 'Choose the faculty or college.',
+            'department.required' => 'Choose the department.',
+            'program.required' => 'Choose the programme.',
+        ];
+    }
+
+    private function academicContextError(array $course): ?string
+    {
+        $department = DB::table('department')->where('code', $course['department'])->first(['faculty']);
+        if (!$department || (string) $department->faculty !== (string) $course['faculty']) {
+            return 'The selected department does not belong to the selected faculty or college.';
+        }
+
+        $program = DB::table('program')->where('code', $course['program'])->where('department', $course['department'])->first(['faculty']);
+        if (!$program) {
+            return 'The selected programme does not belong to the selected department.';
+        }
+        if (!empty($program->faculty) && (string) $program->faculty !== (string) $course['faculty']) {
+            return 'The selected programme does not belong to the selected faculty or college.';
+        }
+
+        return null;
     }
 
     public function delete(Request $req)
     {
-        if(!session()->has('log')){return redirect('/');}
-        $id = DB::table($this->table)->where('id',$req->id)->delete();
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
 
-        return redirect()->back()->with('success', 'Record Delete!!!');
+        $validated = $req->validate(['id' => ['required', 'integer', 'exists:course,id']]);
+        try {
+            DB::transaction(function () use ($validated): void {
+                DB::table($this->table)->where('id', $validated['id'])->delete();
+            });
+        } catch (\Throwable $exception) {
+            report($exception);
+            return redirect()->back()->with('error', 'The course could not be removed. It may already be in use by another academic record.');
+        }
+
+        return redirect()->back()->with('success', 'Course removed successfully.');
     }
 }
