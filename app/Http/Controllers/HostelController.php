@@ -496,17 +496,18 @@ class HostelController extends Controller
             ->orderBy('room')
             ->orderBy('bed');
 
-        $data['data'] = $query->get();
+        $statsQuery = clone $query;
+        $data['stats'] = [
+            'total' => (clone $statsQuery)->reorder()->count(),
+            'available' => (clone $statsQuery)->reorder()->where('status', 0)->count(),
+            'occupied' => (clone $statsQuery)->reorder()->where('status', 1)->count(),
+        ];
+        $data['data'] = $query->paginate(50)->withQueryString();
         $data['hall'] = DB::table('hostel')->select('hall')->whereNotNull('hall')->where('hall', '<>', '')->groupBy('hall')->orderBy('hall', 'asc')->get();
         $data['categories'] = DB::table('hostel')->select('category')->whereNotNull('category')->where('category', '<>', '')->groupBy('category')->orderBy('category', 'asc')->get();
         $data['roomTypes'] = DB::table('hostel')->select('room_type')->whereNotNull('room_type')->where('room_type', '<>', '')->groupBy('room_type')->orderBy('room_type', 'asc')->get();
         $data['bedTypes'] = $bedTypes;
         $data['filters'] = $request->only(['hall', 'category', 'bed_type', 'room_type', 'status', 'search']);
-        $data['stats'] = [
-            'total' => $data['data']->count(),
-            'available' => $data['data']->where('status', 0)->count(),
-            'occupied' => $data['data']->where('status', 1)->count(),
-        ];
         $data['page'] = 'available bed space modern';
         return view('main', $data);
     }
@@ -559,15 +560,16 @@ class HostelController extends Controller
             ->orderBy('hostel.room')
             ->orderBy('hostel.bed');
 
-        $data['data'] = $query->get();
+        $statsQuery = clone $query;
+        $data['stats'] = [
+            'total' => (clone $statsQuery)->reorder()->count(),
+            'paid' => (clone $statsQuery)->reorder()->where('hostel.hostel_payment', 1)->count(),
+            'unpaid' => (clone $statsQuery)->reorder()->where('hostel.hostel_payment', '!=', 1)->count(),
+        ];
+        $data['data'] = $query->paginate(50)->withQueryString();
         $data['hall'] = DB::table('hostel')->select('hall')->where('flag', 3)->whereNotNull('hall')->where('hall', '<>', '')->groupBy('hall')->orderBy('hall', 'asc')->get();
         $data['bedTypes'] = $bedTypes;
         $data['filters'] = $request->only(['hall', 'bed_type', 'hostel_payment', 'search', 'date']);
-        $data['stats'] = [
-            'total' => $data['data']->count(),
-            'paid' => $data['data']->where('hostel_payment', 1)->count(),
-            'unpaid' => $data['data']->where('hostel_payment', '!=', 1)->count(),
-        ];
         $data['page'] = 'recipients modern';
         return view('main', $data);
     }

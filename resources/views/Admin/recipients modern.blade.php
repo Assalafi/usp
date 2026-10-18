@@ -2,6 +2,7 @@
     $filters = $filters ?? [];
     $bedTypes = $bedTypes ?? [0 => 'Online allocation', 1 => 'Reserved allocation', 2 => 'New student', 3 => 'Remedial / SBRS'];
     $stats = $stats ?? ['total' => count($data ?? []), 'paid' => 0, 'unpaid' => 0];
+    $rowStart = method_exists($data, 'firstItem') ? ($data->firstItem() ?? 1) : 1;
 @endphp
 
 <style>
@@ -34,6 +35,11 @@
     .ug-recipient-admin .ug-badge.type { color: #176a94; background: #e7f4fb; }
     .ug-recipient-admin .ug-empty { padding: 3rem 1rem; text-align: center; color: var(--ug-muted); }
     .ug-recipient-admin .ug-empty i { color: #9ab5c5; font-size: 2rem; margin-bottom: .65rem; }
+    .ug-recipient-admin .ug-pagination { border-top: 1px solid #e7eef3; padding: .85rem 1rem; }
+    .ug-recipient-admin .ug-pagination .pagination { margin: 0; flex-wrap: wrap; gap: .25rem; }
+    .ug-recipient-admin .ug-pagination .page-link { border: 1px solid #dce7ee; border-radius: 8px !important; color: #176a94; padding: .38rem .68rem; }
+    .ug-recipient-admin .ug-pagination .page-item.active .page-link { background: #168acb; border-color: #168acb; color: #fff; }
+    .ug-recipient-admin .ug-pagination .page-item.disabled .page-link { color: #aab8c1; background: #f7fafc; }
     .ug-recipient-admin .modal-content { border: 0; border-radius: 16px; box-shadow: 0 18px 45px rgba(20,49,73,.22); }
     .ug-recipient-admin .modal-header { background: #f2f8fc; border-bottom: 1px solid #e3edf2; }
     @media (max-width: 767.98px) { .ug-recipient-admin .ug-hero { border-radius: 14px; } .ug-recipient-admin .ug-hero-icon { width: 48px; height: 48px; } .ug-recipient-admin .ug-stat strong { font-size: 1.2rem; } }
@@ -55,10 +61,10 @@
         </div></form>
     </div></div>
     <div class="col-12"><div class="ug-table-card"><div class="p-3 d-flex align-items-center justify-content-between gap-2 flex-wrap"><div><h5 class="mb-1" style="color:#18324b">Assigned students</h5><small class="text-muted">A permit becomes available after payment is confirmed.</small></div><span class="badge bg-light text-dark border">{{ number_format($stats['total']) }} record(s)</span></div><div class="table-responsive">
-        <table id="export-table" class="display table table-hover align-middle" style="width:100%"><thead><tr><th>#</th><th>Student</th><th>Location</th><th>Assignment type</th><th>Payment</th><th class="text-end">Actions</th></tr></thead><tbody>
-        @forelse ($data as $row)<tr><td>{{ $loop->iteration }}</td><td class="ug-name">{{ $row->student_name ?: 'Name not found' }}<small>{{ $row->occupant }}</small></td><td>{{ $row->hall }}<small class="text-muted">{{ $row->block }} · Room {{ $row->room }} · Bed {{ $row->bed }}</small></td><td><span class="ug-badge type"><i class="fas fa-tag"></i>{{ $bedTypes[(int)$row->bed_type] ?? 'Other' }}</span></td><td>@if ((int)$row->hostel_payment === 1)<span class="ug-badge paid"><i class="fas fa-circle-check"></i>Confirmed</span>@else<span class="ug-badge pending"><i class="fas fa-clock"></i>Pending</span>@endif</td><td class="text-end"><div class="d-inline-flex gap-1 flex-wrap justify-content-end">@if ((int)$row->hostel_payment === 1)<a href="{{ route('admin.hostel.permit', ['id' => $row->id]) }}" class="btn btn-info btn-sm" target="_blank" rel="noopener"><i class="fas fa-file-pdf me-1"></i>Permit</a>@endif<button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#paymentModal{{ $row->id }}">{{ (int)$row->hostel_payment === 1 ? 'Mark pending' : 'Confirm payment' }}</button><button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#revokeModal{{ $row->id }}"><i class="fas fa-user-minus me-1"></i>Revoke</button></div></td></tr>@empty<tr><td colspan="6"><div class="ug-empty"><i class="fas fa-users-slash d-block"></i><strong>No recipients match these filters.</strong><div>Try clearing a filter or searching for another student.</div></div></td></tr>@endforelse
+        <table id="ug-recipient-table" class="table table-hover align-middle" style="width:100%"><thead><tr><th>#</th><th>Student</th><th>Location</th><th>Assignment type</th><th>Payment</th><th class="text-end">Actions</th></tr></thead><tbody>
+        @forelse ($data as $row)<tr><td>{{ $rowStart + $loop->index }}</td><td class="ug-name">{{ $row->student_name ?: 'Name not found' }}<small>{{ $row->occupant }}</small></td><td>{{ $row->hall }}<small class="text-muted">{{ $row->block }} · Room {{ $row->room }} · Bed {{ $row->bed }}</small></td><td><span class="ug-badge type"><i class="fas fa-tag"></i>{{ $bedTypes[(int)$row->bed_type] ?? 'Other' }}</span></td><td>@if ((int)$row->hostel_payment === 1)<span class="ug-badge paid"><i class="fas fa-circle-check"></i>Confirmed</span>@else<span class="ug-badge pending"><i class="fas fa-clock"></i>Pending</span>@endif</td><td class="text-end"><div class="d-inline-flex gap-1 flex-wrap justify-content-end">@if ((int)$row->hostel_payment === 1)<a href="{{ route('admin.hostel.permit', ['id' => $row->id]) }}" class="btn btn-info btn-sm" target="_blank" rel="noopener"><i class="fas fa-file-pdf me-1"></i>Permit</a>@endif<button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#paymentModal{{ $row->id }}">{{ (int)$row->hostel_payment === 1 ? 'Mark pending' : 'Confirm payment' }}</button><button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#revokeModal{{ $row->id }}"><i class="fas fa-user-minus me-1"></i>Revoke</button></div></td></tr>@empty<tr><td colspan="6"><div class="ug-empty"><i class="fas fa-users-slash d-block"></i><strong>No recipients match these filters.</strong><div>Try clearing a filter or searching for another student.</div></div></td></tr>@endforelse
         </tbody></table>
-    </div></div></div>
+    </div><div class="ug-pagination d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2"><small class="text-muted">Showing {{ $data->firstItem() ?? 0 }} to {{ $data->lastItem() ?? 0 }} of {{ $data->total() ?? 0 }} recipients</small><div>{{ $data->onEachSide(1)->links('pagination::bootstrap-4') }}</div></div></div>
 </div></div></div>
 
 @foreach ($data as $row)
