@@ -526,7 +526,10 @@ class HostelController extends Controller
 
         $query = DB::table('hostel')
             ->leftJoin('students', 'hostel.occupant', '=', 'students.username')
-            ->where('hostel.flag', 3)
+            ->where(function ($q) {
+                $q->where('hostel.flag', 3)
+                    ->orWhere('hostel.bed_type', 3);
+            })
             ->where('hostel.status', 1)
             ->select(
                 'hostel.id', 'hostel.hall', 'hostel.block', 'hostel.room', 'hostel.bed',
@@ -567,7 +570,18 @@ class HostelController extends Controller
             'unpaid' => (clone $statsQuery)->reorder()->where('hostel.hostel_payment', '!=', 1)->count(),
         ];
         $data['data'] = $query->paginate(50)->withQueryString();
-        $data['hall'] = DB::table('hostel')->select('hall')->where('flag', 3)->whereNotNull('hall')->where('hall', '<>', '')->groupBy('hall')->orderBy('hall', 'asc')->get();
+        $data['hall'] = DB::table('hostel')
+            ->select('hall')
+            ->where('status', 1)
+            ->where(function ($q) {
+                $q->where('flag', 3)
+                    ->orWhere('bed_type', 3);
+            })
+            ->whereNotNull('hall')
+            ->where('hall', '<>', '')
+            ->groupBy('hall')
+            ->orderBy('hall', 'asc')
+            ->get();
         $data['bedTypes'] = $bedTypes;
         $data['filters'] = $request->only(['hall', 'bed_type', 'hostel_payment', 'search', 'date']);
         $data['page'] = 'recipients modern';
