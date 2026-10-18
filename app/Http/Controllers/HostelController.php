@@ -526,11 +526,9 @@ class HostelController extends Controller
 
         $query = DB::table('hostel')
             ->leftJoin('students', 'hostel.occupant', '=', 'students.username')
-            ->where(function ($q) {
-                $q->where('hostel.flag', 3)
-                    ->orWhere('hostel.bed_type', 3);
-            })
             ->where('hostel.status', 1)
+            ->whereNotNull('hostel.occupant')
+            ->where('hostel.occupant', '<>', '')
             ->select(
                 'hostel.id', 'hostel.hall', 'hostel.block', 'hostel.room', 'hostel.bed',
                 'hostel.status', 'hostel.bed_type', 'hostel.occupant', 'hostel.hostel_payment',
@@ -573,10 +571,8 @@ class HostelController extends Controller
         $data['hall'] = DB::table('hostel')
             ->select('hall')
             ->where('status', 1)
-            ->where(function ($q) {
-                $q->where('flag', 3)
-                    ->orWhere('bed_type', 3);
-            })
+            ->whereNotNull('occupant')
+            ->where('occupant', '<>', '')
             ->whereNotNull('hall')
             ->where('hall', '<>', '')
             ->groupBy('hall')
