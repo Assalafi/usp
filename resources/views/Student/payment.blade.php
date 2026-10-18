@@ -139,7 +139,7 @@
                                             $isPending = $status === 'pending' && filled($invoice->rrr);
                                         @endphp
                                         <tr>
-                                            <td data-label="Payment"><strong>{{ $invoice->description ?: 'Payment' }}</strong><small>{{ $invoice->payment_method ?? 'Remita' }}</small></td>
+                                            <td data-label="Payment"><strong>{{ $invoice->description ?: 'Payment' }}</strong></td>
                                             <td data-label="Session">{{ $invoice->session ?: '—' }}</td>
                                             <td data-label="Amount"><strong>₦{{ number_format((float) $invoice->amount, 2) }}</strong><small>{{ ($invoice->fees_type ?? '') === 'nelfund' ? 'NELFUND' : 'Self sponsor' }}</small></td>
                                             <td data-label="Reference"><span class="reference-value">{{ $invoice->rrr ?: ($invoice->orderId ?: 'N/A') }}</span></td>
