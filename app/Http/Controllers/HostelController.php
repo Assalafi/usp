@@ -623,11 +623,53 @@ class HostelController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
-        //
-        //$data['batch'] = DB::table('hostel_pin')->select('batch','flag','id')->distinct()->where(['flag' => 1])->orderBy('id', 'desc')->get();
-        $data['data'] = DB::table('hostel')->select('id', 'hall', 'block', 'room', 'bed', 'status', 'room_type', 'occupant')->where(['bed_type' => 0])->orderBy('hall', 'asc')->orderBy('block', 'asc')->orderBy('room', 'asc')->orderBy('bed', 'asc')->get();
-        $data['hall'] = DB::table('hostel')->select('hall')->where(['bed_type' => 0])->groupBy('hall')->orderBy('hall', 'asc')->get();
-        $data['page'] = 'online bed space';
+        $bedTypes = [
+            0 => 'Online allocation',
+            1 => 'Reserved allocation',
+            2 => 'New student',
+            3 => 'Remedial / SBRS',
+        ];
+
+        $query = DB::table('hostel')
+            ->select('id', 'hall', 'block', 'room', 'bed', 'status', 'room_type', 'bed_type', 'category', 'occupant', 'flag')
+            ->when($request->filled('hall') && $request->input('hall') !== 'all', fn ($q) => $q->where('hall', $request->input('hall')))
+            ->when($request->filled('category') && $request->input('category') !== 'all', fn ($q) => $q->where('category', $request->input('category')))
+            ->when($request->filled('bed_type') && $request->input('bed_type') !== 'all', fn ($q) => $q->where('bed_type', (int) $request->input('bed_type')))
+            ->when(!$request->filled('bed_type'), fn ($q) => $q->where('bed_type', 0))
+            ->when($request->filled('room_type') && $request->input('room_type') !== 'all', fn ($q) => $q->where('room_type', $request->input('room_type')))
+            ->when($request->filled('status') && $request->input('status') !== 'all', fn ($q) => $q->where('status', (int) $request->input('status')))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = trim((string) $request->input('search'));
+                $q->where(function ($nested) use ($search) {
+                    $nested->where('hall', 'like', '%' . $search . '%')
+                        ->orWhere('block', 'like', '%' . $search . '%')
+                        ->orWhere('room', 'like', '%' . $search . '%')
+                        ->orWhere('bed', 'like', '%' . $search . '%')
+                        ->orWhere('occupant', 'like', '%' . $search . '%');
+                });
+            })
+            ->orderBy('hall')
+            ->orderBy('block')
+            ->orderBy('room')
+            ->orderBy('bed');
+
+        $statsQuery = clone $query;
+        $data['stats'] = [
+            'total' => (clone $statsQuery)->reorder()->count(),
+            'available' => (clone $statsQuery)->reorder()->where('status', 0)->count(),
+            'occupied' => (clone $statsQuery)->reorder()->where('status', 1)->count(),
+        ];
+        $data['data'] = $query->paginate(50)->withQueryString();
+        $hallQuery = DB::table('hostel')->select('hall')->whereNotNull('hall')->where('hall', '<>', '');
+        if (!$request->filled('bed_type') || $request->input('bed_type') !== 'all') {
+            $hallQuery->where('bed_type', $request->filled('bed_type') ? (int) $request->input('bed_type') : 0);
+        }
+        $data['hall'] = $hallQuery->groupBy('hall')->orderBy('hall', 'asc')->get();
+        $categoryQuery = DB::table('hostel')->select('category')->whereNotNull('category')->where('category', '<>', '');
+        $data['categories'] = $categoryQuery->groupBy('category')->orderBy('category', 'asc')->get();
+        $data['bedTypes'] = $bedTypes;
+        $data['filters'] = $request->only(['hall', 'category', 'bed_type', 'room_type', 'status', 'search']);
+        $data['page'] = 'online bed space modern';
         return view('main', $data);
     }
 
