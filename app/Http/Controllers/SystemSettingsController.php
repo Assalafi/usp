@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
 
 class SystemSettingsController extends Controller
 {
@@ -66,6 +67,8 @@ class SystemSettingsController extends Controller
             'categories' => $categories,
             'currentCategory' => $category,
             'settings' => $settings,
+            'remitaServiceCatalog' => self::getRemitaServiceCatalog(),
+            'remitaSplitSettings' => self::getRemitaSplitSettings(),
             'hodStaff' => $hodStaff,
             'hodManagementUsers' => $hodManagementUsers,
         ];
@@ -133,6 +136,39 @@ class SystemSettingsController extends Controller
         }
 
         $settings = $request->except('_token');
+
+        if (array_key_exists('remita_service_catalog', $settings)) {
+            $catalog = self::normaliseRemitaServiceCatalog($settings['remita_service_catalog']);
+            if ($catalog === null) {
+                return response()->json(['error' => 'The Remita service list is invalid. Refresh the page and try again.'], 422);
+            }
+
+            foreach ($catalog as $service) {
+                if ($service['active'] && !preg_match('/^\d+$/', $service['service_type_id'])) {
+                    return response()->json(['error' => 'Every active Remita service must have a numeric Service Type ID.'], 422);
+                }
+            }
+
+            $knownKeys = collect($catalog)->pluck('key')->all();
+            foreach (self::defaultRemitaServiceCatalog() as $defaultService) {
+                if (!in_array($defaultService['key'], $knownKeys, true)) {
+                    $catalog[] = $defaultService;
+                }
+            }
+
+            $this->storeSettingValue('remita_service_catalog', json_encode($catalog, JSON_UNESCAPED_SLASHES));
+            unset($settings['remita_service_catalog']);
+        }
+
+        if (array_key_exists('remita_split_settings', $settings)) {
+            $splitSettings = self::normaliseRemitaSplitSettings($settings['remita_split_settings']);
+            if ($splitSettings === null) {
+                return response()->json(['error' => 'Check the split settings. The three percentages must total 100, and all active beneficiary accounts need a valid account number and bank code.'], 422);
+            }
+
+            $this->storeSettingValue('remita_split_settings', json_encode($splitSettings, JSON_UNESCAPED_SLASHES));
+            unset($settings['remita_split_settings']);
+        }
 
         // The HOD programme-course policy is stored as a simple academic
         // setting, while the selected usernames are kept as JSON so the
@@ -347,6 +383,257 @@ class SystemSettingsController extends Controller
         });
 
         return $settings[$key] ?? $default;
+    }
+
+    public static function defaultRemitaServiceCatalog(): array
+    {
+        return [
+            [
+                'key' => 'school_fees',
+                'label' => 'School fees',
+                'service_type_id' => (string) config('services.remita.school_fees_key', '365039916'),
+                'description' => 'Student school-fee invoices.',
+                'active' => true,
+                'split_enabled' => false,
+                'surcharge' => '0.00',
+            ],
+            [
+                'key' => 'hostel',
+                'label' => 'Hostel accommodation',
+                'service_type_id' => (string) config('services.remita.hostel_key', ''),
+                'description' => 'Hostel reservation invoices.',
+                'active' => (string) config('services.remita.hostel_key', '') !== '',
+                'split_enabled' => false,
+                'surcharge' => '0.00',
+            ],
+            [
+                'key' => 'post_utme',
+                'label' => 'Post-UTME',
+                'service_type_id' => (string) self::get('remita_putme_service_type', config('services.remita.post_utme_key', '4430731')),
+                'description' => 'Post-UTME application payments.',
+                'active' => true,
+                'split_enabled' => false,
+                'surcharge' => '0.00',
+            ],
+            [
+                'key' => 'id_card',
+                'label' => 'Student ID card',
+                'service_type_id' => (string) self::get('id_card_service_type', '767553585'),
+                'description' => 'Student identity-card payments.',
+                'active' => true,
+                'split_enabled' => false,
+                'surcharge' => '0.00',
+            ],
+            [
+                'key' => 'change_of_course',
+                'label' => 'Change of course',
+                'service_type_id' => (string) config('services.remita.change_of_course_key', '4430731'),
+                'description' => 'Change-of-course application payments.',
+                'active' => true,
+                'split_enabled' => false,
+                'surcharge' => '0.00',
+            ],
+            [
+                'key' => 'inter_university_transfer',
+                'label' => 'Inter-university transfer',
+                'service_type_id' => (string) config('services.remita.inter_transfer_key', '4430731'),
+                'description' => 'Inter-university transfer payments.',
+                'active' => true,
+                'split_enabled' => false,
+                'surcharge' => '0.00',
+            ],
+        ];
+    }
+
+    public static function getRemitaServiceCatalog(): array
+    {
+        $decoded = json_decode((string) self::get('remita_service_catalog', ''), true);
+        $catalog = self::normaliseRemitaServiceCatalog($decoded);
+        if ($catalog === null || empty($catalog)) {
+            return self::defaultRemitaServiceCatalog();
+        }
+
+        $keys = collect($catalog)->pluck('key')->all();
+        foreach (self::defaultRemitaServiceCatalog() as $defaultService) {
+            if (!in_array($defaultService['key'], $keys, true)) {
+                $catalog[] = $defaultService;
+            }
+        }
+
+        return $catalog;
+    }
+
+    public static function getRemitaServiceType(string $key, ?string $fallback = null): string
+    {
+        $service = collect(self::getRemitaServiceCatalog())->firstWhere('key', $key);
+        $configured = trim((string) ($service['service_type_id'] ?? ''));
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        return (string) ($fallback ?? '');
+    }
+
+    /**
+     * Return the configured additional split charge for one service.
+     * A service-level amount takes precedence over the legacy global amount.
+     */
+    public static function getRemitaServiceSurcharge(string $key, $fallback = 0): float
+    {
+        $service = collect(self::getRemitaServiceCatalog())->firstWhere('key', $key);
+        if (is_array($service) && array_key_exists('surcharge', $service)) {
+            return max(0, (float) $service['surcharge']);
+        }
+
+        $split = self::getRemitaSplitSettings();
+        return max(0, (float) ($split['surcharge'] ?? $fallback));
+    }
+
+    public static function getRemitaSplitSettings(): array
+    {
+        $defaults = [
+            'enabled' => false,
+            'surcharge' => '0.00',
+            'fee_bearer' => 'primary',
+            'beneficiaries' => [
+                ['key' => 'primary', 'label' => 'University main account', 'account_number' => '', 'bank_code' => '', 'percentage' => 40],
+                ['key' => 'additional_1', 'label' => 'Additional account 1', 'account_number' => '', 'bank_code' => '', 'percentage' => 30],
+                ['key' => 'additional_2', 'label' => 'Additional account 2', 'account_number' => '', 'bank_code' => '', 'percentage' => 30],
+            ],
+        ];
+        $decoded = json_decode((string) self::get('remita_split_settings', ''), true);
+        if (!is_array($decoded)) {
+            return $defaults;
+        }
+
+        $settings = array_merge($defaults, $decoded);
+        $beneficiaries = [];
+        foreach ($defaults['beneficiaries'] as $index => $defaultBeneficiary) {
+            $beneficiary = is_array($settings['beneficiaries'][$index] ?? null)
+                ? array_merge($defaultBeneficiary, $settings['beneficiaries'][$index])
+                : $defaultBeneficiary;
+            $encrypted = (string) ($beneficiary['account_number'] ?? '');
+            if ($encrypted !== '') {
+                try {
+                    $beneficiary['account_number'] = Crypt::decryptString($encrypted);
+                } catch (\Throwable $exception) {
+                    // Existing local/test values may still be unencrypted.
+                }
+            }
+            $beneficiaries[] = $beneficiary;
+        }
+        $settings['beneficiaries'] = $beneficiaries;
+        $settings['enabled'] = filter_var($settings['enabled'], FILTER_VALIDATE_BOOLEAN);
+        $settings['surcharge'] = number_format(max(0, (float) $settings['surcharge']), 2, '.', '');
+
+        return $settings;
+    }
+
+    private static function normaliseRemitaServiceCatalog($value): ?array
+    {
+        if (is_string($value)) {
+            $value = json_decode($value, true);
+        }
+        if (!is_array($value)) {
+            return null;
+        }
+
+        $normalised = [];
+        $seen = [];
+        foreach ($value as $service) {
+            if (!is_array($service)) {
+                continue;
+            }
+            $key = strtolower(trim((string) ($service['key'] ?? '')));
+            $label = trim((string) ($service['label'] ?? ''));
+            $serviceTypeId = trim((string) ($service['service_type_id'] ?? ''));
+            if ($key === '' || !preg_match('/^[a-z0-9_]+$/', $key) || isset($seen[$key]) || $label === '') {
+                continue;
+            }
+            $seen[$key] = true;
+            $normalised[] = [
+                'key' => $key,
+                'label' => mb_substr($label, 0, 120),
+                'service_type_id' => mb_substr($serviceTypeId, 0, 60),
+                'description' => mb_substr(trim((string) ($service['description'] ?? '')), 0, 255),
+                'active' => filter_var($service['active'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'split_enabled' => filter_var($service['split_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'surcharge' => number_format(max(0, (float) ($service['surcharge'] ?? 0)), 2, '.', ''),
+            ];
+        }
+
+        return $normalised;
+    }
+
+    private static function normaliseRemitaSplitSettings($value): ?array
+    {
+        if (is_string($value)) {
+            $value = json_decode($value, true);
+        }
+        if (!is_array($value)) {
+            return null;
+        }
+
+        $beneficiaryRows = array_values((array) ($value['beneficiaries'] ?? []));
+        if (count($beneficiaryRows) !== 3) {
+            return null;
+        }
+
+        $beneficiaries = [];
+        $percentageTotal = 0.0;
+        foreach ($beneficiaryRows as $index => $row) {
+            if (!is_array($row)) {
+                return null;
+            }
+            $key = $index === 0 ? 'primary' : 'additional_' . $index;
+            $label = trim((string) ($row['label'] ?? '')) ?: ($index === 0 ? 'University main account' : 'Additional account ' . $index);
+            $account = preg_replace('/\D+/', '', (string) ($row['account_number'] ?? ''));
+            $bankCode = preg_replace('/\D+/', '', (string) ($row['bank_code'] ?? ''));
+            $percentage = (float) ($row['percentage'] ?? 0);
+            if ($percentage < 0 || $percentage > 100 || $label === '') {
+                return null;
+            }
+            if (filter_var($value['enabled'] ?? false, FILTER_VALIDATE_BOOLEAN)
+                && (!preg_match('/^\d{6,20}$/', $account) || !preg_match('/^\d{3,12}$/', $bankCode))) {
+                return null;
+            }
+            $percentageTotal += $percentage;
+            $beneficiaries[] = [
+                'key' => $key,
+                'label' => mb_substr($label, 0, 120),
+                'account_number' => $account !== '' ? Crypt::encryptString($account) : '',
+                'bank_code' => mb_substr($bankCode, 0, 12),
+                'percentage' => $percentage,
+            ];
+        }
+
+        if (abs($percentageTotal - 100) > 0.001) {
+            return null;
+        }
+
+        return [
+            'enabled' => filter_var($value['enabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'surcharge' => number_format(max(0, (float) ($value['surcharge'] ?? 0)), 2, '.', ''),
+            'fee_bearer' => 'primary',
+            'beneficiaries' => $beneficiaries,
+        ];
+    }
+
+    private function storeSettingValue(string $key, string $value): void
+    {
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => $key],
+            [
+                'value' => $value,
+                'type' => 'json',
+                'category' => 'payment',
+                'label' => $key === 'remita_service_catalog' ? 'Remita service types' : 'Remita split-payment settings',
+                'description' => 'Managed from Payment Gateway settings.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+        Cache::forget('system_settings');
     }
 
     /**

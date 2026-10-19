@@ -36,7 +36,7 @@
                 ->value('amount') ?? 0);
             $paid = (float) $paidInvoices
                 ->filter(fn ($invoice) => ($invoice->description ?? '') === 'UNIVERSITY OF MAIDUGURI-1000127 FEES')
-                ->sum('amount');
+                ->sum(fn ($invoice) => (float) ($invoice->base_amount ?? $invoice->amount ?? 0));
             $totalDue = $due;
             $totalPaid = $paid;
             $paymentData[] = ['session' => $currentSession, 'amount' => $due, 'paid' => $paid];
@@ -59,7 +59,7 @@
                         ($invoice->description ?? '') === 'UNIVERSITY OF MAIDUGURI-1000127 FEES' &&
                         ($invoice->session ?? '') === $record->session
                     )
-                    ->sum('amount');
+                    ->sum(fn ($invoice) => (float) ($invoice->base_amount ?? $invoice->amount ?? 0));
 
                 $totalDue += $due;
                 $totalPaid += $paid;

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use App\Services\RemitaPaymentService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -187,56 +188,30 @@ class InterUniversityTransferController extends Controller
         $user = DB::table('users')->where('id', session('id'))->first();
         $orderId = time() . rand(1000, 9999);
         $description = 'INTER-UNIVERSITY TRANSFER FEE';
-        $serviceTypeId = config('services.remita.inter_transfer_key', '4430731');
+        try {
+            $prepared = RemitaPaymentService::prepare(
+                'inter_university_transfer',
+                $amount,
+                (string) $orderId,
+                [
+                    'name' => $user->name ?? session('username'),
+                    'email' => session('username'),
+                    'phone' => '08000000000',
+                ],
+                $description
+            );
+            $amount = $prepared['total_amount'];
+            $serviceTypeId = $prepared['service_type_id'];
+        } catch (\Throwable $exception) {
+            \Log::error('Inter-university transfer payment preparation failed', ['message' => $exception->getMessage()]);
+            return response()->json(['error' => 'This payment is not configured correctly. Please contact the accounts office.'], 422);
+        }
 
-        $paymentData = [
-            'serviceTypeId' => $serviceTypeId,
-            'amount' => $amount,
-            'orderId' => $orderId,
-            'payerName' => $user->name ?? session('username'),
-            'payerEmail' => session('username'),
-            'payerPhone' => '08000000000',
-            'description' => $description,
-        ];
+        $result = RemitaPaymentService::createReference($prepared, 'Inter-university transfer Remita payment');
+        if ($result['success']) {
+                $rrr = $result['rrr'];
 
-        $apiHash = hash('sha512',
-            $this->merchantId . $serviceTypeId . $orderId . $amount . $this->apiKey
-        );
-
-        $remitaBaseUrl = SystemSettingsController::getRemitaBaseUrl();
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $remitaBaseUrl . '/remita/exapp/api/v1/send/api/echannelsvc/merchant/api/paymentinit');
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($paymentData));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'Authorization: remitaConsumerKey=' . $this->merchantId . ',remitaConsumerToken=' . $apiHash,
-        ]);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
-
-        \Log::info('Inter-University Transfer Payment Debug:', [
-            'httpCode' => $httpCode,
-            'curlError' => $curlError,
-            'response' => $response,
-        ]);
-
-        if ($httpCode == 200) {
-            $cleanResponse = str_replace('jsonp (', '', $response);
-            $cleanResponse = str_replace(')', '', $cleanResponse);
-            $result = json_decode($cleanResponse, true);
-
-            if (isset($result['RRR'])) {
-                $rrr = $result['RRR'];
-
-                DB::table('invoices')->insert([
+                RemitaPaymentService::storeInvoice([
                     'username' => session('id'),
                     'name' => $user->name ?? session('username'),
                     'phone' => '08000000000',
@@ -248,9 +223,15 @@ class InterUniversityTransferController extends Controller
                     'serviceTypeId' => $serviceTypeId,
                     'session' => session('system_session'),
                     'status' => 'Pending',
+                    'base_amount' => $prepared['base_amount'],
+                    'surcharge_amount' => $prepared['surcharge_amount'],
+                    'split_enabled' => $prepared['split_enabled'] ? 1 : 0,
+                    'split_details' => $prepared['line_item_summary'] !== []
+                        ? json_encode($prepared['line_item_summary'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+                        : null,
                     'created_at' => date('Y-m-d'),
                     'updated_at' => date('Y-m-d'),
-                ]);
+                ], $prepared);
 
                 return response()->json([
                     'success' => true,
@@ -260,13 +241,8 @@ class InterUniversityTransferController extends Controller
                 ]);
             }
 
-            return response()->json([
-                'error' => 'Payment initialization failed: ' . ($result['message'] ?? 'Unknown error'),
-            ], 500);
-        }
-
         return response()->json([
-            'error' => 'Payment initialization failed. HTTP Code: ' . $httpCode . '. Error: ' . $curlError,
+            'error' => 'Payment initialization failed: ' . ($result['message'] ?? 'Please try again.'),
         ], 500);
     }
 
@@ -306,7 +282,10 @@ class InterUniversityTransferController extends Controller
         $cleanResponse = rtrim($cleanResponse, ')');
         $result = json_decode($cleanResponse, true);
 
-        \Log::info('Inter-University Transfer Verify:', ['rrr' => $rrr, 'result' => $result]);
+        \Log::info('Inter-University Transfer Verify:', [
+            'rrr' => $rrr,
+            'status' => is_array($result) ? ($result['status'] ?? null) : null,
+        ]);
 
         if (isset($result['status']) && in_array($result['status'], ['00', '01'])) {
             DB::table('invoices')->where('rrr', $rrr)->update([

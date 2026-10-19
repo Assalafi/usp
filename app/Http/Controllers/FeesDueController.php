@@ -161,6 +161,14 @@ class FeesDueController extends Controller
                 'count' => (int) ($schoolTotals['students'] ?? 0),
             ]);
         }
+        if (($schoolTotals['surcharge_paid'] ?? 0) > 0) {
+            $paymentSummary->push([
+                'description' => 'SCHOOL FEES ADDITIONAL CHARGES',
+                'filter' => $schoolDescription,
+                'amount' => (float) $schoolTotals['surcharge_paid'],
+                'count' => (int) ($schoolTotals['students'] ?? 0),
+            ]);
+        }
         $hostelPinCount = DB::table('hostel_pin')
             ->where('flag', 1)
             ->where('username', '!=', 'Awaiting')

@@ -1,5 +1,6 @@
 @php
     use Illuminate\Support\Facades\DB;
+    use App\Services\RemitaPaymentService;
 
     // Get applicant data
     $applicant = DB::table('applicants')->where('user_id', session('id'))->first();
@@ -14,7 +15,6 @@
 
     // PUTME fee from settings (admin-controlled)
     $amount = (float) \App\Http\Controllers\SystemSettingsController::get('putme_fee', 2000);
-    $serviceTypeId = \App\Http\Controllers\SystemSettingsController::get('remita_putme_service_type', 4430731);
 
     // If no invoice exists, create one automatically
     if ($invs->isEmpty() && $applicant) {
@@ -25,85 +25,47 @@
         $email = $applicant->email ?? '';
 
         if (!empty($phone) && !empty($email)) {
-            $baseUrl = env('REMITA_BASE_URL') . 'remita/exapp/api/v1/send/api';
-            $merchantId = env('REMITA_MERCHANT_ID', 2547916);
-            $apiKey = env('REMITA_API_KEY', 1946);
-
-            $hash = hash('sha512', $merchantId . $serviceTypeId . $orderId . $amount . $apiKey);
-
-            $curl = curl_init();
-            curl_setopt_array($curl, [
-                CURLOPT_URL => $baseUrl . '/echannelsvc/merchant/api/paymentinit',
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_ENCODING => '',
-                CURLOPT_MAXREDIRS => 10,
-                CURLOPT_TIMEOUT => 15, // Set 15-second timeout
-                CURLOPT_CONNECTTIMEOUT => 10, // Set 10-second connection timeout
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                CURLOPT_CUSTOMREQUEST => 'POST',
-                CURLOPT_POSTFIELDS => json_encode([
-                    'serviceTypeId' => $serviceTypeId,
-                    'amount' => $amount,
-                    'orderId' => $orderId,
-                    'payerName' => trim(($applicant->surname ?? '') . ' ' . ($applicant->firstName ?? '')),
-                    'payerEmail' => $email,
-                    'payerPhone' => $phone,
-                    'description' => $description,
-                ]),
-                CURLOPT_HTTPHEADER => [
-                    'Content-Type: application/json',
-                    'Authorization: remitaConsumerKey=' . $merchantId . ',remitaConsumerToken=' . $hash,
-                ],
-            ]);
-
-            $response = curl_exec($curl);
-            $curl_error = curl_error($curl);
-            $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-            curl_close($curl);
-
-            // Check for cURL errors (including timeouts)
-            if ($response === false || !empty($curl_error)) {
-                // Log the error for debugging but continue silently
-                error_log('Invoice generation cURL error: ' . $curl_error);
-                // Don't create invoice, let the user try the manual form
-        } elseif ($http_code !== 200) {
-            // Log HTTP error
-            error_log('Invoice generation HTTP error: ' . $http_code);
-            // Don't create invoice, let the user try the manual form
-            } else {
-                $obj = json_decode($response, true);
-
-                if ($obj === null) {
-                    $substr = substr($response, 7, -1);
-                    $obj = json_decode($substr, true);
-                }
-
-                if (is_array($obj) && isset($obj['RRR']) && !empty($obj['RRR'])) {
+            try {
+                $prepared = RemitaPaymentService::prepare(
+                    'post_utme',
+                    $amount,
+                    $orderId,
+                    [
+                        'name' => trim(($applicant->surname ?? '') . ' ' . ($applicant->firstName ?? '')),
+                        'email' => $email,
+                        'phone' => $phone,
+                    ],
+                    $description
+                );
+                $result = RemitaPaymentService::createReference($prepared, 'UG Post-UTME Remita');
+                if ($result['success']) {
                     $datas = [
                         'username' => session('id'),
                         'description' => $description,
-                        'amount' => $amount,
+                        'amount' => $prepared['total_amount'],
+                        'base_amount' => $prepared['base_amount'],
+                        'surcharge_amount' => $prepared['surcharge_amount'],
+                        'split_enabled' => $prepared['split_enabled'] ? 1 : 0,
+                        'split_details' => $prepared['line_item_summary'] !== []
+                            ? json_encode($prepared['line_item_summary'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+                            : null,
                         'orderId' => $orderId,
-                        'serviceTypeId' => $serviceTypeId,
-                        'rrr' => $obj['RRR'],
+                        'serviceTypeId' => $prepared['service_type_id'],
+                        'rrr' => $result['rrr'],
                         'phone' => $phone,
                         'email' => $email,
                         'status' => 'Pending',
                     ];
 
-                    try {
-                        DB::table('invoices')->insert($datas);
-                        // Refresh invoice list
-                        $invs = DB::table('invoices')
-                            ->where(['username' => session('id'), 'description' => 'POST UTME', 'status' => 'Pending'])
-                            ->orderBy('id', 'ASC')
-                            ->get();
-                    } catch (Exception $e) {
-                        // Handle error silently for now
-                    }
+                    RemitaPaymentService::storeInvoice($datas, $prepared);
+                    $invs = DB::table('invoices')
+                        ->where(['username' => session('id'), 'description' => 'POST UTME', 'status' => 'Pending'])
+                        ->orderBy('id', 'ASC')
+                        ->get();
                 }
-            } // Close the else block for successful cURL response
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
         }
     }
 @endphp

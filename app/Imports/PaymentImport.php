@@ -87,7 +87,7 @@ class PaymentImport implements ToCollection
 
                     if($this->service == 'hostel fees'){
                         $description = 'HOSTEL-MAINTENANCE/FEES';
-                        $serviceTypeId = '767540443';
+                        $serviceTypeId = \App\Http\Controllers\SystemSettingsController::getRemitaServiceType('hostel', config('services.remita.hostel_key', ''));
                         $hostel_amount = DB::table('hostel')->where('occupant', $row[0])->value('amount');
                         $amount = (float) $hostel_amount;
                         if ($amount == 0 || $amount == null || $amount == '') {
@@ -100,7 +100,7 @@ class PaymentImport implements ToCollection
 
                     }else if($this->service == 'school fees'){
                         $description = 'UNIVERSITY OF MAIDUGURI-1000127 FEES';
-                        $serviceTypeId = '365039916';
+                        $serviceTypeId = \App\Http\Controllers\SystemSettingsController::getRemitaServiceType('school_fees', config('services.remita.school_fees_key', ''));
                         if ($this->upload_type == 'full') {
                             if ($amount != 0) {
                             //dd($amount);
@@ -139,6 +139,12 @@ class PaymentImport implements ToCollection
                         return;
                     }
 
+                    if (trim((string) ($serviceTypeId ?? '')) === '') {
+                        session()->put('studentImportStatus', 'error');
+                        session()->put('studentImportMsg', 'The selected payment service has no Remita Service Type ID configured.');
+                        return;
+                    }
+
 
                     $username = $row[0];
 
@@ -167,7 +173,7 @@ class PaymentImport implements ToCollection
                     try {
                         if($this->sponsor == 'nelfund' && $this->service == 'school fees'){
                             // first update any existing record with the same description and session and username to description = "REFUND", before adding new record
-                            $id = DB::table('invoices')->where(['serviceTypeId' => '365039916', 'session' => $session, 'username' => $username, 'status' => 'Paid'])->where('fees_type', '!=', 'nelfund')->pluck('id');
+                            $id = DB::table('invoices')->where(['serviceTypeId' => $serviceTypeId, 'session' => $session, 'username' => $username, 'status' => 'Paid'])->where('fees_type', '!=', 'nelfund')->pluck('id');
                             // dd($id);
                             Invoice::whereIn('id', $id)
                                 ->where('fees_type', '!=', 'nelfund')
@@ -175,7 +181,7 @@ class PaymentImport implements ToCollection
                                 ->where('description', 'UNIVERSITY OF MAIDUGURI-1000127 FEES')
                                 ->update([
                                     'description' => 'REFUND',
-                                    'serviceTypeId' => '365039916',
+                                    'serviceTypeId' => $serviceTypeId,
                                     'updated_at' => now()
                                 ]);
                             Invoice::updateOrCreate(

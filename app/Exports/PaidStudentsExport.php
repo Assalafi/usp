@@ -33,7 +33,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
      */
     public static function paidRows(string $session, string $feesType = '', array $filters = []): array
     {
-        $serviceTypeId = (string) config('services.remita.school_fees_key', '365039916');
+        $serviceTypeId = (string) \App\Http\Controllers\SystemSettingsController::getRemitaServiceType('school_fees', config('services.remita.school_fees_key', '365039916'));
         $academicFilterKeys = ['faculty', 'department', 'program', 'level'];
         $includeStudentsWithoutPayments = count(array_intersect(
             array_keys($filters),
@@ -81,7 +81,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                 LEFT JOIN department department_lookup ON department_lookup.code = s.department
                 LEFT JOIN program program_lookup ON program_lookup.code = s.program
                 LEFT JOIN (
-                    SELECT username, SUM(amount) AS invoices_amount
+                    SELECT username, SUM(COALESCE(base_amount, amount)) AS invoices_amount
                     FROM invoices
                     WHERE session = ?
                       AND status = 'Paid'
@@ -137,7 +137,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
      */
     public static function paidTotals(string $session, string $feesType = ''): array
     {
-        $serviceTypeId = (string) config('services.remita.school_fees_key', '365039916');
+        $serviceTypeId = (string) \App\Http\Controllers\SystemSettingsController::getRemitaServiceType('school_fees', config('services.remita.school_fees_key', '365039916'));
         $sponsorFilter = '';
 
         if ($feesType === 'nelfund') {
@@ -153,7 +153,8 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
             SELECT
                 COUNT(*) AS students,
                 COALESCE(SUM(summary.required_amount), 0) AS required_amount,
-                COALESCE(SUM(summary.invoices_amount), 0) AS amount_paid
+                COALESCE(SUM(summary.invoices_amount), 0) AS amount_paid,
+                COALESCE(SUM(summary.surcharge_amount), 0) AS surcharge_paid
             FROM (
                 SELECT
                     s.username,
@@ -166,10 +167,13 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                         WHEN s.session_of_entry = ? THEN COALESCE(new_fee.amount, 0)
                         ELSE COALESCE(returning_fee.amount, 0)
                     END AS required_amount,
-                    paid.invoices_amount
+                    paid.invoices_amount,
+                    paid.surcharge_amount
                 FROM students s
                 INNER JOIN (
-                    SELECT username, SUM(amount) AS invoices_amount
+                    SELECT username,
+                           SUM(COALESCE(base_amount, amount)) AS invoices_amount,
+                           SUM(COALESCE(surcharge_amount, 0)) AS surcharge_amount
                     FROM invoices
                     WHERE session = ?
                       AND status = 'Paid'
@@ -203,7 +207,8 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                     s.session_of_entry,
                     new_fee.amount,
                     returning_fee.amount,
-                    paid.invoices_amount
+                    paid.invoices_amount,
+                    paid.surcharge_amount
             ) summary
             WHERE summary.required_amount > 0
         ";
@@ -214,6 +219,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
             'students' => (int) ($totals->students ?? 0),
             'required_amount' => (float) ($totals->required_amount ?? 0),
             'amount_paid' => (float) ($totals->amount_paid ?? 0),
+            'surcharge_paid' => (float) ($totals->surcharge_paid ?? 0),
         ];
     }
 
@@ -224,7 +230,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
      */
     public static function sponsorTotals(string $session): array
     {
-        $serviceTypeId = (string) config('services.remita.school_fees_key', '365039916');
+        $serviceTypeId = (string) \App\Http\Controllers\SystemSettingsController::getRemitaServiceType('school_fees', config('services.remita.school_fees_key', '365039916'));
 
         $query = "
             SELECT sponsor,
@@ -241,7 +247,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                         WHEN s.session_of_entry = ? THEN COALESCE(new_fee.amount, 0)
                         ELSE COALESCE(returning_fee.amount, 0)
                     END AS required_amount,
-                    COALESCE(SUM(i.amount), 0) AS amount_paid
+                    COALESCE(SUM(COALESCE(i.base_amount, i.amount)), 0) AS amount_paid
                 FROM students s
                 INNER JOIN invoices i ON i.username = s.user_id
                 LEFT JOIN (
@@ -299,7 +305,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
      */
     public static function levelTotals(string $session): array
     {
-        $serviceTypeId = (string) config('services.remita.school_fees_key', '365039916');
+        $serviceTypeId = (string) \App\Http\Controllers\SystemSettingsController::getRemitaServiceType('school_fees', config('services.remita.school_fees_key', '365039916'));
         $query = "
             SELECT level,
                    COUNT(*) AS students,
@@ -314,7 +320,7 @@ class PaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSize
                         WHEN s.session_of_entry = ? THEN COALESCE(new_fee.amount, 0)
                         ELSE COALESCE(returning_fee.amount, 0)
                     END AS required_amount,
-                    COALESCE(SUM(i.amount), 0) AS amount_paid
+                    COALESCE(SUM(COALESCE(i.base_amount, i.amount)), 0) AS amount_paid
                 FROM students s
                 INNER JOIN invoices i ON i.username = s.user_id
                 LEFT JOIN (

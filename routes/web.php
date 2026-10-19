@@ -1139,6 +1139,8 @@ $allPages = [
     'school fees',
     'hostel fees',
     'fees due',
+    'remita split report',
+    'admin/remita-split-report',
     'committee',
     'committee role',
     'committee membership',
@@ -1290,6 +1292,9 @@ Route::get('/print-receipt/{rrr}', [InvoicesController::class, 'printReceipt'])-
 
 // Admin Receipts Page
 Route::get('/admin/receipts', [InvoicesController::class, 'adminReceipts'])->name('admin.receipts');
+Route::get('/admin/remita-split-report', [App\Http\Controllers\RemitaSplitReportController::class, 'index'])
+    ->name('admin.remita.split.report')
+    ->middleware('role');
 Route::get('/admin/receipts/download-all', [InvoicesController::class, 'downloadAllReceipts'])->name('admin.receipts.download_all');
 Route::post('/admin/receipts/export-paid-students', [InvoicesController::class, 'exportPaidStudents'])->name('admin.receipts.export_paid_students');
 Route::post('/admin/receipts/export-unpaid-students', [InvoicesController::class, 'exportUnpaidStudents'])->name('admin.receipts.export_unpaid_students');

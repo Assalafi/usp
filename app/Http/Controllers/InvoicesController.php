@@ -6,6 +6,7 @@ use App\Imports\PaymentImport;
 use App\Models\Invoice;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\RemitaPaymentService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Database\QueryException;
@@ -251,6 +252,9 @@ class InvoicesController extends Controller
                 $receipt->id = $invoice->id;
                 $receipt->rrr = $invoice->rrr;
                 $receipt->amount = $invoice->amount;
+                $receipt->base_amount = $invoice->base_amount ?? $invoice->amount;
+                $receipt->surcharge_amount = $invoice->surcharge_amount ?? 0;
+                $receipt->split_enabled = (bool) ($invoice->split_enabled ?? false);
                 $receipt->description = $invoice->description;
                 $receipt->session = $invoice->session;
                 $receipt->fees_type = $invoice->fees_type ?? null;
@@ -462,7 +466,7 @@ class InvoicesController extends Controller
             $email = $datas['email'] = strtolower($req->email);
 
             $description = config('services.remita.hostel_description');
-            $serviceTypeId = config('services.remita.hostel_key');
+            $serviceTypeId = \App\Http\Controllers\SystemSettingsController::getRemitaServiceType('hostel', config('services.remita.hostel_key'));
             $amount = DB::table('hostel')->where('occupant', session('id_number'))->select('amount')->value('amount');
             if ($amount > 0) {
             } else {
@@ -475,12 +479,12 @@ class InvoicesController extends Controller
             $full = $amounts;
             if (($amount == $half || $amount == $full) && $req->try == '1') {
                 $description = 'UNIVERSITY OF MAIDUGURI-1000127 FEES';
-                $serviceTypeId = config('services.remita.school_fees_key');
+                $serviceTypeId = \App\Http\Controllers\SystemSettingsController::getRemitaServiceType('school_fees', config('services.remita.school_fees_key'));
                 $name = $datas['name'] = $name . ' (' . session('username') . ')';
                 $amount = $amount;
             } else if ($req->try == 'second') {
                 $description = 'UNIVERSITY OF MAIDUGURI-1000127 FEES';
-                $serviceTypeId = config('services.remita.school_fees_key');
+                $serviceTypeId = \App\Http\Controllers\SystemSettingsController::getRemitaServiceType('school_fees', config('services.remita.school_fees_key'));
                 $name = $datas['name'] = $name . ' (' . session('username') . ')';
                 $amountPay = 0;
                 $amountPaid = 0;
@@ -494,7 +498,7 @@ class InvoicesController extends Controller
                             'status' => 'Paid',
                         ])
                         ->orderBy('id', 'ASC')
-                        ->sum('amount');
+                        ->sum(DB::raw('COALESCE(base_amount, amount)'));
                     $amountPay = DB::table('school_fees')
                         ->where(['program' => $row->program, 'level' => $row->level_of_entry, 'type' => 'NEW'])
                         ->select('amount')
@@ -526,7 +530,7 @@ class InvoicesController extends Controller
                                 'session' => $return->session,
                             ])
                             ->orderBy('id', 'ASC')
-                            ->sum('amount');
+                            ->sum(DB::raw('COALESCE(base_amount, amount)'));
                     }
                 }
 
@@ -550,7 +554,7 @@ class InvoicesController extends Controller
         } else if ($req->page == 'id-card') {
             $amount = (float) \App\Http\Controllers\SystemSettingsController::get('id_card_fee', 2000);
             $description = 'ID CARDS';
-            $serviceTypeId = \App\Http\Controllers\SystemSettingsController::get('id_card_service_type', '767553585');
+            $serviceTypeId = \App\Http\Controllers\SystemSettingsController::getRemitaServiceType('id_card', \App\Http\Controllers\SystemSettingsController::get('id_card_service_type', '767553585'));
             $name = $datas['name'] = $name . ' (' . session('username') . ')';
             $phone = $datas['phone'] = $req->phone;
             $email = $datas['email'] = strtolower($req->email);
@@ -560,98 +564,46 @@ class InvoicesController extends Controller
             return redirect()->back()->with('error', 'Undefined Payment Description');
         }
 
-        $baseUrl = rtrim((string) \App\Http\Controllers\SystemSettingsController::getRemitaBaseUrl(), '/') . '/remita/exapp/api/v1/send/api';
-        $merchantId = (string) $this->merchantId;
-        $apiKey = (string) $this->apiKey;
-        $amountForRemita = rtrim(rtrim(number_format((float) $amount, 2, '.', ''), '0'), '.');
-        $amountForRemita = $amountForRemita === '' ? '0' : $amountForRemita;
         $orderId = (string) random_int(92343459459, 93438458488);
-        $hash = hash('sha512', $merchantId.$serviceTypeId.$orderId.$amountForRemita.$apiKey);
-        $payload = [
-            'serviceTypeId' => (string) $serviceTypeId,
-            'amount' => $amountForRemita,
-            'orderId' => $orderId,
-            'payerName' => trim((string) $name),
-            'payerEmail' => trim((string) $email),
-            'payerPhone' => trim((string) $phone),
-            'description' => trim((string) $description),
-        ];
-        $apiUrl = $baseUrl.'/echannelsvc/merchant/api/paymentinit';
-        $rawResponse = false;
-        $curlError = null;
-        $httpCode = 0;
-
-        for ($attempt = 1; $attempt <= 3; $attempt++) {
-            $curl = curl_init($apiUrl);
-            curl_setopt_array($curl, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_ENCODING => '',
-                CURLOPT_MAXREDIRS => 3,
-                CURLOPT_TIMEOUT => 30,
-                CURLOPT_CONNECTTIMEOUT => 12,
-                CURLOPT_FOLLOWLOCATION => false,
-                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                CURLOPT_POST => true,
-                CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-                CURLOPT_HTTPHEADER => [
-                    'Content-Type: application/json',
-                    'Accept: application/json',
-                    'Authorization: remitaConsumerKey='.$merchantId.',remitaConsumerToken='.$hash,
-                ],
+        $serviceKey = $req->page === 'hostel'
+            ? 'hostel'
+            : ($req->page === 'id-card' ? 'id_card' : 'school_fees');
+        try {
+            $prepared = RemitaPaymentService::prepare(
+                $serviceKey,
+                $amount,
+                $orderId,
+                ['name' => $name, 'email' => $email, 'phone' => $phone],
+                $description
+            );
+        } catch (\Throwable $exception) {
+            Log::error('UG Remita payment preparation failed', [
+                'service_key' => $serviceKey,
+                'message' => $exception->getMessage(),
             ]);
-            $rawResponse = curl_exec($curl);
-            $curlError = curl_error($curl) ?: null;
-            $httpCode = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
-            curl_close($curl);
-
-            if ($rawResponse !== false && $httpCode < 500 && $httpCode !== 429) {
-                break;
-            }
-            if ($attempt < 3) {
-                usleep($attempt * 500000);
-            }
+            return redirect()->back()->with('error', 'This payment is not configured correctly. Please contact the accounts office.');
         }
-
-        $rawBody = is_string($rawResponse) ? $rawResponse : '';
-        $obj = json_decode(trim($rawBody), true);
-        if (! is_array($obj) && preg_match('/\{.*\}/s', $rawBody, $matches)) {
-            $obj = json_decode($matches[0], true);
+        $amount = $prepared['total_amount'];
+        $serviceTypeId = $prepared['service_type_id'];
+        $result = RemitaPaymentService::createReference($prepared, 'UG Remita payment');
+        if (!$result['success']) {
+            return redirect()->back()->with('error', 'Remita could not create the payment reference: ' . $result['message']);
         }
-        $obj = is_array($obj) ? $obj : [];
-
-        Log::info('UG Remita RRR generation request', [
-            'service_type_id' => (string) $serviceTypeId,
-            'order_id' => $orderId,
-            'http_status' => $httpCode,
-            'curl_error' => $curlError,
-            'response' => mb_substr($rawBody, 0, 2000),
-        ]);
-
-        $rrr = $obj['RRR'] ?? $obj['rrr'] ?? null;
-        if (! $rrr) {
-            $message = $obj['responseMsg']
-                ?? $obj['statusMessage']
-                ?? $obj['message']
-                ?? ($curlError ?: (($httpCode >= 500 || $httpCode === 429)
-                    ? 'Remita is temporarily busy. Please try again in a moment.'
-                    : 'Remita did not return a payment reference.'));
-            Log::error('UG Remita RRR generation failed', [
-                'service_type_id' => (string) $serviceTypeId,
-                'order_id' => $orderId,
-                'http_status' => $httpCode,
-                'message' => $message,
-                'response' => mb_substr($rawBody, 0, 2000),
-            ]);
-            return redirect()->back()->with('error', 'Remita could not create the payment reference: '.$message);
-        }
+        $rrr = $result['rrr'];
         $datas['username'] = session('id');
             $datas['description'] = $description;
             $datas['amount'] = $amount;
             $datas['orderId'] = $orderId;
             $datas['serviceTypeId'] = $serviceTypeId;
             $datas['rrr'] = $rrr;
+            $datas['base_amount'] = $prepared['base_amount'];
+            $datas['surcharge_amount'] = $prepared['surcharge_amount'];
+            $datas['split_enabled'] = $prepared['split_enabled'] ? 1 : 0;
+            $datas['split_details'] = $prepared['line_item_summary'] !== []
+                ? json_encode($prepared['line_item_summary'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+                : null;
             try {
-                DB::table($this->table)->insert($datas);
+                RemitaPaymentService::storeInvoice($datas, $prepared);
             } catch (QueryException $e) {
                 if ($e->errorInfo[1] == 1062) {
                     return redirect()->back()->with('error', 'You already have pending invoice for this service');
@@ -690,83 +642,27 @@ class InvoicesController extends Controller
         }
         $amount = (float) \App\Http\Controllers\SystemSettingsController::get('putme_fee', 2000);
         $description = config('services.remita.post_utme_description');
-        $serviceTypeId = \App\Http\Controllers\SystemSettingsController::get('remita_putme_service_type', config('services.remita.post_utme_key'));
         $name = $datas['name'] = $name . ' (' . session('username') . ')';
-
-        $baseUrl = rtrim((string) \App\Http\Controllers\SystemSettingsController::getRemitaBaseUrl(), '/') . '/remita/exapp/api/v1/send/api';
-        $merchantId = $this->merchantId;
-        $apiKey = $this->apiKey;
-        // echo $description.' '.$serviceTypeId;
-        // die;
-        $orderId = rand(92343459459, 93438458488);
-        $user_ip_address = $_SERVER['REMOTE_ADDR'];
-
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => '' . $baseUrl . '/echannelsvc/merchant/api/paymentinit',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 15,  // Set 15-second timeout
-            CURLOPT_CONNECTTIMEOUT => 10,  // Set 10-second connection timeout
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => '{
-                "serviceTypeId": "' . $serviceTypeId . '",
-                "amount": "' . $amount . '",
-                "orderId": "' . $orderId . '",
-                "payerName": "' . $name . '",
-                "payerEmail": "' . $email . '",
-                "payerPhone": "' . $phone . '",
-                "description": "' . $description . '"
-                }',
-            CURLOPT_HTTPHEADER => array(
-                'Content-Type: application/json',
-                'Authorization: remitaConsumerKey=' . $merchantId . ',remitaConsumerToken=' . hash('sha512', $merchantId . '' . $serviceTypeId . '' . $orderId . '' . $amount . '' . $apiKey) . ''
-            ),
-        ));
-
-        $response = curl_exec($curl);
-        $curl_error = curl_error($curl);
-        $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-
-        curl_close($curl);
-
-        // Check for cURL errors (including timeouts)
-        if ($response === false || !empty($curl_error)) {
-            $error_msg = 'Invoice generation failed. ';
-            if (strpos($curl_error, 'timeout') !== false || strpos($curl_error, 'Operation timed out') !== false) {
-                $error_msg = 'Invoice generation timed out. Please try again in a moment.';
-            } elseif (!empty($curl_error)) {
-                $error_msg .= 'Connection error occurred.';
-            } else {
-                $error_msg .= 'Unable to connect to payment gateway.';
-            }
-            return redirect()->back()->with('error', $error_msg);
+        $orderId = (string) random_int(92343459459, 93438458488);
+        try {
+            $prepared = RemitaPaymentService::prepare(
+                'post_utme',
+                $amount,
+                $orderId,
+                ['name' => $name, 'email' => $email, 'phone' => $phone],
+                $description
+            );
+            $result = RemitaPaymentService::createReference($prepared, 'UG Post-UTME Remita');
+        } catch (\Throwable $exception) {
+            Log::error('UG Post-UTME payment preparation failed', ['message' => $exception->getMessage()]);
+            return redirect()->back()->with('error', 'This payment is not configured correctly. Please contact the accounts office.');
         }
-
-        // Check HTTP response code
-        if ($http_code !== 200) {
-            return redirect()->back()->with('error', 'Payment service unavailable (HTTP ' . $http_code . '). Please try again later.');
+        if (!$result['success']) {
+            return redirect()->back()->with('error', 'Remita could not create the payment reference: ' . $result['message']);
         }
-
-        $obj = json_decode($response, true);
-
-        if ($obj === null) {
-            $substr = substr($response, 7, -1);
-            $obj = json_decode($substr, true);
-        }
-        // dd($response);
-
-        if (is_array($obj) && isset($obj['RRR']) && !empty($obj['RRR'])) {
-            $rrr = $obj['RRR'];
-        } elseif (is_array($obj) && isset($obj['status']) && $obj['status'] !== '00') {
-            $msg = $obj['statusMessage'] ?? $obj['status'] ?? 'Unknown error';
-            return redirect()->back()->with('error', 'REMITA Error: ' . $msg);
-        } else {
-            return redirect()->back()->with('error', 'Failed to Connect to REMITA. Try Again');
-        }
+        $rrr = $result['rrr'];
+        $amount = $prepared['total_amount'];
+        $serviceTypeId = $prepared['service_type_id'];
 
         if ($rrr == NULL) {
             return redirect()->back()->with('error', 'There is an error from the REMITA site. Try Again');
@@ -777,8 +673,14 @@ class InvoicesController extends Controller
             $datas['orderId'] = $orderId;
             $datas['serviceTypeId'] = $serviceTypeId;
             $datas['rrr'] = $rrr;
+            $datas['base_amount'] = $prepared['base_amount'];
+            $datas['surcharge_amount'] = $prepared['surcharge_amount'];
+            $datas['split_enabled'] = $prepared['split_enabled'] ? 1 : 0;
+            $datas['split_details'] = $prepared['line_item_summary'] !== []
+                ? json_encode($prepared['line_item_summary'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+                : null;
             try {
-                DB::table('invoices')->insert($datas);
+                RemitaPaymentService::storeInvoice($datas, $prepared);
             } catch (QueryException $e) {
                 if ($e->errorInfo[1] == 1062) {
                     return redirect()->back()->with('error', 'You already have pending invoice for this service');

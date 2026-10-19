@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\RemitaPaymentService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -490,71 +491,33 @@ class ChangeOfCourseController extends Controller
         }
         $orderId = time() . rand(1000, 9999);
         $description = 'CHANGE OF COURSE FEE';
-        $serviceTypeId = config('services.remita.inter_transfer_key', '4430731');
 
         // Sanitize strings - remove non-ASCII chars (Remita Java backend rejects them)
         $payerName = trim(preg_replace('/[^\x20-\x7E]/', '', $student->fullname)) ?: 'STUDENT';
         $payerEmail = trim(preg_replace('/[^\x20-\x7E]/', '', $student->contact_email ?? 'student@unimaid.edu.ng'));
         $payerPhone = trim(preg_replace('/[^0-9+]/', '', $student->contact_phone ?? '08000000000'));
 
-        // Generate RRR using Remita API
-        $paymentData = [
-            'serviceTypeId' => $serviceTypeId,
-            'amount' => $amount,
-            'orderId' => $orderId,
-            'payerName' => $payerName,
-            'payerEmail' => $payerEmail,
-            'payerPhone' => $payerPhone,
-            'description' => $description,
-        ];
+        try {
+            $prepared = RemitaPaymentService::prepare(
+                'change_of_course',
+                $amount,
+                (string) $orderId,
+                ['name' => $payerName, 'email' => $payerEmail, 'phone' => $payerPhone],
+                $description
+            );
+            $amount = $prepared['total_amount'];
+            $serviceTypeId = $prepared['service_type_id'];
+        } catch (\Throwable $exception) {
+            \Log::error('Change-of-course payment preparation failed', ['message' => $exception->getMessage()]);
+            return response()->json(['error' => 'This payment is not configured correctly. Please contact the accounts office.'], 422);
+        }
 
-        $apiHash = hash('sha512', 
-            $this->merchantId . $serviceTypeId . $orderId . $amount . $this->apiKey
-        );
-
-        $remitaBaseUrl = \App\Http\Controllers\SystemSettingsController::getRemitaBaseUrl();
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $remitaBaseUrl . '/remita/exapp/api/v1/send/api/echannelsvc/merchant/api/paymentinit');
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($paymentData, JSON_UNESCAPED_UNICODE));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json; charset=utf-8',
-            'Authorization: remitaConsumerKey=' . $this->merchantId . ',remitaConsumerToken=' . $apiHash,
-        ]);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); // Follow redirects
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
-
-        // Log debugging information
-        \Log::info('Remita Payment Debug:', [
-            'merchantId' => $this->merchantId,
-            'serviceTypeId' => $serviceTypeId,
-            'orderId' => $orderId,
-            'amount' => $amount,
-            'apiHash' => $apiHash,
-            'httpCode' => $httpCode,
-            'curlError' => $curlError,
-            'response' => $response,
-            'paymentData' => $paymentData
-        ]);
-
-        if ($httpCode == 200) {
-            // Handle JSONP response format
-            $cleanResponse = str_replace('jsonp (', '', $response);
-            $cleanResponse = str_replace(')', '', $cleanResponse);
-            $result = json_decode($cleanResponse, true);
-            
-            if (isset($result['RRR'])) {
-                $rrr = $result['RRR'];
+        $result = RemitaPaymentService::createReference($prepared, 'Change-of-course Remita payment');
+        if ($result['success']) {
+                $rrr = $result['rrr'];
 
                 // Create invoice record
-                DB::table('invoices')->insert([
+                RemitaPaymentService::storeInvoice([
                     'username' => session('id'),
                     'name' => $student->fullname,
                     'phone' => $student->contact_phone,
@@ -569,9 +532,15 @@ class ChangeOfCourseController extends Controller
                     'program' => $student->program,
                     'session' => session('system_session'),
                     'status' => 'Pending',
+                    'base_amount' => $prepared['base_amount'],
+                    'surcharge_amount' => $prepared['surcharge_amount'],
+                    'split_enabled' => $prepared['split_enabled'] ? 1 : 0,
+                    'split_details' => $prepared['line_item_summary'] !== []
+                        ? json_encode($prepared['line_item_summary'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+                        : null,
                     'created_at' => date('Y-m-d'),
                     'updated_at' => date('Y-m-d'),
-                ]);
+                ], $prepared);
 
                 return response()->json([
                     'success' => true,
@@ -579,28 +548,10 @@ class ChangeOfCourseController extends Controller
                     'amount' => $amount,
                     'merchantId' => $this->merchantId,
                 ]);
-            } else {
-                // Log the actual response for debugging
-                \Log::error('Remita API Response Error:', [
-                    'response' => $response,
-                    'decoded' => $result,
-                    'httpCode' => $httpCode
-                ]);
-                
-                return response()->json([
-                    'error' => 'Payment initialization failed: ' . ($result['message'] ?? 'Unknown error'),
-                    'debug' => $result ?? []
-                ], 500);
-            }
         }
 
         return response()->json([
-            'error' => 'Payment initialization failed. HTTP Code: ' . $httpCode . '. Error: ' . $curlError,
-            'debug' => [
-                'httpCode' => $httpCode,
-                'curlError' => $curlError,
-                'response' => $response
-            ]
+            'error' => 'Payment initialization failed: ' . ($result['message'] ?? 'Please try again.'),
         ], 500);
     }
 
@@ -630,51 +581,30 @@ class ChangeOfCourseController extends Controller
         $amount = $application->amount;
         $orderId = time() . rand(1000, 9999);
         $description = 'CHANGE OF COURSE FEE';
-        $serviceTypeId = config('services.remita.change_of_course_key', '4430731');
 
         // Sanitize strings - remove non-ASCII chars (Remita Java backend rejects them)
         $payerName = trim(preg_replace('/[^\x20-\x7E]/', '', $student->fullname)) ?: 'STUDENT';
         $payerEmail = trim(preg_replace('/[^\x20-\x7E]/', '', $student->contact_email ?? 'student@unimaid.edu.ng'));
         $payerPhone = trim(preg_replace('/[^0-9+]/', '', $student->contact_phone ?? '08000000000'));
 
-        // Generate RRR using Remita API
-        $paymentData = [
-            'serviceTypeId' => $serviceTypeId,
-            'amount' => $amount,
-            'orderId' => $orderId,
-            'payerName' => $payerName,
-            'payerEmail' => $payerEmail,
-            'payerPhone' => $payerPhone,
-            'description' => $description,
-        ];
+        try {
+            $prepared = RemitaPaymentService::prepare(
+                'change_of_course',
+                $amount,
+                (string) $orderId,
+                ['name' => $payerName, 'email' => $payerEmail, 'phone' => $payerPhone],
+                $description
+            );
+            $amount = $prepared['total_amount'];
+            $serviceTypeId = $prepared['service_type_id'];
+        } catch (\Throwable $exception) {
+            \Log::error('Change-of-course payment preparation failed', ['message' => $exception->getMessage()]);
+            return response()->json(['error' => 'This payment is not configured correctly. Please contact the accounts office.'], 422);
+        }
 
-        $apiHash = hash('sha512', 
-            $this->merchantId . $serviceTypeId . $orderId . $amount . $this->apiKey
-        );
-
-        $remitaBaseUrl = \App\Http\Controllers\SystemSettingsController::getRemitaBaseUrl();
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $remitaBaseUrl . '/remita/exapp/api/v1/send/api/echannelsvc/merchant/api/paymentinit');
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($paymentData, JSON_UNESCAPED_UNICODE));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json; charset=utf-8',
-            'Authorization: remitaConsumerKey=' . $this->merchantId . ',remitaConsumerToken=' . $apiHash,
-        ]);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); // Follow redirects
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode == 200) {
-            $result = json_decode($response, true);
-            
-            if (isset($result['RRR'])) {
-                $rrr = $result['RRR'];
+        $result = RemitaPaymentService::createReference($prepared, 'Change-of-course Remita payment');
+        if ($result['success']) {
+                $rrr = $result['rrr'];
                 
                 // Save RRR to application
                 DB::table('change_of_course')
@@ -685,7 +615,7 @@ class ChangeOfCourseController extends Controller
                     ]);
 
                 // Create invoice record
-                DB::table('invoices')->insert([
+                RemitaPaymentService::storeInvoice([
                     'username' => session('id'),
                     'name' => $student->fullname,
                     'phone' => $student->contact_phone,
@@ -700,9 +630,15 @@ class ChangeOfCourseController extends Controller
                     'program' => $student->program,
                     'session' => session('system_session'),
                     'status' => 'Pending',
+                    'base_amount' => $prepared['base_amount'],
+                    'surcharge_amount' => $prepared['surcharge_amount'],
+                    'split_enabled' => $prepared['split_enabled'] ? 1 : 0,
+                    'split_details' => $prepared['line_item_summary'] !== []
+                        ? json_encode($prepared['line_item_summary'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+                        : null,
                     'created_at' => date('Y-m-d'),
                     'updated_at' => date('Y-m-d'),
-                ]);
+                ], $prepared);
 
                 return response()->json([
                     'success' => true,
@@ -710,11 +646,10 @@ class ChangeOfCourseController extends Controller
                     'amount' => $amount,
                     'merchantId' => $this->merchantId,
                 ]);
-            }
         }
 
         return response()->json([
-            'error' => 'Payment initialization failed. Please try again.'
+            'error' => 'Payment initialization failed: ' . ($result['message'] ?? 'Please try again.'),
         ], 500);
     }
 
@@ -757,9 +692,8 @@ class ChangeOfCourseController extends Controller
         // Debug logging
         \Log::info('Remita Verify Response', [
             'rrr' => $rrr,
-            'url' => $remitaBaseUrl . "/remita/exapp/api/v1/send/api/echannelsvc/$this->merchantId/$rrr/$apiHash/status.reg",
             'httpCode' => $httpCode,
-            'response' => $response,
+            'response_status' => is_string($response) ? substr($response, 0, 300) : null,
             'curlError' => $curlError
         ]);
 

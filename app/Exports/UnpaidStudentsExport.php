@@ -111,7 +111,7 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
                     GROUP BY program, level
                 ) returning_fees ON returning_fees.program = s.program AND returning_fees.level = s.level
                 LEFT JOIN (
-                    SELECT i.username, SUM(COALESCE(i.amount, 0)) AS amount_paid
+                    SELECT i.username, SUM(COALESCE(i.base_amount, i.amount, 0)) AS amount_paid
                     FROM invoices i
                     WHERE i.session = ?
                       AND i.status = 'Paid'
@@ -287,7 +287,7 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
                     GROUP BY program, level
                 ) returning_fees ON returning_fees.program = s.program AND returning_fees.level = s.level
                 LEFT JOIN (
-                    SELECT i.username, SUM(COALESCE(i.amount, 0)) AS amount_paid
+                    SELECT i.username, SUM(COALESCE(i.base_amount, i.amount, 0)) AS amount_paid
                     FROM invoices i
                     WHERE i.session = ?
                       AND i.status = 'Paid'

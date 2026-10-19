@@ -11,6 +11,12 @@ class Invoice extends Model
     public $table = 'invoices';
     protected $guarded = array();
 
+    protected $casts = [
+        'base_amount' => 'decimal:2',
+        'surcharge_amount' => 'decimal:2',
+        'split_enabled' => 'boolean',
+    ];
+
     // has relation with students table, invoices.username is link to students.user_id
     public function student()
     {
@@ -40,5 +46,10 @@ class Invoice extends Model
     public function programs()
     {
         return $this->belongsTo(Program::class, 'program', 'code');
+    }
+
+    public function splitItems()
+    {
+        return $this->hasMany(InvoiceSplitItem::class, 'invoice_id');
     }
 }

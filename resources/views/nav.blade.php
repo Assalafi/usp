@@ -284,6 +284,7 @@
             </li>
             <li class="nav-item pcoded-hasmenu @if (
                 $page == 'fees due' ||
+                    $page == 'remita split report' ||
                     $page == 'fees type' ||
                     $page == 'hostel fees' ||
                     $page == 'school fees' ||
@@ -301,6 +302,7 @@
                     <li
                         class="nav-item pcoded-hasmenu @if (
                             $page == 'fees due' ||
+                                $page == 'remita split report' ||
                                 $page == 'fees type' ||
                                 $page == 'hostel fees' ||
                                 $page == 'school fees' ||
@@ -311,6 +313,8 @@
                         <ul class="pcoded-submenu">
                             <li class="@if ($page == 'fees due') active @endif"><a href="/fees due"
                                     class="">Fees Collection</a></li>
+                            <li class="@if ($page == 'remita split report') active @endif"><a href="/admin/remita-split-report"
+                                    class=""><i class="fas fa-chart-pie me-1"></i>Split Payment Report</a></li>
                             <li class=""><a href="#" class="">PUTME</a></li>
                             <li class="@if ($page == 'school fees') active @endif"><a href="/school fees"
                                     class="">School fees</a></li>

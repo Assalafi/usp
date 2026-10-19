@@ -498,7 +498,7 @@
                                             </div>
                                             <div class="card-body">
                                                 @foreach ($settings as $setting)
-                                                    @if (str_contains($setting->key, 'remita'))
+                                                    @if (str_contains($setting->key, 'remita') && !in_array($setting->key, ['remita_service_catalog', 'remita_split_settings'], true))
                                                         <div class="mb-3">
                                                             <label
                                                                 class="form-label fw-bold">{{ $setting->label }}</label>
@@ -550,6 +550,71 @@
                                                 </small>
                                             </div>
                                         </div>
+                                    </div>
+                                </div>
+
+                                <div class="card border-primary mb-4">
+                                    <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between gap-2">
+                                        <div>
+                                            <h6 class="mb-1"><i class="fas fa-list-check me-2"></i>Remita service types</h6>
+                                            <small>Every payment service used by the portal must have its Remita Service Type ID here.</small>
+                                        </div>
+                                        <button type="button" class="btn btn-light btn-sm" id="addRemitaService"><i class="fas fa-plus me-1"></i>Add service</button>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <input type="hidden" name="remita_service_catalog" id="remitaServiceCatalogPayload">
+                                        <div class="table-responsive">
+                                            <table class="table table-sm align-middle mb-0" id="remitaServiceTable">
+                                                <thead class="table-light"><tr><th>Service key</th><th>Display name</th><th>Remita Service Type ID</th><th>Additional charge (₦)</th><th>Use service</th><th>Use split</th><th></th></tr></thead>
+                                                <tbody>
+                                                    @php($lockedRemitaServices = ['school_fees', 'hostel', 'post_utme', 'id_card', 'change_of_course', 'inter_university_transfer'])
+                                                    @foreach ($remitaServiceCatalog as $service)
+                                                        <tr data-remita-service-row>
+                                                            <td><input type="text" class="form-control form-control-sm" data-field="key" value="{{ $service['key'] }}" {{ in_array($service['key'], $lockedRemitaServices, true) ? 'readonly' : '' }}></td>
+                                                            <td><input type="text" class="form-control form-control-sm" data-field="label" value="{{ $service['label'] }}"></td>
+                                                            <td><input type="text" class="form-control form-control-sm" data-field="service_type_id" value="{{ $service['service_type_id'] }}" inputmode="numeric" placeholder="e.g. 365039916"></td>
+                                                            <td><input type="number" min="0" step="0.01" class="form-control form-control-sm" data-field="surcharge" value="{{ $service['surcharge'] ?? '0.00' }}" inputmode="decimal"></td>
+                                                            <td class="text-center"><input type="checkbox" class="form-check-input" data-field="active" {{ $service['active'] ? 'checked' : '' }}></td>
+                                                            <td class="text-center"><input type="checkbox" class="form-check-input" data-field="split_enabled" {{ $service['split_enabled'] ? 'checked' : '' }}></td>
+                                                            <td>@if (!in_array($service['key'], $lockedRemitaServices, true))<button type="button" class="btn btn-sm btn-outline-danger" data-remove-remita-service title="Remove service"><i class="fas fa-trash"></i></button>@else<span class="text-muted small" title="Built-in service">Built-in</span>@endif</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <template id="remitaServiceTemplate"><tr data-remita-service-row>
+                                            <td><input type="text" class="form-control form-control-sm" data-field="key" placeholder="e.g. transcript"></td>
+                                            <td><input type="text" class="form-control form-control-sm" data-field="label" placeholder="Service name"></td>
+                                            <td><input type="text" class="form-control form-control-sm" data-field="service_type_id" inputmode="numeric" placeholder="Service Type ID"></td>
+                                            <td><input type="number" min="0" step="0.01" class="form-control form-control-sm" data-field="surcharge" value="0.00" inputmode="decimal"></td>
+                                            <td class="text-center"><input type="checkbox" class="form-check-input" data-field="active" checked></td>
+                                            <td class="text-center"><input type="checkbox" class="form-check-input" data-field="split_enabled"></td>
+                                            <td><button type="button" class="btn btn-sm btn-outline-danger" data-remove-remita-service title="Remove service"><i class="fas fa-trash"></i></button></td>
+                                        </tr></template>
+                                    </div>
+                                </div>
+
+                                <div class="card border-success mb-3">
+                                    <div class="card-header bg-success text-white">
+                                        <h6 class="mb-1"><i class="fas fa-code-branch me-2"></i>Split-payment preparation</h6>
+                                        <small>Configure the optional charge and three settlement beneficiaries. The split rules are applied only to services marked “Use split” after the Remita split feature is enabled.</small>
+                                    </div>
+                                    <div class="card-body">
+                                        <input type="hidden" name="remita_split_settings" id="remitaSplitSettingsPayload">
+                                        <div class="row g-3 mb-3">
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Split payments</label>
+                                                <div class="form-check form-switch mt-2"><input class="form-check-input" type="checkbox" id="remitaSplitEnabled" data-split-field="enabled" {{ !empty($remitaSplitSettings['enabled']) ? 'checked' : '' }}><label class="form-check-label" for="remitaSplitEnabled">Enable when ready</label></div>
+                                            </div>
+                                            <div class="col-md-4"><label class="form-label fw-bold">Service-specific charges</label><div class="border rounded-3 bg-light p-2 small text-muted"><i class="fas fa-circle-info me-1"></i>Set the additional charge for each service in the service table above. A service may have a different amount, including zero.</div></div>
+                                            <div class="col-md-4"><label class="form-label fw-bold">Fee bearer</label><input type="text" class="form-control" value="University main account" readonly><small class="text-muted">One beneficiary must bear Remita’s transaction fee.</small></div>
+                                        </div>
+                                        <div class="row g-3">
+                                            @foreach (($remitaSplitSettings['beneficiaries'] ?? []) as $index => $beneficiary)
+                                                <div class="col-lg-4"><div class="border rounded-3 p-3 h-100 bg-light"><h6 class="mb-3">{{ $index === 0 ? 'Primary account' : 'Additional account ' . $index }}</h6><label class="form-label small">Beneficiary name</label><input type="text" class="form-control form-control-sm mb-2" data-beneficiary-field="label" data-beneficiary-index="{{ $index }}" value="{{ $beneficiary['label'] ?? '' }}"><label class="form-label small">Account number</label><input type="text" class="form-control form-control-sm mb-2" data-beneficiary-field="account_number" data-beneficiary-index="{{ $index }}" value="{{ $beneficiary['account_number'] ?? '' }}" inputmode="numeric" autocomplete="off"><label class="form-label small">Bank code</label><input type="text" class="form-control form-control-sm mb-2" data-beneficiary-field="bank_code" data-beneficiary-index="{{ $index }}" value="{{ $beneficiary['bank_code'] ?? '' }}" inputmode="numeric" maxlength="12"><label class="form-label small">Share percentage</label><div class="input-group input-group-sm"><input type="number" min="0" max="100" step="0.01" class="form-control" data-beneficiary-field="percentage" data-beneficiary-index="{{ $index }}" value="{{ $beneficiary['percentage'] ?? 0 }}"><span class="input-group-text">%</span></div></div></div>
+                                            @endforeach
+                                        </div>
+                                        <div class="alert alert-info small mt-3 mb-0"><i class="fas fa-circle-info me-1"></i>The three shares must total exactly 100%. Account details are stored securely and are never sent to the browser of a student.</div>
                                     </div>
                                 </div>
                             @elseif($currentCategory == 'email')
@@ -835,6 +900,57 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+    function collectRemitaPaymentSettings() {
+        var catalog = [];
+        document.querySelectorAll('#remitaServiceTable [data-remita-service-row]').forEach(function (row) {
+            catalog.push({
+                key: row.querySelector('[data-field="key"]')?.value.trim() || '',
+                label: row.querySelector('[data-field="label"]')?.value.trim() || '',
+                service_type_id: row.querySelector('[data-field="service_type_id"]')?.value.trim() || '',
+                description: row.querySelector('[data-field="label"]')?.value.trim() || '',
+                surcharge: row.querySelector('[data-field="surcharge"]')?.value || '0',
+                active: !!row.querySelector('[data-field="active"]')?.checked,
+                split_enabled: !!row.querySelector('[data-field="split_enabled"]')?.checked
+            });
+        });
+        var catalogTarget = document.getElementById('remitaServiceCatalogPayload');
+        if (catalogTarget) catalogTarget.value = JSON.stringify(catalog);
+
+        var beneficiaries = [0, 1, 2].map(function (index) {
+            var field = function (name) {
+                return document.querySelector('[data-beneficiary-index="' + index + '"][data-beneficiary-field="' + name + '"]')?.value.trim() || '';
+            };
+            return {
+                key: index === 0 ? 'primary' : 'additional_' + index,
+                label: field('label'),
+                account_number: field('account_number'),
+                bank_code: field('bank_code'),
+                percentage: parseFloat(field('percentage') || '0')
+            };
+        });
+        var splitTarget = document.getElementById('remitaSplitSettingsPayload');
+        if (splitTarget) {
+            splitTarget.value = JSON.stringify({
+                enabled: !!document.getElementById('remitaSplitEnabled')?.checked,
+                surcharge: '0',
+                fee_bearer: 'primary',
+                beneficiaries: beneficiaries
+            });
+        }
+    }
+
+    document.addEventListener('click', function (event) {
+        var removeButton = event.target.closest('[data-remove-remita-service]');
+        if (removeButton) {
+            removeButton.closest('[data-remita-service-row]')?.remove();
+        }
+        if (event.target.closest('#addRemitaService')) {
+            var template = document.getElementById('remitaServiceTemplate');
+            var body = document.querySelector('#remitaServiceTable tbody');
+            if (template && body) body.appendChild(template.content.cloneNode(true));
+        }
+    });
+
     $(document).ready(function() {
         $('#hod_program_course_management_mode').on('change', function() {
             $('#hod_program_course_management_users').prop('disabled', $(this).val() !== 'selected');
@@ -843,6 +959,7 @@
         // Handle form submission
         $('#settingsForm').submit(function(e) {
             e.preventDefault();
+            collectRemitaPaymentSettings();
 
             Swal.fire({
                 title: 'Saving Settings...',

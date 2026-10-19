@@ -290,8 +290,14 @@
                         <tbody>
                             <tr>
                                 <td>{{ $receipt->description }}</td>
-                                <td class="text-right">NGN {{ number_format($receipt->amount, 2) }}</td>
+                                <td class="text-right">NGN {{ number_format((float) ($receipt->base_amount ?? $receipt->amount), 2) }}</td>
                             </tr>
+                            @if ((float) ($receipt->surcharge_amount ?? 0) > 0)
+                                <tr>
+                                    <td>Additional service charge</td>
+                                    <td class="text-right">NGN {{ number_format((float) $receipt->surcharge_amount, 2) }}</td>
+                                </tr>
+                            @endif
                         </tbody>
                         <tfoot>
                             <tr class="total-row">
