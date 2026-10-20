@@ -7,7 +7,13 @@
         ->select('fullname', 'username', 'faculty', 'department', 'program', 'level', 'level_of_entry', 'session_of_entry')
         ->first();
 
-    $invoices = collect($data ?? [])->sortByDesc(function ($invoice) {
+    $invoices = collect($data ?? [])->map(function ($invoice) {
+        // Keep the Remita/gross amount for payment actions, but show only the
+        // base amount to the student throughout this page.
+        $invoice->gross_amount = (float) ($invoice->amount ?? 0);
+        $invoice->amount = (float) ($invoice->base_amount ?? $invoice->amount ?? 0);
+        return $invoice;
+    })->sortByDesc(function ($invoice) {
         return $invoice->updated_at ?? $invoice->created_at ?? '';
     });
     $pendingProgramme = $invoices->filter(fn ($invoice) =>
@@ -147,7 +153,7 @@
                                             <td data-label="Action" class="text-end">
                                                 @if ($isPending)
                                                     <div class="payment-row-actions">
-                                                        <button type="button" class="btn btn-primary btn-sm js-paynow" data-rrr="{{ $invoice->rrr }}" data-amount="{{ (float) $invoice->amount }}" aria-label="Pay this pending invoice" title="Pay this pending invoice"><i class="fas fa-credit-card"></i> Pay now</button>
+                                                        <button type="button" class="btn btn-primary btn-sm js-paynow" data-rrr="{{ $invoice->rrr }}" data-amount="{{ (float) ($invoice->gross_amount ?? $invoice->amount) }}" aria-label="Pay this pending invoice" title="Pay this pending invoice"><i class="fas fa-credit-card"></i> Pay now</button>
                                                         <a class="btn btn-light btn-sm" href="{{ url('/verify/' . urlencode($invoice->rrr)) }}" aria-label="Verify this payment" title="Verify this payment"><i class="fas fa-sync-alt"></i><span class="d-none d-lg-inline"> Verify</span></a>
                                                         <form action="{{ route('student.payment.cancel', $invoice->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Cancel this pending payment? You can generate a new invoice afterwards.');">
                                                             @csrf
