@@ -16,7 +16,9 @@ class RemitaSplitReportController extends Controller
 
         [$period, $dateFrom, $dateTo, $periodLabel] = $this->periodWindow($request);
         $filters = [
-            'status' => trim((string) $request->get('status', '')),
+            // Paid charges are the useful default for finance reconciliation;
+            // submitting an empty status explicitly still shows every status.
+            'status' => trim((string) $request->get('status', 'Paid')),
             'service' => trim((string) $request->get('service', '')),
             'faculty' => trim((string) $request->get('faculty', '')),
             'department' => trim((string) $request->get('department', '')),
