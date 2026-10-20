@@ -48,24 +48,29 @@ class RemitaSplitReportController extends Controller
 
         $baseQuery = DB::table('invoices')->where('invoices.split_enabled', 1);
         $this->applyFilters($baseQuery, $filters, $serviceFilters, $dateFrom, $dateTo);
+        // Remita split reports must reconcile the amount charged to the payer.
+        // Legacy rows may not have a populated total amount, so fall back to
+        // base amount plus the configured surcharge in that case.
+        $chargeExpression = "COALESCE(NULLIF(CAST(amount AS DECIMAL(15,2)), 0), COALESCE(base_amount, 0) + COALESCE(surcharge_amount, 0))";
+        $qualifiedChargeExpression = "COALESCE(NULLIF(CAST(invoices.amount AS DECIMAL(15,2)), 0), COALESCE(invoices.base_amount, 0) + COALESCE(invoices.surcharge_amount, 0))";
 
         $summary = (clone $baseQuery)->selectRaw(
             'COUNT(*) AS invoice_count,
-             COALESCE(SUM(CAST(amount AS DECIMAL(15,2))), 0) AS gross_amount,
+             COALESCE(SUM('.$chargeExpression.'), 0) AS gross_amount,
              COALESCE(SUM(COALESCE(base_amount, CAST(amount AS DECIMAL(15,2)) - COALESCE(surcharge_amount, 0))), 0) AS base_amount,
              COALESCE(SUM(COALESCE(surcharge_amount, 0)), 0) AS surcharge_amount'
         )->first();
 
         $statusSummary = (clone $baseQuery)
             ->select('status')
-            ->selectRaw('COUNT(*) AS invoice_count, COALESCE(SUM(CAST(amount AS DECIMAL(15,2))), 0) AS gross_amount')
+            ->selectRaw('COUNT(*) AS invoice_count, COALESCE(SUM('.$chargeExpression.'), 0) AS gross_amount')
             ->groupBy('status')
             ->orderByDesc('gross_amount')
             ->get();
 
         $serviceSummary = (clone $baseQuery)
             ->select('description')
-            ->selectRaw('COUNT(*) AS invoice_count, COALESCE(SUM(CAST(amount AS DECIMAL(15,2))), 0) AS gross_amount, COALESCE(SUM(surcharge_amount), 0) AS surcharge_amount')
+            ->selectRaw('COUNT(*) AS invoice_count, COALESCE(SUM('.$chargeExpression.'), 0) AS gross_amount, COALESCE(SUM(surcharge_amount), 0) AS surcharge_amount')
             ->groupBy('description')
             ->orderByDesc('gross_amount')
             ->get();
@@ -89,7 +94,7 @@ class RemitaSplitReportController extends Controller
         $groupExpression = $this->groupExpression($period);
         $trend = (clone $baseQuery)
             ->selectRaw($groupExpression . ' AS bucket')
-            ->selectRaw('COUNT(*) AS invoice_count, COALESCE(SUM(CAST(amount AS DECIMAL(15,2))), 0) AS gross_amount, COALESCE(SUM(surcharge_amount), 0) AS surcharge_amount')
+            ->selectRaw('COUNT(*) AS invoice_count, COALESCE(SUM('.$chargeExpression.'), 0) AS gross_amount, COALESCE(SUM(surcharge_amount), 0) AS surcharge_amount')
             ->groupBy('bucket')
             ->orderBy('bucket')
             ->get();
@@ -106,10 +111,17 @@ class RemitaSplitReportController extends Controller
                 'students.username AS matric_number', 'students.fullname',
                 'faculty.title AS faculty_title', 'department.title AS department_title', 'program.title AS program_title',
             ])
+            ->selectRaw($qualifiedChargeExpression.' AS charge_amount')
             ->orderByDesc('invoices.created_at')
             ->orderByDesc('invoices.id')
             ->paginate(25)
             ->withQueryString();
+        $rows->getCollection()->transform(function ($row) {
+            // Keep the view's amount column aligned with the charge-inclusive
+            // value used by the report summaries and reconciliation.
+            $row->amount = (float) ($row->charge_amount ?? $row->amount ?? 0);
+            return $row;
+        });
 
         $faculties = DB::table('faculty')->where('status', 1)->select('code', 'title')->orderBy('title')->get();
         $departments = DB::table('department')->where('status', 1)->select('code', 'title', 'faculty')->orderBy('title')->get();
