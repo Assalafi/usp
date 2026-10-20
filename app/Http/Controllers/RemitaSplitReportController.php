@@ -48,11 +48,12 @@ class RemitaSplitReportController extends Controller
 
         $baseQuery = DB::table('invoices')->where('invoices.split_enabled', 1);
         $this->applyFilters($baseQuery, $filters, $serviceFilters, $dateFrom, $dateTo);
-        // Remita split reports must reconcile the amount charged to the payer.
-        // Legacy rows may not have a populated total amount, so fall back to
-        // base amount plus the configured surcharge in that case.
-        $chargeExpression = "COALESCE(NULLIF(CAST(amount AS DECIMAL(15,2)), 0), COALESCE(base_amount, 0) + COALESCE(surcharge_amount, 0))";
-        $qualifiedChargeExpression = "COALESCE(NULLIF(CAST(invoices.amount AS DECIMAL(15,2)), 0), COALESCE(invoices.base_amount, 0) + COALESCE(invoices.surcharge_amount, 0))";
+        // This report is deliberately surcharge-only. The base programme/service
+        // fee is not a split beneficiary charge and must never be included in
+        // the totals, charts, or allocation summary. Legacy rows without an
+        // explicit surcharge use amount minus base_amount as a safe fallback.
+        $chargeExpression = "COALESCE(CAST(surcharge_amount AS DECIMAL(15,2)), GREATEST(CAST(amount AS DECIMAL(15,2)) - COALESCE(CAST(base_amount AS DECIMAL(15,2)), 0), 0))";
+        $qualifiedChargeExpression = "COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), 0), 0))";
 
         $summary = (clone $baseQuery)->selectRaw(
             'COUNT(*) AS invoice_count,
@@ -81,7 +82,7 @@ class RemitaSplitReportController extends Controller
         $this->applyFilters($allocationSummary, $filters, $serviceFilters, $dateFrom, $dateTo, 'invoices');
         $allocationSummary = $allocationSummary
             ->select('invoice_split_items.beneficiary_name', 'invoice_split_items.is_primary')
-            ->selectRaw('COUNT(DISTINCT invoice_split_items.invoice_id) AS invoice_count, COALESCE(SUM(invoice_split_items.beneficiary_amount), 0) AS allocated_amount')
+            ->selectRaw('COUNT(DISTINCT invoice_split_items.invoice_id) AS invoice_count, COALESCE(SUM(CASE WHEN invoice_split_items.is_primary = 1 THEN GREATEST(invoice_split_items.beneficiary_amount - COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0), 0)), 0) ELSE invoice_split_items.beneficiary_amount END), 0) AS allocated_amount')
             ->groupBy('invoice_split_items.beneficiary_name', 'invoice_split_items.is_primary')
             ->orderByDesc('allocated_amount')
             ->get();

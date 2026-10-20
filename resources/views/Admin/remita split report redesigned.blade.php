@@ -48,7 +48,9 @@
     /* The report is for charged/settled amounts; do not expose base amounts. */
     .split-report section.sr-surface > .row.g-2 > div:first-child,
     .split-report table th:nth-child(5),
-    .split-report table td:nth-child(5) { display:none!important; }
+.split-report table td:nth-child(5),
+.split-report table th:nth-child(7),
+.split-report table td:nth-child(7) { display:none!important; }
     .split-report .table thead th { background:#f6f9fc; color:#688096; font-size:.68rem; text-transform:uppercase; letter-spacing:.055em; white-space:nowrap; border-bottom:1px solid #e4edf4; }
     .split-report .table td { color:#29425a; vertical-align:middle; border-color:#edf2f6; }
     .split-report .sr-pill { display:inline-flex; align-items:center; border-radius:999px; padding:5px 9px; font-size:.68rem; font-weight:800; }
@@ -93,6 +95,16 @@ document.addEventListener('DOMContentLoaded', function () {
             note.textContent = 'Total charged to the payer';
         }
     });
+document.querySelectorAll('.split-report .sr-kpi-label').forEach(function (label) {
+  const labels = {
+    'Gross billed': 'Total charges',
+    'Paid gross': 'Paid charges',
+    'Awaiting settlement': 'Pending charges',
+    'Beneficiary allocation': 'Charges allocated'
+  };
+  const value = labels[label.textContent.trim()];
+  if (value) label.textContent = value;
+});
     const trend = @json($chartTrend), statuses = @json($chartStatus), services = @json($chartServices);
     const money = value => '₦' + Number(value || 0).toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2});
     const colors = ['#1769aa','#22a06b','#e2a52e','#7954bd','#d25472','#1e9ca8'];
