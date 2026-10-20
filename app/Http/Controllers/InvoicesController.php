@@ -79,8 +79,9 @@ class InvoicesController extends Controller
         $options->set('chroot', public_path());
 
         // Separate the Naira and Kobo
-        $naira = floor($invoice->amount);
-        $kobo = round(($invoice->amount - $naira) * 100);
+        $receiptAmount = (float) ($invoice->base_amount ?? $invoice->amount);
+        $naira = floor($receiptAmount);
+        $kobo = round(($receiptAmount - $naira) * 100);
 
         // Convert Naira to words
         $formatter = new \NumberFormatter('en', \NumberFormatter::SPELLOUT);
@@ -277,8 +278,9 @@ class InvoicesController extends Controller
                 }
 
                 // Amount in words
-                $naira = floor($invoice->amount);
-                $kobo = round(($invoice->amount - $naira) * 100);
+                $receiptAmount = (float) ($invoice->base_amount ?? $invoice->amount);
+                $naira = floor($receiptAmount);
+                $kobo = round(($receiptAmount - $naira) * 100);
                 $nairaInWords = $formatter->format($naira);
                 $receipt->amountInWords = ucfirst($nairaInWords) . ' Naira';
                 if ($kobo > 0) {

@@ -290,13 +290,13 @@
                         <tbody>
                             <tr>
                                 <td>{{ $receipt->description }}</td>
-                                <td class="text-right">NGN {{ number_format((float) $receipt->amount, 2) }}</td>
+                                <td class="text-right">NGN {{ number_format((float) ($receipt->base_amount ?? $receipt->amount), 2) }}</td>
                             </tr>
                         </tbody>
                         <tfoot>
                             <tr class="total-row">
                                 <td>Total Paid</td>
-                                <td class="text-right">NGN {{ number_format($receipt->amount, 2) }}</td>
+                                <td class="text-right">NGN {{ number_format((float) ($receipt->base_amount ?? $receipt->amount), 2) }}</td>
                             </tr>
                         </tfoot>
                     </table>
