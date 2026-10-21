@@ -886,6 +886,13 @@ Route::get('logout', function () {
     return redirect('/');
     //return view('login');
 });
+Route::get('/profile-update-expired', function () {
+    if (session('accType') !== 'Student' || !session()->has('log')) {
+        return redirect('/');
+    }
+
+    return view('Student.profile-update-expired');
+});
 Route::get('dash', function () {
     // return session('accType');
     if (!session()->has('log')) {

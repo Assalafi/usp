@@ -10,10 +10,10 @@ use Illuminate\Support\Facades\DB;
 class EnsureStudentProfileSubmitted
 {
     /**
-     * Student routes are protected until the current profile is submitted.
-     * The editor, photo preview, submission endpoint and logout remain usable
-     * so a student can complete the required information without being locked
-     * out of the portal.
+     * The student-record update deadline has expired. Students who have not
+     * submitted the current session's update are restricted to the notice page
+     * and logout. This middleware is intentionally central so every existing
+     * and future web route receives the same protection.
      */
     public function handle(Request $request, Closure $next)
     {
@@ -21,7 +21,7 @@ class EnsureStudentProfileSubmitted
             return $next($request);
         }
 
-        if ($this->isAllowedWhileIncomplete($request)) {
+        if ($this->isAllowedWhileRestricted($request)) {
             return $next($request);
         }
 
@@ -36,22 +36,19 @@ class EnsureStudentProfileSubmitted
             return $next($request);
         }
 
-        $message = 'Complete and submit your student profile before using other portal services.';
+        $message = 'Your student portal access is restricted because the student record update deadline has expired.';
         if ($request->expectsJson() || $request->ajax()) {
-            return response()->json(['message' => $message, 'redirect' => url('/profile?mode=edit&required=1')], 423);
+            return response()->json(['message' => $message, 'redirect' => url('/profile-update-expired')], 423);
         }
 
-        return redirect('/profile?mode=edit&required=1')->with('warning', $message);
+        return redirect('/profile-update-expired');
     }
 
-    private function isAllowedWhileIncomplete(Request $request): bool
+    private function isAllowedWhileRestricted(Request $request): bool
     {
         $path = trim($request->path(), '/');
 
-        return $path === 'profile'
-            || $path === 'update-profile'
-            || $path === 'submit-profile'
-            || $path === 'profile/photo/preview'
+        return $path === 'profile-update-expired'
             || $path === 'logout';
     }
 }
