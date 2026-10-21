@@ -140,7 +140,6 @@
                 <span aria-hidden="true">🔒</span>
                 <div>
                     <strong>Access restricted</strong>
-                    Only the logout option is available from this page.
                 </div>
             </div>
 
