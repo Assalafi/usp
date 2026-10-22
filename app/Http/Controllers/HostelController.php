@@ -693,17 +693,156 @@ class HostelController extends Controller
         return view('main', $data);
     }
 
+    protected function obsHalls(): array
+    {
+        return [
+            'NEW FEMALE',
+            'AISHA MUHAMMADU BUHARI',
+            'NEW MALE A',
+            'NEW MALE B',
+        ];
+    }
+
+    protected function canManageObs(): bool
+    {
+        return session()->has('log')
+            && in_array((string) session('accType'), ['Admin', 'Staff'], true);
+    }
+
+    protected function obsBaseQuery()
+    {
+        return DB::table('hostel')
+            ->whereIn('hall', $this->obsHalls())
+            ->where('bed_type', 0)
+            ->whereRaw("LOWER(TRIM(COALESCE(payment_method, ''))) = 'online'");
+    }
+
+    protected function obsFilteredQuery(Request $request)
+    {
+        $query = $this->obsBaseQuery()
+            ->select([
+                'id', 'hall', 'block', 'room', 'bed', 'status', 'room_type',
+                'occupant', 'flag', 'category', 'payment_method',
+            ])
+            ->when($request->filled('hall') && $request->input('hall') !== 'all', fn ($q) => $q->where('hall', $request->input('hall')))
+            ->when($request->filled('block') && $request->input('block') !== 'all', fn ($q) => $q->where('block', $request->input('block')))
+            ->when($request->filled('room') && $request->input('room') !== 'all', fn ($q) => $q->where('room', $request->input('room')))
+            ->when($request->filled('bed') && $request->input('bed') !== 'all', fn ($q) => $q->where('bed', $request->input('bed')))
+            ->when($request->input('status') === 'available', fn ($q) => $q->where('status', 0))
+            ->when($request->input('status') === 'occupied', fn ($q) => $q->where('status', 1))
+            ->when($request->input('flag') === 'flagged', fn ($q) => $q->where('flag', 1))
+            ->when($request->input('flag') === 'unflagged', fn ($q) => $q->where(function ($nested) {
+                $nested->whereNull('flag')->orWhere('flag', 0);
+            }))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = trim((string) $request->input('search'));
+                $q->where(function ($nested) use ($search) {
+                    $nested->where('hall', 'like', '%' . $search . '%')
+                        ->orWhere('block', 'like', '%' . $search . '%')
+                        ->orWhere('room', 'like', '%' . $search . '%')
+                        ->orWhere('bed', 'like', '%' . $search . '%')
+                        ->orWhere('occupant', 'like', '%' . $search . '%');
+                });
+            })
+            ->orderBy('hall')
+            ->orderBy('block')
+            ->orderBy('room')
+            ->orderBy('bed');
+
+        return $query;
+    }
+
     public function online2(Request $request)
     {
-        if (!session()->has('log')) {
+        if (!$this->canManageObs()) {
             return redirect('/');
         }
-        //
-        //$data['batch'] = DB::table('hostel_pin')->select('batch','flag','id')->distinct()->where(['flag' => 1])->orderBy('id', 'desc')->get();
-        $data['data'] = DB::table('hostel')->select('id', 'hall', 'block', 'room', 'bed', 'status', 'room_type', 'occupant', 'flag')->whereIn('hall', ['NEW FEMALE', 'NEW MALE A', 'AISHA MUHAMMADU BUHARI', 'NEW FEMALE'])->where('block', 'FIRST FLOOR')->where(['bed_type' => 0, 'payment_method' => 'Online', 'occupant' => 'vacant'])->orderBy('hall', 'asc')->orderBy('block', 'asc')->orderBy('room', 'asc')->orderBy('bed', 'asc')->get();
-        $data['hall'] = DB::table('hostel')->select('hall')->whereIn('hall', ['BOT', 'NEW MALE A', 'NEW MALE B', 'AISHA MUHAMMADU BUHARI'])->where(['bed_type' => 0, 'payment_method' => 'Online'])->groupBy('hall')->orderBy('hall', 'asc')->get();
-        $data['page'] = 'online bed space2';
+
+        $lookup = $this->obsBaseQuery();
+        $data['halls'] = (clone $lookup)->select('hall')->distinct()->orderBy('hall')->pluck('hall');
+        $data['blocks'] = (clone $lookup)->select('block')->whereNotNull('block')->where('block', '<>', '')->distinct()->orderBy('block')->pluck('block');
+        $data['rooms'] = (clone $lookup)->select('room')->whereNotNull('room')->distinct()->orderBy('room')->pluck('room');
+        $data['beds'] = (clone $lookup)->select('bed')->whereNotNull('bed')->distinct()->orderBy('bed')->pluck('bed');
+        $data['page'] = 'online bed space2 modern';
+
         return view('main', $data);
+    }
+
+    public function online2Data(Request $request)
+    {
+        if (!$this->canManageObs()) {
+            return response()->json(['message' => 'You are not allowed to manage online bed spaces.'], 403);
+        }
+
+        $perPage = min(max((int) $request->input('per_page', 50), 10), 100);
+        $query = $this->obsFilteredQuery($request);
+        $paginator = $query->paginate($perPage);
+
+        $rows = collect($paginator->items())->map(function ($row) {
+            $row->status_label = (int) $row->status === 1 ? 'Occupied' : 'Available';
+            $row->flag_label = (int) ($row->flag ?? 0) === 1 ? 'Flagged' : 'Unflagged';
+            $row->payment_label = 'Online';
+            return $row;
+        })->values();
+
+        $statsQuery = $this->obsFilteredQuery($request);
+        $stats = [
+            'total' => (clone $statsQuery)->reorder()->count(),
+            'available' => (clone $statsQuery)->reorder()->where('status', 0)->count(),
+            'occupied' => (clone $statsQuery)->reorder()->where('status', 1)->count(),
+            'flagged' => (clone $statsQuery)->reorder()->where('flag', 1)->count(),
+        ];
+
+        return response()->json([
+            'data' => $rows,
+            'stats' => $stats,
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
+        ]);
+    }
+
+    protected function updateObsFlags(Request $request, int $flag): \Illuminate\Http\JsonResponse
+    {
+        if (!$this->canManageObs()) {
+            return response()->json(['message' => 'You are not allowed to manage online bed spaces.'], 403);
+        }
+
+        $ids = collect($request->input('ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty() || $ids->count() > 500) {
+            return response()->json(['message' => 'Select between 1 and 500 bed spaces.'], 422);
+        }
+
+        $updated = DB::transaction(function () use ($ids, $flag) {
+            return $this->obsBaseQuery()
+                ->whereIn('id', $ids->all())
+                ->update(['flag' => $flag]);
+        });
+
+        return response()->json([
+            'message' => $flag === 1 ? 'Selected bed spaces flagged.' : 'Selected bed spaces unflagged.',
+            'updated' => $updated,
+        ]);
+    }
+
+    public function online2Flag(Request $request)
+    {
+        return $this->updateObsFlags($request, 1);
+    }
+
+    public function online2Unflag(Request $request)
+    {
+        return $this->updateObsFlags($request, 0);
     }
 
     public function manageHostel(Request $request)

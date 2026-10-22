@@ -38,6 +38,11 @@ class CheckRoleAccess
         $page = urldecode($page);
         $page = preg_replace('/\/\d+$/', '', $page);
         $page = preg_replace('/\/[a-f0-9-]{36}$/', '', $page);
+        // OBS uses AJAX sub-routes, but they share the same permission as the
+        // secret online-bed-space management page.
+        if (in_array($page, ['obs/data', 'obs/flag', 'obs/unflag'], true)) {
+            $page = 'obs';
+        }
 
         if (in_array($page, $this->except)) {
             return $next($request);
@@ -122,7 +127,7 @@ class CheckRoleAccess
             'fixed assets disposal', 'grading system', 'committee',
             'committee role', 'committee membership', 'committee meetings',
             'sub committee', 'session history',
-            'available bed space', 'online bed space', 'hostel recipients',
+            'available bed space', 'online bed space', 'hostel recipients', 'obs',
             'manage hostel', 'pins', 'bed space reservations',
         ];
 

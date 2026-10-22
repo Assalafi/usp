@@ -1063,6 +1063,9 @@ Route::get('/online bed space', [HostelController::class, 'online'])->middleware
 Route::get('/hostel recipients', [HostelController::class, 'recipients'])->middleware('role');
 Route::get('/abs', [HostelController::class, 'bedSpace2'])->middleware('role');
 Route::get('/obs', [HostelController::class, 'online2'])->middleware('role');
+Route::get('/obs/data', [HostelController::class, 'online2Data'])->middleware('role');
+Route::post('/obs/flag', [HostelController::class, 'online2Flag'])->middleware('role');
+Route::post('/obs/unflag', [HostelController::class, 'online2Unflag'])->middleware('role');
 Route::post('filter hall', [HostelController::class, 'filterHall']);
 Route::post('filter category', [HostelController::class, 'filterCategory']);
 Route::get('/manage hostel', [HostelController::class, 'manageHostel'])->middleware('role');
@@ -1074,7 +1077,6 @@ Route::post('assign bed', [HostelController::class, 'assignBed']);
 Route::post('revoke', [HostelController::class, 'revoke']);
 Route::post('hostel-payment', [HostelController::class, 'hostelPayment']);
 Route::post('ab', [HostelController::class, 'assignBed2']);
-Route::post('flag', [HostelController::class, 'flag']);
 Route::post('delete bed', [HostelController::class, 'deleteBed']);
 Route::post('create-hostel', [HostelController::class, 'createHostel']);
 Route::get('/print-permit/{id}', [HostelController::class, 'printPermit']);

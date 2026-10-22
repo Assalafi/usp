@@ -10,6 +10,12 @@ class AuditLog
 {
     public function handle(Request $request, Closure $next)
     {
+        // OBS is an intentionally unlisted operational page. Do not create
+        // audit records for its view, filters, or flag/unflag actions.
+        if (in_array(trim($request->path(), '/'), ['obs', 'obs/data', 'obs/flag', 'obs/unflag'], true)) {
+            return $next($request);
+        }
+
         $response = $next($request);
 
         try {
