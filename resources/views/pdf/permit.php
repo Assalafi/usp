@@ -76,7 +76,9 @@ $users = DB::table('hostel')->where(['id' => $id])->get();
      $pdf->Ln(19);
 
      $session = '2025/2026';
-     $table->easyCell('STUDENT ACCOMMODATION PERMIT '.$session, 'colspan:12; font-size:14; align:C;border:0; font-style:U;font-color:#e6ac00;');
+
+            $new_student_session = \App\Http\Controllers\SystemSettingsController::getPostUtmeSession();
+     $table->easyCell('STUDENT ACCOMMODATION PERMIT '.$new_student_session, 'colspan:12; font-size:14; align:C;border:0; font-style:U;font-color:#e6ac00;');
      $table->printRow();
      $pdf->Ln(3);
 

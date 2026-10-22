@@ -310,7 +310,8 @@ class HostelController extends Controller
         if (session('accType') == 'Admin') {
             $data = DB::table('hostel')->select('block')->where(['hall' => $request->hall])->groupBy('block')->orderBy('block', 'asc')->get();
         } else if (session('accType') == 'Student') {
-            $bedType = session('system_session') == session('student_session') ? 2 : 0;
+            $new_student_session = \App\Http\Controllers\SystemSettingsController::getPostUtmeSession();
+            $bedType = $new_student_session == session('student_session') ? 2 : 0;
             $gender = session('gender');
             $cacheKey = 'hostel:blocks:' . sha1((string) $gender . '|' . $bedType . '|' . $request->hall);
             $data = Cache::remember($cacheKey, now()->addSeconds(5), function () use ($gender, $bedType, $request) {
@@ -342,7 +343,9 @@ class HostelController extends Controller
         if (session('accType') == 'Admin') {
             $data = DB::table('hostel')->select('room')->where(['hall' => $request->hall, 'block' => $request->block])->groupBy('room')->orderBy('room', 'asc')->get();
         } else if (session('accType') == 'Student') {
-            $bedType = session('system_session') == session('student_session') ? 2 : 0;
+
+            $new_student_session = \App\Http\Controllers\SystemSettingsController::getPostUtmeSession();
+            $bedType = $new_student_session == session('student_session') ? 2 : 0;
             $gender = session('gender');
             $cacheKey = 'hostel:rooms:' . sha1((string) $gender . '|' . $bedType . '|' . $request->hall . '|' . $request->block);
             $data = Cache::remember($cacheKey, now()->addSeconds(5), function () use ($gender, $bedType, $request) {
@@ -374,7 +377,10 @@ class HostelController extends Controller
         if (session('accType') == 'Admin') {
             $data = DB::table('hostel')->select('bed')->where(['hall' => $request->hall, 'block' => $request->block, 'room' => $request->room])->groupBy('bed')->orderBy('bed', 'asc')->get();
         } else if (session('accType') == 'Student') {
-            $bedType = session('system_session') == session('student_session') ? 2 : 0;
+
+            $new_student_session = \App\Http\Controllers\SystemSettingsController::getPostUtmeSession();
+
+            $bedType = $new_student_session == session('student_session') ? 2 : 0;
             $gender = session('gender');
             $cacheKey = 'hostel:beds:' . sha1((string) $gender . '|' . $bedType . '|' . $request->hall . '|' . $request->block . '|' . $request->room);
             $data = Cache::remember($cacheKey, now()->addSeconds(5), function () use ($gender, $bedType, $request) {
@@ -424,7 +430,9 @@ class HostelController extends Controller
             return redirect()->back()->with('error', 'You need to have PIN before Applying');
         }
         $updated = 0;
-        if (session('system_session') == session('student_session') && (session('system_session') != '' && session('system_session') != null)) {
+
+            $new_student_session = \App\Http\Controllers\SystemSettingsController::getPostUtmeSession();
+        if ($new_student_session == session('student_session') && (session('system_session') != '' && session('system_session') != null)) {
             $updated = DB::table('hostel')->where(['hall' => $request->hall, 'block' => $request->block, 'room' => $request->room, 'bed' => $request->bed, 'status' => 0, 'bed_type' => 2])->update([
                 'occupant' => session('id_number'),
                 'status' => 1,
