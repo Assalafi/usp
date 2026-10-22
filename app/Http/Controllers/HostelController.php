@@ -650,6 +650,14 @@ class HostelController extends Controller
             ->orderBy('hostel.bed');
     }
 
+    protected function existingHostelBed(string $username, ?int $exceptId = null)
+    {
+        return DB::table('hostel')
+            ->whereRaw("TRIM(COALESCE(occupant, '')) = ?", [$username])
+            ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
+            ->first(['id', 'hall', 'block', 'room', 'bed']);
+    }
+
     public function absData(Request $request)
     {
         if (!$this->canManageAbs()) {
@@ -706,6 +714,11 @@ class HostelController extends Controller
         $row = DB::table('hostel')->where('id', $validated['id'])->where('bed_type', 0)->where('flag', 1)->first();
         if (!$row) {
             return response()->json(['message' => 'That flagged bed space could not be found. Refresh the list and try again.'], 404);
+        }
+        $existing = $this->existingHostelBed($username, (int) $row->id);
+        if ($existing) {
+            $location = collect([$existing->hall, $existing->block, $existing->room, $existing->bed])->filter(fn ($value) => $value !== null && $value !== '')->implode(' · ');
+            return response()->json(['message' => 'This student already has a hostel bed (' . ($location ?: 'space #' . $existing->id) . '). Revoke that bed before assigning another one.'], 422);
         }
         if ((int) $row->status === 1 && trim((string) $row->occupant) !== '') {
             return response()->json(['message' => 'This bed space is already occupied. Revoke the current occupant first.'], 422);
@@ -1278,6 +1291,11 @@ class HostelController extends Controller
         $student = Student::where('username', trim((string) $request->username))->first();
         if (!$student) {
             return redirect()->back()->with('error', 'No student was found with that ID number.');
+        }
+        $existing = $this->existingHostelBed(trim((string) $request->username), (int) $request->id);
+        if ($existing) {
+            $location = collect([$existing->hall, $existing->block, $existing->room, $existing->bed])->filter(fn ($value) => $value !== null && $value !== '')->implode(' · ');
+            return redirect()->back()->with('error', 'This student already has a hostel bed (' . ($location ?: 'space #' . $existing->id) . '). Revoke that bed before assigning another one.');
         }
         DB::table('hostel')->where(['id' => $request->id, 'bed_type' => 0, 'flag' => 1, 'status' => 0])->update([
             'occupant' => $request->username,
