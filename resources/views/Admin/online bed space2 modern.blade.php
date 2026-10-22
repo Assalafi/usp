@@ -125,7 +125,7 @@
     const endpoint = @json(url('obs/data'));
     const flagEndpoint = @json(url('obs/flag'));
     const unflagEndpoint = @json(url('obs/unflag'));
-    const state = { page: 1, loading: false };
+    const state = { page: 1, loading: false, stats: { total: 0, available: 0, occupied: 0, flagged: 0 } };
     const $ = (id) => document.getElementById(id);
 
     function filters() {
@@ -134,7 +134,7 @@
             const element = $('obs' + name.charAt(0).toUpperCase() + name.slice(1));
             if (element && element.value && element.value !== 'all') params.set(name, element.value);
         });
-        params.set('per_page', '50');
+        params.set('per_page', '100');
         params.set('page', String(state.page));
         return params;
     }
@@ -151,6 +151,7 @@
     }
 
     function setStats(stats) {
+        state.stats = Object.assign(state.stats, stats || {});
         $('obsStatTotal').textContent = Number(stats.total || 0).toLocaleString();
         $('obsStatAvailable').textContent = Number(stats.available || 0).toLocaleString();
         $('obsStatOccupied').textContent = Number(stats.occupied || 0).toLocaleString();
@@ -214,8 +215,8 @@
             const payload = await response.json();
             if (!response.ok) throw new Error(payload.message || 'The spaces could not be loaded.');
             setStats(payload.stats || {});
-            renderRows(payload.data || [], payload.meta || { current_page:1, last_page:1, per_page:50, total:0, from:0, to:0 });
-            renderPagination(payload.meta || { current_page:1, last_page:1, per_page:50, total:0, from:0, to:0 });
+            renderRows(payload.data || [], payload.meta || { current_page:1, last_page:1, per_page:100, total:0, from:0, to:0 });
+            renderPagination(payload.meta || { current_page:1, last_page:1, per_page:100, total:0, from:0, to:0 });
         } catch (error) {
             $('obsRows').innerHTML = '<tr><td colspan="10" class="text-center py-5 text-danger">' + escapeHtml(error.message) + '</td></tr>';
             showNotice(error.message, 'error');
@@ -228,6 +229,21 @@
 
     function selectedIds() {
         return Array.from(root.querySelectorAll('.obs-row-check:checked')).map((input) => Number(input.value)).filter(Boolean);
+    }
+
+    function updateRowFlag(id, flagged) {
+        const checkbox = root.querySelector('.obs-row-check[value="' + id + '"]');
+        const row = checkbox ? checkbox.closest('tr') : null;
+        if (!row) return;
+        const badgeCell = row.children[8];
+        const actionCell = row.children[9];
+        if (badgeCell) {
+            badgeCell.innerHTML = '<span class="obs-pill ' + (flagged ? 'flagged' : 'unflagged') + '"><i class="fas ' + (flagged ? 'fa-flag' : 'fa-flag-checkered') + '"></i>' + (flagged ? 'Flagged' : 'Unflagged') + '</span>';
+        }
+        if (actionCell) {
+            actionCell.innerHTML = '<button type="button" class="btn btn-sm ' + (flagged ? 'btn-outline-success' : 'btn-outline-danger') + ' obs-row-action" data-id="' + id + '" data-flag="' + (flagged ? '0' : '1') + '"><i class="fas ' + (flagged ? 'fa-flag-checkered' : 'fa-flag') + ' me-1"></i>' + (flagged ? 'Unflag' : 'Flag') + '</button>';
+        }
+        checkbox.checked = false;
     }
 
     async function updateFlags(ids, action) {
@@ -243,8 +259,19 @@
             });
             const payload = await response.json();
             if (!response.ok) throw new Error(payload.message || 'The update could not be completed.');
+            const targetFlag = action === 'flag';
+            ids.forEach((id) => {
+                const checkbox = root.querySelector('.obs-row-check[value="' + id + '"]');
+                const rowAction = checkbox ? checkbox.closest('tr')?.querySelector('.obs-row-action') : null;
+                const wasFlagged = rowAction ? rowAction.dataset.flag === '0' : null;
+                if (wasFlagged !== targetFlag) {
+                    state.stats.flagged = Math.max(0, Number(state.stats.flagged || 0) + (targetFlag ? 1 : -1));
+                }
+                updateRowFlag(id, targetFlag);
+            });
+            setStats(state.stats);
+            $('obsSelectAll').checked = false;
             showNotice(payload.message || 'Updated successfully.');
-            await load();
         } catch (error) {
             showNotice(error.message, 'error');
         } finally {
