@@ -234,7 +234,8 @@ class HostelController extends Controller
         if (session('accType') == 'Admin') {
             $data['hall'] = DB::table('hostel')->select('hall')->groupBy('hall')->orderBy('hall', 'asc')->get();
         } elseif ($isStudent && !$check && $data['hostelApplicationOpen'] && $eligibility['eligible']) {
-            $bedType = session('system_session') == session('student_session') ? 2 : 0;
+            $new_student_session = \App\Http\Controllers\SystemSettingsController::getPostUtmeSession();
+            $bedType = $new_student_session == session('student_session') ? 2 : 0;
             $gender = session('gender');
             $hallCacheKey = 'hostel:available-halls:' . sha1((string) $gender . '|' . $bedType);
             $data['hall'] = Cache::remember($hallCacheKey, now()->addSeconds(5), function () use ($gender, $bedType) {
@@ -586,14 +587,151 @@ class HostelController extends Controller
 
     public function bedSpace2(Request $request)
     {
-        if (!session()->has('log')) {
+        if (!$this->canManageAbs()) {
             return redirect('/');
         }
-
-        $data['data'] = DB::table('hostel')->select('id', 'hall', 'block', 'room', 'bed', 'status', 'room_type', 'occupant', 'hostel_payment')->where(['bed_type' => 0, 'flag' => 1])->whereIn('hall', ['BOT', 'NEW MALE A', 'NEW MALE B', 'AISHA MUHAMMADU BUHARI', 'NEW FEMALE', 'AISHA'])->orderBy('hall', 'asc')->orderBy('block', 'asc')->orderBy('room', 'asc')->orderBy('bed', 'asc')->get();
-        $data['hall'] = DB::table('hostel')->select('hall')->whereIn('hall', ['BOT', 'NEW MALE AA', 'NEW MALE BB', 'AISHA MUHAMMADU BUHARI'])->where(['bed_type' => 0])->groupBy('hall')->orderBy('hall', 'asc')->get();
-        $data['page'] = 'available bed space2';
+        $lookup = $this->absBaseQuery();
+        $data['halls'] = (clone $lookup)->select('hostel.hall')->distinct()->orderBy('hostel.hall')->pluck('hall');
+        $data['blocks'] = (clone $lookup)->select('hostel.block')->whereNotNull('hostel.block')->where('hostel.block', '<>', '')->distinct()->orderBy('hostel.block')->pluck('block');
+        $data['rooms'] = (clone $lookup)->select('hostel.room')->whereNotNull('hostel.room')->where('hostel.room', '<>', '')->distinct()->orderBy('hostel.room')->pluck('room');
+        $data['beds'] = (clone $lookup)->select('hostel.bed')->whereNotNull('hostel.bed')->where('hostel.bed', '<>', '')->distinct()->orderBy('hostel.bed')->pluck('bed');
+        $data['page'] = 'available bed space2 modern';
         return view('main', $data);
+    }
+
+    protected function canManageAbs(): bool
+    {
+        return session()->has('log')
+            && in_array((string) session('accType'), ['Admin', 'Staff'], true);
+    }
+
+    protected function absBaseQuery()
+    {
+        return DB::table('hostel')
+            ->leftJoin('students', 'students.username', '=', 'hostel.occupant')
+            ->where('hostel.bed_type', 0)
+            ->where('hostel.flag', 1);
+    }
+
+    protected function absFilteredQuery(Request $request)
+    {
+        return $this->absBaseQuery()
+            ->select([
+                'hostel.id', 'hostel.hall', 'hostel.block', 'hostel.room', 'hostel.bed',
+                'hostel.status', 'hostel.room_type', 'hostel.occupant',
+                'hostel.hostel_payment', 'hostel.category', 'students.fullname as student_name',
+            ])
+            ->when($request->filled('hall') && $request->input('hall') !== 'all', fn ($q) => $q->where('hostel.hall', $request->input('hall')))
+            ->when($request->filled('block') && $request->input('block') !== 'all', fn ($q) => $q->where('hostel.block', $request->input('block')))
+            ->when($request->filled('room') && $request->input('room') !== 'all', fn ($q) => $q->where('hostel.room', $request->input('room')))
+            ->when($request->filled('bed') && $request->input('bed') !== 'all', fn ($q) => $q->where('hostel.bed', $request->input('bed')))
+            ->when($request->input('occupancy') === 'available', fn ($q) => $q->where(function ($nested) {
+                $nested->where('hostel.status', 0)->orWhereNull('hostel.status');
+            }))
+            ->when($request->input('occupancy') === 'occupied', fn ($q) => $q->where('hostel.status', 1))
+            ->when($request->input('payment') === 'paid', fn ($q) => $q->where('hostel.hostel_payment', 1))
+            ->when($request->input('payment') === 'unpaid', fn ($q) => $q->where(function ($nested) {
+                $nested->whereNull('hostel.hostel_payment')->orWhere('hostel.hostel_payment', '!=', 1);
+            }))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = trim((string) $request->input('search'));
+                $q->where(function ($nested) use ($search) {
+                    $nested->where('hostel.hall', 'like', '%' . $search . '%')
+                        ->orWhere('hostel.block', 'like', '%' . $search . '%')
+                        ->orWhere('hostel.room', 'like', '%' . $search . '%')
+                        ->orWhere('hostel.bed', 'like', '%' . $search . '%')
+                        ->orWhere('hostel.occupant', 'like', '%' . $search . '%')
+                        ->orWhere('students.fullname', 'like', '%' . $search . '%');
+                });
+            })
+            ->orderBy('hostel.hall')
+            ->orderBy('hostel.block')
+            ->orderBy('hostel.room')
+            ->orderBy('hostel.bed');
+    }
+
+    public function absData(Request $request)
+    {
+        if (!$this->canManageAbs()) {
+            return response()->json(['message' => 'You are not allowed to manage flagged bed spaces.'], 403);
+        }
+
+        $perPage = min(max((int) $request->input('per_page', 100), 10), 100);
+        $paginator = $this->absFilteredQuery($request)->paginate($perPage);
+        $rows = collect($paginator->items())->map(function ($row) {
+            $row->status_label = (int) $row->status === 1 ? 'Occupied' : 'Available';
+            $row->payment_label = (int) $row->hostel_payment === 1 ? 'Paid' : 'Not paid';
+            return $row;
+        })->values();
+        $statsQuery = $this->absFilteredQuery($request);
+        $stats = [
+            'total' => (clone $statsQuery)->reorder()->count(),
+            'available' => (clone $statsQuery)->reorder()->where(function ($q) {
+                $q->where('hostel.status', 0)->orWhereNull('hostel.status');
+            })->count(),
+            'occupied' => (clone $statsQuery)->reorder()->where('hostel.status', 1)->count(),
+            'paid' => (clone $statsQuery)->reorder()->where('hostel.hostel_payment', 1)->count(),
+        ];
+
+        return response()->json([
+            'data' => $rows,
+            'stats' => $stats,
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
+        ]);
+    }
+
+    public function absAssign(Request $request)
+    {
+        if (!$this->canManageAbs()) {
+            return response()->json(['message' => 'You are not allowed to assign flagged bed spaces.'], 403);
+        }
+
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'min:1'],
+            'username' => ['required', 'string', 'max:100'],
+        ]);
+        $username = trim($validated['username']);
+        $student = Student::where('username', $username)->first();
+        if (!$student) {
+            return response()->json(['message' => 'No student was found with that ID number. Check the ID and try again.'], 422);
+        }
+
+        $row = DB::table('hostel')->where('id', $validated['id'])->where('bed_type', 0)->where('flag', 1)->first();
+        if (!$row) {
+            return response()->json(['message' => 'That flagged bed space could not be found. Refresh the list and try again.'], 404);
+        }
+        if ((int) $row->status === 1 && trim((string) $row->occupant) !== '') {
+            return response()->json(['message' => 'This bed space is already occupied. Revoke the current occupant first.'], 422);
+        }
+
+        DB::transaction(function () use ($validated, $username) {
+            DB::table('hostel')->where('id', $validated['id'])->where('bed_type', 0)->where('flag', 1)->update([
+                'occupant' => $username,
+                'status' => 1,
+            ]);
+        });
+
+        return response()->json(['message' => 'Bed space assigned successfully.', 'id' => (int) $validated['id'], 'occupant' => $username, 'name' => $student->fullname]);
+    }
+
+    public function absUnflag(Request $request)
+    {
+        if (!$this->canManageAbs()) {
+            return response()->json(['message' => 'You are not allowed to unflag bed spaces.'], 403);
+        }
+        $ids = collect($request->input('ids', []))->map(fn ($id) => (int) $id)->filter(fn ($id) => $id > 0)->unique()->values();
+        if ($ids->isEmpty() || $ids->count() > 500) {
+            return response()->json(['message' => 'Select between 1 and 500 bed spaces.'], 422);
+        }
+        $updated = DB::transaction(fn () => DB::table('hostel')->whereIn('id', $ids->all())->where('bed_type', 0)->where('flag', 1)->update(['flag' => 0]));
+        return response()->json(['message' => $updated . ' bed space(s) unflagged.', 'updated' => $updated]);
     }
 
     public function filterHall(Request $request)
@@ -1134,10 +1272,14 @@ class HostelController extends Controller
 
     public function assignBed2(Request $request)
     {
-        if (!session()->has('log')) {
+        if (!$this->canManageAbs()) {
             return redirect('/');
         }
-        DB::table('hostel')->where(['id' => $request->id])->update([
+        $student = Student::where('username', trim((string) $request->username))->first();
+        if (!$student) {
+            return redirect()->back()->with('error', 'No student was found with that ID number.');
+        }
+        DB::table('hostel')->where(['id' => $request->id, 'bed_type' => 0, 'flag' => 1, 'status' => 0])->update([
             'occupant' => $request->username,
             'status' => 1
         ]);

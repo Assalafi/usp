@@ -1062,6 +1062,9 @@ Route::get('/available bed space', [HostelController::class, 'bedSpace'])->middl
 Route::get('/online bed space', [HostelController::class, 'online'])->middleware('role');
 Route::get('/hostel recipients', [HostelController::class, 'recipients'])->middleware('role');
 Route::get('/abs', [HostelController::class, 'bedSpace2'])->middleware('role');
+Route::get('/abs/data', [HostelController::class, 'absData'])->middleware('role');
+Route::post('/abs/assign', [HostelController::class, 'absAssign'])->middleware('role');
+Route::post('/abs/unflag', [HostelController::class, 'absUnflag'])->middleware('role');
 Route::get('/obs', [HostelController::class, 'online2'])->middleware('role');
 Route::get('/obs/data', [HostelController::class, 'online2Data'])->middleware('role');
 Route::post('/obs/flag', [HostelController::class, 'online2Flag'])->middleware('role');
@@ -1076,7 +1079,9 @@ Route::post('change bed', [HostelController::class, 'changeBed']);
 Route::post('assign bed', [HostelController::class, 'assignBed']);
 Route::post('revoke', [HostelController::class, 'revoke']);
 Route::post('hostel-payment', [HostelController::class, 'hostelPayment']);
-Route::post('ab', [HostelController::class, 'assignBed2']);
+// Legacy ABS form endpoint kept for old bookmarks; the controller still applies
+// the same Admin/Staff and flagged-space checks as the modern page.
+Route::post('ab', [HostelController::class, 'assignBed2'])->middleware('role');
 Route::post('delete bed', [HostelController::class, 'deleteBed']);
 Route::post('create-hostel', [HostelController::class, 'createHostel']);
 Route::get('/print-permit/{id}', [HostelController::class, 'printPermit']);

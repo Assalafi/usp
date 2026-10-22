@@ -43,6 +43,9 @@ class CheckRoleAccess
         if (in_array($page, ['obs/data', 'obs/flag', 'obs/unflag'], true)) {
             $page = 'obs';
         }
+        if (in_array($page, ['abs/data', 'abs/assign', 'abs/unflag'], true)) {
+            $page = 'abs';
+        }
 
         if (in_array($page, $this->except)) {
             return $next($request);
@@ -127,7 +130,7 @@ class CheckRoleAccess
             'fixed assets disposal', 'grading system', 'committee',
             'committee role', 'committee membership', 'committee meetings',
             'sub committee', 'session history',
-            'available bed space', 'online bed space', 'hostel recipients', 'obs',
+            'available bed space', 'online bed space', 'hostel recipients', 'abs', 'obs',
             'manage hostel', 'pins', 'bed space reservations',
         ];
 
