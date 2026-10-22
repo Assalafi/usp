@@ -641,12 +641,22 @@ class HostelController extends Controller
         ];
 
         $query = DB::table('hostel')
-            ->select('id', 'hall', 'block', 'room', 'bed', 'status', 'room_type', 'bed_type', 'category', 'occupant', 'flag')
+            ->select('id', 'hall', 'block', 'room', 'bed', 'status', 'room_type', 'bed_type', 'category', 'occupant', 'payment_method', 'flag')
             ->when($request->filled('hall') && $request->input('hall') !== 'all', fn ($q) => $q->where('hall', $request->input('hall')))
             ->when($request->filled('category') && $request->input('category') !== 'all', fn ($q) => $q->where('category', $request->input('category')))
             ->when($request->filled('bed_type') && $request->input('bed_type') !== 'all', fn ($q) => $q->where('bed_type', (int) $request->input('bed_type')))
             ->when(!$request->filled('bed_type'), fn ($q) => $q->where('bed_type', 0))
             ->when($request->filled('room_type') && $request->input('room_type') !== 'all', fn ($q) => $q->where('room_type', $request->input('room_type')))
+            ->when($request->filled('payment_method') && $request->input('payment_method') !== 'all', function ($q) use ($request) {
+                if (strtolower(trim((string) $request->input('payment_method'))) === 'bank') {
+                    $q->whereRaw("LOWER(TRIM(COALESCE(payment_method, ''))) = 'bank'");
+                } else {
+                    $q->where(function ($nested) {
+                        $nested->whereNull('payment_method')
+                            ->orWhereRaw("LOWER(TRIM(COALESCE(payment_method, ''))) <> 'bank'");
+                    });
+                }
+            })
             ->when($request->filled('status') && $request->input('status') !== 'all', fn ($q) => $q->where('status', (int) $request->input('status')))
             ->when($request->filled('search'), function ($q) use ($request) {
                 $search = trim((string) $request->input('search'));
@@ -678,7 +688,7 @@ class HostelController extends Controller
         $categoryQuery = DB::table('hostel')->select('category')->whereNotNull('category')->where('category', '<>', '');
         $data['categories'] = $categoryQuery->groupBy('category')->orderBy('category', 'asc')->get();
         $data['bedTypes'] = $bedTypes;
-        $data['filters'] = $request->only(['hall', 'category', 'bed_type', 'room_type', 'status', 'search']);
+        $data['filters'] = $request->only(['hall', 'category', 'bed_type', 'room_type', 'payment_method', 'status', 'search']);
         $data['page'] = 'online bed space modern';
         return view('main', $data);
     }
