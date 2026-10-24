@@ -69,14 +69,12 @@
     $modeOfEntryValue = strtoupper(trim((string) ($row->mode_of_entry ?? '')));
     if ($modeOfEntryValue === 'DIRECT ENTRY') { $modeOfEntryValue = 'DE'; }
     $modeOfEntryConfirmed = in_array($modeOfEntryValue, ['UTME', 'DE'], true);
-    $levelConfirmedForSession = !empty($row->level) && (string) ($row->profile_level_session ?? '') === (string) ($currentSession ?? '');
     $profileStatus = $row->profile_status ?? 'draft';
     $profilePhotoUpdatedForCurrentSubmission = !empty($row->profile_photo_updated_at)
         && (empty($row->profile_submitted_at) || \Carbon\Carbon::parse($row->profile_photo_updated_at)->greaterThan(\Carbon\Carbon::parse($row->profile_submitted_at)));
     $profileIsSubmitted = $profileStatus === 'submitted'
         && !empty($row->profile_submitted_at)
-        && (string) ($row->profile_submission_session ?? '') === (string) ($currentSession ?? '')
-        && (string) ($row->profile_level_session ?? '') === (string) ($currentSession ?? '');
+        && (string) ($row->profile_submission_session ?? '') === (string) ($currentSession ?? '');
     $profileRequiredGroups = [
         'Bio-data' => [
             'JAMB number' => $row->jamb_no,
@@ -120,7 +118,6 @@
         ],
         'Admission' => [
             'Mode of entry' => $modeOfEntryConfirmed,
-            'Current level for ' . ($currentSession ?: 'the current session') => $levelConfirmedForSession,
         ],
         'Documents' => [
             'JAMB result' => $validDocumentRecords->has('jamb_result'),
@@ -805,18 +802,10 @@
                                                     </div>
                                                 </div>
                                                 <div class="form-group row">
-                                                    <label for="level_of_entry" class="col-sm-3 col-form-label">Level for {{ $currentSession ?: 'current session' }}<sup>*</sup></label>
+                                                    <label class="col-sm-3 col-form-label">Current academic level</label>
                                                     <div class="col-sm-9">
-                                                        <select class="form-control" id="level" name="level" required>
-                                                            <option value="" disabled {{ $levelConfirmedForSession ? '' : 'selected' }}>Select your level for {{ $currentSession ?: 'the current session' }}</option>
-                                                            <option value="100" {{ $levelConfirmedForSession && (string) $row->level === '100' ? 'selected' : '' }}>100 Level</option>
-                                                            <option value="200" {{ $levelConfirmedForSession && (string) $row->level === '200' ? 'selected' : '' }}>200 Level</option>
-                                                            <option value="300" {{ $levelConfirmedForSession && (string) $row->level === '300' ? 'selected' : '' }}>300 Level</option>
-                                                            <option value="400" {{ $levelConfirmedForSession && (string) $row->level === '400' ? 'selected' : '' }}>400 Level</option>
-                                                            <option value="500" {{ $levelConfirmedForSession && (string) $row->level === '500' ? 'selected' : '' }}>500 Level</option>
-                                                            <option value="600" {{ $levelConfirmedForSession && (string) $row->level === '600' ? 'selected' : '' }}>600 Level</option>
-                                                        </select>
-                                                        <small class="form-text text-muted">Select the level you are entering for the {{ $currentSession ?: 'current' }} academic session. You must choose it again before submitting your profile.</small>
+                                                        <input type="text" class="form-control" value="{{ $row->level ? $row->level . ' Level' : 'Not provided' }}" readonly aria-readonly="true">
+                                                        <small class="form-text text-muted">This value is maintained by Academic Records and cannot be changed from your profile.</small>
                                                     </div>
                                                 </div>
 

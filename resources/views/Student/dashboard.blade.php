@@ -196,11 +196,3 @@
         .ug-welcome-profile{grid-column:1/-1;grid-row:3;justify-content:center;width:100%;padding:8px 10px;margin-top:1px}
     }
 </style>
-
-{{-- Keep the existing safety prompt for students whose current level has not been confirmed. --}}
-@if (session('level_flag') == 0)
-    <div class="modal fade" id="levelUpdateModal" tabindex="-1" aria-labelledby="levelUpdateModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header bg-warning text-dark"><h5 class="modal-title" id="levelUpdateModalLabel"><i class="fas fa-exclamation-triangle me-2"></i>Update Your Current Level</h5></div><div class="modal-body"><div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>Your current level needs to be updated. Please select your correct academic level below.</div><form id="levelUpdateForm" action="{{ route('update.student.level') }}" method="POST">@csrf<div class="mb-3"><label for="currentLevel" class="form-label fw-bold">Select Your Current Level:</label><select class="form-select" id="currentLevel" name="level" required><option value="">Choose your level...</option>@foreach ([100,200,300,400,500,600,700] as $option)<option value="{{ $option }}">{{ $option }} Level</option>@endforeach</select></div><small class="text-muted">You can change this later from your profile.</small></form></div><div class="modal-footer"><button type="button" class="btn btn-success" onclick="updateLevel()"><i class="fas fa-save me-2"></i>Update Level</button></div></div></div>
-    </div>
-    <script>document.addEventListener('DOMContentLoaded',function(){new bootstrap.Modal(document.getElementById('levelUpdateModal')).show()});function updateLevel(){const f=document.getElementById('levelUpdateForm'),s=document.getElementById('currentLevel');if(!s.value){if(window.swal)swal('Oops!!!','Please select your current level before proceeding.','warning');return}if(confirm('Are you sure '+s.value+' is your correct current level?'))f.submit()}</script>
-@endif

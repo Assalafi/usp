@@ -1793,7 +1793,6 @@ class RegistrationController extends Controller
             'father_name' => $required . '|string|max:150',
             'father_address' => $required . '|string|max:500',
             'father_phone' => $required . '|string|max:30',
-            'level' => $required . '|string|max:20',
             'mode_of_entry' => $required . '|in:UTME,DE',
             'picture' => 'nullable|file|image|mimes:jpeg,jpg,png|max:5120',
             'processed_photo_token' => 'nullable|string|max:100',
@@ -1818,11 +1817,24 @@ class RegistrationController extends Controller
             ->where('user_id', session('id'))
             ->firstOrFail();
 
+        // Academic level is managed by Academic Records, not from the
+        // student profile form. Keep accepting the same value from an old
+        // browser form for compatibility, but never allow a different level
+        // to be written through this endpoint.
+        if ($request->has('level')) {
+            $submittedLevel = trim((string) $request->input('level'));
+            $storedLevel = trim((string) $student->level);
+            if ($submittedLevel !== '' && strcasecmp($submittedLevel, $storedLevel) !== 0) {
+                throw ValidationException::withMessages([
+                    'level' => 'Your academic level is managed by the University and cannot be changed from this profile page.',
+                ]);
+            }
+        }
+
         if ($isSubmit) {
             $this->ensureRequiredStudentDocuments($request, $student);
         }
 
-        $selectedLevel = $request->filled('level') ? $request->input('level') : $student->level;
         $profileSession = session('system_session') ?: DB::table('session')->where('status', '1')->value('title');
         $selectedMode = $request->filled('mode_of_entry') ? strtoupper(trim((string) $request->input('mode_of_entry'))) : strtoupper(trim((string) $student->mode_of_entry));
         $isNigerian = in_array(strtoupper(trim((string) $request->input('country'))), ['NIGERIA', 'NIGERIAN'], true);
@@ -1897,7 +1909,6 @@ class RegistrationController extends Controller
                 'first_name' => strtoupper($request->first_name),
                 'other_name' => strtoupper($request->other_name),
                 'fullname' => strtoupper($request->first_name . ' ' . $request->surname . ' ' . $request->other_name),
-                'level' => $selectedLevel,
                 'mode_of_entry' => $selectedMode,
                 'jamb_no' => $request->jamb_no,
                 'date_of_birth' => strtoupper($request->date_of_birth),
@@ -1958,7 +1969,9 @@ class RegistrationController extends Controller
             'profile_submitted_at' => $isSubmit ? now() : null,
             'profile_last_updated_at' => now(),
             'profile_submission_session' => $isSubmit ? $profileSession : null,
-            'profile_level_session' => $request->filled('level') ? $profileSession : $student->profile_level_session,
+            // A profile submission confirms the student's existing level for
+            // the session; the level itself remains unchanged here.
+            'profile_level_session' => $isSubmit ? $profileSession : $student->profile_level_session,
         ]);
 
         // Keep the legacy SIWES record aligned when it already exists. We do
@@ -1974,25 +1987,9 @@ class RegistrationController extends Controller
             ]);
         }
 
-        // Keep the legacy users record aligned when the current level is
-        // changed from the profile page.
-        if ($selectedLevel) {
-            DB::table('users')->where('id', session('id'))->update([
-                'level' => $selectedLevel,
-            ]);
-        }
-        if ($selectedLevel) {
-            $request->session()->put('current_level', $selectedLevel);
-            $request->session()->put('level', $selectedLevel);
-        }
         $request->session()->put('update_profile', 1);
         $request->session()->put('lga', $request->lga_origin);
         $request->session()->put('state', strtoupper($request->state_origin));
-        if ($selectedLevel) {
-            DB::table('session_history')->where(['username' => session('id_number'), 'session' => session('system_session')])->update([
-                'level' => strtoupper($selectedLevel),
-            ]);
-        }
         if (!empty($request->father_phone)) {
             $activeProfile = 1;
         } else {
@@ -2180,40 +2177,10 @@ class RegistrationController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
-        Student::where('user_id', session('id'))->update([
-            'level' => $request->level,
-            'level_flag' => 1,
-            'profile_level_session' => session('system_session'),
-            'profile_last_updated_at' => now(),
-        ]);
-        // Keep the legacy users record in sync for older pages that still read
-        // users.level while students.level remains the source of truth.
-        DB::table('users')->where('id', session('id'))->update([
-            'level' => $request->level,
-        ]);
-        $request->session()->put('level', $request->level);
-        $request->session()->put('current_level', $request->level);
-        $request->session()->put('level_flag', 1);
-        // update session history if exists for current session, if not create new
 
-        if (DB::table('session_history')->where(['username' => session('id_number'), 'session' => session('system_session')])->count() == 0) {
-            DB::table('session_history')->insert([
-                'username' => session('id_number'),
-                'session' => session('system_session'),
-                'level' => strtoupper($request->level),
-                'program' => session('program'),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        } else {
-            DB::table('session_history')->where(['username' => session('id_number'), 'session' => session('system_session')])->update([
-                'level' => strtoupper($request->level),
-                'program' => session('program'),
-                'updated_at' => now(),
-            ]);
-        }
-
-        return redirect()->back()->with('success', 'Level Updated Successfully!!!');
+        // Level changes are now controlled by Academic Records. This legacy
+        // endpoint remains for old links, but deliberately performs no write.
+        return redirect()->back()->with('error', 'Academic level changes are managed by Academic Records and cannot be made from the student portal.');
     }
 
     public function deleteStudent(Request $request)
