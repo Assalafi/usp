@@ -238,7 +238,9 @@
                         </div>
                     </div>
                     <div class="sp-card-edit-action">
-                        <a class="sp-page-edit" href="{{ url('/profile?mode=edit') }}"><i class="fas fa-pen"></i> Edit profile</a>
+                        <span class="sp-page-edit sp-page-edit-disabled" aria-disabled="true" title="Profile editing is temporarily closed">
+                            <i class="fas fa-lock"></i> Profile editing is temporarily closed
+                        </span>
                     </div>
                 </div>
                 <div class="col-md-8 sp-profile-overview">
@@ -350,7 +352,7 @@
                 </div>
             </div>
             @endif
-            <div class="sp-edit-intro"><div><span class="sp-kicker">Profile centre</span><h2>{{ $editMode ? 'Keep your details up to date' : 'Your profile information' }}</h2><p>{{ $editMode ? 'Complete each section below. Required fields are marked with *.' : 'Review your biodata and contact information. Use Edit profile below the identity card to make changes.' }}</p></div><div class="sp-edit-actions"><span class="sp-secure-pill"><i class="fas fa-shield-alt"></i> Secure &amp; private</span>@if ($editMode)<a class="sp-page-edit" href="{{ url('/profile') }}"><i class="fas fa-times"></i> Close editor</a>@endif</div></div>
+            <div class="sp-edit-intro"><div><span class="sp-kicker">Profile centre</span><h2>{{ $editMode ? 'Keep your details up to date' : 'Your profile information' }}</h2><p>{{ $editMode ? 'Complete each section below. Required fields are marked with *.' : 'Review your biodata and contact information. Profile editing is temporarily closed.' }}</p></div><div class="sp-edit-actions"><span class="sp-secure-pill"><i class="fas fa-shield-alt"></i> Secure &amp; private</span>@if ($editMode)<a class="sp-page-edit" href="{{ url('/profile') }}"><i class="fas fa-times"></i> Close editor</a>@endif</div></div>
             @if ($editMode)
             @if (request('required') || session('warning'))
                 <div class="alert alert-warning border-0 shadow-sm" role="alert"><i class="fas fa-lock me-1"></i> {{ session('warning') ?: 'Complete every required item and submit your profile to unlock the student portal.' }}</div>
@@ -1921,6 +1923,8 @@
         .student-profile-page .sp-edit-actions { display:flex; align-items:center; gap:.65rem; flex-wrap:wrap; justify-content:flex-end; }
         .student-profile-page .sp-page-edit { display:inline-flex; align-items:center; gap:.45rem; border-radius:10px; padding:.58rem .9rem; background:#3ea1e4; color:#fff; text-decoration:none; font-size:.82rem; font-weight:700; box-shadow:0 5px 14px rgba(62,161,228,.24); }
         .student-profile-page .sp-page-edit:hover { background:#1683c3; color:#fff; }
+        .student-profile-page .sp-page-edit-disabled { background:#eef3f7; color:#64748b; box-shadow:none; cursor:not-allowed; }
+        .student-profile-page .sp-page-edit-disabled:hover { background:#eef3f7; color:#64748b; }
         .student-profile-page .sp-card-edit-action { margin-top:.7rem; }
         .student-profile-page .sp-card-edit-action .sp-page-edit { width:100%; justify-content:center; }
         .student-profile-page .sp-secure-pill { display:inline-flex; align-items:center; gap:.4rem; border:1px solid #ccebdc; background:#effaf4; color:#278155; border-radius:999px; padding:.5rem .8rem; white-space:nowrap; font-size:.78rem; font-weight:700; }

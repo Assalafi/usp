@@ -1747,6 +1747,10 @@ class RegistrationController extends Controller
             return redirect('/');
         }
 
+        if (session('accType') === 'Student') {
+            return redirect('/profile')->with('info', 'Profile editing is temporarily closed. You can still view your profile.');
+        }
+
         $isSubmit = $request->input('profile_action') === 'submit' || $request->boolean('submit_profile');
         $required = $isSubmit ? 'required' : 'nullable';
         $modeInput = strtoupper(trim((string) $request->input('mode_of_entry', '')));

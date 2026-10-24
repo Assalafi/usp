@@ -547,6 +547,9 @@ Route::get('/profile', function () {
         && !empty($student->profile_submitted_at)
         && (string) ($student->profile_submission_session ?? '') === (string) ($currentSession ?? '')
         && (string) ($student->profile_level_session ?? '') === (string) ($currentSession ?? '');
+    if (session('accType') === 'Student' && request('mode') === 'edit') {
+        return redirect('/profile')->with('info', 'Profile editing is temporarily closed. You can still view your profile.');
+    }
     if (session('accType') === 'Student' && !$profileIsSubmittedForCurrentSession && request('mode') !== 'edit') {
         return redirect('/profile?mode=edit&required=1');
     }
