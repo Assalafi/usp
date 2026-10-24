@@ -104,8 +104,8 @@ class ElectionVotingController extends Controller
             ->count('username');
 
         $facultyAccredited = (clone $eligible)
-            ->select('faculty', 'level', DB::raw('COUNT(DISTINCT username) AS total'))
-            ->groupBy('faculty', 'level')
+            ->select('students.faculty', 'students.level', DB::raw('COUNT(DISTINCT students.username) AS total'))
+            ->groupBy('students.faculty', 'students.level')
             ->get();
         $facultyVoted = DB::table('election_votes AS votes')
             ->join('students', 'students.username', '=', 'votes.username')
