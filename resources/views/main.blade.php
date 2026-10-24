@@ -190,21 +190,21 @@
                         $datas = collect();
                         $getAllFaculty = collect();
                         if (!in_array(session('accType'), ['Student', 'Admin'], true)) {
-                            $positions = DB::table('staff')
+                            $staffAppointment = DB::table('staff')
                                 ->select('appointment')
                                 ->where('username', session('username'))
                                 ->value('appointment');
-                            if ($positions) {
+                            if ($staffAppointment) {
                                 $datas = DB::table('rolls')
-                                    ->where(['link' => $links, 'username' => $positions])
+                                    ->where(['link' => $links, 'username' => $staffAppointment])
                                     ->select('page', 'action', 'faculty')
                                     ->get();
                                 $getAllFaculty = DB::table('rolls')
                                     ->select('faculty')
-                                    ->where(['link' => $links, 'username' => $positions])
+                                    ->where(['link' => $links, 'username' => $staffAppointment])
                                     ->pluck('faculty');
                                 $ch = DB::table('rolls')
-                                    ->where(['link' => $links, 'username' => $positions])
+                                    ->where(['link' => $links, 'username' => $staffAppointment])
                                     ->select('id')
                                     ->value('id');
                                 if ($ch <= 0) {
