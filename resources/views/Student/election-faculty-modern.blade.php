@@ -8,8 +8,17 @@
     $flag = 1;
     $school_fee = 1;
     $vote = DB::table('election_votes')->where(['username' => session('id_number'), 'category' => $category])->select('id')->first();
-    $positions = $poss->where('category', $category)->where('position', $level);
-    $visibleCandidates = $data->where('category', $category)->where('acc_type', 'Student')->where('faculty', $faculty)->where('level', $level);
+    $levelKey = strtolower(trim((string) $level));
+    $levelNumber = (int) preg_replace('/[^0-9]/', '', $levelKey);
+    $matchesLevel = function ($value) use ($levelKey, $levelNumber) {
+        $candidateLevel = strtolower(trim((string) $value));
+        if ($candidateLevel === $levelKey) {
+            return true;
+        }
+        return $levelNumber > 0 && (int) preg_replace('/[^0-9]/', '', $candidateLevel) === $levelNumber;
+    };
+    $positions = $poss->where('category', $category)->filter(fn ($position) => $matchesLevel($position->position ?? ''))->values();
+    $visibleCandidates = $data->where('category', $category)->where('acc_type', 'Student')->where('faculty', $faculty)->filter(fn ($candidate) => $matchesLevel($candidate->level ?? ''))->values();
     $eligibility = $flag == 1 && $school_fee == 1 && !empty($faculty) && !empty($level) && $profileReady;
     $eligibilityMessage = !$profileReady ? 'Update and submit your student profile for the current session before voting.' : (empty($faculty) || empty($level) ? 'Your faculty or current level is not available on your student record.' : 'Please complete the required voter accreditation and fee requirements.');
     $scopeLabel = trim(($faculty ?: 'Faculty') . ' · ' . ($level ?: 'Current level'));

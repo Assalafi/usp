@@ -235,11 +235,12 @@ class ElectionVotingController extends Controller
                 if (strtoupper((string) DB::table('election_settings')->where('description', 'Election Flag')->value('value')) !== 'OPEN') {
                     return redirect()->back()->with('error', 'Voting is currently closed.');
                 }
+                $student = null;
                 if (session('accType') === 'Student') {
                     $student = DB::table('students')
                         ->where('user_id', session('id'))
                         ->lockForUpdate()
-                        ->first(['status', 'program', 'duration', 'level', 'profile_status', 'profile_submitted_at', 'profile_submission_session', 'profile_level_session']);
+                        ->first(['status', 'program', 'duration', 'level', 'faculty', 'profile_status', 'profile_submitted_at', 'profile_submission_session', 'profile_level_session']);
                     if ($this->isFinalYearStudent($student)) {
                         return redirect()->back()->with('error', 'Final-year students are not eligible to vote in this election.');
                     }
@@ -248,11 +249,32 @@ class ElectionVotingController extends Controller
                     return redirect()->back()->with('error', 'Your vote for this election has already been submitted.');
                 }
 
-                $positions = DB::table('election_positions')->where('category', $category)->orderBy('order')->pluck('position');
-                $candidateRows = DB::table('election_candidates')
+                $positionsQuery = DB::table('election_positions')->where('category', $category);
+                $studentLevel = strtolower(trim((string) ($student->level ?? '')));
+                $studentLevelNumber = (int) preg_replace('/[^0-9]/', '', $studentLevel);
+                if ($student && $category === 'Faculty Rep' && $studentLevel !== '') {
+                    $positionsQuery->where(function ($query) use ($studentLevel, $studentLevelNumber) {
+                        $query->whereRaw('LOWER(TRIM(position)) = ?', [$studentLevel]);
+                        if ($studentLevelNumber > 0) {
+                            $query->orWhereRaw('CAST(position AS UNSIGNED) = ?', [$studentLevelNumber]);
+                        }
+                    });
+                }
+                $positions = $positionsQuery->orderBy('order')->pluck('position');
+
+                $candidateQuery = DB::table('election_candidates')
                     ->where('category', $category)
-                    ->whereIn('position', $positions->all())
-                    ->get(['candidate', 'position']);
+                    ->whereIn('position', $positions->all());
+                if ($student && $category === 'Faculty Rep') {
+                    $candidateQuery->where('faculty', $student->faculty)
+                        ->where(function ($query) use ($studentLevel, $studentLevelNumber) {
+                            $query->whereRaw('LOWER(TRIM(position)) = ?', [$studentLevel]);
+                            if ($studentLevelNumber > 0) {
+                                $query->orWhereRaw('CAST(position AS UNSIGNED) = ?', [$studentLevelNumber]);
+                            }
+                        });
+                }
+                $candidateRows = $candidateQuery->get(['candidate', 'position']);
                 $allowed = [];
                 $hasCandidates = [];
                 foreach ($candidateRows as $candidateRow) {
@@ -292,6 +314,7 @@ class ElectionVotingController extends Controller
                 }
                 $selectedRows = DB::table('election_candidates')
                     ->where('category', $category)
+                    ->whereIn('position', $positions->all())
                     ->where(function ($query) use ($selections) {
                         foreach ($selections as $selection) {
                             $query->orWhere(function ($item) use ($selection) {
@@ -299,6 +322,15 @@ class ElectionVotingController extends Controller
                                     ->where('candidate', $selection['candidate']);
                             });
                         }
+                    })
+                    ->when($student && $category === 'Faculty Rep', function ($query) use ($student, $studentLevel, $studentLevelNumber) {
+                        $query->where('faculty', $student->faculty)
+                            ->where(function ($levelQuery) use ($studentLevel, $studentLevelNumber) {
+                                $levelQuery->whereRaw('LOWER(TRIM(position)) = ?', [$studentLevel]);
+                                if ($studentLevelNumber > 0) {
+                                    $levelQuery->orWhereRaw('CAST(position AS UNSIGNED) = ?', [$studentLevelNumber]);
+                                }
+                            });
                     })
                     ->lockForUpdate()
                     ->get(['candidate', 'position']);
@@ -323,6 +355,7 @@ class ElectionVotingController extends Controller
                 }
                 $updated = DB::table('election_candidates')
                     ->where('category', $category)
+                    ->whereIn('position', $positions->all())
                     ->where(function ($query) use ($selections) {
                         foreach ($selections as $selection) {
                             $query->orWhere(function ($item) use ($selection) {
@@ -330,6 +363,15 @@ class ElectionVotingController extends Controller
                                     ->where('candidate', $selection['candidate']);
                             });
                         }
+                    })
+                    ->when($student && $category === 'Faculty Rep', function ($query) use ($student, $studentLevel, $studentLevelNumber) {
+                        $query->where('faculty', $student->faculty)
+                            ->where(function ($levelQuery) use ($studentLevel, $studentLevelNumber) {
+                                $levelQuery->whereRaw('LOWER(TRIM(position)) = ?', [$studentLevel]);
+                                if ($studentLevelNumber > 0) {
+                                    $levelQuery->orWhereRaw('CAST(position AS UNSIGNED) = ?', [$studentLevelNumber]);
+                                }
+                            });
                     })
                     ->increment('vote', 1);
                 if ((int) $updated !== count($selections)) {
