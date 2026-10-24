@@ -124,6 +124,13 @@ window.initElectionAdmin = window.initElectionAdmin || (() => {
     document.querySelectorAll('[data-election-tab]').forEach(tab => tab.addEventListener('click', async event => {
         event.preventDefault();
         if (tab.classList.contains('active')) return;
+        // Live Results is a standalone full-screen wall, not another panel in
+        // this shell. Let its own document boot normally instead of trying to
+        // replace an admin shell that does not exist in that response.
+        if (/election(?:%20|\s)live/i.test(tab.href)) {
+            window.location.assign(tab.href);
+            return;
+        }
         const shell = document.querySelector('[data-election-admin]');
         shell?.classList.add('is-loading');
         try {
