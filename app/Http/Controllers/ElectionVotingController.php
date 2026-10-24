@@ -179,9 +179,11 @@ class ElectionVotingController extends Controller
             return false;
         }
 
-        $duration = (int) ($student->duration ?? 0);
-        if ($duration <= 0 && !empty($student->program)) {
-            $duration = (int) DB::table('program')->where('code', $student->program)->value('duration');
+        $duration = !empty($student->program)
+            ? (int) DB::table('program')->where('code', $student->program)->value('duration')
+            : 0;
+        if ($duration <= 0) {
+            $duration = (int) ($student->duration ?? 0);
         }
 
         $level = (int) preg_replace('/[^0-9]/', '', (string) ($student->level ?? ''));

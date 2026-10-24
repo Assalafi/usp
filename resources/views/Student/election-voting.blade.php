@@ -5,9 +5,11 @@
     $status = strtoupper((string) ($status ?? 'CLOSE'));
     $hasVoted = (bool) ($vote ?? false);
     $eligibilityMessage = $eligibilityMessage ?? 'Your account is not currently eligible for this election.';
-    $programDuration = (int) ($student->duration ?? 0);
-    if ($programDuration <= 0 && !empty($student->program)) {
-        $programDuration = (int) DB::table('program')->where('code', $student->program)->value('duration');
+    $programDuration = !empty($student->program)
+        ? (int) DB::table('program')->where('code', $student->program)->value('duration')
+        : 0;
+    if ($programDuration <= 0) {
+        $programDuration = (int) ($student->duration ?? 0);
     }
     $currentLevelNumber = (int) preg_replace('/[^0-9]/', '', (string) ($student->level ?? ''));
     $isFinalYearStudent = $programDuration > 0
