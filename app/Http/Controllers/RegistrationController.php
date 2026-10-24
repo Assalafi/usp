@@ -1839,6 +1839,22 @@ class RegistrationController extends Controller
         $selectedMode = $request->filled('mode_of_entry') ? strtoupper(trim((string) $request->input('mode_of_entry'))) : strtoupper(trim((string) $student->mode_of_entry));
         $isNigerian = in_array(strtoupper(trim((string) $request->input('country'))), ['NIGERIA', 'NIGERIAN'], true);
         $ninValue = trim((string) $request->input('nin', ''));
+        $existingNin = trim((string) $student->nin);
+        $existingNinCanonical = strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', $existingNin));
+        $submittedNinCanonical = strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', $ninValue));
+
+        // The NIN already saved on the portal is authoritative. A profile
+        // update may confirm it, but must never replace it with another NIN.
+        if ($existingNinCanonical !== '' && $ninValue !== '' && $submittedNinCanonical !== $existingNinCanonical) {
+            throw ValidationException::withMessages([
+                'nin' => 'The NIN entered does not match the NIN already saved on your student record. Use the same NIN or contact Student Affairs for help.',
+            ]);
+        }
+
+        $ninValueToStore = $existingNin !== ''
+            ? ($existingNinCanonical !== '' ? $existingNinCanonical : $existingNin)
+            : ($ninValue !== '' ? ($isNigerian ? preg_replace('/\D+/', '', $ninValue) : strtoupper($ninValue)) : null);
+
         if ($ninValue !== '') {
             if ($isNigerian && !preg_match('/^\d{11}$/', $ninValue)) {
                 throw ValidationException::withMessages(['nin' => 'Enter a valid Nigerian NIN containing exactly 11 digits.']);
@@ -1919,7 +1935,7 @@ class RegistrationController extends Controller
                 'marital_status' => strtoupper($request->marital_status),
                 'maiden_name' => strtoupper($request->maiden_name),
                 'religion' => strtoupper($request->religion),
-                'nin' => $ninValue !== '' ? ($isNigerian ? preg_replace('/\D+/', '', $ninValue) : strtoupper($ninValue)) : null,
+                'nin' => $ninValueToStore,
                 'health_status' => strtoupper($request->health_status),
                 'physical_challenge' => strtoupper($request->physical_challenge),
                 'hobbies' => strtoupper($request->hobbies),
@@ -2019,6 +2035,18 @@ class RegistrationController extends Controller
 
         DB::transaction(function () use ($nin, $cycle) {
             $student = Student::where('user_id', session('id'))->lockForUpdate()->firstOrFail();
+            $existingNin = trim((string) $student->nin);
+            $existingNinCanonical = preg_replace('/\D+/', '', $existingNin);
+
+            // This is a confirmation step. If a NIN is already recorded on
+            // the portal, the value supplied here must match it exactly after
+            // formatting is removed; it cannot be replaced from this page.
+            if ($existingNinCanonical !== '' && $nin !== $existingNinCanonical) {
+                throw ValidationException::withMessages([
+                    'nin' => 'The NIN entered does not match the NIN already saved on your student record. Use the same NIN or contact Student Affairs for help.',
+                ]);
+            }
+
             $duplicate = Student::where('id', '!=', $student->id)
                 ->whereRaw("REPLACE(REPLACE(REPLACE(TRIM(nin), ' ', ''), '-', ''), '/', '') = ?", [$nin])
                 ->exists();
@@ -2029,7 +2057,9 @@ class RegistrationController extends Controller
             }
 
             $student->forceFill([
-                'nin' => $nin,
+                // Preserve the authoritative stored value when one exists;
+                // otherwise this is the student's first NIN registration.
+                'nin' => $existingNinCanonical !== '' ? $existingNinCanonical : $nin,
                 'nin_update_version' => $cycle,
                 'nin_updated_at' => now(),
             ])->save();

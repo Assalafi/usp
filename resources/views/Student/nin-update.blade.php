@@ -21,13 +21,13 @@
         <section class="body">
             @if(session('error'))<div class="error">{{ session('error') }}</div>@endif
             @if($errors->any())<div class="error">{{ $errors->first('nin') }}</div>@endif
-            <div class="welcome"><span class="icon">🔒</span><div><strong>{{ $student->fullname ?? 'Student' }}</strong>Enter your NIN to continue. The portal may ask you to confirm it again when the University starts a new security review.</div></div>
+            <div class="welcome"><span class="icon">🔒</span><div><strong>{{ $student->fullname ?? 'Student' }}</strong>Enter the same NIN already saved on your student portal. The portal may ask you to confirm it again when the University starts a new security review.</div></div>
             <form method="POST" action="{{ route('student.nin.update.submit') }}" autocomplete="off">
                 @csrf
                 <label for="nin">11-digit NIN</label>
                 <input id="nin" name="nin" type="text" inputmode="numeric" pattern="[0-9]{11}" maxlength="11" minlength="11" value="{{ old('nin') }}" required autofocus aria-describedby="nin-help">
-                <small id="nin-help">Use only the 11 digits on your National Identification Number slip. Your NIN is protected and cannot be changed by another student.</small>
-                <div class="button-row"><button class="btn primary" type="submit">Save NIN and continue</button><a class="btn logout" href="{{ url('/logout') }}">Log out</a></div>
+                <small id="nin-help">Use the 11 digits already recorded on your student portal. If the number does not match, the confirmation will be rejected; contact Student Affairs if your record is incorrect.</small>
+                <div class="button-row"><button class="btn primary" type="submit">Confirm NIN and continue</button><a class="btn logout" href="{{ url('/logout') }}">Log out</a></div>
             </form>
             <div class="foot">You must complete this security check before accessing payments, results, registration, or other portal services.</div>
         </section>
