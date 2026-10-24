@@ -156,9 +156,14 @@ class ElectionVotingController extends Controller
     {
         $currentSession = session('system_session') ?: DB::table('session')->where('status', '1')->value('title');
         $query = DB::table('students')
+            ->leftJoin('program as election_program', 'election_program.code', '=', 'students.program')
             ->where('students.status', 1)
             ->where('students.profile_status', 'submitted')
-            ->whereNotNull('students.profile_submitted_at');
+            ->whereNotNull('students.profile_submitted_at')
+            // A final-year student may view published results, but is not an
+            // accredited voter. Prefer the programme duration and fall back
+            // to the duration copied onto the student record.
+            ->whereRaw("(COALESCE(NULLIF(election_program.duration, ''), NULLIF(students.duration, '')) IS NULL OR CAST(students.level AS UNSIGNED) < (CAST(COALESCE(NULLIF(election_program.duration, ''), NULLIF(students.duration, '')) AS UNSIGNED) * 100))");
         if ($currentSession) {
             $query->where('students.profile_submission_session', $currentSession)
                 ->where('students.profile_level_session', $currentSession);
@@ -166,6 +171,22 @@ class ElectionVotingController extends Controller
             $query->whereRaw('1 = 0');
         }
         return $query;
+    }
+
+    private function isFinalYearStudent($student): bool
+    {
+        if (!$student) {
+            return false;
+        }
+
+        $duration = (int) ($student->duration ?? 0);
+        if ($duration <= 0 && !empty($student->program)) {
+            $duration = (int) DB::table('program')->where('code', $student->program)->value('duration');
+        }
+
+        $level = (int) preg_replace('/[^0-9]/', '', (string) ($student->level ?? ''));
+
+        return $duration > 0 && $level > 0 && $level >= ($duration * 100);
     }
 
     public function voting(Request $request)
@@ -181,10 +202,13 @@ class ElectionVotingController extends Controller
         }
         if (session('accType') === 'Student') {
             $currentSession = session('system_session') ?: DB::table('session')->where('status', '1')->value('title');
-            $student = DB::table('students')->where('user_id', session('id'))->first(['status', 'profile_status', 'profile_submitted_at', 'profile_submission_session', 'profile_level_session']);
+            $student = DB::table('students')->where('user_id', session('id'))->first(['status', 'program', 'duration', 'level', 'profile_status', 'profile_submitted_at', 'profile_submission_session', 'profile_level_session']);
             $profileReady = $student && (int) $student->status === 1 && $student->profile_status === 'submitted' && !empty($student->profile_submitted_at) && (string) $student->profile_submission_session === (string) $currentSession && (string) $student->profile_level_session === (string) $currentSession;
             if (!$profileReady) {
                 return redirect()->back()->with('error', 'Update and submit your student profile for the current session before voting.');
+            }
+            if ($this->isFinalYearStudent($student)) {
+                return redirect()->back()->with('error', 'Final-year students are not eligible to vote in this election. Published results will be available after voting closes.');
             }
         }
         if (strtoupper((string) DB::table('election_settings')->where('description', 'Election Flag')->value('value')) !== 'OPEN') {
@@ -208,6 +232,15 @@ class ElectionVotingController extends Controller
                 // closing the election cannot overlap a ballot being committed.
                 if (strtoupper((string) DB::table('election_settings')->where('description', 'Election Flag')->value('value')) !== 'OPEN') {
                     return redirect()->back()->with('error', 'Voting is currently closed.');
+                }
+                if (session('accType') === 'Student') {
+                    $student = DB::table('students')
+                        ->where('user_id', session('id'))
+                        ->lockForUpdate()
+                        ->first(['status', 'program', 'duration', 'level', 'profile_status', 'profile_submitted_at', 'profile_submission_session', 'profile_level_session']);
+                    if ($this->isFinalYearStudent($student)) {
+                        return redirect()->back()->with('error', 'Final-year students are not eligible to vote in this election.');
+                    }
                 }
                 if (DB::table('election_votes')->where(['username' => $voter, 'category' => $category])->lockForUpdate()->exists()) {
                     return redirect()->back()->with('error', 'Your vote for this election has already been submitted.');

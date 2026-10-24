@@ -1,5 +1,5 @@
 @php
-    $student = DB::table('students')->where('user_id', session('id'))->first(['faculty','level','vflag','school_fee','status','profile_status','profile_submitted_at','profile_submission_session','profile_level_session']);
+    $student = DB::table('students')->where('user_id', session('id'))->first(['faculty','program','duration','level','vflag','school_fee','status','profile_status','profile_submitted_at','profile_submission_session','profile_level_session']);
     $currentSession = session('system_session') ?: DB::table('session')->where('status', '1')->value('title');
     $lga = session('lga');
     $status = DB::table('election_settings')->where('description', 'Election Flag')->value('value');

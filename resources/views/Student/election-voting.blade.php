@@ -5,6 +5,18 @@
     $status = strtoupper((string) ($status ?? 'CLOSE'));
     $hasVoted = (bool) ($vote ?? false);
     $eligibilityMessage = $eligibilityMessage ?? 'Your account is not currently eligible for this election.';
+    $programDuration = (int) ($student->duration ?? 0);
+    if ($programDuration <= 0 && !empty($student->program)) {
+        $programDuration = (int) DB::table('program')->where('code', $student->program)->value('duration');
+    }
+    $currentLevelNumber = (int) preg_replace('/[^0-9]/', '', (string) ($student->level ?? ''));
+    $isFinalYearStudent = $programDuration > 0
+        && $currentLevelNumber > 0
+        && $currentLevelNumber >= ($programDuration * 100);
+    if ($isFinalYearStudent) {
+        $eligibility = false;
+        $eligibilityMessage = 'Final-year students are not eligible to vote in this election. Published results will remain available after voting closes.';
+    }
     $open = $status === 'OPEN';
     $canVote = $open && !$hasVoted && ($eligibility ?? true);
     $scopeIcon = $category === 'General' ? 'fa-users' : 'fa-map-marker-alt';
