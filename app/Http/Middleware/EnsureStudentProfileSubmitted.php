@@ -33,6 +33,23 @@ class EnsureStudentProfileSubmitted
             && (string) $student->profile_submission_session === (string) $currentSession
             && (string) $student->profile_level_session === (string) $currentSession;
         if ($isSubmittedForCurrentSession) {
+            $ninCycle = max(1, (int) DB::table('system_settings')->where('key', 'student_nin_update_version')->value('value'));
+            $ninRecord = Student::where('user_id', session('id'))->first(['nin', 'nin_update_version']);
+            $ninIsConfirmed = $ninRecord
+                && preg_match('/^\d{11}$/', trim((string) $ninRecord->nin))
+                && (int) ($ninRecord->nin_update_version ?? 0) >= $ninCycle;
+
+            if (!$ninIsConfirmed) {
+                if ($request->expectsJson() || $request->ajax()) {
+                    return response()->json([
+                        'message' => 'Please confirm your National Identification Number before using the student portal.',
+                        'redirect' => url('/nin-update'),
+                    ], 423);
+                }
+
+                return redirect('/nin-update');
+            }
+
             return $next($request);
         }
 
@@ -49,6 +66,7 @@ class EnsureStudentProfileSubmitted
         $path = trim($request->path(), '/');
 
         return $path === 'profile-update-expired'
+            || $path === 'nin-update'
             || $path === 'logout';
     }
 }

@@ -2001,6 +2001,43 @@ class RegistrationController extends Controller
         return redirect($isSubmit ? '/profile' : '/profile?mode=edit')->with('success', $isSubmit ? 'Profile submitted successfully. You can now use the student portal.' : 'Profile changes saved. Submit the profile when every required item is complete.');
     }
 
+    public function updateNin(Request $request)
+    {
+        if (!session()->has('log') || session('accType') !== 'Student') {
+            return redirect('/');
+        }
+
+        $request->validate([
+            'nin' => ['required', 'regex:/^\d{11}$/'],
+        ], [
+            'nin.required' => 'Enter your 11-digit National Identification Number (NIN).',
+            'nin.regex' => 'The NIN must contain exactly 11 digits.',
+        ]);
+
+        $nin = trim((string) $request->input('nin'));
+        $cycle = max(1, (int) DB::table('system_settings')->where('key', 'student_nin_update_version')->value('value'));
+
+        DB::transaction(function () use ($nin, $cycle) {
+            $student = Student::where('user_id', session('id'))->lockForUpdate()->firstOrFail();
+            $duplicate = Student::where('id', '!=', $student->id)
+                ->whereRaw("REPLACE(REPLACE(REPLACE(TRIM(nin), ' ', ''), '-', ''), '/', '') = ?", [$nin])
+                ->exists();
+            if ($duplicate) {
+                throw ValidationException::withMessages([
+                    'nin' => 'This NIN is already linked to another student account. Check the number and try again.',
+                ]);
+            }
+
+            $student->forceFill([
+                'nin' => $nin,
+                'nin_update_version' => $cycle,
+                'nin_updated_at' => now(),
+            ])->save();
+        });
+
+        return redirect('/dash')->with('success', 'Your NIN was recorded securely. You can now use the student portal.');
+    }
+
     private function nigeriaLocationMap(): array
     {
         static $locations;

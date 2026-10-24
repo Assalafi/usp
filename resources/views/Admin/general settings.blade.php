@@ -288,7 +288,23 @@
                                     careful when modifying these values.
                                 </div>
 
-                                @foreach ($settings as $setting)
+                                @php
+                                    $ninConfirmationCycle = (int) \App\Http\Controllers\SystemSettingsController::get('student_nin_update_version', 1);
+                                @endphp
+                                <div class="card border-danger shadow-sm mb-4">
+                                    <div class="card-body d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+                                        <div>
+                                            <h5 class="mb-1 text-danger"><i class="fas fa-id-card me-2"></i>Student NIN confirmation</h5>
+                                            <p class="mb-1 text-muted">Students must confirm their NIN before using portal services. A confirmation is remembered until you start a new cycle.</p>
+                                            <small class="text-muted">Current confirmation cycle: <strong>{{ $ninConfirmationCycle }}</strong></small>
+                                        </div>
+                                        <button type="button" class="btn btn-danger" id="requestStudentNinUpdate">
+                                            <i class="fas fa-rotate me-2"></i>Ask students to confirm again
+                                        </button>
+                                    </div>
+                                </div>
+
+                                @foreach ($settings->reject(fn ($setting) => $setting->key === 'student_nin_update_version') as $setting)
                                     <div class="mb-4 p-3 border rounded">
                                         <label class="form-label fw-bold">
                                             <i class="fas fa-key me-1 text-danger"></i>
@@ -954,6 +970,33 @@
     $(document).ready(function() {
         $('#hod_program_course_management_mode').on('change', function() {
             $('#hod_program_course_management_users').prop('disabled', $(this).val() !== 'selected');
+        });
+
+        $('#requestStudentNinUpdate').on('click', function() {
+            var button = $(this);
+            Swal.fire({
+                title: 'Start a new NIN confirmation cycle?',
+                text: 'Students will be required to confirm their NIN before using the portal again.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, request confirmation',
+                cancelButtonText: 'Cancel'
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+                button.prop('disabled', true);
+                $.ajax({
+                    url: '{{ route('settings.request-nin-update') }}',
+                    type: 'POST',
+                    data: { _token: '{{ csrf_token() }}' },
+                    success: function(response) {
+                        Swal.fire({ icon: 'success', title: 'Confirmation requested', text: response.message }).then(function() { location.reload(); });
+                    },
+                    error: function(xhr) {
+                        button.prop('disabled', false);
+                        Swal.fire({ icon: 'error', title: 'Could not start request', text: xhr.responseJSON?.error || 'Please try again.' });
+                    }
+                });
+            });
         });
 
         // Handle form submission

@@ -894,6 +894,15 @@ Route::get('/profile-update-expired', function () {
 
     return view('Student.profile-update-expired');
 });
+Route::get('/nin-update', function () {
+    if (session('accType') !== 'Student' || !session()->has('log')) {
+        return redirect('/');
+    }
+
+    $student = Student::where('user_id', session('id'))->first(['fullname', 'nin']);
+    return view('Student.nin-update', compact('student'));
+})->name('student.nin.update');
+Route::post('/nin-update', [RegistrationController::class, 'updateNin'])->name('student.nin.update.submit');
 Route::get('dash', function () {
     // return session('accType');
     if (!session()->has('log')) {
@@ -1451,6 +1460,7 @@ Route::get('/inter-university-transfer/admission-letter/{id}', [InterUniversityT
 Route::get('/settings/general', [App\Http\Controllers\SystemSettingsController::class, 'index'])->name('settings.general');
 Route::post('/settings/update', [App\Http\Controllers\SystemSettingsController::class, 'update'])->name('settings.update');
 Route::post('/settings/update-single', [App\Http\Controllers\SystemSettingsController::class, 'updateSingle'])->name('settings.update-single');
+Route::post('/settings/security/request-nin-update', [App\Http\Controllers\SystemSettingsController::class, 'requestStudentNinUpdate'])->name('settings.request-nin-update');
 Route::post('/settings/reset', [App\Http\Controllers\SystemSettingsController::class, 'resetDefaults'])->name('settings.reset');
 Route::get('/settings/export', [App\Http\Controllers\SystemSettingsController::class, 'export'])->name('settings.export');
 

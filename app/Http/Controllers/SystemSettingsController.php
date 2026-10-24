@@ -373,6 +373,34 @@ class SystemSettingsController extends Controller
         ]);
     }
 
+    public function requestStudentNinUpdate(Request $request)
+    {
+        if (!session()->has('log') || session('accType') !== 'Admin') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $current = (int) DB::table('system_settings')->where('key', 'student_nin_update_version')->value('value');
+        $next = max(1, $current + 1);
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => 'student_nin_update_version'],
+            [
+                'value' => (string) $next,
+                'category' => 'security',
+                'type' => 'number',
+                'label' => 'Student NIN confirmation cycle',
+                'description' => 'Students must confirm their NIN whenever this cycle is increased. Use the request button to start a new confirmation cycle.',
+                'updated_at' => now(),
+            ]
+        );
+        Cache::forget('system_settings');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'A new NIN confirmation request is now active for all undergraduate students.',
+            'cycle' => $next,
+        ]);
+    }
+
     /**
      * Get a setting value
      */
