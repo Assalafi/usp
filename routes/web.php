@@ -10,6 +10,7 @@ use App\Http\Controllers\CourseStructureController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\ReferenceDataController;
 use App\Http\Controllers\ElectionVotingController;
+use App\Http\Controllers\ElectionResultsController;
 use App\Http\Controllers\ExamTimebleController;
 use App\Http\Controllers\FacultyController;
 use App\Http\Controllers\HallsController;
@@ -1187,6 +1188,7 @@ $allPages = [
     'election faculty',
     'election hostel',
     'election lga',
+    'election results',
     'manage fixed assets',
     'fixed assets',
     'fixed assets depreciation',
@@ -1334,6 +1336,11 @@ Route::get('/response', function () {
 Route::post('/voting', [ElectionVotingController::class, 'voting']);
 Route::get('/election live', [ElectionVotingController::class, 'live'])->middleware('role');
 Route::get('/election live/data', [ElectionVotingController::class, 'liveData'])->middleware('role');
+Route::get('/election-results', [ElectionResultsController::class, 'index'])->middleware('role')->name('election.results');
+Route::get('/election-results/export', [ElectionResultsController::class, 'export'])->middleware('role')->name('election.results.export');
+Route::get('/election-results/pdf', [ElectionResultsController::class, 'pdf'])->middleware('role')->name('election.results.pdf');
+Route::get('/election-results/certificates', [ElectionResultsController::class, 'certificates'])->middleware('role')->name('election.results.certificates');
+Route::get('/election-results/certificate/{id}', [ElectionResultsController::class, 'certificate'])->middleware('role')->name('election.results.certificate');
 
 Route::get('/pending-results', [ResultsController::class, 'pendingResults']);
 Route::get('/results/upload', [ResultsController::class, 'uploadPage'])
@@ -1512,6 +1519,7 @@ $links = [
     'election faculty',
     'election hostel',
     'election lga',
+    'election results',
     'manage fixed assets',
     'fixed assets',
     'fixed assets depreciation',

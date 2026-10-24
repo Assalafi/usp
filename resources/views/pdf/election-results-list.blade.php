@@ -1,0 +1,20 @@
+@php
+    $logo = public_path('uploads/logo.png');
+    $grouped = $rows->groupBy(fn ($row) => $row->category . '|' . $row->position . '|' . ($row->entity_label ?: ''));
+    $categoryNames = ['General' => 'GENERAL ELECTION', 'Faculty Rep' => 'FACULTY REPRESENTATIVES', 'Hostel Rep' => 'HOSTEL REPRESENTATIVES', 'Lga Rep' => 'LGA REPRESENTATIVES'];
+@endphp
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+    @page{margin:32px 36px 36px}*{box-sizing:border-box}body{font-family:DejaVu Sans,Arial,sans-serif;color:#172b3a;font-size:9px;margin:0}.watermark{position:fixed;top:190px;left:170px;width:390px;opacity:.045}.header{text-align:center;border-bottom:2px solid #1e5b40;padding-bottom:13px}.header img{width:58px;height:58px;object-fit:contain}.header h1{margin:4px 0 0;color:#1d3151;font-family:DejaVu Serif,serif;font-size:17px;letter-spacing:.2px}.header h2{margin:4px 0;color:#1d3151;font-family:DejaVu Serif,serif;font-size:12px}.header p{margin:4px 0;color:#334a5c;font-size:9px}.title{text-align:center;margin:15px 0 11px}.title h3{margin:0;color:#1d3151;font-family:DejaVu Serif,serif;font-size:14px;text-transform:uppercase}.title p{margin:5px 0;color:#4b5f6e;font-size:9px}.section{margin-top:15px}.section-title{padding:7px 9px;background:#edf5f1;border:1px solid #b8d2c3;color:#1e5b40;font-size:10px;font-weight:bold}.office-title{margin:9px 0 5px;color:#1e3550;font-size:10px;font-weight:bold}.entity-note{color:#687a86;font-style:italic;font-size:8px;font-weight:normal}.table{width:100%;border-collapse:collapse;page-break-inside:avoid}.table th{padding:6px 5px;background:#eaf1f5;border:1px solid #aabdc8;color:#304b5d;text-align:left;font-size:8px}.table td{padding:6px 5px;border:1px solid #c1ced5;vertical-align:top;font-size:8px}.table .center{text-align:center}.remark-elected{color:#147249;font-weight:bold}.remark-not{color:#9b3f49;font-weight:bold}.footer{position:fixed;bottom:-16px;left:0;right:0;text-align:center;color:#82909a;font-size:7px}.signature{margin-top:26px;display:flex;justify-content:space-between}.signature div{width:31%;border-top:1px solid #6b7a82;text-align:center;padding-top:5px;color:#3f5360;font-size:8px}
+</style></head><body>
+    <img class="watermark" src="{{ $logo }}" alt="">
+    <div class="header"><img src="{{ $logo }}" alt="University logo"><h1>UNIVERSITY OF MAIDUGURI</h1><h2>STUDENT AFFAIRS DIVISION</h2><p>Student Union Government Election Office</p></div>
+    <div class="title"><h3>Result of Election — {{ $category }}</h3><p>Academic session {{ $session ?: '—' }} · Election date {{ $electionDate }}</p></div>
+    @forelse($grouped as $group)
+        @php $first = $group->first(); @endphp
+        <section class="section"><div class="section-title">{{ $categoryNames[$first->category] ?? strtoupper($first->category) }}</div><div class="office-title">{{ $first->position }} @if($first->entity_label)<span class="entity-note">— {{ $first->entity_label }}{{ $first->level ? ' · Level ' . $first->level : '' }}</span>@endif</div><table class="table"><thead><tr><th style="width:6%">S/N</th><th style="width:16%">ID No.</th><th>Number of contestant</th><th style="width:16%">Total number of votes scored</th><th style="width:14%">Remarks</th><th style="width:16%">Agent remarks</th><th style="width:17%">Chairman's remarks</th></tr></thead><tbody>@foreach($group as $index => $row)<tr><td class="center">{{ $index + 1 }}</td><td>{{ $row->candidate }}</td><td>{{ $row->name ?: 'Name not recorded' }}</td><td class="center">{{ number_format((int) $row->vote) }}</td><td class="{{ $row->is_elected ? 'remark-elected' : 'remark-not' }}">{{ $row->remark }}</td><td></td><td></td></tr>@endforeach</tbody></table></section>
+    @empty
+        <p style="text-align:center;padding:30px;color:#667984">No election records matched the selected filters.</p>
+    @endforelse
+    <div class="signature"><div>Electoral Committee</div><div>Chairman, SUG Electoral Committee</div><div>Student Affairs Division</div></div><div class="footer">Official election result register · University of Maiduguri</div>
+</body></html>

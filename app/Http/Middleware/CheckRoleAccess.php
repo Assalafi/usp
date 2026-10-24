@@ -126,6 +126,7 @@ class CheckRoleAccess
             'election settings', 'election positions', 'election candidates',
             'election votes', 'election general', 'election faculty',
             'election hostel', 'election lga', 'manage fixed assets',
+            'election results', 'election-results', 'election-results/export', 'election-results/pdf', 'election-results/certificates', 'election-results/certificate',
             'fixed assets', 'fixed assets depreciation', 'fixed assets analysis',
             'fixed assets disposal', 'grading system', 'committee',
             'committee role', 'committee membership', 'committee meetings',

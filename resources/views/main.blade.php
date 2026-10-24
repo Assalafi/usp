@@ -500,6 +500,8 @@
                         @include('Admin.remita split report redesigned')
                     @elseif ($page == 'program course registration')
                         @include('Admin.program-course-registration-modern')
+                    @elseif (session('accType') == 'Admin' && $page == 'election results')
+                        @include('Admin.election-results-modern')
                     @elseif(session('accType') == 'Admin' && $page == 'election live')
                         @include('Admin.election-live-dashboard')
                     @elseif ($page == 'update password')

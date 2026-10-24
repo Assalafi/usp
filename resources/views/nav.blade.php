@@ -440,6 +440,7 @@
                     'election hostel',
                     'election lga',
                     'election live',
+                    'election results',
                 ])) pcoded-trigger active @endif ">
                 <a href="#!" class="nav-link">
                     <span class="pcoded-micon"><i class="fas fa-thumbs-up"></i></span>
@@ -462,6 +463,8 @@
                             class="">Voters</a></li>
                     <li class="@if ($page == 'election live') active @endif"><a href="/election live"
                             class="">Live</a></li>
+                    <li class="@if ($page == 'election results') active @endif"><a href="/election-results"
+                            class="">Results &amp; Certificates</a></li>
                     <li class="@if ($page == 'election settings') active @endif"><a href="/election settings"
                             class="">Settings</a></li>
                 </ul>
