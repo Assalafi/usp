@@ -124,6 +124,7 @@ class ElectionResultsController extends Controller
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml(view('pdf.election-certificate', [
             'rows' => $rows,
+            'pdfFontMetrics' => $dompdf->getFontMetrics(),
             'session' => DB::table('election_settings')->where('description', 'Session')->value('value') ?: DB::table('session')->where('status', '1')->value('title'),
             'electionDate' => DB::table('election_settings')->where('description', 'Election Date')->value('value') ?: now()->format('jS F, Y'),
         ])->render(), 'UTF-8');

@@ -1,39 +1,110 @@
 @php
-    $logo = public_path('uploads/logo.png');
-    $watermark = public_path('uploads/logo-transparent.png');
+    $logo = public_path('uploads/logo-transparent.png');
     $signature = public_path('uploads/election-chairman-signature.png');
-    $categoryTitle = ['General' => 'STUDENT UNION GOVERNMENT (SUG)', 'Faculty Rep' => 'FACULTY REPRESENTATIVE', 'Hostel Rep' => 'HOSTEL REPRESENTATIVE', 'Lga Rep' => 'LGA REPRESENTATIVE'];
+    try {
+        $heldOn = \Carbon\Carbon::parse($electionDate)->format('l, jS F, Y');
+    } catch (\Throwable $exception) {
+        $heldOn = $electionDate;
+    }
+    // Explicit glyph positions render consistently in DomPDF; SVG textPath does not.
+    $seal = '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600"><circle cx="300" cy="300" r="217" fill="#fcfae7"/>';
+    foreach ([['STUDENT UNION GOVERNMENT', -170, -10, '#f5e4e6', false], ['UNIVERSITY OF MAIDUGURI', 160, 20, '#e7e9e8', true]] as $arc) {
+        $chars = str_split($arc[0]);
+        foreach ($chars as $index => $char) {
+            $angle = $arc[1] + ($arc[2] - $arc[1]) * $index / (count($chars) - 1);
+            $x = 300 + 258 * cos(deg2rad($angle));
+            $y = 300 + 258 * sin(deg2rad($angle));
+            $rotation = $angle + ($arc[4] ? -90 : 90);
+            $seal .= '<text x="0" y="0" text-anchor="middle" font-family="sans-serif" font-size="29" fill="'.$arc[3].'" transform="translate('.$x.' '.$y.') rotate('.$rotation.')">'.htmlspecialchars($char).'</text>';
+        }
+    }
+    for ($star = 0; $star < 36; $star++) {
+        $cx = 300 + 218 * cos(deg2rad($star * 10));
+        $cy = 300 + 218 * sin(deg2rad($star * 10));
+        $points = [];
+        for ($vertex = 0; $vertex < 10; $vertex++) {
+            $radius = $vertex % 2 === 0 ? 7 : 3;
+            $a = deg2rad(-90 + $vertex * 36);
+            $points[] = ($cx + $radius * cos($a)).','.($cy + $radius * sin($a));
+        }
+        $seal .= '<polygon points="'.implode(' ', $points).'" fill="#f8e7dd"/>';
+    }
+    $seal .= '</svg>';
+    $sealSource = 'data:image/svg+xml;base64,'.base64_encode($seal);
 @endphp
 <!doctype html>
-<html><head><meta charset="utf-8"><style>
-    @page{size:A4 landscape;margin:0}*{box-sizing:border-box}body{margin:0;background:#fff;font-family:DejaVu Serif,Georgia,serif;color:#1d3151}.certificate{position:relative;width:100%;height:700px;min-height:700px;max-height:700px;padding:18px 62px 16px;border:5px double #2d6b50;page-break-inside:avoid;overflow:hidden;background:#fff}.certificate-break{page-break-after:always}.certificate:before{content:"";position:absolute;inset:10px;border:1px solid #b49758;pointer-events:none}.certificate:after{content:"";position:absolute;inset:15px;border:1px solid rgba(45,107,80,.3);pointer-events:none}.watermark{position:absolute;z-index:0;left:50%;top:53%;width:385px;height:385px;object-fit:contain;transform:translate(-50%,-50%);opacity:.075}.content{position:relative;z-index:1;text-align:center}.header{display:block;text-align:center}.logo{display:block;width:72px;height:75px;margin:0 auto 3px;object-fit:contain}.sug{margin:0;font-size:16px;line-height:1.1;font-weight:bold;letter-spacing:.2px;color:#263d5d}.university{margin:1px 0 0;font-size:15px;line-height:1.1;letter-spacing:.35px;font-weight:bold;color:#263d5d}.certificate-title{margin:15px 0 10px;font-size:29px;line-height:1.05;color:#1f395f;font-style:italic;font-weight:bold;letter-spacing:.35px}.certify{display:inline-block;padding:4px 16px;border-radius:2px;background:rgba(225,231,232,.5);font-size:12px;font-style:italic;color:#536574}.rule{height:1px;margin:10px auto 12px;background:#b49758}.statement{font-size:15px;line-height:1.2}.candidate-name{margin:8px 0 0;font-size:20px;line-height:1.1;font-weight:bold;color:#1e4369;text-transform:uppercase}.elected-line{margin-top:5px}.position{margin:8px auto 3px;max-width:86%;color:#c51622;font-size:18px;line-height:1.1;font-weight:bold;text-transform:uppercase;overflow-wrap:break-word}.category{font-size:14px;line-height:1.15;font-weight:bold;color:#1d3151}.details{margin-top:6px;font-size:11px;line-height:1.4;color:#2f3b48}.signature-wrap{display:flex;justify-content:center;width:100%;margin-top:12px;text-align:center}.signature{width:240px;margin:0 auto;padding-top:0;text-align:center;font-size:11px;line-height:1.25;color:#273949}.signature-image{display:block;width:220px;height:62px;object-fit:contain;margin:0 auto -1px}.signature-rule{width:220px;height:1px;margin:0 auto 4px;background:#273949}.signature-name{font-weight:bold}.serial{position:absolute;right:28px;bottom:17px;color:#657784;font-family:DejaVu Sans,Arial,sans-serif;font-size:8px}
-</style></head><body>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Certificate of Return</title>
+    <style>
+        @page { size: A4 landscape; margin: 0; }
+        html, body { margin: 0; padding: 0; }
+        body { font-family: "Times-Roman", serif; color: #161616; }
+        /* Content-box dimensions: padding and borders must not enlarge the canvas. */
+        .certificate { position: relative; width: 297mm; height: 209mm; margin: 0; padding: 0; page-break-inside: avoid; }
+        .next-page { page-break-before: always; }
+        .frame { position: absolute; left: 5mm; top: 5mm; width: 285.5mm; height: 198.5mm; border: 0.65mm solid #315e4e; }
+        .frame-inner { position: absolute; left: 6.5mm; top: 6.5mm; width: 282.5mm; height: 195.5mm; border: 0.3mm solid #315e4e; }
+        .seal { position: absolute; left: 61mm; top: 17mm; width: 175mm; height: 175mm; }
+        .watermark-crest { position: absolute; left: 117.5mm; top: 58mm; width: 62mm; height: auto; opacity: 0.10; }
+        .center { position: absolute; left: 15mm; width: 267mm; text-align: center; }
+        .logo { position: absolute; top: 15mm; left: 139mm; width: 19mm; height: auto; }
+        .heading { top: 43mm; color: #303d49; font-size: 16pt; font-weight: bold; line-height: 1.05; }
+        .title { top: 63mm; font-size: 29pt; font-weight: bold; font-style: italic; color: #142e42; line-height: 1; }
+        .certify { top: 83mm; font-size: 12pt; font-style: italic; }
+        .name { top: 92mm; height: 10mm; font-weight: bold; color: #1d3142; line-height: 1.05; }
+        .name-rule { position: absolute; left: 22mm; top: 103mm; width: 253mm; border-top: 0.35mm solid #b6aa79; }
+        .elected { top: 109mm; font-size: 12pt; }
+        .office { top: 119mm; font-weight: bold; color: #c70000; line-height: 1.08; }
+        .institution { top: 131mm; font-size: 18pt; }
+        .dates { top: 141mm; font-size: 12pt; line-height: 1.35; }
+        .signature-image { position: absolute; top: 160mm; left: 129.5mm; width: 38mm; height: auto; }
+        .signature-rule { position: absolute; left: 114mm; top: 179mm; width: 69mm; border-top: 0.2mm solid #727572; }
+        .signer { top: 180mm; font-size: 12pt; line-height: 1.3; }
+    </style>
+</head>
+<body>
 @foreach($rows as $row)
     @php
-        $candidateName = trim((string) ($row->name ?: 'The named candidate'));
-        $position = trim((string) ($row->position ?: 'ELECTED OFFICE'));
-        $nameSize = strlen($candidateName) > 38 ? 17 : (strlen($candidateName) > 28 ? 19 : 21);
-        $positionSize = strlen($position) > 48 ? 13 : (strlen($position) > 34 ? 15 : 18);
+        $candidateName = mb_strtoupper(trim((string) ($row->name ?: 'The named candidate')));
+        $position = mb_strtoupper(trim((string) ($row->position ?: 'ELECTED OFFICE')));
+        $office = $row->category === 'General' ? $position.', STUDENT UNION GOVERNMENT (SUG)' : $position;
+        $entity = trim((string) ($row->entity_label ?? ''));
+        if ($row->category !== 'General' && $entity !== '') {
+            $office .= ' - '.mb_strtoupper($entity);
+        }
+        $fontMetrics = $pdfFontMetrics ?? null;
+        $nameSize = 21;
+        $officeSize = 18;
+        if ($fontMetrics) {
+            $font = $fontMetrics->getFont('Times-Roman', 'bold');
+            while ($nameSize > 12 && $fontMetrics->getTextWidth($candidateName, $font, $nameSize) > 705) { $nameSize -= 0.5; }
+            while ($officeSize > 11 && $fontMetrics->getTextWidth($office, $font, $officeSize) > 745) { $officeSize -= 0.5; }
+        } else {
+            $nameSize = mb_strlen($candidateName) > 48 ? 14 : 21;
+            $officeSize = mb_strlen($office) > 75 ? 12 : 18;
+        }
     @endphp
-    <div class="certificate @if (!$loop->last) certificate-break @endif">
-        <img class="watermark" src="{{ $watermark }}" alt="">
-        <div class="content">
-            <div class="header">
-                <img class="logo" src="{{ $logo }}" alt="University of Maiduguri logo">
-                <div class="sug">STUDENT UNION GOVERNMENT (SUG)</div>
-                <div class="university">UNIVERSITY OF MAIDUGURI</div>
-            </div>
-            <div class="certificate-title">CERTIFICATE OF RETURN</div>
-            <div class="certify">This is to certify that</div>
-            <div class="statement candidate-name" style="font-size:{{ $nameSize }}px">{{ $candidateName }}</div>
-            <div class="rule"></div>
-            <div class="statement elected-line">Has been duly elected as</div>
-            <div class="position" style="font-size:{{ $positionSize }}px">{{ $position }}</div>
-            <div class="category">{{ $categoryTitle[$row->category] ?? strtoupper($row->category) }}</div>
-            <div class="details">UNIVERSITY OF MAIDUGURI<br>Held on {{ $electionDate }}<br>Dated this {{ now()->format('jS') }} day of {{ now()->format('F, Y') }}</div>
-            <div class="signature-wrap"><div class="signature"><img class="signature-image" src="{{ $signature }}" alt="Chairman signature"><div class="signature-rule"></div><span class="signature-name">Sulaiman Sulaiman Dauda</span><br>Chairman,<br>Electoral Committee, SUG Elections {{ $session ?: '' }}</div></div>
-        </div>
-        <div class="serial">Candidate ID: {{ $row->candidate }}</div>
+    <div class="certificate{{ $loop->first ? '' : ' next-page' }}">
+        <img class="seal" src="{{ $sealSource }}" alt="">
+        <img class="watermark-crest" src="{{ $logo }}" alt="">
+        <div class="frame"></div>
+        <div class="frame-inner"></div>
+        <img class="logo" src="{{ $logo }}" alt="University of Maiduguri">
+        <div class="center heading">STUDENT UNION GOVERNMENT (SUG)<br>UNIVERSITY OF MAIDUGURI</div>
+        <div class="center title">CERTIFICATE OF RETURN</div>
+        <div class="center certify">This is to certify that</div>
+        <div class="center name" style="font-size: {{ $nameSize }}pt">{{ $candidateName }}</div>
+        <div class="name-rule"></div>
+        <div class="center elected">Has been duly elected as</div>
+        <div class="center office" style="font-size: {{ $officeSize }}pt">{{ $office }}</div>
+        <div class="center institution">UNIVERSITY OF MAIDUGURI</div>
+        <div class="center dates">Held on {{ $heldOn }}<br>Dated this {{ now()->format('jS') }} Day of {{ now()->format('F, Y') }}</div>
+        <img class="signature-image" src="{{ $signature }}" alt="Chairman's signature">
+        <div class="signature-rule"></div>
+        <div class="center signer">Sulaiman Sulaiman Dauda<br>Chairman,<br>Electoral Committee, SUG Elections {{ $session ?: '' }}</div>
     </div>
 @endforeach
-</body></html>
+</body>
+</html>
