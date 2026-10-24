@@ -502,7 +502,7 @@
                         @include('Admin.program-course-registration-modern')
                     @elseif (session('accType') == 'Admin' && $page == 'election results')
                         @include('Admin.election-results-modern')
-                    @elseif(session('accType') == 'Admin' && $page == 'election live')
+                    @elseif(in_array(session('accType'), ['Admin', 'Staff'], true) && $page == 'election live')
                         @include('Admin.election-live-dashboard')
                     @elseif ($page == 'update password')
                         @include($page)
