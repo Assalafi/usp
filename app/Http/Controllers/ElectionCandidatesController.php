@@ -20,7 +20,13 @@ class ElectionCandidatesController extends Controller
         $contents = str_replace('update ', '', $contents);
         $contents = str_replace('delete ', '', $contents);
         $this->page = $contents;
-        $this->table = str_replace(' ', '_', $this->page);
+        $this->table = in_array($this->page, [
+            'election candidates',
+            'election general',
+            'election faculty',
+            'election hostel',
+            'election lga',
+        ], true) ? 'election_candidates' : str_replace(' ', '_', $this->page);
         $this->title = strtoupper($this->page);
     }
 

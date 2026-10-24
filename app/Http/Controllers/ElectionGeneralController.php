@@ -8,6 +8,16 @@ use Illuminate\Support\Facades\Hash;
 
 class ElectionGeneralController extends Controller
 {
+    public function create(Request $req)
+    {
+        return app(ElectionCandidatesController::class)->create($req);
+    }
+
+    public function update(Request $req)
+    {
+        return app(ElectionCandidatesController::class)->update($req);
+    }
+
     //
     //
     public function __construct(Request $req)
