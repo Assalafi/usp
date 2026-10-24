@@ -82,11 +82,12 @@ class ElectionResultsController extends Controller
         $options->set('isRemoteEnabled', false);
         $options->set('chroot', public_path());
         $dompdf = new Dompdf($options);
-        $dompdf->loadHtml(view('pdf.election-results-list', [
+        $dompdf->loadHtml(view('pdf.election-results-list-official', [
             'rows' => $rows,
             'category' => $category ?: 'All election categories',
             'session' => DB::table('election_settings')->where('description', 'Session')->value('value') ?: DB::table('session')->where('status', '1')->value('title'),
             'electionDate' => DB::table('election_settings')->where('description', 'Election Date')->value('value') ?: now()->format('jS F, Y'),
+            'venue' => DB::table('election_settings')->whereIn('description', ['Election Venue', 'Venue'])->value('value') ?: 'Aliyu Shugaba Conferences Hall',
         ])->render(), 'UTF-8');
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
