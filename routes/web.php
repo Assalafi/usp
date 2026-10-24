@@ -1333,6 +1333,7 @@ Route::get('/response', function () {
 
 Route::post('/voting', [ElectionVotingController::class, 'voting']);
 Route::get('/election live', [ElectionVotingController::class, 'live'])->middleware('role');
+Route::get('/election live/data', [ElectionVotingController::class, 'liveData'])->middleware('role');
 
 Route::get('/pending-results', [ResultsController::class, 'pendingResults']);
 Route::get('/results/upload', [ResultsController::class, 'uploadPage'])

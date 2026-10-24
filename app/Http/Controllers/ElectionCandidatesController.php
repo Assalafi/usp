@@ -46,12 +46,20 @@ class ElectionCandidatesController extends Controller
         $id = $datas['candidate'];
         $user_id = DB::table('students')->where('username', $id)->select('user_id')->value('user_id');
         $accType = DB::table('users')->where('id', $user_id)->select('accType')->value('accType');
-        $category = $datas['category'];
+        $category = trim((string) ($datas['category'] ?? ''));
         $pos = $datas['position'];
+        $positionRecord = DB::table('election_positions')->where('id', $pos)->first(['id', 'position', 'category', 'order', 'gender']);
+        if (!$positionRecord) {
+            return $this->failure($req, 'The selected office no longer exists. Refresh the page and choose an available office.');
+        }
+        $category = $category !== '' ? $category : (string) $positionRecord->category;
+        if (strcasecmp((string) $category, (string) $positionRecord->category) !== 0) {
+            return $this->failure($req, 'The selected office belongs to the ' . $positionRecord->category . ' category. Please choose a matching category.');
+        }
         $check = 0;
         $elec = DB::table('election_candidates')->where('candidate', $id)->select('id')->value('id');
         if ($elec > 0) {
-            return redirect()->back()->with('error', 'Candidate Already Registered as ' . DB::table('election_candidates')->where('candidate', $id)->select('position')->value('position'));
+            return $this->failure($req, 'This candidate is already registered for ' . DB::table('election_candidates')->where('candidate', $id)->value('position') . '. Remove the existing record or use another candidate.');
         }
 
         if ($accType == 'Student') {
@@ -65,7 +73,7 @@ class ElectionCandidatesController extends Controller
                 $datas['picture'] = $row->picture;
                 $path = public_path('storage/picture/' . $datas['picture']);
                 if (!file_exists($path)) {
-                    return redirect()->back()->with('error', 'No Picture Found!!!');
+                    return $this->failure($req, 'The candidate has no profile photo on record. Add a photo before registering this candidate.');
                 }
                 $datas['state'] = $row->state_origin;
                 $datas['acc_type'] = $accType;
@@ -74,12 +82,12 @@ class ElectionCandidatesController extends Controller
                 $user_id = $row->user_id;
             }
             if ($check == 0) {
-                return redirect()->back()->with('error', 'No Record Found!!!');
+                return $this->failure($req, 'No active student record was found for this ID number.');
             }
 
             $active = DB::table('users')->where('id', $user_id)->select('status')->value('status');
             if ($active == 0) {
-                return redirect()->back()->with('error', 'Inactive Student!!!');
+                return $this->failure($req, 'This student account is inactive and cannot be registered as a candidate.');
             }
 
             $records = DB::table('election_positions')->where(['id' => $pos])->select('position', 'category', 'order', 'gender')->get();
@@ -91,7 +99,7 @@ class ElectionCandidatesController extends Controller
                     if ($hostel > 0) {
                         $datas['hostel'] = DB::table('hostel')->where('occupant', $id)->select('hall')->value('hall');
                     } else {
-                        return redirect()->back()->with('error', 'No Bed Space Assign for this Candidate');
+                        return $this->failure($req, 'This candidate has no hostel bed assignment, so they cannot contest the hostel representative election.');
                     }
                 }
                 if ($category == 'Lga Rep') {
@@ -102,10 +110,10 @@ class ElectionCandidatesController extends Controller
                 $elec_gender = $row->gender;
             }
             if ($category == 'Faculty Rep' && $datas['level'] != $datas['position']) {
-                return redirect()->back()->with('error', 'Level Error, the student is in ' . $datas['level'] . ' not ' . $datas['position']);
+                return $this->failure($req, 'This office is for level ' . $datas['position'] . ', but the student is in level ' . $datas['level'] . '.');
             }
             if ($elec_gender != 'Both' && strtolower($elec_gender) != strtolower($gender)) {
-                return redirect()->back()->with('error', 'Gender Error!!!');
+                return $this->failure($req, 'This office is restricted to ' . $elec_gender . ' candidates.');
             }
         } elseif ($accType == 'Staff') {
             $records = DB::table('staff')->where(['username' => $id])->select('name', 'gender', 'faculty', 'program', 'grade', 'user_id', 'picture', 'state')->get();
@@ -119,7 +127,7 @@ class ElectionCandidatesController extends Controller
                 // make picture exist, if not return, for empty,null etc. also check the path to see the picture
                 $path = public_path('storage/picture/' . $datas['picture']);
                 if (!file_exists($path)) {
-                    return redirect()->back()->with('error', 'No Picture Found!!!');
+                    return $this->failure($req, 'The staff member has no profile photo on record. Add a photo before registering this candidate.');
                 }
                 $datas['state'] = $row->state;
                 $datas['acc_type'] = $accType;
@@ -128,7 +136,7 @@ class ElectionCandidatesController extends Controller
                 $user_id = $row->user_id;
             }
             if ($check == 0) {
-                return redirect()->back()->with('error', 'No Record Found!!!');
+                return $this->failure($req, 'No staff record was found for this ID number.');
             }
 
             $records = DB::table('election_positions')->where(['id' => $pos])->select('position', 'category', 'order', 'gender')->get();
@@ -138,7 +146,7 @@ class ElectionCandidatesController extends Controller
                 $elec_gender = $row->gender;
             }
             if ($elec_gender != 'Both' && strtolower($elec_gender) != strtolower($gender)) {
-                return redirect()->back()->with('error', 'Gender Error!!!');
+                return $this->failure($req, 'This office is restricted to ' . $elec_gender . ' candidates.');
             }
         } elseif ($accType == 'Alumni') {
             $records = DB::table('alumni')->where(['username' => $id])->select('fullname', 'gender', 'user_id', 'picture')->get();
@@ -152,7 +160,7 @@ class ElectionCandidatesController extends Controller
                 // make picture exist, if not return, for empty,null etc. also check the path to see the picture
                 $path = public_path('storage/picture/' . $datas['picture']);
                 if (!file_exists($path)) {
-                    return redirect()->back()->with('error', 'No Picture Found!!!');
+                    return $this->failure($req, 'The alumni member has no profile photo on record. Add a photo before registering this candidate.');
                 }
                 $datas['state'] = 'alumni';
                 $datas['acc_type'] = $accType;
@@ -161,7 +169,7 @@ class ElectionCandidatesController extends Controller
                 $user_id = $row->user_id;
             }
             if ($check == 0) {
-                return redirect()->back()->with('error', 'No Record Found!!!');
+                return $this->failure($req, 'No alumni record was found for this ID number.');
             }
 
             $records = DB::table('election_positions')->where(['id' => $pos])->select('position', 'category', 'order', 'gender')->get();
@@ -171,15 +179,19 @@ class ElectionCandidatesController extends Controller
                 $elec_gender = $row->gender;
             }
             if ($elec_gender != 'Both' && strtolower($elec_gender) != strtolower($gender)) {
-                return redirect()->back()->with('error', 'Gender Error!!!');
+                return $this->failure($req, 'This office is restricted to ' . $elec_gender . ' candidates.');
             }
         } else {
-            return redirect()->back()->with('error', 'No Record Found!!!');
+            return $this->failure($req, 'No student, staff, or alumni record was found for this ID number.');
         }
 
         unset($datas['_token']);
         // $datas = array_map('strtoupper', $datas);
-        DB::table($this->table)->insert($datas);
+        $createdId = DB::table($this->table)->insertGetId($datas);
+        if ($req->expectsJson()) {
+            $entity = $category === 'Faculty Rep' ? ($datas['faculty'] ?? null) : ($category === 'Hostel Rep' ? ($datas['hostel'] ?? null) : null);
+            return response()->json(['ok' => true, 'id' => $createdId, 'entity' => $entity, 'message' => 'Candidate created.']);
+        }
         return redirect()->back()->with('success', 'Record Created!!!');
     }
 
@@ -205,6 +217,7 @@ class ElectionCandidatesController extends Controller
         unset($datas['_token']);
         // $datas = array_map('strtoupper', $datas);
         DB::table($this->table)->where('id', $id)->update($datas);
+        if ($req->expectsJson()) return response()->json(['ok' => true, 'id' => $id, 'message' => 'Candidate updated.']);
 
         return redirect()->back()->with('success', 'Record Updated!!!');
     }
@@ -215,7 +228,16 @@ class ElectionCandidatesController extends Controller
             return redirect('/');
         }
         $id = DB::table($this->table)->where('id', $req->id)->delete();
+        if ($req->expectsJson()) return response()->json(['ok' => (bool) $id, 'id' => $req->id, 'message' => 'Candidate removed.']);
 
         return redirect()->back()->with('success', 'Record Delete!!!');
+    }
+
+    private function failure(Request $req, string $message)
+    {
+        if ($req->expectsJson()) {
+            return response()->json(['ok' => false, 'message' => $message], 422);
+        }
+        return redirect()->back()->withInput()->with('error', $message);
     }
 }

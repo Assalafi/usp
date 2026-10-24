@@ -73,6 +73,7 @@ class ElectionGeneralController extends Controller
             return redirect('/');
         }
         $id = DB::table($this->table)->where('id', $req->id)->delete();
+        if ($req->expectsJson()) return response()->json(['ok' => (bool) $id, 'id' => $req->id, 'message' => 'Candidate removed.']);
 
         return redirect()->back()->with('success', 'Record Delete!!!');
     }

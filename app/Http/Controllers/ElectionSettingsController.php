@@ -44,7 +44,8 @@ class ElectionSettingsController extends Controller
         // }
         unset($datas['_token']);
         //$datas = array_map('strtoupper', $datas);
-        DB::table($this->table)->insert($datas);
+        $id = DB::table($this->table)->insertGetId($datas);
+        if ($req->expectsJson()) return response()->json(['ok' => true, 'id' => $id, 'message' => 'Setting created.']);
         return redirect()->back()->with('success', 'Record Created!!!');
     }
     
@@ -67,6 +68,7 @@ class ElectionSettingsController extends Controller
         unset($datas['_token']);
         //$datas = array_map('strtoupper', $datas);
         DB::table($this->table)->where('id',$id)->update($datas);
+        if ($req->expectsJson()) return response()->json(['ok' => true, 'id' => $id, 'message' => 'Setting updated.']);
 
         return redirect()->back()->with('success', 'Record Updated!!!');
     }
@@ -75,6 +77,7 @@ class ElectionSettingsController extends Controller
     {
         if(!session()->has('log')){return redirect('/');}
         $id = DB::table($this->table)->where('id',$req->id)->delete();
+        if ($req->expectsJson()) return response()->json(['ok' => (bool) $id, 'id' => $req->id, 'message' => 'Setting removed.']);
 
         return redirect()->back()->with('success', 'Record Delete!!!');
     }

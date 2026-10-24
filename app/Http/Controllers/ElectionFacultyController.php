@@ -43,8 +43,12 @@ class ElectionFacultyController extends Controller
                 $data['data'] = DB::table($this->table)->select($this->table.'.*','program.title AS program_title')->leftJoin('program', function ($join) {
                     $join->on($this->table.'.program', '=', 'program.code'); })->orderBy($this->table.'.vote', 'DESC')->get();
             }else{
+                // Administrators need the complete candidate register so the
+                // faculty page can show every faculty that actually has a
+                // candidate. The old placeholder `faculty = aaa` hid nearly
+                // all records from the admin view.
                 $data['data'] = DB::table($this->table)->select($this->table.'.*','program.title AS program_title')->leftJoin('program', function ($join) {
-                $join->on($this->table.'.program', '=', 'program.code'); })->orderBy($this->table.'.vote', 'DESC')->where('election_candidates.faculty', 'aaa')->get();
+                $join->on($this->table.'.program', '=', 'program.code'); })->orderBy($this->table.'.vote', 'DESC')->get();
             }
         }
         $data['poss'] = DB::table('election_positions')->orderBy('order', 'ASC')->get();
@@ -59,6 +63,7 @@ class ElectionFacultyController extends Controller
     {
         if(!session()->has('log')){return redirect('/');}
         $id = DB::table($this->table)->where('id',$req->id)->delete();
+        if ($req->expectsJson()) return response()->json(['ok' => (bool) $id, 'id' => $req->id, 'message' => 'Candidate removed.']);
 
         return redirect()->back()->with('success', 'Record Delete!!!');
     }
