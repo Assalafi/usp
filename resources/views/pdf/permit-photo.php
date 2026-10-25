@@ -214,37 +214,46 @@ foreach ($users as $row) {
     $pdf->SetTextColor(103, 111, 118);
     $pdf->Cell(34, 4, 'STUDENT PHOTOGRAPH', 0, 0, 'C');
 
-    // One unified allocation panel.
-    $pdf->SetFillColor(40, 60, 78);
-    $pdf->Rect(18, 157, 174, 42, 'F');
+    // Light allocation panel with more room for long hall names.
+    $pdf->SetFillColor(255, 255, 255);
+    $pdf->SetDrawColor(216, 220, 223);
+    $pdf->Rect(18, 157, 174, 42, 'DF');
+    $pdf->SetFillColor(247, 247, 244);
+    $pdf->Rect(18, 157, 174, 10, 'F');
     $pdf->SetFillColor(188, 145, 61);
-    $pdf->Rect(18, 157, 174, 1.5, 'F');
-    $pdf->SetXY(24, 162);
-    $pdf->SetFont('helvetica', 'B', 8);
-    $pdf->SetTextColor(216, 222, 227);
-    $pdf->Cell(162, 4, 'ALLOCATED BED SPACE', 0, 0, 'L');
-    $allocationValues = [
-        ['Hall', trim((string) $row->hall)],
-        ['Block', trim((string) $row->block)],
-        ['Room', trim((string) $row->room)],
-        ['Bed', trim((string) $row->bed)],
+    $pdf->Rect(18, 157, 3, 10, 'F');
+    $pdf->SetXY(25, 160);
+    $pdf->SetFont('helvetica', 'B', 8.5);
+    $pdf->SetTextColor(35, 48, 59);
+    $pdf->Cell(100, 4, 'ALLOCATED BED SPACE', 0, 0, 'L');
+    $pdf->SetXY(144, 160);
+    $pdf->SetFont('helvetica', '', 7);
+    $pdf->SetTextColor(103, 111, 118);
+    $pdf->Cell(42, 4, 'HOSTEL LOCATION', 0, 0, 'R');
+
+    $allocationColumns = [
+        ['x' => 18, 'width' => 72, 'label' => 'Hall', 'value' => trim((string) $row->hall), 'align' => 'L'],
+        ['x' => 90, 'width' => 34, 'label' => 'Block', 'value' => trim((string) $row->block), 'align' => 'C'],
+        ['x' => 124, 'width' => 34, 'label' => 'Room', 'value' => trim((string) $row->room), 'align' => 'C'],
+        ['x' => 158, 'width' => 34, 'label' => 'Bed', 'value' => trim((string) $row->bed), 'align' => 'C'],
     ];
-    foreach ($allocationValues as $index => $allocationValue) {
-        $cellX = 18 + ($index * 43.5);
+    foreach ($allocationColumns as $index => $allocationColumn) {
         if ($index > 0) {
-            $pdf->SetDrawColor(95, 111, 124);
-            $pdf->Line($cellX, 169, $cellX, 193);
+            $pdf->SetDrawColor(226, 228, 229);
+            $pdf->Line($allocationColumn['x'], 171, $allocationColumn['x'], 194);
         }
-        $pdf->SetXY($cellX + 4, 171);
+        $value = $allocationColumn['value'] !== '' ? $allocationColumn['value'] : '-';
+        $innerX = $allocationColumn['x'] + ($allocationColumn['align'] === 'L' ? 7 : 3);
+        $innerWidth = $allocationColumn['width'] - ($allocationColumn['align'] === 'L' ? 12 : 6);
+        $pdf->SetXY($innerX, 173);
         $pdf->SetFont('helvetica', '', 7);
-        $pdf->SetTextColor(183, 193, 201);
-        $pdf->Cell(35.5, 4, strtoupper($allocationValue[0]), 0, 1, 'C');
-        $value = $allocationValue[1] !== '' ? $allocationValue[1] : '-';
-        $valueSize = strlen($value) > 18 ? 8 : (strlen($value) > 11 ? 9 : 11.5);
-        $pdf->SetXY($cellX + 4, 178);
+        $pdf->SetTextColor(103, 111, 118);
+        $pdf->Cell($innerWidth, 4, strtoupper($allocationColumn['label']), 0, 1, $allocationColumn['align']);
+        $valueSize = strlen($value) > 22 ? 8.2 : (strlen($value) > 14 ? 9.2 : 11);
+        $pdf->SetXY($innerX, 180);
         $pdf->SetFont('helvetica', 'B', $valueSize);
-        $pdf->SetTextColor(255, 255, 255);
-        $pdf->MultiCell(35.5, 4.5, $value, 0, 'C');
+        $pdf->SetTextColor(35, 48, 59);
+        $pdf->MultiCell($innerWidth, 4.5, $value, 0, $allocationColumn['align']);
     }
 
     // Confirmation banner.
