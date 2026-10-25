@@ -1414,7 +1414,7 @@ class HostelController extends Controller
             $response = Http::withHeaders([
                 'X-API-Key' => $apiKey,
                 'Accept' => 'application/json',
-            ])->connectTimeout(5)->timeout(10)->get($baseUrl, [
+            ])->timeout(10)->get($baseUrl, [
                 'registration' => trim($registrationNumber),
             ]);
 
