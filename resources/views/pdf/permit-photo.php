@@ -283,22 +283,18 @@ foreach ($users as $row) {
 
     $pdf->SetFillColor(255, 255, 255);
     $pdf->Rect(126, 232, 66, 34, 'DF');
-    $pdf->SetXY(130, 235);
-    $pdf->SetFont('helvetica', '', 7);
-    $pdf->SetTextColor(103, 111, 118);
-    $pdf->Cell(58, 4, 'AUTHORISED BY', 0, 1, 'C');
     $signature = $asset('uploads/sign2.png');
-    $pdf->Image($signature, 138, 239, 42, 12, 'PNG');
+    $pdf->Image($signature, 138, 235, 42, 13, 'PNG');
     $pdf->SetDrawColor(92, 101, 108);
-    $pdf->Line(136, 252, 182, 252);
-    $pdf->SetXY(130, 254);
+    $pdf->Line(136, 249, 182, 249);
+    $pdf->SetXY(130, 251);
     $pdf->SetFont('helvetica', 'B', 8.5);
     $pdf->SetTextColor(35, 48, 59);
-    $pdf->Cell(58, 4, 'Dean of Students', 0, 1, 'C');
+    $pdf->Cell(58, 4, 'Prof. Amadu M. Brono', 0, 1, 'C');
     $pdf->SetX(130);
     $pdf->SetFont('helvetica', '', 7);
     $pdf->SetTextColor(103, 111, 118);
-    $pdf->Cell(58, 4, 'Student Affairs Division', 0, 0, 'C');
+    $pdf->Cell(58, 4, 'Dean, Student Affairs', 0, 0, 'C');
 
     // Minimal verification footer.
     $pdf->SetDrawColor(218, 221, 223);
