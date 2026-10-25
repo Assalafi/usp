@@ -1348,7 +1348,7 @@ class HostelController extends Controller
         }
 
         $data['id'] = $id;
-        return view('pdf/permit', $data);
+        return view('pdf/permit-modern', $data);
     }
 
     /**
@@ -1384,7 +1384,7 @@ class HostelController extends Controller
             return redirect()->back()->with('error', 'The occupant record could not be found.');
         }
 
-        return view('pdf/permit', [
+        return view('pdf/permit-modern', [
             'id' => $hostel->id,
             'permitStudent' => $permitStudent,
         ]);
