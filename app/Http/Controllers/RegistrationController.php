@@ -2027,6 +2027,10 @@ class RegistrationController extends Controller
             return redirect('/');
         }
 
+        if ((string) SystemSettingsController::get('student_nin_verification_enabled', '1') === '0') {
+            return redirect('/dash')->with('success', 'NIN verification is not currently required.');
+        }
+
         $request->validate([
             'nin' => ['required', 'regex:/^\d{11}$/'],
         ], [
@@ -2035,7 +2039,7 @@ class RegistrationController extends Controller
         ]);
 
         $nin = trim((string) $request->input('nin'));
-        $cycle = max(1, (int) DB::table('system_settings')->where('key', 'student_nin_update_version')->value('value'));
+        $cycle = max(1, (int) SystemSettingsController::get('student_nin_update_version', 1));
 
         DB::transaction(function () use ($nin, $cycle) {
             $student = Student::where('user_id', session('id'))->lockForUpdate()->firstOrFail();

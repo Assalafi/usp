@@ -25,7 +25,14 @@ class EnsureStudentProfileSubmitted
             return $next($request);
         }
 
-        $student = Student::where('user_id', session('id'))->first(['profile_status', 'profile_submitted_at', 'profile_submission_session', 'profile_level_session']);
+        $student = Student::where('user_id', session('id'))->first([
+            'profile_status',
+            'profile_submitted_at',
+            'profile_submission_session',
+            'profile_level_session',
+            'nin',
+            'nin_update_version',
+        ]);
         $currentSession = DB::table('session')->where('status', '1')->value('title');
         $isSubmittedForCurrentSession = $student
             && $student->profile_status === 'submitted'
@@ -33,11 +40,15 @@ class EnsureStudentProfileSubmitted
             && (string) $student->profile_submission_session === (string) $currentSession
             && (string) $student->profile_level_session === (string) $currentSession;
         if ($isSubmittedForCurrentSession) {
-            $ninCycle = max(1, (int) DB::table('system_settings')->where('key', 'student_nin_update_version')->value('value'));
-            $ninRecord = Student::where('user_id', session('id'))->first(['nin', 'nin_update_version']);
-            $ninIsConfirmed = $ninRecord
-                && preg_match('/^\d{11}$/', trim((string) $ninRecord->nin))
-                && (int) ($ninRecord->nin_update_version ?? 0) >= $ninCycle;
+            $ninEnabledValue = \App\Http\Controllers\SystemSettingsController::get('student_nin_verification_enabled', '1');
+            $ninEnabled = $ninEnabledValue === null || (string) $ninEnabledValue !== '0';
+            if (!$ninEnabled) {
+                return $next($request);
+            }
+
+            $ninCycle = max(1, (int) \App\Http\Controllers\SystemSettingsController::get('student_nin_update_version', 1));
+            $ninIsConfirmed = preg_match('/^\d{11}$/', trim((string) $student->nin))
+                && (int) ($student->nin_update_version ?? 0) >= $ninCycle;
 
             if (!$ninIsConfirmed) {
                 if ($request->expectsJson() || $request->ajax()) {

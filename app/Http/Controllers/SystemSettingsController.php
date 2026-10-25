@@ -47,6 +47,7 @@ class SystemSettingsController extends Controller
 
         $hodStaff = collect();
         $hodManagementUsers = [];
+        $ninVerification = null;
         if ($category === 'academic') {
             $hodStaff = DB::table('staff as s')
                 ->leftJoin('department as d', 'd.code', '=', 's.department')
@@ -62,6 +63,46 @@ class SystemSettingsController extends Controller
             $hodManagementUsers = is_array($hodManagementUsers) ? $hodManagementUsers : [];
         }
 
+        if ($category === 'security') {
+            $cycle = max(1, (int) ($settings->firstWhere('key', 'student_nin_update_version')->value ?? 1));
+            $enabledSetting = $settings->firstWhere('key', 'student_nin_verification_enabled');
+            $enabled = !$enabledSetting || (string) $enabledSetting->value !== '0';
+            $currentSession = DB::table('session')->where('status', '1')->value('title');
+
+            $eligible = DB::table('students')
+                ->where('status', '1')
+                ->where('profile_status', 'submitted')
+                ->whereNotNull('profile_submitted_at');
+
+            if ($currentSession) {
+                $eligible
+                    ->where('profile_submission_session', $currentSession)
+                    ->where('profile_level_session', $currentSession);
+            }
+
+            $eligibleCount = (clone $eligible)->count();
+            $confirmedCount = (clone $eligible)
+                ->where('nin_update_version', '>=', $cycle)
+                ->whereRaw("TRIM(COALESCE(nin, '')) REGEXP '^[0-9]{11}$'")
+                ->count();
+            $confirmedToday = (clone $eligible)
+                ->where('nin_update_version', '>=', $cycle)
+                ->whereDate('nin_updated_at', now()->toDateString())
+                ->count();
+
+            $ninVerification = [
+                'enabled' => $enabled,
+                'cycle' => $cycle,
+                'session' => $currentSession,
+                'eligible' => $eligibleCount,
+                'confirmed' => $confirmedCount,
+                'pending' => max(0, $eligibleCount - $confirmedCount),
+                'confirmed_today' => $confirmedToday,
+                'completion' => $eligibleCount > 0 ? round(($confirmedCount / $eligibleCount) * 100, 1) : 0,
+                'cycle_started_at' => optional($settings->firstWhere('key', 'student_nin_update_version'))->updated_at,
+            ];
+        }
+
         $data = [
             'page' => 'general settings',
             'categories' => $categories,
@@ -71,6 +112,7 @@ class SystemSettingsController extends Controller
             'remitaSplitSettings' => self::getRemitaSplitSettings(),
             'hodStaff' => $hodStaff,
             'hodManagementUsers' => $hodManagementUsers,
+            'ninVerification' => $ninVerification,
         ];
 
         return view('main', $data);
@@ -379,16 +421,68 @@ class SystemSettingsController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $current = (int) DB::table('system_settings')->where('key', 'student_nin_update_version')->value('value');
-        $next = max(1, $current + 1);
+        $next = 1;
+        DB::transaction(function () use (&$next) {
+            $current = (int) DB::table('system_settings')
+                ->where('key', 'student_nin_update_version')
+                ->lockForUpdate()
+                ->value('value');
+            $next = max(1, $current + 1);
+
+            DB::table('system_settings')->updateOrInsert(
+                ['key' => 'student_nin_update_version'],
+                [
+                    'value' => (string) $next,
+                    'category' => 'security',
+                    'type' => 'number',
+                    'label' => 'Student NIN confirmation cycle',
+                    'description' => 'Students must confirm their NIN whenever this cycle is increased. Use the request button to start a new confirmation cycle.',
+                    'updated_at' => now(),
+                ]
+            );
+
+            // Starting a new cycle always activates enforcement so the action
+            // has an immediate and predictable effect.
+            DB::table('system_settings')->updateOrInsert(
+                ['key' => 'student_nin_verification_enabled'],
+                [
+                    'value' => '1',
+                    'category' => 'security',
+                    'type' => 'boolean',
+                    'label' => 'Student NIN verification',
+                    'description' => 'Require undergraduate students to confirm the NIN already stored on their record before accessing portal services.',
+                    'updated_at' => now(),
+                ]
+            );
+        });
+        Cache::forget('system_settings');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'A new NIN confirmation request is now active for all undergraduate students.',
+            'cycle' => $next,
+        ]);
+    }
+
+    public function setStudentNinVerification(Request $request)
+    {
+        if (!session()->has('log') || session('accType') !== 'Admin') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $validated = $request->validate([
+            'enabled' => ['required', 'boolean'],
+        ]);
+        $enabled = (bool) $validated['enabled'];
+
         DB::table('system_settings')->updateOrInsert(
-            ['key' => 'student_nin_update_version'],
+            ['key' => 'student_nin_verification_enabled'],
             [
-                'value' => (string) $next,
+                'value' => $enabled ? '1' : '0',
                 'category' => 'security',
-                'type' => 'number',
-                'label' => 'Student NIN confirmation cycle',
-                'description' => 'Students must confirm their NIN whenever this cycle is increased. Use the request button to start a new confirmation cycle.',
+                'type' => 'boolean',
+                'label' => 'Student NIN verification',
+                'description' => 'Require undergraduate students to confirm the NIN already stored on their record before accessing portal services.',
                 'updated_at' => now(),
             ]
         );
@@ -396,8 +490,10 @@ class SystemSettingsController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'A new NIN confirmation request is now active for all undergraduate students.',
-            'cycle' => $next,
+            'enabled' => $enabled,
+            'message' => $enabled
+                ? 'NIN verification is active. Students who have not completed the current cycle will be redirected to confirm their NIN.'
+                : 'NIN verification is paused. Students can use the portal without completing the NIN confirmation screen.',
         ]);
     }
 

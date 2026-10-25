@@ -289,22 +289,72 @@
                                 </div>
 
                                 @php
-                                    $ninConfirmationCycle = (int) \App\Http\Controllers\SystemSettingsController::get('student_nin_update_version', 1);
+                                    $ninManagement = $ninVerification ?? [
+                                        'enabled' => true,
+                                        'cycle' => 1,
+                                        'session' => null,
+                                        'eligible' => 0,
+                                        'confirmed' => 0,
+                                        'pending' => 0,
+                                        'confirmed_today' => 0,
+                                        'completion' => 0,
+                                        'cycle_started_at' => null,
+                                    ];
                                 @endphp
-                                <div class="card border-danger shadow-sm mb-4">
-                                    <div class="card-body d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+                                <style>
+                                    .nin-control{border:1px solid #dfe7ee;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 8px 24px rgba(31,65,91,.07)}
+                                    .nin-control-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:22px 24px;background:linear-gradient(135deg,#f7fafc,#eef5f8)}
+                                    .nin-control-kicker{display:block;margin-bottom:6px;color:#547086;font-size:.68rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}
+                                    .nin-control h4{margin:0 0 7px;color:#213f56;font-weight:800}.nin-control-head p{max-width:690px;margin:0;color:#6c7f8e;font-size:.82rem;line-height:1.55}
+                                    .nin-status{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;border-radius:999px;padding:8px 12px;font-size:.7rem;font-weight:800}
+                                    .nin-status.active{background:#e7f6ee;color:#18784a}.nin-status.paused{background:#fff1e5;color:#9b5b14}
+                                    .nin-status i{font-size:.55rem}.nin-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:16px 20px}
+                                    .nin-stat{border:1px solid #e4ebf0;border-radius:13px;padding:13px;background:#fff}.nin-stat small,.nin-stat strong{display:block}.nin-stat small{color:#7c8e9c;font-size:.66rem;font-weight:700}.nin-stat strong{margin-top:5px;color:#213f56;font-size:1.16rem}.nin-stat span{display:block;margin-top:3px;color:#91a0ab;font-size:.62rem}
+                                    .nin-progress-wrap{padding:0 20px 16px}.nin-progress-meta{display:flex;justify-content:space-between;gap:12px;margin-bottom:7px;color:#6c7f8e;font-size:.7rem}.nin-progress{height:8px;overflow:hidden;border-radius:999px;background:#edf2f5}.nin-progress span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#2479ad,#36a06f)}
+                                    .nin-actions{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 20px;border-top:1px solid #e8eef2;background:#fbfcfd}.nin-actions-note{color:#758795;font-size:.7rem;line-height:1.5}.nin-actions-buttons{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.nin-actions .btn{font-size:.72rem;font-weight:700}
+                                    @media(max-width:850px){.nin-control-head{display:block}.nin-status{margin-top:13px}.nin-stats{grid-template-columns:repeat(2,1fr)}.nin-actions{display:block}.nin-actions-buttons{justify-content:flex-start;margin-top:12px}}
+                                    @media(max-width:480px){.nin-control-head{padding:18px}.nin-stats{padding:13px;gap:7px}.nin-stat{padding:11px}.nin-progress-wrap{padding:0 13px 14px}.nin-actions{padding:14px}.nin-actions-buttons .btn{width:100%}}
+                                </style>
+                                <section class="nin-control mb-4" aria-labelledby="ninControlTitle">
+                                    <div class="nin-control-head">
                                         <div>
-                                            <h5 class="mb-1 text-danger"><i class="fas fa-id-card me-2"></i>Student NIN confirmation</h5>
-                                            <p class="mb-1 text-muted">Students must confirm their NIN before using portal services. A confirmation is remembered until you start a new cycle.</p>
-                                            <small class="text-muted">Current confirmation cycle: <strong>{{ $ninConfirmationCycle }}</strong></small>
+                                            <span class="nin-control-kicker">Student account security</span>
+                                            <h4 id="ninControlTitle"><i class="fas fa-fingerprint me-2"></i>NIN verification control</h4>
+                                            <p>Students enter the NIN already stored on their record. A correct match completes the current cycle; a mismatch or duplicate NIN is rejected.</p>
                                         </div>
-                                        <button type="button" class="btn btn-danger" id="requestStudentNinUpdate">
-                                            <i class="fas fa-rotate me-2"></i>Ask students to confirm again
-                                        </button>
+                                        <span class="nin-status {{ $ninManagement['enabled'] ? 'active' : 'paused' }}">
+                                            <i class="fas fa-circle"></i>{{ $ninManagement['enabled'] ? 'ENFORCEMENT ACTIVE' : 'ENFORCEMENT PAUSED' }}
+                                        </span>
                                     </div>
-                                </div>
+                                    <div class="nin-stats" aria-label="NIN verification summary">
+                                        <div class="nin-stat"><small>Current cycle</small><strong>{{ number_format($ninManagement['cycle']) }}</strong><span>{{ $ninManagement['session'] ?: 'Current session' }}</span></div>
+                                        <div class="nin-stat"><small>Students covered</small><strong>{{ number_format($ninManagement['eligible']) }}</strong><span>Active, submitted profiles</span></div>
+                                        <div class="nin-stat"><small>Confirmed</small><strong>{{ number_format($ninManagement['confirmed']) }}</strong><span>{{ number_format($ninManagement['confirmed_today']) }} completed today</span></div>
+                                        <div class="nin-stat"><small>Still pending</small><strong>{{ number_format($ninManagement['pending']) }}</strong><span>Restricted while active</span></div>
+                                    </div>
+                                    <div class="nin-progress-wrap">
+                                        <div class="nin-progress-meta"><span>Completion progress</span><strong>{{ number_format($ninManagement['completion'], 1) }}%</strong></div>
+                                        <div class="nin-progress" role="progressbar" aria-valuenow="{{ $ninManagement['completion'] }}" aria-valuemin="0" aria-valuemax="100"><span style="width:{{ min(100, max(0, $ninManagement['completion'])) }}%"></span></div>
+                                    </div>
+                                    <div class="nin-actions">
+                                        <div class="nin-actions-note">
+                                            @if($ninManagement['cycle_started_at'])
+                                                Current cycle started {{ \Carbon\Carbon::parse($ninManagement['cycle_started_at'])->format('d M Y, h:i A') }}.
+                                            @endif
+                                            Starting a new cycle immediately requires every covered student to confirm again.
+                                        </div>
+                                        <div class="nin-actions-buttons">
+                                            <button type="button" class="btn {{ $ninManagement['enabled'] ? 'btn-outline-warning' : 'btn-success' }}" id="toggleStudentNinVerification" data-enabled="{{ $ninManagement['enabled'] ? '1' : '0' }}">
+                                                <i class="fas {{ $ninManagement['enabled'] ? 'fa-pause' : 'fa-play' }} me-2"></i>{{ $ninManagement['enabled'] ? 'Pause verification' : 'Resume verification' }}
+                                            </button>
+                                            <button type="button" class="btn btn-danger" id="requestStudentNinUpdate">
+                                                <i class="fas fa-rotate me-2"></i>{{ $ninManagement['enabled'] ? 'Start a new cycle' : 'Activate a new cycle' }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </section>
 
-                                @foreach ($settings->reject(fn ($setting) => $setting->key === 'student_nin_update_version') as $setting)
+                                @foreach ($settings->reject(fn ($setting) => in_array($setting->key, ['student_nin_update_version', 'student_nin_verification_enabled'], true)) as $setting)
                                     <div class="mb-4 p-3 border rounded">
                                         <label class="form-label fw-bold">
                                             <i class="fas fa-key me-1 text-danger"></i>
@@ -976,14 +1026,16 @@
             var button = $(this);
             Swal.fire({
                 title: 'Start a new NIN confirmation cycle?',
-                text: 'Students will be required to confirm their NIN before using the portal again.',
+                text: 'All covered undergraduate students will be required to confirm the NIN already stored on their record before using portal services. This also activates enforcement.',
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonText: 'Yes, request confirmation',
+                confirmButtonText: 'Start new cycle',
                 cancelButtonText: 'Cancel'
             }).then(function(result) {
                 if (!result.isConfirmed) return;
                 button.prop('disabled', true);
+                var original = button.html();
+                button.html('<i class="fas fa-spinner fa-spin me-2"></i>Starting cycle...');
                 $.ajax({
                     url: '{{ route('settings.request-nin-update') }}',
                     type: 'POST',
@@ -993,7 +1045,45 @@
                     },
                     error: function(xhr) {
                         button.prop('disabled', false);
+                        button.html(original);
                         Swal.fire({ icon: 'error', title: 'Could not start request', text: xhr.responseJSON?.error || 'Please try again.' });
+                    }
+                });
+            });
+        });
+
+        $('#toggleStudentNinVerification').on('click', function() {
+            var button = $(this);
+            var currentlyEnabled = button.data('enabled') == 1;
+            var enabling = !currentlyEnabled;
+            Swal.fire({
+                title: enabling ? 'Resume NIN verification?' : 'Pause NIN verification?',
+                text: enabling
+                    ? 'Students who have not completed the current cycle will be redirected to the NIN confirmation screen.'
+                    : 'Students will be allowed to use the portal without completing NIN confirmation. Existing confirmations will remain recorded.',
+                icon: enabling ? 'question' : 'warning',
+                showCancelButton: true,
+                confirmButtonText: enabling ? 'Resume verification' : 'Pause verification',
+                cancelButtonText: 'Cancel'
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+                var original = button.html();
+                button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Saving...');
+                $.ajax({
+                    url: '{{ route('settings.student-nin-verification') }}',
+                    type: 'POST',
+                    data: { _token: '{{ csrf_token() }}', enabled: enabling ? 1 : 0 },
+                    success: function(response) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: response.enabled ? 'Verification active' : 'Verification paused',
+                            text: response.message
+                        }).then(function() { location.reload(); });
+                    },
+                    error: function(xhr) {
+                        button.prop('disabled', false).html(original);
+                        var message = xhr.responseJSON?.message || xhr.responseJSON?.error || 'Please try again.';
+                        Swal.fire({ icon: 'error', title: 'Setting not changed', text: message });
                     }
                 });
             });

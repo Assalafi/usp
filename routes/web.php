@@ -901,6 +901,9 @@ Route::get('/nin-update', function () {
     if (session('accType') !== 'Student' || !session()->has('log')) {
         return redirect('/');
     }
+    if ((string) \App\Http\Controllers\SystemSettingsController::get('student_nin_verification_enabled', '1') === '0') {
+        return redirect('/dash')->with('success', 'NIN verification is not currently required.');
+    }
 
     $student = Student::where('user_id', session('id'))->first(['fullname', 'nin']);
     return view('Student.nin-update', compact('student'));
@@ -1464,6 +1467,7 @@ Route::get('/settings/general', [App\Http\Controllers\SystemSettingsController::
 Route::post('/settings/update', [App\Http\Controllers\SystemSettingsController::class, 'update'])->name('settings.update');
 Route::post('/settings/update-single', [App\Http\Controllers\SystemSettingsController::class, 'updateSingle'])->name('settings.update-single');
 Route::post('/settings/security/request-nin-update', [App\Http\Controllers\SystemSettingsController::class, 'requestStudentNinUpdate'])->name('settings.request-nin-update');
+Route::post('/settings/security/student-nin-verification', [App\Http\Controllers\SystemSettingsController::class, 'setStudentNinVerification'])->name('settings.student-nin-verification');
 Route::post('/settings/reset', [App\Http\Controllers\SystemSettingsController::class, 'resetDefaults'])->name('settings.reset');
 Route::get('/settings/export', [App\Http\Controllers\SystemSettingsController::class, 'export'])->name('settings.export');
 
