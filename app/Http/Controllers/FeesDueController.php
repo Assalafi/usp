@@ -208,12 +208,18 @@ class FeesDueController extends Controller
     public function update(Request $req)
     {
         if(!session()->has('log')){return redirect('/');}
-        $datas = $req->all();
-        $id = $datas['id'];
-        unset($datas['id']);
-        unset($datas['_token']);
-        $datas = array_map('strtoupper', $datas);
-        DB::table($this->table)->where('id',$id)->update($datas);
+        $validated = $req->validate([
+            'id' => 'required|integer',
+            'session' => 'required|string|max:20',
+            'amount' => 'required|numeric|min:0',
+        ]);
+
+        DB::table($this->table)
+            ->where('id', $validated['id'])
+            ->update([
+                'session' => strtoupper(trim($validated['session'])),
+                'amount' => round((float) $validated['amount'], 2),
+            ]);
 
         return redirect()->back()->with('success', 'Record Updated!!!');
     }

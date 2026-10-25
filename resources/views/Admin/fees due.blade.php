@@ -277,7 +277,7 @@
                                                             <input type="hidden" name="id" value="{{ $row->id }}">
                                                             <div class="form-group">
                                                                 <label for="session{{ $row->id }}">Session</label>
-                                                                <select class="form-control" id="session{{ $row->id }}" name="session" required>
+                        <select class="form-control" id="session{{ $row->id }}" name="session" required>
                                                                     <option value="">Select Session</option>
                                                                     <option value="2028/2029" {{ $row->session == '2028/2029' ? 'selected' : '' }}>2028/2029</option>
                                                                     <option value="2027/2028" {{ $row->session == '2027/2028' ? 'selected' : '' }}>2027/2028</option>
@@ -289,9 +289,19 @@
                                                                     <option value="2021/2022" {{ $row->session == '2021/2022' ? 'selected' : '' }}>2021/2022</option>
                                                                     <option value="2020/2021" {{ $row->session == '2020/2021' ? 'selected' : '' }}>2020/2021</option>
                                                                     <option value="2019/2020" {{ $row->session == '2019/2020' ? 'selected' : '' }}>2019/2020</option>
-                                                                </select>
-                                                            </div>
-                                                        </div>
+                        </select>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label for="amount{{ $row->id }}">Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">₦</span>
+                            <input type="number" min="0" step="0.01" class="form-control"
+                                id="amount{{ $row->id }}" name="amount"
+                                value="{{ old('amount', $row->amount) }}" required>
+                        </div>
+                        <small class="form-text text-muted">Enter the full transaction amount in Naira.</small>
+                    </div>
+                </div>
                                                         <div class="modal-footer">
                                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                                                             <button type="submit" class="btn btn-primary">Update</button>
