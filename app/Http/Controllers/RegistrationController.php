@@ -3031,6 +3031,311 @@ class RegistrationController extends Controller
     /**
      * View detailed applicant information
      */
+    public function editApplicant($id)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        try {
+            $applicant = Applicant::findOrFail($id);
+            $jamb = Jamb::where('user_id', $applicant->user_id)->orderBy('created_at')->get();
+            $ssce = Ssce::where('user_id', $applicant->user_id)->orderBy('sitting')->get();
+            $ssceResults = SsceResult::where('user_id', $applicant->user_id)->orderBy('sitting')->orderBy('created_at')->get();
+            $deQualification = DEQualification::where('user_id', $applicant->user_id)->first();
+            $documents = DocumentUpload::where('user_id', $applicant->user_id)->orderBy('doc_type')->get();
+
+            return view('main', [
+                'page' => 'applicant-edit',
+                'applicant' => $applicant,
+                'jamb' => $jamb,
+                'ssce' => $ssce,
+                'ssceResults' => $ssceResults,
+                'deQualification' => $deQualification,
+                'documents' => $documents,
+                'faculty' => DB::table('faculty')->where('status', '1')->select('code', 'title')->orderBy('title')->get(),
+                'departments' => DB::table('department')->where('status', '1')->select('code', 'title', 'faculty')->orderBy('title')->get(),
+                'programs' => DB::table('program')->where('status', '1')->select('code', 'title', 'faculty', 'department')->orderBy('title')->get(),
+                'sessions' => DB::table('session')->select('title')->orderByDesc('title')->get(),
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error opening applicant editor', [
+                'applicant_id' => $id,
+                'error' => $e->getMessage(),
+                'admin' => session('username', 'Admin'),
+            ]);
+
+            return redirect('/applicants')->with('error', 'Applicant could not be opened for editing.');
+        }
+    }
+
+    /**
+     * Update an applicant and every editable academic record in one transaction.
+     * Related JAMB/SSCE rows are scoped to the applicant's user ID to prevent
+     * accidental edits to another applicant's academic history.
+     */
+    public function updateApplicant(Request $request, $id)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        $applicant = Applicant::findOrFail($id);
+        $validated = $request->validate([
+            'username' => 'required|string|max:100',
+            'surname' => 'required|string|max:100',
+            'first_name' => 'required|string|max:100',
+            'other_name' => 'nullable|string|max:100',
+            'gender' => 'required|string|max:30',
+            'nationality' => 'nullable|string|max:100',
+            'state' => 'nullable|string|max:100',
+            'lga' => 'nullable|string|max:100',
+            'city' => 'nullable|string|max:100',
+            'dob' => 'nullable|date',
+            'pob' => 'nullable|string|max:150',
+            'marital_status' => 'nullable|string|max:50',
+            'religion' => 'nullable|string|max:50',
+            'phone' => 'nullable|string|max:40',
+            'email' => 'nullable|email|max:150',
+            'address' => 'nullable|string|max:1000',
+            'faculty' => 'nullable|string|max:50',
+            'department' => 'nullable|string|max:50',
+            'program' => 'nullable|string|max:80',
+            'mode' => 'required|in:UTME,DE',
+            'session' => 'nullable|string|max:30',
+            'score' => 'nullable|numeric|min:0|max:1000',
+            'status' => 'required|string|max:40',
+            'clearance' => 'nullable|string|max:40',
+            'action' => 'nullable|string|max:100',
+            'admission_date' => 'nullable|date',
+            'rejection_date' => 'nullable|date',
+            'admitted' => 'nullable|boolean',
+            'admission_remarks' => 'nullable|string|max:2000',
+            'rejection_reason' => 'nullable|string|max:255',
+            'rejection_remarks' => 'nullable|string|max:2000',
+            'n_name' => 'nullable|string|max:150',
+            'n_relationship' => 'nullable|string|max:100',
+            'n_email' => 'nullable|email|max:150',
+            'n_phone' => 'nullable|string|max:40',
+            'n_address' => 'nullable|string|max:1000',
+            's_name' => 'nullable|string|max:150',
+            's_phone' => 'nullable|string|max:40',
+            's_address' => 'nullable|string|max:1000',
+            'de_qualification' => 'nullable|string|max:80',
+            'de_institution' => 'nullable|string|max:255',
+            'de_grad_year' => 'nullable|string|max:10',
+            'de_grade' => 'nullable|string|max:80',
+            'de_reg_number' => 'nullable|string|max:100',
+            'jamb' => 'nullable|array',
+            'jamb.*.id' => 'nullable|string|max:100',
+            'jamb.*.subject' => 'nullable|string|max:100',
+            'jamb.*.score' => 'nullable|numeric|min:0|max:400',
+            'jamb.*.delete' => 'nullable|boolean',
+            'ssce' => 'nullable|array',
+            'ssce.*.id' => 'nullable|string|max:100',
+            'ssce.*.type' => 'nullable|string|max:80',
+            'ssce.*.year' => 'nullable|string|max:10',
+            'ssce.*.number' => 'nullable|string|max:100',
+            'ssce.*.center_name' => 'nullable|string|max:255',
+            'ssce.*.remove' => 'nullable|boolean',
+            'ssce_results' => 'nullable|array',
+            'ssce_results.*' => 'nullable|array',
+            'ssce_results.*.*.subject' => 'nullable|string|max:100',
+            'ssce_results.*.*.grade' => 'nullable|string|max:20',
+            'ssce_results.*.*.remark' => 'nullable|string|max:100',
+            'document_files' => 'nullable|array',
+            'document_files.*' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ]);
+
+        $clean = static fn ($value) => is_string($value) ? trim($value) : $value;
+
+        try {
+            DB::transaction(function () use ($applicant, $validated, $request, $clean) {
+                $nameParts = array_filter([
+                    $clean($validated['first_name'] ?? ''),
+                    $clean($validated['surname'] ?? ''),
+                    $clean($validated['other_name'] ?? ''),
+                ]);
+
+                $applicant->fill([
+                    'username' => $clean($validated['username']),
+                    'surname' => $clean($validated['surname']),
+                    'first_name' => $clean($validated['first_name']),
+                    'other_name' => $clean($validated['other_name'] ?? ''),
+                    'fullname' => trim(implode(' ', $nameParts)),
+                    'gender' => $clean($validated['gender']),
+                    'nationality' => $clean($validated['nationality'] ?? ''),
+                    'state' => $clean($validated['state'] ?? ''),
+                    'lga' => $clean($validated['lga'] ?? ''),
+                    'city' => $clean($validated['city'] ?? ''),
+                    'dob' => $validated['dob'] ?? null,
+                    'pob' => $clean($validated['pob'] ?? ''),
+                    'marital_status' => $clean($validated['marital_status'] ?? ''),
+                    'religion' => $clean($validated['religion'] ?? ''),
+                    'phone' => $clean($validated['phone'] ?? ''),
+                    'email' => $clean($validated['email'] ?? ''),
+                    'address' => $clean($validated['address'] ?? ''),
+                    'faculty' => $clean($validated['faculty'] ?? ''),
+                    'department' => $clean($validated['department'] ?? ''),
+                    'program' => $clean($validated['program'] ?? ''),
+                    'mode' => strtoupper($clean($validated['mode'])),
+                    'session' => $clean($validated['session'] ?? ''),
+                    'score' => $validated['score'] ?? null,
+                    'status' => $clean($validated['status']),
+                    'clearance' => $clean($validated['clearance'] ?? ''),
+                    'action' => $clean($validated['action'] ?? ''),
+                    'admission_date' => $validated['admission_date'] ?? null,
+                    'rejection_date' => $validated['rejection_date'] ?? null,
+                    'admitted' => (bool) ($validated['admitted'] ?? false),
+                    'admission_remarks' => $clean($validated['admission_remarks'] ?? ''),
+                    'rejection_reason' => $clean($validated['rejection_reason'] ?? ''),
+                    'rejection_remarks' => $clean($validated['rejection_remarks'] ?? ''),
+                    'n_name' => $clean($validated['n_name'] ?? ''),
+                    'n_relationship' => $clean($validated['n_relationship'] ?? ''),
+                    'n_email' => $clean($validated['n_email'] ?? ''),
+                    'n_phone' => $clean($validated['n_phone'] ?? ''),
+                    'n_address' => $clean($validated['n_address'] ?? ''),
+                    's_name' => $clean($validated['s_name'] ?? ''),
+                    's_phone' => $clean($validated['s_phone'] ?? ''),
+                    's_address' => $clean($validated['s_address'] ?? ''),
+                ]);
+                $applicant->save();
+
+                User::where('id', $applicant->user_id)->update([
+                    'username' => $applicant->username,
+                    'name' => $applicant->fullname,
+                ]);
+
+                foreach ($validated['jamb'] ?? [] as $row) {
+                    $rowId = $clean($row['id'] ?? '');
+                    $subject = $clean($row['subject'] ?? '');
+                    $score = $row['score'] ?? null;
+                    $record = $rowId
+                        ? Jamb::where('id', $rowId)->where('user_id', $applicant->user_id)->first()
+                        : null;
+
+                    if (!empty($row['delete'])) {
+                        $record?->delete();
+                        continue;
+                    }
+                    if ($subject === '' && ($score === null || $score === '')) {
+                        continue;
+                    }
+                    if (!$record) {
+                        $record = new Jamb(['user_id' => $applicant->user_id, 'username' => $applicant->username]);
+                    }
+                    $record->fill(['username' => $applicant->username, 'subject' => $subject, 'score' => $score]);
+                    $record->save();
+                }
+
+                foreach ($validated['ssce'] ?? [] as $sitting => $row) {
+                    $sitting = (int) $sitting;
+                    if ($sitting < 1 || $sitting > 2) {
+                        continue;
+                    }
+                    $rowId = $clean($row['id'] ?? '');
+                    $record = $rowId
+                        ? Ssce::where('id', $rowId)->where('user_id', $applicant->user_id)->first()
+                        : Ssce::where('user_id', $applicant->user_id)->where('sitting', $sitting)->first();
+
+                    if (!empty($row['remove'])) {
+                        if ($record) {
+                            SsceResult::where('ssce_id', $record->id)->delete();
+                            $record->delete();
+                        }
+                        continue;
+                    }
+
+                    $headerHasData = collect(['type', 'year', 'number', 'center_name'])
+                        ->contains(fn ($field) => $clean($row[$field] ?? '') !== '');
+                    $resultRows = $validated['ssce_results'][$sitting] ?? [];
+                    $hasResultData = collect($resultRows)->contains(fn ($result) => $clean($result['subject'] ?? '') !== '' || $clean($result['grade'] ?? '') !== '');
+                    if (!$record && !$headerHasData && !$hasResultData) {
+                        continue;
+                    }
+                    if (!$record) {
+                        $record = new Ssce(['user_id' => $applicant->user_id, 'username' => $applicant->username, 'sitting' => $sitting]);
+                    }
+                    $record->fill([
+                        'username' => $applicant->username,
+                        'type' => $clean($row['type'] ?? ''),
+                        'year' => $clean($row['year'] ?? ''),
+                        'number' => $clean($row['number'] ?? ''),
+                        'center_name' => $clean($row['center_name'] ?? ''),
+                        'sitting' => $sitting,
+                    ]);
+                    $record->save();
+
+                    SsceResult::where('ssce_id', $record->id)->delete();
+                    foreach ($resultRows as $result) {
+                        $subject = $clean($result['subject'] ?? '');
+                        $grade = $clean($result['grade'] ?? '');
+                        if ($subject === '' && $grade === '') {
+                            continue;
+                        }
+                        SsceResult::create([
+                            'user_id' => $applicant->user_id,
+                            'username' => $applicant->username,
+                            'ssce_id' => $record->id,
+                            'subject' => $subject,
+                            'grade' => $grade,
+                            'remark' => $clean($result['remark'] ?? ''),
+                            'sitting' => $sitting,
+                        ]);
+                    }
+                }
+
+                $deValues = [
+                    'qualification_type' => $clean($validated['de_qualification'] ?? ''),
+                    'institution' => $clean($validated['de_institution'] ?? ''),
+                    'grad_year' => $clean($validated['de_grad_year'] ?? ''),
+                    'grade' => $clean($validated['de_grade'] ?? ''),
+                    'reg_number' => $clean($validated['de_reg_number'] ?? ''),
+                ];
+                if (strtoupper($applicant->mode) === 'DE' || collect($deValues)->contains(fn ($value) => $value !== '')) {
+                    DEQualification::updateOrCreate(
+                        ['user_id' => $applicant->user_id],
+                        array_merge($deValues, ['applicant_id' => $applicant->id])
+                    );
+                }
+
+                foreach ($request->file('document_files', []) as $docType => $file) {
+                    if (!$file || !$file->isValid()) {
+                        continue;
+                    }
+                    $existing = DocumentUpload::where('user_id', $applicant->user_id)
+                        ->where('applicant_id', $applicant->id)
+                        ->where('doc_type', $docType)
+                        ->first();
+                    $filePath = $file->storeAs('uploads/documents', $docType . '_' . Str::uuid() . '.' . $file->getClientOriginalExtension(), 'public');
+                    DocumentUpload::updateOrCreate(
+                        ['user_id' => $applicant->user_id, 'applicant_id' => $applicant->id, 'doc_type' => $docType],
+                        [
+                            'file_path' => $filePath,
+                            'original_name' => $file->getClientOriginalName(),
+                            'mime_type' => $file->getMimeType(),
+                            'size' => $file->getSize(),
+                            'uploaded_at' => now(),
+                        ]
+                    );
+                    if ($existing?->file_path && $existing->file_path !== $filePath) {
+                        Storage::disk('public')->delete($existing->file_path);
+                    }
+                }
+            });
+
+            return redirect()->route('admin.view-applicant', $applicant->id)->with('success', 'Applicant record and academic information updated successfully.');
+        } catch (Exception $e) {
+            Log::error('Applicant update failed', [
+                'applicant_id' => $applicant->id,
+                'error' => $e->getMessage(),
+                'admin' => session('username', 'Admin'),
+            ]);
+
+            return back()->withInput()->with('error', 'The applicant record could not be updated. No changes were saved.');
+        }
+    }
+
     public function viewApplicantDetails($id)
     {
         if (!session()->has('log')) {

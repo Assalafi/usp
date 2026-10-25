@@ -283,6 +283,11 @@
                                                     <i class="far fa-eye"></i>
                                                 </a>
 
+                                                <a href="{{ route('admin.edit-applicant', $row->id) }}"
+                                                    class="btn btn-primary btn-sm" title="Edit complete applicant record">
+                                                    <i class="far fa-edit"></i>
+                                                </a>
+
                                                 <!-- Quick Status Actions -->
                                                 @if ($row->status == 'Rejecteds' || $row->status == 'Submitteds')
                                                     <!-- Admit Button -->
@@ -302,13 +307,6 @@
                                                     </button>
                                                 @endif
 
-                                                <!-- Edit Button -->
-                                                {{-- <button type="button" class="btn btn-primary btn-sm"
-                                                    data-bs-toggle="modal"
-                                                    data-bs-target="#updateStudent{{ $row->id }}"
-                                                    title="Edit">
-                                                    <i class="far fa-edit"></i>
-                                                </button> --}}
                                             </td>
                                         </tr>
 

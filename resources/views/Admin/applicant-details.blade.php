@@ -399,6 +399,9 @@
         <a href="{{ url('applicants') }}" class="btn btn-outline-primary btn-action">
             <i class="fas fa-arrow-left me-2"></i>Back to Applicants List
         </a>
+        <a href="{{ route('admin.edit-applicant', $applicant->id) }}" class="btn btn-primary btn-action ms-2">
+            <i class="fas fa-edit me-2"></i>Edit Complete Record
+        </a>
     </div>
 
     <!-- Profile Header -->
