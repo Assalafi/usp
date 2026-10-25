@@ -35,23 +35,6 @@ $labelValue = static function ($pdf, float $x, float $y, float $width, string $l
     $pdf->MultiCell($width, 4.3, $value !== '' ? $value : 'Not provided', 0, 'L');
 };
 
-$allocationTile = static function ($pdf, float $x, float $y, float $width, string $label, string $value): void {
-    $pdf->SetFillColor(255, 255, 255);
-    $pdf->SetDrawColor(220, 223, 225);
-    $pdf->Rect($x, $y, $width, 29, 'DF');
-    $pdf->SetFillColor(40, 72, 98);
-    $pdf->Rect($x, $y, 2.2, 29, 'F');
-    $pdf->SetXY($x + 6, $y + 5);
-    $pdf->SetFont('helvetica', '', 7.2);
-    $pdf->SetTextColor(103, 111, 118);
-    $pdf->Cell($width - 10, 4, strtoupper($label), 0, 1, 'L');
-    $pdf->SetXY($x + 6, $y + 11);
-    $size = strlen($value) > 18 ? 8.4 : (strlen($value) > 12 ? 9.5 : 12);
-    $pdf->SetFont('helvetica', 'B', $size);
-    $pdf->SetTextColor(35, 48, 59);
-    $pdf->MultiCell($width - 10, 4.4, $value !== '' ? $value : '-', 0, 'L');
-};
-
 $users = DB::table('hostel')->where('id', $id)->get();
 $pdf = new exFPDF('P', 'mm', 'A4');
 $pdf->SetMargins(14, 14, 14);
@@ -115,82 +98,103 @@ foreach ($users as $row) {
         }
     }
 
-    // Quiet, paper-like background with restrained institutional accents.
-    $pdf->SetFillColor(246, 247, 248);
+    // Formal page frame with a minimal institutional accent.
+    $pdf->SetFillColor(245, 246, 247);
     $pdf->Rect(0, 0, 210, 297, 'F');
     $pdf->SetFillColor(255, 255, 255);
     $pdf->Rect(10, 10, 190, 277, 'F');
-    $pdf->SetDrawColor(216, 220, 223);
-    $pdf->SetLineWidth(0.25);
+    $pdf->SetDrawColor(205, 210, 214);
+    $pdf->SetLineWidth(0.3);
     $pdf->Rect(10, 10, 190, 277, 'D');
     $pdf->SetFillColor(188, 145, 61);
-    $pdf->Rect(10, 10, 2.5, 277, 'F');
+    $pdf->Rect(10, 10, 190, 2, 'F');
 
-    // Clean white institutional header.
+    // Compact institutional header.
     $logo = $asset('uploads/logo-transparent.png');
-    $pdf->Image($logo, 19, 17, 22, 23, 'PNG');
-    $pdf->SetXY(47, 18);
-    $pdf->SetFont('helvetica', 'B', 16);
+    $pdf->Image($logo, 18, 18, 20, 21, 'PNG');
+    $pdf->SetXY(44, 18);
+    $pdf->SetFont('helvetica', 'B', 15.5);
     $pdf->SetTextColor(35, 48, 59);
-    $pdf->Cell(103, 7, 'UNIVERSITY OF MAIDUGURI', 0, 1, 'L');
-    $pdf->SetX(47);
-    $pdf->SetFont('helvetica', 'I', 9.5);
+    $pdf->Cell(100, 6.5, 'UNIVERSITY OF MAIDUGURI', 0, 1, 'L');
+    $pdf->SetX(44);
+    $pdf->SetFont('helvetica', 'I', 9);
     $pdf->SetTextColor(174, 67, 65);
-    $pdf->Cell(103, 5, '...Centre of Excellence', 0, 1, 'L');
-    $pdf->SetX(47);
-    $pdf->SetFont('helvetica', '', 8);
+    $pdf->Cell(100, 5, '...Centre of Excellence', 0, 1, 'L');
+    $pdf->SetX(44);
+    $pdf->SetFont('helvetica', '', 7.8);
     $pdf->SetTextColor(103, 111, 118);
-    $pdf->Cell(103, 5, 'STUDENT AFFAIRS DIVISION', 0, 0, 'L');
-    $pdf->SetXY(154, 18);
-    $pdf->SetFillColor(249, 245, 235);
-    $pdf->SetDrawColor(222, 204, 164);
-    $pdf->Rect(154, 18, 37, 17, 'DF');
-    $pdf->SetXY(158, 21);
+    $pdf->Cell(100, 5, 'STUDENT AFFAIRS DIVISION', 0, 0, 'L');
+
+    $pdf->SetFillColor(248, 245, 237);
+    $pdf->SetDrawColor(221, 204, 166);
+    $pdf->Rect(150, 18, 41, 23, 'DF');
+    $pdf->SetXY(154, 21);
     $pdf->SetFont('helvetica', 'B', 7);
     $pdf->SetTextColor(145, 107, 40);
-    $pdf->Cell(29, 4, 'OFFICIAL PERMIT', 0, 1, 'C');
-    $pdf->SetX(158);
-    $pdf->SetFont('helvetica', 'B', 8.5);
-    $pdf->SetTextColor(73, 61, 42);
-    $pdf->Cell(29, 5, $permitNumber, 0, 0, 'C');
-    $pdf->SetDrawColor(220, 223, 225);
-    $pdf->Line(19, 46, 191, 46);
+    $pdf->Cell(33, 4, 'PERMIT REFERENCE', 0, 1, 'C');
+    $pdf->SetX(154);
+    $pdf->SetFont('helvetica', 'B', 10);
+    $pdf->SetTextColor(57, 54, 47);
+    $pdf->Cell(33, 6, $permitNumber, 0, 1, 'C');
+    $pdf->SetX(154);
+    $pdf->SetFont('helvetica', '', 6.8);
+    $pdf->SetTextColor(112, 105, 91);
+    $pdf->Cell(33, 4, $session, 0, 0, 'C');
 
-    // Title area - light, spacious, and easy to scan.
-    $pdf->SetFillColor(249, 249, 247);
-    $pdf->Rect(18, 52, 174, 19, 'F');
-    $pdf->SetFillColor(40, 72, 98);
-    $pdf->Rect(18, 52, 3, 19, 'F');
-    $pdf->SetXY(27, 56);
-    $pdf->SetFont('helvetica', 'B', 14.5);
+    $pdf->SetDrawColor(218, 221, 223);
+    $pdf->Line(18, 48, 192, 48);
+
+    // Permit title and confirmation.
+    $pdf->SetXY(18, 55);
+    $pdf->SetFont('helvetica', 'B', 16);
     $pdf->SetTextColor(35, 48, 59);
-    $pdf->Cell(116, 6, 'HOSTEL ACCOMMODATION PERMIT', 0, 1, 'L');
-    $pdf->SetXY(27, 63);
-    $pdf->SetFont('helvetica', '', 8);
+    $pdf->Cell(125, 7, 'HOSTEL ACCOMMODATION PERMIT', 0, 1, 'L');
+    $pdf->SetXY(18, 63);
+    $pdf->SetFont('helvetica', '', 8.2);
     $pdf->SetTextColor(103, 111, 118);
-    $pdf->Cell(116, 4, $session . ' academic session', 0, 0, 'L');
-    $pdf->SetXY(151, 58);
-    $pdf->SetFont('helvetica', 'B', 8);
-    $pdf->SetTextColor(42, 122, 86);
-    $pdf->Cell(34, 5, 'PAID & CONFIRMED', 0, 0, 'R');
+    $pdf->Cell(125, 4, 'Official authorisation for residence in a University hostel', 0, 0, 'L');
+    $pdf->SetFillColor(42, 112, 79);
+    $pdf->Rect(151, 55, 40, 11, 'F');
+    $pdf->SetXY(154, 58);
+    $pdf->SetFont('helvetica', 'B', 7.5);
+    $pdf->SetTextColor(255, 255, 255);
+    $pdf->Cell(34, 5, 'PAID & CONFIRMED', 0, 0, 'C');
+    $pdf->SetFillColor(40, 72, 98);
+    $pdf->Rect(18, 72, 174, 1.2, 'F');
 
-    // Identity card with prominent photograph.
+    // Student details on the left, photograph on the right.
     $pdf->SetFillColor(255, 255, 255);
-    $pdf->SetDrawColor(220, 223, 225);
-    $pdf->Rect(18, 78, 174, 65, 'DF');
+    $pdf->SetDrawColor(218, 221, 223);
+    $pdf->Rect(18, 80, 174, 68, 'DF');
     $pdf->SetFillColor(248, 248, 246);
-    $pdf->Rect(18, 78, 174, 9, 'F');
-    $pdf->SetXY(24, 81);
+    $pdf->Rect(18, 80, 174, 9, 'F');
+    $pdf->SetXY(24, 83);
     $pdf->SetFont('helvetica', 'B', 8.5);
     $pdf->SetTextColor(35, 48, 59);
-    $pdf->Cell(162, 4, 'RESIDENT IDENTIFICATION', 0, 0, 'L');
+    $pdf->Cell(162, 4, 'STUDENT IDENTIFICATION', 0, 0, 'L');
 
-    $photoX = 24;
-    $photoY = 93;
-    $photoW = 36;
-    $photoH = 43;
-    $pdf->SetFillColor(245, 245, 243);
-    $pdf->SetDrawColor(188, 194, 199);
+    $nameSize = $fitFont($pdf, strtoupper($name), 116, 14, 9);
+    $pdf->SetXY(24, 95);
+    $pdf->SetFont('helvetica', 'B', $nameSize);
+    $pdf->SetTextColor(35, 48, 59);
+    $pdf->Cell(116, 7, strtoupper($name), 0, 1, 'L');
+    $pdf->SetXY(24, 103);
+    $pdf->SetFont('helvetica', 'B', 9.5);
+    $pdf->SetTextColor(151, 111, 41);
+    $pdf->Cell(116, 5, (string) $row->occupant, 0, 1, 'L');
+    $pdf->SetDrawColor(228, 230, 231);
+    $pdf->Line(24, 112, 140, 112);
+    $labelValue($pdf, 24, 116, 76, 'Programme / school', $programme, 8.7);
+    $labelValue($pdf, 104, 116, 36, 'Category', $category, 8.1);
+    $labelValue($pdf, 24, 133, 50, 'Gender', $genderLabel, 8.7);
+    $labelValue($pdf, 78, 133, 62, 'Issued', $issuedDate, 8.7);
+
+    $photoX = 150;
+    $photoY = 94;
+    $photoW = 34;
+    $photoH = 44;
+    $pdf->SetFillColor(244, 244, 242);
+    $pdf->SetDrawColor(182, 188, 193);
     $pdf->Rect($photoX, $photoY, $photoW, $photoH, 'DF');
     $imageInfo = @getimagesize($photoPath);
     if ($imageInfo && ($imageInfo[0] ?? 0) > 0 && ($imageInfo[1] ?? 0) > 0) {
@@ -205,74 +209,97 @@ foreach ($users as $row) {
             // The framed space remains visible if an invalid legacy image is encountered.
         }
     }
+    $pdf->SetXY(150, 140);
+    $pdf->SetFont('helvetica', '', 6.8);
+    $pdf->SetTextColor(103, 111, 118);
+    $pdf->Cell(34, 4, 'STUDENT PHOTOGRAPH', 0, 0, 'C');
 
-    $nameSize = $fitFont($pdf, strtoupper($name), 119, 13.5, 9);
-    $pdf->SetXY(68, 93);
-    $pdf->SetFont('helvetica', 'B', $nameSize);
-    $pdf->SetTextColor(35, 48, 59);
-    $pdf->Cell(118, 7, strtoupper($name), 0, 1, 'L');
-    $pdf->SetXY(68, 101);
-    $pdf->SetFont('helvetica', 'B', 9);
-    $pdf->SetTextColor(153, 113, 42);
-    $pdf->Cell(118, 5, (string) $row->occupant, 0, 1, 'L');
-    $pdf->SetDrawColor(226, 228, 229);
-    $pdf->Line(68, 109, 186, 109);
-    $labelValue($pdf, 68, 112, 76, 'Programme / school', $programme, 8.7);
-    $labelValue($pdf, 148, 112, 38, 'Category', $category, 8.2);
-    $labelValue($pdf, 68, 128, 38, 'Gender', $genderLabel, 8.7);
-    $labelValue($pdf, 110, 128, 76, 'Date issued', $issuedDate, 8.7);
+    // One unified allocation panel.
+    $pdf->SetFillColor(40, 60, 78);
+    $pdf->Rect(18, 157, 174, 42, 'F');
+    $pdf->SetFillColor(188, 145, 61);
+    $pdf->Rect(18, 157, 174, 1.5, 'F');
+    $pdf->SetXY(24, 162);
+    $pdf->SetFont('helvetica', 'B', 8);
+    $pdf->SetTextColor(216, 222, 227);
+    $pdf->Cell(162, 4, 'ALLOCATED BED SPACE', 0, 0, 'L');
+    $allocationValues = [
+        ['Hall', trim((string) $row->hall)],
+        ['Block', trim((string) $row->block)],
+        ['Room', trim((string) $row->room)],
+        ['Bed', trim((string) $row->bed)],
+    ];
+    foreach ($allocationValues as $index => $allocationValue) {
+        $cellX = 18 + ($index * 43.5);
+        if ($index > 0) {
+            $pdf->SetDrawColor(95, 111, 124);
+            $pdf->Line($cellX, 169, $cellX, 193);
+        }
+        $pdf->SetXY($cellX + 4, 171);
+        $pdf->SetFont('helvetica', '', 7);
+        $pdf->SetTextColor(183, 193, 201);
+        $pdf->Cell(35.5, 4, strtoupper($allocationValue[0]), 0, 1, 'C');
+        $value = $allocationValue[1] !== '' ? $allocationValue[1] : '-';
+        $valueSize = strlen($value) > 18 ? 8 : (strlen($value) > 11 ? 9 : 11.5);
+        $pdf->SetXY($cellX + 4, 178);
+        $pdf->SetFont('helvetica', 'B', $valueSize);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->MultiCell(35.5, 4.5, $value, 0, 'C');
+    }
 
-    // Large allocation tiles make the most important information obvious.
-    $pdf->SetXY(18, 151);
-    $pdf->SetFont('helvetica', 'B', 9);
-    $pdf->SetTextColor(35, 48, 59);
-    $pdf->Cell(174, 5, 'ALLOCATED BED SPACE', 0, 1, 'L');
-    $allocationTile($pdf, 18, 159, 40, 'Hall', trim((string) $row->hall));
-    $allocationTile($pdf, 62.5, 159, 40, 'Block', trim((string) $row->block));
-    $allocationTile($pdf, 107, 159, 40, 'Room', trim((string) $row->room));
-    $allocationTile($pdf, 151.5, 159, 40.5, 'Bed', trim((string) $row->bed));
-
-    // Validity and conduct notice.
+    // Confirmation banner.
     $pdf->SetFillColor(241, 247, 243);
     $pdf->SetDrawColor(191, 215, 199);
-    $pdf->Rect(18, 196, 174, 17, 'DF');
-    $pdf->SetXY(24, 200);
-    $pdf->SetFont('helvetica', 'B', 9);
+    $pdf->Rect(18, 207, 174, 17, 'DF');
+    $pdf->SetXY(24, 211);
+    $pdf->SetFont('helvetica', 'B', 8.5);
     $pdf->SetTextColor(42, 112, 79);
-    $pdf->Cell(47, 5, 'VALID AND CONFIRMED', 0, 0, 'L');
+    $pdf->Cell(41, 5, 'VALID ALLOCATION', 0, 0, 'L');
     $pdf->SetFont('helvetica', '', 8);
     $pdf->SetTextColor(58, 78, 69);
-    $pdf->MultiCell(112, 4.2, 'Present this permit to the Hall Officer during check-in. This allocation is personal and cannot be sold or transferred.', 0, 'L');
+    $pdf->MultiCell(121, 4.2, 'Present this permit to the Hall Officer during check-in. The allocation belongs only to the named student.', 0, 'L');
 
-    $pdf->SetXY(18, 222);
-    $pdf->SetFont('helvetica', '', 8.3);
-    $pdf->SetTextColor(83, 94, 102);
-    $pdf->MultiCell(174, 4.5, 'The named student is authorised to occupy the bed space shown above, subject to University hostel regulations and the conditions of residence.', 0, 'C');
-
-    // Approval area with restrained signature treatment.
-    $signature = $asset('uploads/sign2.png');
-    $pdf->Image($signature, 82, 238, 45, 14, 'PNG');
-    $pdf->SetDrawColor(80, 101, 116);
-    $pdf->SetLineWidth(0.25);
-    $pdf->Line(76, 253, 134, 253);
-    $pdf->SetXY(55, 255);
-    $pdf->SetFont('helvetica', 'B', 9);
+    // Supporting instruction and approval in two balanced columns.
+    $pdf->SetFillColor(249, 249, 247);
+    $pdf->SetDrawColor(222, 224, 226);
+    $pdf->Rect(18, 232, 102, 34, 'DF');
+    $pdf->SetXY(24, 237);
+    $pdf->SetFont('helvetica', 'B', 8);
     $pdf->SetTextColor(35, 48, 59);
-    $pdf->Cell(100, 5, 'Dean of Students', 0, 1, 'C');
-    $pdf->SetX(55);
-    $pdf->SetFont('helvetica', '', 7.5);
-    $pdf->SetTextColor(103, 111, 118);
-    $pdf->Cell(100, 4, 'Student Affairs Division', 0, 0, 'C');
+    $pdf->Cell(90, 4, 'IMPORTANT', 0, 1, 'L');
+    $pdf->SetXY(24, 244);
+    $pdf->SetFont('helvetica', '', 7.7);
+    $pdf->SetTextColor(83, 94, 102);
+    $pdf->MultiCell(90, 4.2, 'This permit is personal and cannot be sold, transferred, altered, or used by another person. Hostel rules remain applicable throughout the stay.', 0, 'L');
 
-    // Minimal footer.
-    $pdf->SetDrawColor(220, 223, 225);
-    $pdf->Line(18, 271, 192, 271);
-    $pdf->SetXY(18, 275);
-    $pdf->SetFont('helvetica', '', 7.2);
-    $pdf->SetTextColor(110, 126, 138);
+    $pdf->SetFillColor(255, 255, 255);
+    $pdf->Rect(126, 232, 66, 34, 'DF');
+    $pdf->SetXY(130, 235);
+    $pdf->SetFont('helvetica', '', 7);
+    $pdf->SetTextColor(103, 111, 118);
+    $pdf->Cell(58, 4, 'AUTHORISED BY', 0, 1, 'C');
+    $signature = $asset('uploads/sign2.png');
+    $pdf->Image($signature, 138, 239, 42, 12, 'PNG');
+    $pdf->SetDrawColor(92, 101, 108);
+    $pdf->Line(136, 252, 182, 252);
+    $pdf->SetXY(130, 254);
+    $pdf->SetFont('helvetica', 'B', 8.5);
+    $pdf->SetTextColor(35, 48, 59);
+    $pdf->Cell(58, 4, 'Dean of Students', 0, 1, 'C');
+    $pdf->SetX(130);
+    $pdf->SetFont('helvetica', '', 7);
+    $pdf->SetTextColor(103, 111, 118);
+    $pdf->Cell(58, 4, 'Student Affairs Division', 0, 0, 'C');
+
+    // Minimal verification footer.
+    $pdf->SetDrawColor(218, 221, 223);
+    $pdf->Line(18, 274, 192, 274);
+    $pdf->SetXY(18, 278);
+    $pdf->SetFont('helvetica', '', 7.1);
+    $pdf->SetTextColor(103, 111, 118);
     $pdf->Cell(174, 4, 'Verify the student identity and allocated bed before admission into the hostel.', 0, 1, 'C');
     $pdf->SetX(18);
-    $pdf->SetFont('helvetica', 'I', 6.8);
+    $pdf->SetFont('helvetica', 'I', 6.7);
     $pdf->Cell(174, 4, 'Generated from the University of Maiduguri Student Portal', 0, 0, 'C');
 }
 
