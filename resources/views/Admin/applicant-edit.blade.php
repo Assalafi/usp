@@ -80,7 +80,7 @@
                         <div class="col-md-4"><label class="form-label">Surname *</label><input name="surname" class="form-control" required value="{{ $oldValue('surname', $applicant->surname) }}"></div>
                         <div class="col-md-4"><label class="form-label">First name *</label><input name="first_name" class="form-control" required value="{{ $oldValue('first_name', $applicant->first_name) }}"></div>
                         <div class="col-md-4"><label class="form-label">Other name</label><input name="other_name" class="form-control" value="{{ $oldValue('other_name', $applicant->other_name) }}"></div>
-                        <div class="col-md-4"><label class="form-label">Gender *</label><select name="gender" class="form-select" required><option value="">Select gender</option>@foreach(['Male','Female'] as $value)<option value="{{ $value }}" @selected(strtolower((string) $oldValue('gender', $applicant->gender)) === strtolower($value))>{{ $value }}</option>@endforeach</select></div>
+                        <div class="col-md-4"><label class="form-label">Gender *</label><select name="gender" class="form-select" required><option value="">Select gender</option>@foreach(['Male','Female'] as $value)<option value="{{ $value }}" {{ strtolower((string) $oldValue('gender', $applicant->gender)) === strtolower($value) ? 'selected' : '' }}>{{ $value }}</option>@endforeach</select></div>
                         <div class="col-md-4"><label class="form-label">Date of birth</label><input type="date" name="dob" class="form-control" value="{{ $oldValue('dob', optional($applicant->dob)->format('Y-m-d')) }}"></div>
                         <div class="col-md-4"><label class="form-label">Nationality</label><input name="nationality" class="form-control" value="{{ $oldValue('nationality', $applicant->nationality) }}"></div>
                         <div class="col-md-4"><label class="form-label">State</label><input name="state" class="form-control" value="{{ $oldValue('state', $applicant->state) }}"></div>
@@ -97,20 +97,20 @@
 
                 <div class="tab-pane fade" id="academic-tab">
                     <div class="card editor-card mb-3"><div class="card-header"><i class="fas fa-university me-2 text-success"></i>Programme and admission information</div><div class="card-body"><div class="row g-3">
-                        <div class="col-md-4"><label class="form-label">Faculty / college</label><select name="faculty" id="editorFaculty" class="form-select"><option value="">Select faculty</option>@foreach($faculty as $item)<option value="{{ $item->code }}" @selected($oldValue('faculty', $applicant->faculty) == $item->code)>{{ $item->title }}</option>@endforeach</select></div>
-                        <div class="col-md-4"><label class="form-label">Department</label><select name="department" id="editorDepartment" class="form-select"><option value="">Select department</option>@foreach($departments as $item)<option value="{{ $item->code }}" data-faculty="{{ $item->faculty }}" @selected($oldValue('department', $applicant->department) == $item->code)>{{ $item->title }}</option>@endforeach</select></div>
-                        <div class="col-md-4"><label class="form-label">Programme</label><select name="program" id="editorProgram" class="form-select"><option value="">Select programme</option>@foreach($programs as $item)<option value="{{ $item->code }}" data-faculty="{{ $item->faculty }}" data-department="{{ $item->department }}" @selected($oldValue('program', $applicant->program) == $item->code)>{{ $item->title }}</option>@endforeach</select></div>
-                        <div class="col-md-4"><label class="form-label">Mode of entry *</label><select name="mode" id="editorMode" class="form-select" required><option value="UTME" @selected($oldValue('mode', $applicant->mode) === 'UTME')>UTME</option><option value="DE" @selected($oldValue('mode', $applicant->mode) === 'DE')>Direct Entry (DE)</option></select></div>
-                        <div class="col-md-4"><label class="form-label">Application session</label><select name="session" class="form-select"><option value="">Select session</option>@foreach($sessions as $item)<option value="{{ $item->title }}" @selected($oldValue('session', $applicant->session) == $item->title)>{{ $item->title }}</option>@endforeach</select></div>
+                        <div class="col-md-4"><label class="form-label">Faculty / college</label><select name="faculty" id="editorFaculty" class="form-select"><option value="">Select faculty</option>@foreach($faculty as $item)<option value="{{ $item->code }}" {{ $oldValue('faculty', $applicant->faculty) == $item->code ? 'selected' : '' }}>{{ $item->title }}</option>@endforeach</select></div>
+                        <div class="col-md-4"><label class="form-label">Department</label><select name="department" id="editorDepartment" class="form-select"><option value="">Select department</option>@foreach($departments as $item)<option value="{{ $item->code }}" data-faculty="{{ $item->faculty }}" {{ $oldValue('department', $applicant->department) == $item->code ? 'selected' : '' }}>{{ $item->title }}</option>@endforeach</select></div>
+                        <div class="col-md-4"><label class="form-label">Programme</label><select name="program" id="editorProgram" class="form-select"><option value="">Select programme</option>@foreach($programs as $item)<option value="{{ $item->code }}" data-faculty="{{ $item->faculty }}" data-department="{{ $item->department }}" {{ $oldValue('program', $applicant->program) == $item->code ? 'selected' : '' }}>{{ $item->title }}</option>@endforeach</select></div>
+                        <div class="col-md-4"><label class="form-label">Mode of entry *</label><select name="mode" id="editorMode" class="form-select" required><option value="UTME" {{ $oldValue('mode', $applicant->mode) === 'UTME' ? 'selected' : '' }}>UTME</option><option value="DE" {{ $oldValue('mode', $applicant->mode) === 'DE' ? 'selected' : '' }}>Direct Entry (DE)</option></select></div>
+                        <div class="col-md-4"><label class="form-label">Application session</label><select name="session" class="form-select"><option value="">Select session</option>@foreach($sessions as $item)<option value="{{ $item->title }}" {{ $oldValue('session', $applicant->session) == $item->title ? 'selected' : '' }}>{{ $item->title }}</option>@endforeach</select></div>
                         <div class="col-md-4"><label class="form-label">Aggregate / screening score</label><input type="number" step="0.01" name="score" class="form-control" value="{{ $oldValue('score', $applicant->score) }}"></div>
                     </div></div></div>
                     <div class="card editor-card"><div class="card-header"><i class="fas fa-tasks me-2 text-warning"></i>Application workflow</div><div class="card-body"><div class="row g-3">
-                        <div class="col-md-3"><label class="form-label">Application status</label><select name="status" class="form-select">@foreach(['Pending','Submitted','Admitted','Rejected'] as $value)<option value="{{ $value }}" @selected($oldValue('status', $applicant->status) == $value)>{{ $value }}</option>@endforeach</select></div>
-                        <div class="col-md-3"><label class="form-label">Clearance</label><select name="clearance" class="form-select"><option value="">Not set</option>@foreach(['Pending','Cleared','Rejected'] as $value)<option value="{{ $value }}" @selected($oldValue('clearance', $applicant->clearance) == $value)>{{ $value }}</option>@endforeach</select></div>
+                        <div class="col-md-3"><label class="form-label">Application status</label><select name="status" class="form-select">@foreach(['Pending','Submitted','Admitted','Rejected'] as $value)<option value="{{ $value }}" {{ $oldValue('status', $applicant->status) == $value ? 'selected' : '' }}>{{ $value }}</option>@endforeach</select></div>
+                        <div class="col-md-3"><label class="form-label">Clearance</label><select name="clearance" class="form-select"><option value="">Not set</option>@foreach(['Pending','Cleared','Rejected'] as $value)<option value="{{ $value }}" {{ $oldValue('clearance', $applicant->clearance) == $value ? 'selected' : '' }}>{{ $value }}</option>@endforeach</select></div>
                         <div class="col-md-3"><label class="form-label">Action / decision</label><input name="action" class="form-control" value="{{ $oldValue('action', $applicant->action) }}"></div>
                         <div class="col-md-3"><label class="form-label">Admission date</label><input type="date" name="admission_date" class="form-control" value="{{ $oldValue('admission_date', optional($applicant->admission_date)->format('Y-m-d')) }}"></div>
                         <div class="col-md-3"><label class="form-label">Rejection date</label><input type="date" name="rejection_date" class="form-control" value="{{ $oldValue('rejection_date', optional($applicant->rejection_date)->format('Y-m-d')) }}"></div>
-                        <div class="col-md-3"><label class="form-label d-block">Admission flag</label><label class="btn btn-outline-success"><input type="checkbox" name="admitted" value="1" class="me-1" @checked(old('admitted', $applicant->admitted))> Mark as admitted</label></div>
+                        <div class="col-md-3"><label class="form-label d-block">Admission flag</label><label class="btn btn-outline-success"><input type="checkbox" name="admitted" value="1" class="me-1" {{ old('admitted', $applicant->admitted) ? 'checked' : '' }}> Mark as admitted</label></div>
                         <div class="col-md-6"><label class="form-label">Admission remarks</label><input name="admission_remarks" class="form-control" value="{{ $oldValue('admission_remarks', $applicant->admission_remarks) }}"></div>
                         <div class="col-md-6"><label class="form-label">Rejection reason</label><input name="rejection_reason" class="form-control" value="{{ $oldValue('rejection_reason', $applicant->rejection_reason) }}"></div>
                         <div class="col-md-6"><label class="form-label">Rejection remarks</label><textarea name="rejection_remarks" rows="2" class="form-control">{{ $oldValue('rejection_remarks', $applicant->rejection_remarks) }}</textarea></div>
@@ -152,18 +152,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const faculty = document.getElementById('editorFaculty');
     const department = document.getElementById('editorDepartment');
     const program = document.getElementById('editorProgram');
-    const filterOptions = (select, attr, value) => {
-        if (!select) return;
-        Array.from(select.options).forEach((option, index) => {
-            if (index === 0) { option.hidden = false; return; }
-            option.hidden = value && option.dataset[attr] !== value;
-        });
-        if (select.selectedOptions[0]?.hidden) select.value = '';
-    };
     const filterAcademic = () => {
-        filterOptions(department, 'faculty', faculty?.value || '');
-        filterOptions(program, 'faculty', faculty?.value || '');
-        filterOptions(program, 'department', department?.value || '');
+        const facultyValue = faculty?.value || '';
+        const departmentValue = department?.value || '';
+        Array.from(department?.options || []).forEach((option, index) => {
+            option.hidden = index > 0 && facultyValue && option.dataset.faculty !== facultyValue;
+        });
+        Array.from(program?.options || []).forEach((option, index) => {
+            option.hidden = index > 0 && ((facultyValue && option.dataset.faculty !== facultyValue) || (departmentValue && option.dataset.department !== departmentValue));
+        });
+        if (department?.selectedOptions[0]?.hidden) department.value = '';
+        if (program?.selectedOptions[0]?.hidden) program.value = '';
     };
     faculty?.addEventListener('change', () => { department.value = ''; program.value = ''; filterAcademic(); });
     department?.addEventListener('change', () => { program.value = ''; filterAcademic(); });

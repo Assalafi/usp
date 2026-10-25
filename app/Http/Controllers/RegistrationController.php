@@ -3036,6 +3036,7 @@ class RegistrationController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
+        abort_unless(strtoupper((string) session('accType')) === 'ADMIN' || strtoupper((string) session('username')) === 'ADMIN', 403);
 
         try {
             $applicant = Applicant::findOrFail($id);
@@ -3079,6 +3080,7 @@ class RegistrationController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
+        abort_unless(strtoupper((string) session('accType')) === 'ADMIN' || strtoupper((string) session('username')) === 'ADMIN', 403);
 
         $applicant = Applicant::findOrFail($id);
         $validated = $request->validate([

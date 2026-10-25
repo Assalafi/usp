@@ -1262,8 +1262,8 @@ Route::post('/upload-applicant', [RegistrationController::class, 'uploadApplican
 Route::post('/admit-student-upload', [RegistrationController::class, 'admitStudentUpload']);
 
 // Admin Applicant Management Routes
-Route::get('/admin-applicant/{id}/edit', [RegistrationController::class, 'editApplicant'])->name('admin.edit-applicant');
-Route::post('/admin-applicant/{id}/update', [RegistrationController::class, 'updateApplicant'])->name('admin.update-applicant');
+Route::get('/admin-applicant/{id}/edit', [RegistrationController::class, 'editApplicant'])->middleware('role')->name('admin.edit-applicant');
+Route::post('/admin-applicant/{id}/update', [RegistrationController::class, 'updateApplicant'])->middleware('role')->name('admin.update-applicant');
 Route::get('/admin-applicant/{id}', [RegistrationController::class, 'viewApplicantDetails'])->name('admin.view-applicant');
 Route::get('/admin/applicant/{id}/pdf', [RegistrationController::class, 'downloadApplicantPdf'])->name('admin.applicant.pdf');
 Route::post('/admin/admit-applicant', [RegistrationController::class, 'admitApplicant'])->name('admin.admit-applicant');
