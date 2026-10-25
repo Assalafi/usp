@@ -21,7 +21,10 @@ $users = DB::table('hostel')->where(['id' => $id])->get();
  $pdf->AddFont('FontUTF8','BI','Arimo-BoldItalic.php');
  $pdf->AddFont('FontUTF8','I','Arimo-Italic.php');
  foreach ($users as $key => $row){
-    $pic = DB::table('students')->where(['username' => $row -> occupant])->value('picture');
+    $externalPermitStudent = is_array($permitStudent ?? null) ? $permitStudent : null;
+    $pic = $externalPermitStudent
+        ? null
+        : DB::table('students')->where(['username' => $row -> occupant])->value('picture');
 
     if($pic){
         $image = 'storage/picture/'.$pic;
@@ -84,9 +87,14 @@ $users = DB::table('hostel')->where(['id' => $id])->get();
 
      //$name = DB::table('students')->where(['username' => $row -> occupant])->value('fullname');
 
-    $names = Student::where(['username' => $row -> occupant])->first();
-    $name = $names->first_name .' '. $names->last_name .' '. $names->other_name;
-     $dept = $names->programs->title;
+     if ($externalPermitStudent) {
+         $name = trim((string) ($externalPermitStudent['name'] ?? $row->occupant));
+         $dept = trim((string) ($externalPermitStudent['programme_name'] ?? 'School of Basic and Remedial Studies'));
+     } else {
+         $names = Student::where(['username' => $row -> occupant])->first();
+         $name = trim($names->first_name .' '. $names->last_name .' '. $names->other_name);
+         $dept = optional($names->programs)->title ?: 'Programme unavailable';
+     }
      $table->easyCell($name.' of the Department of '.$dept.' with ID. No. '.$row -> occupant.' is here by permitted to stay in '.$row -> hall.' HALL of the University', 'colspan:14; font-size:12; align:L;border:0;');
      $table->printRow();
 

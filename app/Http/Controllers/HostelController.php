@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\PinImport;
 use App\Models\HostelPin;
@@ -1370,11 +1371,65 @@ class HostelController extends Controller
             return redirect()->back()->with('error', 'A permit is available only after the hostel payment has been recorded.');
         }
 
-        if (!Student::where('username', $hostel->occupant)->exists()) {
+        $permitStudent = null;
+        $isSbrsOccupant = (int) $hostel->bed_type === 3
+            || str_starts_with(strtoupper(trim((string) $hostel->occupant)), 'SBRS/');
+
+        if ($isSbrsOccupant) {
+            $permitStudent = $this->lookupSbrsPermitProfile((string) $hostel->occupant);
+            if (!$permitStudent) {
+                return redirect()->back()->with('error', 'The SBRS student record could not be found. Confirm that the registration number is correct and try again.');
+            }
+        } elseif (!Student::where('username', $hostel->occupant)->exists()) {
             return redirect()->back()->with('error', 'The occupant record could not be found.');
         }
 
-        return view('pdf/permit', ['id' => $hostel->id]);
+        return view('pdf/permit', [
+            'id' => $hostel->id,
+            'permitStudent' => $permitStudent,
+        ]);
+    }
+
+    /**
+     * Resolve an SBRS occupant for the shared UG permit template. SBRS
+     * students intentionally do not exist in the UG students table, so the
+     * old UG-only lookup incorrectly rejected their paid allocations.
+     */
+    private function lookupSbrsPermitProfile(string $registrationNumber): ?array
+    {
+        $baseUrl = rtrim((string) config('app.sbrs_profile_api_url', env(
+            'SBRS_PROFILE_API_URL',
+            'https://sbrs.umstad.online/internal/hostel/student'
+        )), '/');
+        $apiKey = (string) config('app.sbrs_profile_api_key', env(
+            'SBRS_PROFILE_API_KEY',
+            env('HOSTEL_API_KEY')
+        ));
+
+        if ($baseUrl === '' || $apiKey === '') {
+            return null;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'X-API-Key' => $apiKey,
+                'Accept' => 'application/json',
+            ])->connectTimeout(5)->timeout(10)->get($baseUrl, [
+                'registration' => trim($registrationNumber),
+            ]);
+
+            if (!$response->successful()) {
+                return null;
+            }
+
+            $profile = $response->json('data');
+            return is_array($profile) && trim((string) ($profile['name'] ?? '')) !== ''
+                ? $profile
+                : null;
+        } catch (\Throwable $e) {
+            report($e);
+            return null;
+        }
     }
 
     public function uploadPin(Request $request)

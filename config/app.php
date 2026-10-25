@@ -40,6 +40,12 @@ return [
 
     'hostel_api_key' => env('HOSTEL_API_KEY'),
 
+    // Read-only lookup used by the UG admin permit generator for SBRS
+    // occupants, who are stored in the SBRS database rather than UG's
+    // students table.
+    'sbrs_profile_api_url' => env('SBRS_PROFILE_API_URL', 'https://sbrs.umstad.online/internal/hostel/student'),
+    'sbrs_profile_api_key' => env('SBRS_PROFILE_API_KEY', env('HOSTEL_API_KEY')),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment
