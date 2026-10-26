@@ -88,9 +88,12 @@ foreach ($users as $row) {
             ->orderByDesc('id')
             ->first();
     }
+    $externalPaymentAmount = is_array($external) ? ($external['payment_amount'] ?? null) : null;
     $paymentAmount = $permitPayment
         ? (float) ($permitPayment->base_amount ?? $permitPayment->amount ?? 0)
-        : (float) ($row->amount ?? $row->hostel_amount ?? 0);
+        : ($externalPaymentAmount !== null
+            ? (float) $externalPaymentAmount
+            : (float) ($row->amount ?? $row->hostel_amount ?? 0));
     $externalPaymentRrr = is_array($external) ? ($external['payment_rrr'] ?? $external['rrr'] ?? '') : '';
     $externalPaymentDescription = is_array($external) ? ($external['payment_description'] ?? '') : '';
     $invoicePaymentRrr = $permitPayment
