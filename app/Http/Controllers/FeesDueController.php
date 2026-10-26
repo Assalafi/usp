@@ -211,14 +211,26 @@ class FeesDueController extends Controller
         $validated = $req->validate([
             'id' => 'required|integer',
             'session' => 'required|string|max:20',
-            'amount' => 'required|numeric|min:0',
+            'base_amount' => 'required|numeric|min:0',
         ]);
+
+        $invoice = DB::table($this->table)
+            ->where('id', $validated['id'])
+            ->first(['amount', 'base_amount', 'surcharge_amount']);
+
+        if (!$invoice) {
+            return redirect()->back()->withErrors(['id' => 'Payment transaction not found.']);
+        }
+
+        $baseAmount = round((float) $validated['base_amount'], 2);
+        $surchargeAmount = round((float) ($invoice->surcharge_amount ?? 0), 2);
 
         DB::table($this->table)
             ->where('id', $validated['id'])
             ->update([
                 'session' => strtoupper(trim($validated['session'])),
-                'amount' => round((float) $validated['amount'], 2),
+                'base_amount' => $baseAmount,
+                'amount' => round($baseAmount + $surchargeAmount, 2),
             ]);
 
         return redirect()->back()->with('success', 'Record Updated!!!');

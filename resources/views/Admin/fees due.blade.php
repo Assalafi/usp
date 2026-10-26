@@ -292,14 +292,14 @@
                         </select>
                     </div>
                     <div class="form-group mt-3">
-                        <label for="amount{{ $row->id }}">Amount</label>
+                        <label for="base_amount{{ $row->id }}">Base amount</label>
                         <div class="input-group">
-                            <span class="input-group-text">₦</span>
+                            <span class="input-group-text">&#8358;</span>
                             <input type="number" min="0" step="0.01" class="form-control"
-                                id="amount{{ $row->id }}" name="amount"
-                                value="{{ old('amount', $row->amount) }}" required>
+                                id="base_amount{{ $row->id }}" name="base_amount"
+                                value="{{ old('base_amount', $row->base_amount ?? $row->amount) }}" required>
                         </div>
-                        <small class="form-text text-muted">Enter the full transaction amount in Naira.</small>
+                        <small class="form-text text-muted">Enter the main payment amount. Any existing service charge remains unchanged and the total is recalculated.</small>
                     </div>
                 </div>
                                                         <div class="modal-footer">
