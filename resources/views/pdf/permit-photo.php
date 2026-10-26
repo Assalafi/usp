@@ -66,7 +66,32 @@ foreach ($users as $row) {
     $name = $name !== '' ? $name : trim((string) $row->occupant);
     $programme = $programme !== '' ? $programme : ($isSbrs ? 'School of Basic and Remedial Studies' : 'Programme unavailable');
     $category = $isSbrs ? 'SBRS / Remedial' : 'Undergraduate';
-    $genderLabel = strtoupper($gender) === 'MALE' ? 'Male' : (strtoupper($gender) === 'FEMALE' ? 'Female' : 'Not provided');
+    $genderKey = strtoupper(trim($gender));
+    $genderLabel = in_array($genderKey, ['M', 'MALE', '1'], true)
+        ? 'Male'
+        : (in_array($genderKey, ['F', 'FEMALE', '2'], true) ? 'Female' : ($gender !== '' ? ucfirst(strtolower($gender)) : 'Not provided'));
+
+    // Hostel payments are recorded against the student's user id in invoices.
+    // Keep the permit useful for older/offline allocations by falling back to
+    // the amount stored on the allocated bed when no invoice is available.
+    $permitPayment = null;
+    if ($student && !empty($student->user_id)) {
+        $permitPayment = DB::table('invoices')
+            ->where('username', $student->user_id)
+            ->where('description', 'HOSTEL-MAINTENANCE/FEES')
+            ->where('status', 'Paid')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->first();
+    }
+    $paymentAmount = $permitPayment
+        ? (float) ($permitPayment->base_amount ?? $permitPayment->amount ?? 0)
+        : (float) ($row->amount ?? $row->hostel_amount ?? 0);
+    $externalPaymentRrr = is_array($external) ? ($external['payment_rrr'] ?? $external['rrr'] ?? '') : '';
+    $externalPaymentDescription = is_array($external) ? ($external['payment_description'] ?? '') : '';
+    $paymentRrr = trim((string) ($permitPayment->rrr ?? $externalPaymentRrr));
+    $paymentDescription = trim((string) ($permitPayment->description ?? ($externalPaymentDescription ?: 'HOSTEL-MAINTENANCE/FEES')));
+    $paymentDescription = $paymentDescription !== '' ? $paymentDescription : 'Hostel accommodation fee';
     $permitNumber = sprintf('HP-%06d', (int) $row->id);
     $issuedDate = date('d F Y');
     try {
@@ -256,47 +281,52 @@ foreach ($users as $row) {
         $pdf->MultiCell($innerWidth, 4.5, $value, 0, $allocationColumn['align']);
     }
 
-    // Confirmation banner.
+    // Payment details, retained on the permit for verification at check-in.
     $pdf->SetFillColor(241, 247, 243);
     $pdf->SetDrawColor(191, 215, 199);
-    $pdf->Rect(18, 207, 174, 17, 'DF');
-    $pdf->SetXY(24, 211);
-    $pdf->SetFont('helvetica', 'B', 8.5);
+    $pdf->Rect(18, 207, 174, 25, 'DF');
+    $pdf->SetFillColor(226, 241, 231);
+    $pdf->Rect(18, 207, 174, 8, 'F');
+    $pdf->SetXY(24, 209);
+    $pdf->SetFont('helvetica', 'B', 8.2);
     $pdf->SetTextColor(42, 112, 79);
-    $pdf->Cell(41, 5, 'VALID ALLOCATION', 0, 0, 'L');
-    $pdf->SetFont('helvetica', '', 8);
-    $pdf->SetTextColor(58, 78, 69);
-    $pdf->MultiCell(121, 4.2, 'Present this permit to the Hall Officer during check-in. The allocation belongs only to the named student.', 0, 'L');
+    $pdf->Cell(90, 4, 'PAYMENT DETAILS', 0, 0, 'L');
+    $pdf->SetFont('helvetica', '', 7);
+    $pdf->SetTextColor(83, 105, 91);
+    $pdf->Cell(72, 4, 'Payment confirmed', 0, 0, 'R');
+    $labelValue($pdf, 24, 218, 68, 'Description', $paymentDescription, 7.1);
+    $labelValue($pdf, 96, 218, 40, 'Amount paid', 'NGN ' . number_format($paymentAmount, 2), 8.1);
+    $labelValue($pdf, 140, 218, 46, 'RRR', $paymentRrr !== '' ? $paymentRrr : 'Not available', 7.1);
 
     // Supporting instruction and approval in two balanced columns.
     $pdf->SetFillColor(249, 249, 247);
     $pdf->SetDrawColor(222, 224, 226);
-    $pdf->Rect(18, 232, 102, 34, 'DF');
-    $pdf->SetXY(24, 237);
+    $pdf->Rect(18, 238, 102, 28, 'DF');
+    $pdf->SetXY(24, 242);
     $pdf->SetFont('helvetica', 'B', 8);
     $pdf->SetTextColor(35, 48, 59);
     $pdf->Cell(90, 4, 'IMPORTANT', 0, 1, 'L');
-    $pdf->SetXY(24, 244);
+    $pdf->SetXY(24, 249);
     $pdf->SetFont('helvetica', '', 7.7);
     $pdf->SetTextColor(83, 94, 102);
-    $pdf->MultiCell(90, 4.2, 'This permit is personal and cannot be sold, transferred, altered, or used by another person. Hostel rules remain applicable throughout the stay.', 0, 'L');
+    $pdf->MultiCell(90, 3.8, 'This permit is personal and cannot be sold, transferred, altered, or used by another person. Hostel rules remain applicable.', 0, 'L');
 
     $pdf->SetFillColor(255, 255, 255);
-    $pdf->Rect(126, 232, 66, 34, 'DF');
-    $pdf->SetXY(130, 234);
+    $pdf->Rect(126, 238, 66, 28, 'DF');
+    $pdf->SetXY(130, 240);
     $pdf->SetFont('helvetica', '', 7);
     $pdf->SetTextColor(103, 111, 118);
     $pdf->Cell(58, 4, 'AUTHORISED BY', 0, 1, 'C');
     $signature = $asset('uploads/sign2.png');
-    $pdf->Image($signature, 138, 238, 42, 12, 'PNG');
+    $pdf->Image($signature, 138, 243, 42, 9, 'PNG');
     $pdf->SetDrawColor(92, 101, 108);
-    $pdf->Line(136, 251, 182, 251);
-    $pdf->SetXY(130, 253);
-    $pdf->SetFont('helvetica', 'B', 8.5);
+    $pdf->Line(136, 253, 182, 253);
+    $pdf->SetXY(130, 255);
+    $pdf->SetFont('helvetica', 'B', 7.8);
     $pdf->SetTextColor(35, 48, 59);
     $pdf->Cell(58, 4, 'Prof. Amadu M. Brono', 0, 1, 'C');
     $pdf->SetX(130);
-    $pdf->SetFont('helvetica', '', 7);
+    $pdf->SetFont('helvetica', '', 6.6);
     $pdf->SetTextColor(103, 111, 118);
     $pdf->Cell(58, 4, 'Dean, Student Affairs', 0, 0, 'C');
 
