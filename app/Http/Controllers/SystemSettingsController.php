@@ -518,6 +518,9 @@ class SystemSettingsController extends Controller
                 'service_type_id' => (string) config('services.remita.school_fees_key', '365039916'),
                 'description' => 'Student school-fee invoices.',
                 'active' => true,
+                'optional' => false,
+                'alumni' => false,
+                'amount' => '0.00',
                 'split_enabled' => false,
                 'surcharge' => '0.00',
             ],
@@ -527,6 +530,9 @@ class SystemSettingsController extends Controller
                 'service_type_id' => (string) config('services.remita.hostel_key', ''),
                 'description' => 'Hostel reservation invoices.',
                 'active' => (string) config('services.remita.hostel_key', '') !== '',
+                'optional' => false,
+                'alumni' => false,
+                'amount' => '0.00',
                 'split_enabled' => false,
                 'surcharge' => '0.00',
             ],
@@ -536,6 +542,9 @@ class SystemSettingsController extends Controller
                 'service_type_id' => (string) self::get('remita_putme_service_type', config('services.remita.post_utme_key', '4430731')),
                 'description' => 'Post-UTME application payments.',
                 'active' => true,
+                'optional' => false,
+                'alumni' => false,
+                'amount' => '0.00',
                 'split_enabled' => false,
                 'surcharge' => '0.00',
             ],
@@ -545,6 +554,9 @@ class SystemSettingsController extends Controller
                 'service_type_id' => (string) self::get('id_card_service_type', '767553585'),
                 'description' => 'Student identity-card payments.',
                 'active' => true,
+                'optional' => true,
+                'alumni' => false,
+                'amount' => number_format(max(0, (float) self::get('id_card_fee', 2000)), 2, '.', ''),
                 'split_enabled' => false,
                 'surcharge' => '0.00',
             ],
@@ -554,6 +566,9 @@ class SystemSettingsController extends Controller
                 'service_type_id' => (string) config('services.remita.change_of_course_key', '4430731'),
                 'description' => 'Change-of-course application payments.',
                 'active' => true,
+                'optional' => false,
+                'alumni' => false,
+                'amount' => '0.00',
                 'split_enabled' => false,
                 'surcharge' => '0.00',
             ],
@@ -563,6 +578,9 @@ class SystemSettingsController extends Controller
                 'service_type_id' => (string) config('services.remita.inter_transfer_key', '4430731'),
                 'description' => 'Inter-university transfer payments.',
                 'active' => true,
+                'optional' => false,
+                'alumni' => false,
+                'amount' => '0.00',
                 'split_enabled' => false,
                 'surcharge' => '0.00',
             ],
@@ -611,6 +629,27 @@ class SystemSettingsController extends Controller
 
         $split = self::getRemitaSplitSettings();
         return max(0, (float) ($split['surcharge'] ?? $fallback));
+    }
+
+    /**
+     * Services that an undergraduate student may initiate from the payment
+     * page. Programme fees, hostel reservations and applicant-only services
+     * remain on their dedicated workflows; administrators opt a service into
+     * this list from Payment Gateway settings.
+     */
+    public static function getOptionalStudentServices(string $audience = 'student'): array
+    {
+        $isAlumni = strtolower(trim($audience)) === 'alumni';
+
+        return collect(self::getRemitaServiceCatalog())
+            ->filter(function (array $service): bool {
+                return !empty($service['active'])
+                    && trim((string) ($service['service_type_id'] ?? '')) !== ''
+                    && (float) ($service['amount'] ?? 0) > 0;
+            })
+            ->filter(fn (array $service): bool => $isAlumni ? !empty($service['alumni']) : !empty($service['optional']))
+            ->values()
+            ->all();
     }
 
     public static function getRemitaSplitSettings(): array
@@ -681,6 +720,14 @@ class SystemSettingsController extends Controller
                 'service_type_id' => mb_substr($serviceTypeId, 0, 60),
                 'description' => mb_substr(trim((string) ($service['description'] ?? '')), 0, 255),
                 'active' => filter_var($service['active'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                // Existing installations predate the optional-service flag.
+                // Preserve the old ID-card setting as a student service while
+                // keeping all other built-in services on their dedicated flow.
+                'optional' => array_key_exists('optional', $service)
+                    ? filter_var($service['optional'], FILTER_VALIDATE_BOOLEAN)
+                    : $key === 'id_card',
+                'alumni' => filter_var($service['alumni'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'amount' => number_format(max(0, (float) ($service['amount'] ?? ($key === 'id_card' ? self::get('id_card_fee', 2000) : 0))), 2, '.', ''),
                 'split_enabled' => filter_var($service['split_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'surcharge' => number_format(max(0, (float) ($service['surcharge'] ?? 0)), 2, '.', ''),
             ];

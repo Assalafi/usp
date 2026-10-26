@@ -440,6 +440,13 @@ class InvoicesController extends Controller
 
     public function initialize(Request $req)
     {
+        // Keep the legacy URL compatible, but route ID-card payments through
+        // the administrator-managed optional-service catalogue. This prevents
+        // a hard-coded fee or Remita service from bypassing the new settings.
+        if ($req->input('page') === 'id-card') {
+            return $this->initializeOptionalService($req->merge(['service' => 'id_card']));
+        }
+
         $x = 0;
         $data = DB::table('students')->select('fullname', 'contact_phone', 'contact_email', 'faculty', 'department', 'program', 'level', 'level_of_entry')->where('user_id', session('id'))->get();
         foreach ($data as $row) {
@@ -620,6 +627,135 @@ class InvoicesController extends Controller
             return redirect()->back()->with('success', 'Payment Generated');
     }
 
+    /**
+     * Generate an undergraduate invoice for an administrator-registered
+     * optional service. Programme fees continue to use initialize() so their
+     * session balance and half/full-payment rules remain unchanged.
+     */
+    public function initializeOptionalService(Request $request)
+    {
+        if (!session()->has('log')) {
+            return redirect('/')->with('error', 'Please sign in before starting a payment.');
+        }
+
+        $serviceKey = strtolower(trim((string) $request->input('service')));
+        $audience = session('accType') === 'Alumni' ? 'alumni' : 'student';
+        $service = collect(SystemSettingsController::getOptionalStudentServices($audience))
+            ->firstWhere('key', $serviceKey);
+        if (!is_array($service)) {
+            return redirect('/payment')->with('error', 'That optional service is not currently available. Please refresh the page and try again.');
+        }
+
+        $student = DB::table('students')
+            ->select('fullname', 'contact_phone', 'contact_email', 'faculty', 'department', 'program', 'level', 'level_of_entry')
+            ->where('user_id', session('id'))
+            ->first();
+        if (!$student && $audience === 'alumni') {
+            $student = DB::table('alumni')
+                ->select(
+                    'fullname',
+                    DB::raw('phone as contact_phone'),
+                    DB::raw('email as contact_email'),
+                    DB::raw('NULL as faculty'),
+                    DB::raw('NULL as department'),
+                    'program',
+                    DB::raw('NULL as level'),
+                    DB::raw('NULL as level_of_entry')
+                )
+                ->where('user_id', session('id'))
+                ->first();
+        }
+        if (!$student) {
+            return redirect('/payment')->with('error', 'Your student record could not be found. Please contact Student Affairs.');
+        }
+
+        $email = strtolower(trim((string) $request->input('email')));
+        $phone = trim((string) $request->input('phone'));
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || $phone === '') {
+            return redirect('/payment')->with('error', 'Enter a valid email address and phone number before generating the invoice.');
+        }
+
+        $description = trim((string) ($service['label'] ?? 'Optional service'));
+        $pending = DB::table('invoices')
+            ->where('username', session('id'))
+            ->where('description', $description)
+            ->where('status', 'Pending')
+            ->exists();
+        if ($pending) {
+            return redirect('/payment')->with('error', 'You already have a pending invoice for this service. Complete, verify or cancel it before creating another one.');
+        }
+
+        $orderId = (string) random_int(92343459459, 93438458488);
+        $name = trim((string) $student->fullname) . ' (' . session('username') . ')';
+        $amount = (float) ($service['amount'] ?? 0);
+        if ($amount <= 0) {
+            return redirect('/payment')->with('error', 'This optional service does not have a valid fee configured. Please contact the accounts office.');
+        }
+
+        try {
+            $prepared = RemitaPaymentService::prepare(
+                $serviceKey,
+                $amount,
+                $orderId,
+                ['name' => $name, 'email' => $email, 'phone' => $phone],
+                $description
+            );
+        } catch (\Throwable $exception) {
+            Log::error('UG optional service payment preparation failed', [
+                'service_key' => $serviceKey,
+                'message' => $exception->getMessage(),
+            ]);
+            return redirect('/payment')->with('error', 'This service is not configured correctly. Please contact the accounts office.');
+        }
+
+        $result = RemitaPaymentService::createReference($prepared, 'UG optional service payment');
+        if (!$result['success']) {
+            return redirect('/payment')->with('error', 'Remita could not create the payment reference: ' . $result['message']);
+        }
+
+        $datas = [
+            'username' => session('id'),
+            'name' => $name,
+            'phone' => $phone,
+            'email' => $email,
+            'faculty' => $student->faculty,
+            'department' => $student->department,
+            'program' => $student->program,
+            'level' => $student->level,
+            'session' => SystemSettingsController::getSchoolFeesSession(),
+            'description' => $description,
+            'amount' => $prepared['total_amount'],
+            'orderId' => $orderId,
+            'serviceTypeId' => $prepared['service_type_id'],
+            'rrr' => $result['rrr'],
+            'base_amount' => $prepared['base_amount'],
+            'surcharge_amount' => $prepared['surcharge_amount'],
+            'split_enabled' => $prepared['split_enabled'] ? 1 : 0,
+            'split_details' => $prepared['line_item_summary'] !== []
+                ? json_encode($prepared['line_item_summary'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+                : null,
+            'fees_type' => 'Self Sponsor',
+            'amount_type' => 'Student',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        try {
+            RemitaPaymentService::storeInvoice($datas, $prepared);
+        } catch (QueryException $exception) {
+            if ((int) ($exception->errorInfo[1] ?? 0) === 1062) {
+                return redirect('/payment')->with('error', 'You already have a pending invoice for this service.');
+            }
+            Log::error('UG optional service invoice storage failed', ['message' => $exception->getMessage()]);
+            return redirect('/payment')->with('error', 'The invoice could not be saved. Please try again.');
+        } catch (\Throwable $exception) {
+            Log::error('UG optional service invoice storage failed', ['message' => $exception->getMessage()]);
+            return redirect('/payment')->with('error', 'The invoice could not be saved. Please try again.');
+        }
+
+        return redirect('/payment')->with('success', 'Payment invoice generated. Your RRR is ' . $result['rrr'] . '.');
+    }
+
     public function initializeApplicant(Request $req)
     {
         $x = 0;
@@ -736,13 +872,13 @@ class InvoicesController extends Controller
     }
 
     /**
-     * Allow a logged-in undergraduate student to cancel only their own
+     * Allow a logged-in undergraduate student or Alumni to cancel only their own
      * pending invoice. We keep the invoice as Cancelled for audit history
      * instead of deleting the payment record permanently.
      */
     public function cancelStudentPayment(Request $request, $id)
     {
-        if (!session()->has('log') || session('accType') !== 'Student') {
+        if (!session()->has('log') || !in_array(session('accType'), ['Student', 'Alumni'], true)) {
             return redirect('/')->with('error', 'Unauthorized access');
         }
 

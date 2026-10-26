@@ -2,10 +2,26 @@
     use Illuminate\Support\Collection;
     use Illuminate\Support\Facades\DB;
 
+    $isAlumni = (bool) ($isAlumni ?? session('accType') === 'Alumni');
     $student = DB::table('students')
         ->where('user_id', session('id'))
         ->select('fullname', 'username', 'faculty', 'department', 'program', 'level', 'level_of_entry', 'session_of_entry')
         ->first();
+    if (!$student && $isAlumni) {
+        $student = DB::table('alumni')
+            ->select(
+                'fullname',
+                DB::raw('COALESCE(username, id_no) as username'),
+                DB::raw('NULL as faculty'),
+                DB::raw('NULL as department'),
+                'program',
+                DB::raw('NULL as level'),
+                DB::raw('NULL as level_of_entry'),
+                DB::raw('NULL as session_of_entry')
+            )
+            ->where('user_id', session('id'))
+            ->first();
+    }
 
     $invoices = collect($data ?? [])->map(function ($invoice) {
         // Keep the Remita/gross amount for payment actions, but show only the
@@ -20,9 +36,11 @@
         ($invoice->description ?? '') === 'UNIVERSITY OF MAIDUGURI-1000127 FEES' &&
         ($invoice->status ?? '') === 'Pending'
     );
-    $pendingIdCards = $invoices->filter(fn ($invoice) =>
-        ($invoice->description ?? '') === 'ID CARDS' &&
-        ($invoice->status ?? '') === 'Pending'
+    $optionalServices = collect($optionalServices ?? []);
+    $optionalDescriptions = $optionalServices->pluck('label')->filter()->values();
+    $pendingOptionalServices = $invoices->filter(fn ($invoice) =>
+        ($invoice->status ?? '') === 'Pending' &&
+        $optionalDescriptions->contains((string) ($invoice->description ?? ''))
     );
     $paidInvoices = $invoices->filter(fn ($invoice) => ($invoice->status ?? '') === 'Paid');
 
@@ -35,7 +53,7 @@
     $programCode = $student?->program;
     $entryLevel = $student?->level_of_entry;
 
-    if ($student) {
+    if (!$isAlumni && $student) {
         if ($currentSession === session('student_session')) {
             $due = (float) (DB::table('school_fees')
                 ->where(['program' => $programCode, 'level' => $entryLevel, 'type' => 'NEW'])
@@ -80,7 +98,6 @@
     $programmePaid = $totalPaid > 0;
     $programmeCovered = $totalDue > 0 && $remaining <= 0;
     $programmeConfigured = $totalDue > 0;
-    $idCardFee = (float) \App\Http\Controllers\SystemSettingsController::get('id_card_fee', 2000);
     $programTitle = $programCode ? DB::table('program')->where('code', $programCode)->value('title') : null;
 @endphp
 
@@ -89,34 +106,57 @@
         @if (!$student)
             <div class="alert alert-danger shadow-sm">Your student record could not be found. Please contact Student Affairs.</div>
         @else
-            <div class="payment-summary-grid mb-4">
-                <div class="payment-summary-card summary-primary">
-                    <span class="summary-icon"><i class="fas fa-graduation-cap"></i></span>
-                    <div><small>Programme</small><strong>{{ $programTitle ?: $programCode ?: 'Not set' }}</strong><span>Current level: {{ $student->level ?: 'Not set' }}</span></div>
+            @if (!$isAlumni)
+                <div class="payment-summary-grid mb-4">
+                    <div class="payment-summary-card summary-primary">
+                        <span class="summary-icon"><i class="fas fa-graduation-cap"></i></span>
+                        <div><small>Programme</small><strong>{{ $programTitle ?: $programCode ?: 'Not set' }}</strong><span>Current level: {{ $student->level ?: 'Not set' }}</span></div>
+                    </div>
+                    <div class="payment-summary-card summary-info">
+                        <span class="summary-icon"><i class="fas fa-file-invoice-dollar"></i></span>
+                        <div><small>Total programme fee</small><strong>₦{{ number_format($totalDue, 2) }}</strong><span>{{ count($paymentData) }} session{{ count($paymentData) === 1 ? '' : 's' }} recorded</span></div>
+                    </div>
+                    <div class="payment-summary-card summary-success">
+                        <span class="summary-icon"><i class="fas fa-check-circle"></i></span>
+                        <div><small>Paid so far</small><strong>₦{{ number_format($totalPaid, 2) }}</strong><span>{{ $programmeCovered ? 'Programme fee covered' : ($programmePaid ? 'Part payment recorded' : 'No payment recorded') }}</span></div>
+                    </div>
+                    <div class="payment-summary-card {{ $remaining > 0 ? 'summary-warning' : 'summary-success' }}">
+                        <span class="summary-icon"><i class="fas {{ $remaining > 0 ? 'fa-wallet' : 'fa-check' }}"></i></span>
+                        <div><small>Outstanding balance</small><strong>₦{{ number_format($remaining, 2) }}</strong><span>Registration is not blocked</span></div>
+                    </div>
                 </div>
-                <div class="payment-summary-card summary-info">
-                    <span class="summary-icon"><i class="fas fa-file-invoice-dollar"></i></span>
-                    <div><small>Total programme fee</small><strong>₦{{ number_format($totalDue, 2) }}</strong><span>{{ count($paymentData) }} session{{ count($paymentData) === 1 ? '' : 's' }} recorded</span></div>
+            @else
+                <div class="payment-summary-grid alumni-payment-summary mb-4">
+                    <div class="payment-summary-card summary-primary">
+                        <span class="summary-icon"><i class="fas fa-user-graduate"></i></span>
+                        <div><small>Account</small><strong>Alumni</strong><span>{{ $student->fullname ?? 'Alumni account' }}</span></div>
+                    </div>
+                    <div class="payment-summary-card summary-info">
+                        <span class="summary-icon"><i class="fas fa-layer-group"></i></span>
+                        <div><small>Available services</small><strong>{{ $optionalServices->count() }}</strong><span>Published by the accounts office</span></div>
+                    </div>
+                    <div class="payment-summary-card summary-success">
+                        <span class="summary-icon"><i class="fas fa-receipt"></i></span>
+                        <div><small>Payment records</small><strong>{{ $invoices->count() }}</strong><span>Receipts remain available below</span></div>
+                    </div>
+                    <div class="payment-summary-card summary-warning">
+                        <span class="summary-icon"><i class="fas fa-shield-alt"></i></span>
+                        <div><small>Payment access</small><strong>Available</strong><span>Programme fees do not apply</span></div>
+                    </div>
                 </div>
-                <div class="payment-summary-card summary-success">
-                    <span class="summary-icon"><i class="fas fa-check-circle"></i></span>
-                    <div><small>Paid so far</small><strong>₦{{ number_format($totalPaid, 2) }}</strong><span>{{ $programmeCovered ? 'Programme fee covered' : ($programmePaid ? 'Part payment recorded' : 'No payment recorded') }}</span></div>
-                </div>
-                <div class="payment-summary-card {{ $remaining > 0 ? 'summary-warning' : 'summary-success' }}">
-                    <span class="summary-icon"><i class="fas {{ $remaining > 0 ? 'fa-wallet' : 'fa-check' }}"></i></span>
-                    <div><small>Outstanding balance</small><strong>₦{{ number_format($remaining, 2) }}</strong><span>Registration is not blocked</span></div>
-                </div>
-            </div>
+            @endif
 
             <div class="payment-action-grid mb-4">
-                <button type="button" class="payment-action-card" data-bs-toggle="modal" data-bs-target="#schoolFeesModal">
-                    <span class="action-icon action-blue"><i class="fas fa-school"></i></span>
-                    <span><strong>Programme fees</strong><small>View balance and generate an invoice</small></span>
-                    <i class="fas fa-chevron-right action-chevron"></i>
-                </button>
-                <button type="button" class="payment-action-card" data-bs-toggle="modal" data-bs-target="#idCardModal">
-                    <span class="action-icon action-purple"><i class="fas fa-id-card"></i></span>
-                    <span><strong>ID card payment</strong><small>Generate or complete your ID card fee</small></span>
+                @if (!$isAlumni)
+                    <button type="button" class="payment-action-card" data-bs-toggle="modal" data-bs-target="#schoolFeesModal">
+                        <span class="action-icon action-blue"><i class="fas fa-school"></i></span>
+                        <span><strong>Programme fees</strong><small>View balance and generate an invoice</small></span>
+                        <i class="fas fa-chevron-right action-chevron"></i>
+                    </button>
+                @endif
+                <button type="button" class="payment-action-card" data-bs-toggle="modal" data-bs-target="#optionalServicesModal">
+                    <span class="action-icon action-purple"><i class="fas fa-layer-group"></i></span>
+                    <span><strong>Optional services</strong><small>Pay an administrator-registered service</small></span>
                     <i class="fas fa-chevron-right action-chevron"></i>
                 </button>
                 <button type="button" class="payment-action-card" data-bs-toggle="modal" data-bs-target="#verifyInvoiceModal">
@@ -133,7 +173,7 @@
                 </div>
                 <div class="card-body p-0">
                     @if ($invoices->isEmpty())
-                        <div class="empty-payment-state"><i class="fas fa-receipt"></i><h6>No payment records yet</h6><p>Generate a programme-fee or ID-card invoice to get started.</p></div>
+                        <div class="empty-payment-state"><i class="fas fa-receipt"></i><h6>No payment records yet</h6><p>Generate a programme-fee or optional-service invoice to get started.</p></div>
                     @else
                         <div class="table-responsive">
                             <table class="table payment-history-table mb-0">
@@ -143,11 +183,15 @@
                                         @php
                                             $status = strtolower((string) ($invoice->status ?? 'unknown'));
                                             $isPending = $status === 'pending' && filled($invoice->rrr);
+                                            $invoiceDescription = (string) ($invoice->description ?? '');
+                                            $invoiceCategory = $invoiceDescription === 'UNIVERSITY OF MAIDUGURI-1000127 FEES'
+                                                ? (($invoice->fees_type ?? '') === 'nelfund' ? 'NELFUND programme fee' : 'Self-sponsored programme fee')
+                                                : ($optionalDescriptions->contains($invoiceDescription) ? 'Optional service' : 'Student payment');
                                         @endphp
                                         <tr>
                                             <td data-label="Payment"><strong>{{ $invoice->description ?: 'Payment' }}</strong></td>
                                             <td data-label="Session">{{ $invoice->session ?: '—' }}</td>
-                                            <td data-label="Amount"><strong>₦{{ number_format((float) $invoice->amount, 2) }}</strong><small>{{ ($invoice->fees_type ?? '') === 'nelfund' ? 'NELFUND' : 'Self sponsor' }}</small></td>
+                                            <td data-label="Amount"><strong>₦{{ number_format((float) $invoice->amount, 2) }}</strong><small>{{ $invoiceCategory }}</small></td>
                                             <td data-label="Reference"><span class="reference-value">{{ $invoice->rrr ?: ($invoice->orderId ?: 'N/A') }}</span></td>
                                             <td data-label="Status"><span class="payment-status status-{{ $status }}"><i class="fas {{ $status === 'paid' ? 'fa-check-circle' : ($status === 'pending' ? 'fa-clock' : 'fa-info-circle') }}"></i>{{ ucfirst($status) }}</span></td>
                                             <td data-label="Action" class="text-end">
@@ -179,6 +223,7 @@
 </div>
 
 @if ($student)
+    @if (!$isAlumni)
     <div class="modal fade" id="schoolFeesModal" tabindex="-1" aria-labelledby="schoolFeesModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable"><div class="modal-content payment-modal">
             <div class="modal-header"><div><span class="modal-kicker">PROGRAMME FEES</span><h5 class="modal-title" id="schoolFeesModalLabel">Programme fee payment</h5></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
@@ -212,16 +257,31 @@
             </div>
         </div></div>
     </div>
+    @endif
 
-    <div class="modal fade" id="idCardModal" tabindex="-1" aria-labelledby="idCardModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-md"><div class="modal-content payment-modal">
-            <div class="modal-header"><div><span class="modal-kicker">STUDENT ID CARD</span><h5 class="modal-title" id="idCardModalLabel">ID card payment</h5></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+    <div class="modal fade" id="optionalServicesModal" tabindex="-1" aria-labelledby="optionalServicesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable"><div class="modal-content payment-modal">
+            <div class="modal-header"><div><span class="modal-kicker">OPTIONAL SERVICES</span><h5 class="modal-title" id="optionalServicesModalLabel">Pay for a service</h5><p class="text-muted small mb-0">These services are published by the accounts office. Programme fees are handled separately.</p></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
             <div class="modal-body">
-                <div class="id-card-fee-banner"><i class="fas fa-id-card"></i><div><small>Current fee</small><strong>₦{{ number_format($idCardFee, 2) }}</strong></div></div>
-                @if ($pendingIdCards->isNotEmpty())
-                    <div class="pending-notice"><i class="fas fa-clock"></i><div><strong>Pending ID-card invoice available</strong><span>Use Pay now in your payment history to complete it.</span></div></div>
+                @if ($pendingOptionalServices->isNotEmpty())
+                    <div class="pending-notice mb-3"><i class="fas fa-clock"></i><div><strong>Pending optional-service invoice</strong><span>Complete, verify or cancel the pending invoice from Payment history before creating another one for the same service.</span></div></div>
+                @endif
+                @if ($optionalServices->isEmpty())
+                    <div class="empty-payment-state compact"><i class="fas fa-concierge-bell"></i><h6>No optional service is available</h6><p>The accounts office has not published any optional service for students yet.</p></div>
                 @else
-                    <form action="{{ url('/invoices/id-card') }}" method="GET" class="payment-generate-form"><input type="hidden" name="page" value="id-card"><input type="hidden" name="try" value="second"><label for="idPhone">Active phone number</label><input id="idPhone" type="tel" name="phone" class="form-control" placeholder="080..." required><label for="idEmail">Active email address</label><input id="idEmail" type="email" name="email" class="form-control" placeholder="you@example.com" required><button type="submit" class="btn btn-primary btn-lg w-100"><i class="fas fa-file-invoice-dollar"></i> Generate Remita invoice</button></form>
+                    <form action="{{ route('student.optional-service') }}" method="GET" class="payment-generate-form">
+                        <label for="optionalService">Service</label>
+                        <select id="optionalService" name="service" class="form-control" required>
+                            <option value="">Select a service</option>
+                            @foreach ($optionalServices as $service)
+                                <option value="{{ $service['key'] }}">{{ $service['label'] }} — ₦{{ number_format((float) ($service['amount'] ?? 0), 2) }}</option>
+                            @endforeach
+                        </select>
+                        <div class="optional-service-help"><i class="fas fa-circle-info"></i><span>The displayed amount is the base service fee. If split payment is enabled for this service, the configured charge is added securely by Remita at checkout.</span></div>
+                        <label for="optionalPhone">Active phone number</label><input id="optionalPhone" type="tel" name="phone" class="form-control" placeholder="080..." required>
+                        <label for="optionalEmail">Active email address</label><input id="optionalEmail" type="email" name="email" class="form-control" placeholder="you@example.com" required>
+                        <button type="submit" class="btn btn-primary btn-lg w-100"><i class="fas fa-file-invoice-dollar"></i> Generate Remita invoice</button>
+                    </form>
                 @endif
             </div>
         </div></div>
@@ -242,6 +302,7 @@
     .payment-action-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }.payment-action-card { border:1px solid #e5eaf2; background:#fff; border-radius:14px; padding:18px; display:flex; align-items:center; gap:13px; text-align:left; transition:.2s; width:100%; }.payment-action-card:hover{border-color:#2563eb; box-shadow:0 8px 24px rgba(37,99,235,.1); transform:translateY(-1px)}.payment-action-card>span:nth-child(2){display:flex;flex-direction:column;flex:1}.payment-action-card strong{color:#172033}.payment-action-card small{color:#6b7280;margin-top:3px}.action-icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;flex:none}.action-blue{background:#eff6ff;color:#2563eb}.action-purple{background:#f5f3ff;color:#7c3aed}.action-green{background:#f0fdf4;color:#16a34a}.action-chevron{color:#9ca3af}
     .payment-history-card{overflow:hidden}.payment-section-header{display:flex;justify-content:space-between;align-items:center;gap:16px;background:#fff;padding:20px 24px;border-bottom:1px solid #edf0f5}.payment-section-header h5{margin:0;font-weight:700;color:#172033}.payment-section-header h5 i{color:#2563eb;margin-right:8px}.payment-section-header p{margin:5px 0 0;color:#6b7280;font-size:.84rem}.history-count{background:#eff6ff;color:#2563eb;padding:7px 11px;border-radius:99px;font-size:.78rem;white-space:nowrap}.payment-history-table thead th{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;background:#f8fafc;border:0;padding:13px 18px}.payment-history-table tbody td{padding:16px 18px;vertical-align:middle;border-color:#edf0f5;color:#273247}.payment-history-table td strong{display:block}.payment-history-table td small{display:block;color:#7b8494;font-size:.78rem;margin-top:3px}.reference-value{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;color:#334155}.payment-status{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:6px 10px;font-size:.75rem;font-weight:600}.status-paid{background:#ecfdf3;color:#15803d}.status-pending{background:#fff7ed;color:#c2410c}.status-unknown{background:#f1f5f9;color:#475569}.payment-row-actions{display:flex;justify-content:flex-end;gap:6px}.payment-row-actions .btn{white-space:nowrap}.empty-payment-state{text-align:center;padding:48px 24px;color:#6b7280}.empty-payment-state i{font-size:2rem;color:#a8b3c6;margin-bottom:10px}.empty-payment-state h6{color:#273247;margin:0 0 5px}.empty-payment-state p{margin:0}.empty-payment-state.compact{padding:26px 12px}
     .payment-modal{border:0;border-radius:16px;overflow:hidden}.payment-modal .modal-header{padding:20px 24px;border-bottom:1px solid #edf0f5}.modal-kicker{display:block;color:#2563eb;font-size:.68rem;font-weight:700;letter-spacing:.08em;margin-bottom:4px}.payment-modal .modal-title{font-weight:700;color:#172033}.payment-modal .modal-body{padding:24px}.payment-modal label{font-size:.82rem;font-weight:600;color:#374151;margin:14px 0 6px;display:block}.payment-modal label:first-child{margin-top:0}.payment-generate-form .form-control{min-height:46px;border-color:#dbe2ec}.payment-generate-form button{margin-top:20px}.fee-overview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}.fee-overview-grid>div{background:#f8fafc;border-radius:10px;padding:14px}.fee-overview-grid small{display:block;color:#6b7280;font-size:.74rem}.fee-overview-grid strong{display:block;font-size:1.05rem;margin-top:3px}.session-fee-list{border:1px solid #edf0f5;border-radius:10px;margin-bottom:18px}.session-fee-row{padding:11px 14px;display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #edf0f5}.session-fee-row:last-child{border-bottom:0}.session-fee-row span{display:flex;flex-direction:column}.session-fee-row small{color:#6b7280;font-size:.76rem;margin-top:2px}.pending-notice,.success-notice{display:flex;gap:12px;align-items:flex-start;border-radius:11px;padding:14px;background:#fff7ed;color:#9a3412}.pending-notice>i{margin-top:2px}.pending-notice strong,.success-notice strong{display:block}.pending-notice span,.success-notice span{display:block;font-size:.8rem;margin-top:3px;color:#6b7280}.success-notice{background:#f0fdf4;color:#15803d}.id-card-fee-banner{display:flex;gap:14px;align-items:center;background:#f5f3ff;border-radius:12px;padding:18px;color:#6d28d9;margin-bottom:18px}.id-card-fee-banner i{font-size:1.7rem}.id-card-fee-banner small,.id-card-fee-banner strong{display:block}.id-card-fee-banner small{font-size:.78rem;color:#6b7280}.id-card-fee-banner strong{font-size:1.3rem}
+    .optional-service-help{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:10px 12px;border-radius:10px;background:#f8fafc;color:#64748b;font-size:.78rem;line-height:1.45}.optional-service-help i{color:#2563eb;margin-top:2px}
     @media (max-width: 992px){.payment-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.payment-action-grid{grid-template-columns:1fr}.payment-context{text-align:left}}
     @media (max-width: 576px){
         .ug-payment-page{margin:0 -5px;min-height:calc(100vh - 62px)}

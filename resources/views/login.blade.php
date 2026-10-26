@@ -135,6 +135,9 @@
                             here
                         </a>
                     </p>
+                    <p class="mb-0 mt-3 text-muted">
+                        <a href="{{ route('alumni.login') }}" class="font-weight-bold">Alumni sign in</a>
+                    </p>
                     <br>
                     <p class="mb-0 text-muted">
                         For any inquiries or assistance, contact us via WhatsApp <a

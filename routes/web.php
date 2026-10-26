@@ -1050,6 +1050,8 @@ Route::get('/committee-meeting-members/{id}', function ($id) {
     return view('main', $data);
 });
 Route::post('/auth', [LoginController::class, 'auth']);
+Route::get('/alumni-login', [LoginController::class, 'alumniLoginPage'])->name('alumni.login');
+Route::post('/alumni-auth', [LoginController::class, 'alumniAuth'])->name('alumni.auth');
 Route::get('/validate H-Pin', [LoginController::class, 'pin']);
 Route::get('/forgot password', [LoginController::class, 'fpassword']);
 Route::post('/V-H-Pin', [LoginController::class, 'validatePin']);
@@ -1278,6 +1280,7 @@ Route::get('/export-users', [RegistrationController::class, 'exportUsers']);
 Route::get('/export-courses', [RegistrationController::class, 'exportCourses']);
 Route::get('/payment', [RegistrationController::class, 'payment']);
 Route::get('/make-payment', [RegistrationController::class, 'makePayment']);
+Route::get('/invoices/optional-service', [InvoicesController::class, 'initializeOptionalService'])->name('student.optional-service');
 Route::get('/school-fees', [RegistrationController::class, 'schoolFees']);
 Route::get('/applicant-fees', [RegistrationController::class, 'applicantFees']);
 Route::post('/cancel-student-payment/{id}', [InvoicesController::class, 'cancelStudentPayment'])->name('student.payment.cancel');

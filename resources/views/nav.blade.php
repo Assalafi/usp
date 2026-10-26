@@ -720,6 +720,12 @@
         @endif
         @if (session('accType') == 'Alumni')
             <li class="nav-item">
+                <a href="/payment" class="nav-link">
+                    <span class="pcoded-micon"><i class="fas fa-credit-card"></i></span>
+                    <span class="pcoded-mtext">Payments</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a href="/election general" class="nav-link">
                     <span class="pcoded-micon"><i class="fas fa-thumbs-up"></i></span>
                     <span class="pcoded-mtext">General Election</span>

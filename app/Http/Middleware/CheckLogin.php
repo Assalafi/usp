@@ -13,6 +13,8 @@ class CheckLogin
     protected $except = [
         // Login & Auth
         '/',
+        'alumni-login',
+        'alumni-auth',
         'auth',
         'Apply Hostel',
         'forgot password',

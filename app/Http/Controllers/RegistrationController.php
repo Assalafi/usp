@@ -2312,6 +2312,9 @@ class RegistrationController extends Controller
         }
         //
         $data['page'] = 'payment';
+        $audience = session('accType') === 'Alumni' ? 'alumni' : 'student';
+        $data['isAlumni'] = $audience === 'alumni';
+        $data['optionalServices'] = collect(SystemSettingsController::getOptionalStudentServices($audience));
         $data['data'] = DB::table('invoices')->where(['username' => session('id')])->orderBy('session', 'DESC')->orderBy('updated_at', 'DESC')->get();
         return view('main', $data);
     }

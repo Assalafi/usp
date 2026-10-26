@@ -371,6 +371,27 @@
         </div>
     </div>
 
+    <!-- Alumni services -->
+    <div class="election-card alumni-services-card">
+        <div class="election-header" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
+            <div class="election-badge"><i class="fas fa-credit-card"></i><span>Alumni services</span></div>
+            <h2>Access university services</h2>
+        </div>
+        <div class="election-body">
+            <div class="election-info-row">
+                <div class="election-icon"><i class="fas fa-receipt"></i></div>
+                <div class="election-info-content">
+                    <div class="election-info-label">Payments</div>
+                    <div class="election-info-value">Pay for services published by the accounts office and download your receipts.</div>
+                </div>
+            </div>
+            <a href="/payment" class="btn-vote" style="background: linear-gradient(135deg, #2563eb, #1d4ed8);">
+                <i class="fas fa-credit-card"></i>
+                Open payment centre
+            </a>
+        </div>
+    </div>
+
     <!-- Election Card -->
     <div class="election-card">
         <div class="election-header">

@@ -623,7 +623,7 @@
                                     <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between gap-2">
                                         <div>
                                             <h6 class="mb-1"><i class="fas fa-list-check me-2"></i>Remita service types</h6>
-                                            <small>Every payment service used by the portal must have its Remita Service Type ID here.</small>
+                                            <small>Register payment services here. Set a base amount and choose whether it is available to UG students and/or Alumni. Programme fees remain separate.</small>
                                         </div>
                                         <button type="button" class="btn btn-light btn-sm" id="addRemitaService"><i class="fas fa-plus me-1"></i>Add service</button>
                                     </div>
@@ -631,7 +631,7 @@
                                         <input type="hidden" name="remita_service_catalog" id="remitaServiceCatalogPayload">
                                         <div class="table-responsive">
                                             <table class="table table-sm align-middle mb-0" id="remitaServiceTable">
-                                                <thead class="table-light"><tr><th>Service key</th><th>Display name</th><th>Remita Service Type ID</th><th>Additional charge (₦)</th><th>Use service</th><th>Use split</th><th></th></tr></thead>
+                                                <thead class="table-light"><tr><th>Service key</th><th>Display name</th><th>Remita Service Type ID</th><th>Base amount (₦)</th><th>Additional charge (₦)</th><th>Student optional</th><th>Alumni optional</th><th>Use service</th><th>Use split</th><th></th></tr></thead>
                                                 <tbody>
                                                     @php($lockedRemitaServices = ['school_fees', 'hostel', 'post_utme', 'id_card', 'change_of_course', 'inter_university_transfer'])
                                                     @foreach ($remitaServiceCatalog as $service)
@@ -639,7 +639,10 @@
                                                             <td><input type="text" class="form-control form-control-sm" data-field="key" value="{{ $service['key'] }}" {{ in_array($service['key'], $lockedRemitaServices, true) ? 'readonly' : '' }}></td>
                                                             <td><input type="text" class="form-control form-control-sm" data-field="label" value="{{ $service['label'] }}"></td>
                                                             <td><input type="text" class="form-control form-control-sm" data-field="service_type_id" value="{{ $service['service_type_id'] }}" inputmode="numeric" placeholder="e.g. 365039916"></td>
+                                                            <td><input type="number" min="0" step="0.01" class="form-control form-control-sm" data-field="amount" value="{{ $service['amount'] ?? '0.00' }}" inputmode="decimal"></td>
                                                             <td><input type="number" min="0" step="0.01" class="form-control form-control-sm" data-field="surcharge" value="{{ $service['surcharge'] ?? '0.00' }}" inputmode="decimal"></td>
+                                                            <td class="text-center"><input type="checkbox" class="form-check-input" data-field="optional" {{ !empty($service['optional']) ? 'checked' : '' }} title="Show this service to UG students"></td>
+                                                            <td class="text-center"><input type="checkbox" class="form-check-input" data-field="alumni" {{ !empty($service['alumni']) ? 'checked' : '' }} title="Show this service to UG Alumni"></td>
                                                             <td class="text-center"><input type="checkbox" class="form-check-input" data-field="active" {{ $service['active'] ? 'checked' : '' }}></td>
                                                             <td class="text-center"><input type="checkbox" class="form-check-input" data-field="split_enabled" {{ $service['split_enabled'] ? 'checked' : '' }}></td>
                                                             <td>@if (!in_array($service['key'], $lockedRemitaServices, true))<button type="button" class="btn btn-sm btn-outline-danger" data-remove-remita-service title="Remove service"><i class="fas fa-trash"></i></button>@else<span class="text-muted small" title="Built-in service">Built-in</span>@endif</td>
@@ -652,7 +655,10 @@
                                             <td><input type="text" class="form-control form-control-sm" data-field="key" placeholder="e.g. transcript"></td>
                                             <td><input type="text" class="form-control form-control-sm" data-field="label" placeholder="Service name"></td>
                                             <td><input type="text" class="form-control form-control-sm" data-field="service_type_id" inputmode="numeric" placeholder="Service Type ID"></td>
+                                            <td><input type="number" min="0" step="0.01" class="form-control form-control-sm" data-field="amount" value="0.00" inputmode="decimal"></td>
                                             <td><input type="number" min="0" step="0.01" class="form-control form-control-sm" data-field="surcharge" value="0.00" inputmode="decimal"></td>
+                                            <td class="text-center"><input type="checkbox" class="form-check-input" data-field="optional" checked title="Show this service to UG students"></td>
+                                            <td class="text-center"><input type="checkbox" class="form-check-input" data-field="alumni" title="Show this service to UG Alumni"></td>
                                             <td class="text-center"><input type="checkbox" class="form-check-input" data-field="active" checked></td>
                                             <td class="text-center"><input type="checkbox" class="form-check-input" data-field="split_enabled"></td>
                                             <td><button type="button" class="btn btn-sm btn-outline-danger" data-remove-remita-service title="Remove service"><i class="fas fa-trash"></i></button></td>
@@ -974,7 +980,10 @@
                 label: row.querySelector('[data-field="label"]')?.value.trim() || '',
                 service_type_id: row.querySelector('[data-field="service_type_id"]')?.value.trim() || '',
                 description: row.querySelector('[data-field="label"]')?.value.trim() || '',
+                amount: row.querySelector('[data-field="amount"]')?.value || '0',
                 surcharge: row.querySelector('[data-field="surcharge"]')?.value || '0',
+                optional: !!row.querySelector('[data-field="optional"]')?.checked,
+                alumni: !!row.querySelector('[data-field="alumni"]')?.checked,
                 active: !!row.querySelector('[data-field="active"]')?.checked,
                 split_enabled: !!row.querySelector('[data-field="split_enabled"]')?.checked
             });

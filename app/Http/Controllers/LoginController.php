@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Applicant;
+use App\Models\Alumni;
 use App\Models\HostelPin;
 use App\Models\Invoice;
 use App\Models\Student;
@@ -155,6 +156,80 @@ class LoginController extends Controller
             // return redirect('/');
             return redirect()->back()->with('error', 'Wrong ID Or Password');
         }
+    }
+
+    /**
+     * Display the dedicated Alumni sign-in screen.
+     */
+    public function alumniLoginPage()
+    {
+        if (session()->has('log') && session('accType') === 'Alumni') {
+            return redirect('/dash');
+        }
+
+        return view('alumni-login');
+    }
+
+    /**
+     * Authenticate only Alumni accounts. Student, staff and applicant
+     * credentials are deliberately rejected on this entry point.
+     */
+    public function alumniAuth(Request $request)
+    {
+        $validated = $request->validate([
+            'username' => ['required', 'string', 'max:255'],
+            'password' => ['required', 'string', 'max:255'],
+        ], [
+            'username.required' => 'Enter your Alumni username or ID number.',
+            'password.required' => 'Enter your password.',
+        ]);
+
+        $login = trim($validated['username']);
+        $user = User::where('accType', 'Alumni')->where('username', $login)->first();
+        $alumni = Alumni::where('username', $login)
+            ->orWhere('id_no', $login)
+            ->first();
+
+        if (!$user && $alumni) {
+            $user = User::where('id', $alumni->user_id)->where('accType', 'Alumni')->first();
+        }
+        if (!$alumni && $user) {
+            $alumni = Alumni::where('user_id', $user->id)->first();
+        }
+
+        if (!$user || !$alumni || !Hash::check($validated['password'], (string) $user->password)) {
+            return back()->withInput($request->only('username'))
+                ->with('error', 'The Alumni username/ID number or password is incorrect.');
+        }
+        if ((string) $user->status === '0') {
+            return back()->withInput($request->only('username'))
+                ->with('error', 'This Alumni account is currently inactive. Please contact the Alumni office.');
+        }
+
+        $request->session()->regenerate();
+        $systemSession = DB::table('session')->where('status', '1')->value('title');
+        $systemSemester = DB::table('semester')->where('status', '1')->value('semester');
+        $loginUsername = trim((string) ($alumni->username ?: $user->username));
+        $idNumber = trim((string) ($alumni->id_no ?: $loginUsername));
+
+        $request->session()->put([
+            'log' => '1',
+            'username' => $loginUsername,
+            'accType' => 'Alumni',
+            'id' => (string) $user->id,
+            'id_number' => $idNumber,
+            'id_no' => $idNumber,
+            'gender' => $alumni->gender,
+            'program' => $alumni->program,
+            'faculty' => null,
+            'department' => null,
+            'activeProfile' => 1,
+            'system_session' => $systemSession,
+            'system_semester' => $systemSemester,
+        ]);
+        $request->session()->flash('success', 'Welcome back, ' . ($alumni->fullname ?: 'Alumni') . '.');
+
+        return redirect('/dash');
     }
 
     function accountValidations(Request $request)
