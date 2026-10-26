@@ -78,8 +78,12 @@ foreach ($users as $row) {
     if ($student && !empty($student->user_id)) {
         $permitPayment = DB::table('invoices')
             ->where('username', $student->user_id)
-            ->where('description', 'HOSTEL-MAINTENANCE/FEES')
-            ->where('status', 'Paid')
+            ->where(function ($query) {
+                $query->where('description', 'HOSTEL-MAINTENANCE/FEES')
+                    ->orWhereRaw('UPPER(description) LIKE ?', ['%HOSTEL%']);
+            })
+            ->whereIn('status', ['Paid', 'paid', 'Successful', 'successful', 'Success', 'success', 'Completed', 'completed'])
+            ->orderByRaw("CASE WHEN COALESCE(rrr, '') = '' AND COALESCE(orderId, '') = '' THEN 1 ELSE 0 END")
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
             ->first();
@@ -89,7 +93,10 @@ foreach ($users as $row) {
         : (float) ($row->amount ?? $row->hostel_amount ?? 0);
     $externalPaymentRrr = is_array($external) ? ($external['payment_rrr'] ?? $external['rrr'] ?? '') : '';
     $externalPaymentDescription = is_array($external) ? ($external['payment_description'] ?? '') : '';
-    $paymentRrr = trim((string) ($permitPayment->rrr ?? $externalPaymentRrr));
+    $invoicePaymentRrr = $permitPayment
+        ? (($permitPayment->rrr ?? '') !== '' ? $permitPayment->rrr : ($permitPayment->orderId ?? ''))
+        : '';
+    $paymentRrr = trim((string) ($invoicePaymentRrr !== '' ? $invoicePaymentRrr : $externalPaymentRrr));
     $paymentDescription = trim((string) ($permitPayment->description ?? ($externalPaymentDescription ?: 'HOSTEL-MAINTENANCE/FEES')));
     $paymentDescription = $paymentDescription !== '' ? $paymentDescription : 'Hostel accommodation fee';
     $permitNumber = sprintf('HP-%06d', (int) $row->id);
