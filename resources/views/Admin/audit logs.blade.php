@@ -60,6 +60,22 @@
                                 </div>
                             </div>
                         </form>
+                        <div class="border-top pt-3 mt-2">
+                            <form id="audit-delete-form" action="{{ url('/audit-logs/delete') }}" method="POST">
+                                @csrf
+                                <input type="hidden" name="username" value="{{ $filters['username'] ?? '' }}">
+                                <input type="hidden" name="page_filter" value="{{ $filters['page_filter'] ?? '' }}">
+                                <input type="hidden" name="method" value="{{ $filters['method'] ?? '' }}">
+                                <input type="hidden" name="ip_address" value="{{ $filters['ip_address'] ?? '' }}">
+                                <input type="hidden" name="date_from" value="{{ $filters['date_from'] ?? '' }}">
+                                <input type="hidden" name="date_to" value="{{ $filters['date_to'] ?? '' }}">
+                                <button type="submit" id="audit-delete-button" class="btn btn-outline-danger">
+                                    <i class="fas fa-trash-alt me-1"></i> Delete filtered logs in batches
+                                </button>
+                                <span class="small text-muted ms-2">Only records matching the filters above will be removed.</span>
+                                <div id="audit-delete-status" class="small mt-2" role="status" aria-live="polite"></div>
+                            </form>
+                        </div>
                     </div>
 
                     <div class="card-block">
@@ -192,5 +208,64 @@ document.addEventListener('DOMContentLoaded', function() {
             modal.show();
         });
     });
+
+    var deleteForm = document.getElementById('audit-delete-form');
+    var deleteButton = document.getElementById('audit-delete-button');
+    var deleteStatus = document.getElementById('audit-delete-status');
+    if (deleteForm && deleteButton) {
+        deleteForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            if (!window.confirm('Delete all audit logs matching the current filters? This cannot be undone.')) {
+                return;
+            }
+
+            deleteButton.disabled = true;
+            deleteButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Deleting…';
+            deleteStatus.className = 'small mt-2 text-info';
+            deleteStatus.textContent = 'Preparing the deletion…';
+
+            var csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || deleteForm.querySelector('[name="_token"]')?.value;
+            var cutoffId = '';
+            var deletedTotal = 0;
+            var rounds = 0;
+
+            try {
+                while (rounds < 100000) {
+                    rounds++;
+                    var body = new URLSearchParams(new FormData(deleteForm));
+                    if (cutoffId) body.set('cutoff_id', cutoffId);
+                    var response = await fetch(deleteForm.action, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                            'X-CSRF-TOKEN': csrf,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: body.toString()
+                    });
+                    var result = await response.json();
+                    if (!response.ok) {
+                        throw new Error(result.message || 'The server could not complete the deletion.');
+                    }
+                    cutoffId = result.cutoff_id || cutoffId;
+                    deletedTotal += Number(result.deleted || 0);
+                    deleteStatus.textContent = 'Deleted ' + deletedTotal.toLocaleString() + ' record(s)…';
+                    if (result.done) {
+                        deleteStatus.className = 'small mt-2 text-success';
+                        deleteStatus.textContent = 'Completed. Deleted ' + deletedTotal.toLocaleString() + ' matching audit record(s). Reloading…';
+                        window.setTimeout(function() { window.location.reload(); }, 600);
+                        return;
+                    }
+                }
+                throw new Error('The deletion was stopped after reaching the safety limit. Refresh and continue if records remain.');
+            } catch (error) {
+                deleteStatus.className = 'small mt-2 text-danger';
+                deleteStatus.textContent = error.message || 'The deletion could not be completed.';
+                deleteButton.disabled = false;
+                deleteButton.innerHTML = '<i class="fas fa-trash-alt me-1"></i> Try deletion again';
+            }
+        });
+    }
 });
 </script>

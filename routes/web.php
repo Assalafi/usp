@@ -1235,6 +1235,70 @@ sort($allPages);
     ];
     return view('main', $data);
 });
+
+// Delete audit logs in bounded batches. The client repeats the request until
+// the filtered set is empty, so a very large table never holds one long
+// transaction or request. A cutoff ID keeps audit entries created by these
+// requests from being picked up by the same deletion operation.
+Route::post('/audit-logs/delete', function (\Illuminate\Http\Request $req) {
+    if (! session()->has('log') || session('accType') !== 'Admin') {
+        return response()->json(['message' => 'You are not authorised to delete audit logs.'], 403);
+    }
+
+    $validated = $req->validate([
+        'username' => ['nullable', 'string', 'max:255'],
+        'page_filter' => ['nullable', 'string', 'max:255'],
+        'method' => ['nullable', 'in:GET,POST'],
+        'ip_address' => ['nullable', 'string', 'max:64'],
+        'date_from' => ['nullable', 'date'],
+        'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        'cutoff_id' => ['nullable', 'integer', 'min:0'],
+    ]);
+
+    $cutoffId = (int) ($validated['cutoff_id'] ?? 0);
+    if ($cutoffId < 1) {
+        $cutoffId = (int) (\App\Models\Audit::max('id') ?? 0);
+    }
+
+    $query = \App\Models\Audit::query()->where('id', '<=', $cutoffId);
+    if (! empty($validated['username'])) {
+        $query->where('username', 'LIKE', '%' . trim($validated['username']) . '%');
+    }
+    if (! empty($validated['page_filter'])) {
+        $pageFilter = str_replace(' ', '%20', $validated['page_filter']);
+        $query->where('page', 'LIKE', '%' . $pageFilter . '%');
+    }
+    if (! empty($validated['method'])) {
+        $query->where('method', $validated['method']);
+    }
+    if (! empty($validated['ip_address'])) {
+        $query->where('ip_address', 'LIKE', '%' . trim($validated['ip_address']) . '%');
+    }
+    if (! empty($validated['date_from'])) {
+        $query->where('created_at', '>=', \Carbon\Carbon::parse($validated['date_from'])->startOfDay());
+    }
+    if (! empty($validated['date_to'])) {
+        $query->where('created_at', '<', \Carbon\Carbon::parse($validated['date_to'])->addDay()->startOfDay());
+    }
+
+    $ids = $query->orderBy('id')->limit(2000)->pluck('id');
+    if ($ids->isEmpty()) {
+        return response()->json([
+            'done' => true,
+            'deleted' => 0,
+            'cutoff_id' => $cutoffId,
+        ]);
+    }
+
+    $deleted = \App\Models\Audit::whereIn('id', $ids)->delete();
+    $remaining = (clone $query)->exists();
+
+    return response()->json([
+        'done' => ! $remaining,
+        'deleted' => $deleted,
+        'cutoff_id' => $cutoffId,
+    ]);
+});
 Route::get('/application', [RegistrationController::class, 'application']);
 Route::post('/submit-application', [RegistrationController::class, 'submitApplication']);
 Route::post('/application/personal-info', [RegistrationController::class, 'savePersonalInfo'])->name('application.savePersonalInfo');

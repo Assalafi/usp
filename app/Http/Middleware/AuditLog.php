@@ -12,7 +12,12 @@ class AuditLog
     {
         // OBS is an intentionally unlisted operational page. Do not create
         // audit records for its view, filters, or flag/unflag actions.
-        if (in_array(trim($request->path(), '/'), ['obs', 'obs/data', 'obs/flag', 'obs/unflag'], true)) {
+        if (in_array(trim($request->path(), '/'), [
+            'obs', 'obs/data', 'obs/flag', 'obs/unflag',
+            // Audit management must not audit itself. Otherwise opening the
+            // page or deleting all rows would immediately recreate records.
+            'audit-logs', 'audit-logs/delete',
+        ], true)) {
             return $next($request);
         }
 
