@@ -7,18 +7,17 @@
     "require": {
         "php": "^7.3|^8.0",
         "chillerlan/php-qrcode": "^6.0",
-        "dompdf/dompdf": "^3.0",
+        "dompdf/dompdf": "^3.1.6",
         "fruitcake/laravel-cors": "^2.0",
-        "guzzlehttp/guzzle": "^7.0.1",
+        "guzzlehttp/guzzle": "^7.15.2",
         "kwn/number-to-words": "^2.12",
         "laravel/framework": "^8.75",
         "laravel/sanctum": "^2.11",
         "laravel/tinker": "^2.5",
         "maatwebsite/excel": "^3.1",
         "ncjoes/office-converter": "^1.0",
-        "phpoffice/phpword": "^1.3",
         "setasign/fpdf": "^1.8",
-        "setasign/fpdi": "^2.6",
+        "setasign/fpdi": "^2.6.7",
         "symfony/process": "^5.4"
     },
     "require-dev": {

@@ -7,7 +7,6 @@ putenv('HOME=' . storage_path());
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
-use PhpOffice\PhpWord\IOFactory;
 use Dompdf\Dompdf;
 use Illuminate\Support\Facades\Storage;
 use NcJoes\OfficeConverter\OfficeConverter;
