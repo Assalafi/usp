@@ -45,13 +45,25 @@ if (isset($_GET['RRR']) && isset($_GET['orderID'])) {
         $datas['updated_at'] = NOW();
         $des = DB::table('invoices')
             ->where(['rrr' => $rrr, 'username' => session('id'), 'status' => 'Pending'])
-            ->select('description', 'username', 'rrr')
+            ->select('description', 'username', 'rrr', 'hostel_id')
             ->get();
         foreach ($des as $des) {
             if ($des->description == 'HOSTEL-MAINTENANCE/FEES') {
                 $username = DB::table('students')->where('user_id', $des->username)->select('username')->value('username');
-                $datass['hostel_payment'] = '1';
-                DB::table('hostel')->where('occupant', $username)->update($datass);
+                if ($username) {
+                    $hostelQuery = DB::table('hostel')->where('occupant', $username);
+                    if (!empty($des->hostel_id)) {
+                        $hostelQuery->where('id', $des->hostel_id);
+                    } else {
+                        $hostelQuery->where(function ($query) {
+                            $query->whereNull('hostel_payment')->orWhere('hostel_payment', '!=', '1');
+                        })->orderBy('id');
+                    }
+                    $hostelToSettle = $hostelQuery->first(['id']);
+                    if ($hostelToSettle) {
+                        DB::table('hostel')->where('id', $hostelToSettle->id)->update(['hostel_payment' => '1']);
+                    }
+                }
             } elseif ($des->description == 'UNIVERSITY OF MAIDUGURI-1000127 FEES') {
                 $session = DB::table('session')->where('status', '1')->value('title');
                 $flag = 0;

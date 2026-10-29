@@ -781,10 +781,27 @@ Route::get('/hostel-invoice', function (Request $req) {
     if (!session()->has('log')) {
         return redirect('/');
     }
-    $data = DB::table('invoices')->select('username')->where(['description' => 'HOSTEL-MAINTENANCE/FEES', 'status' => 'Paid'])->get();
+    $data = DB::table('invoices')
+        ->select('username', 'hostel_id')
+        ->where(['description' => 'HOSTEL-MAINTENANCE/FEES', 'status' => 'Paid'])
+        ->get();
     foreach ($data as $row) {
         $occupant = DB::table('users')->select('username')->where('id', $row->username)->value('username');
-        DB::table('hostel')->where('occupant', $occupant)->update(['hostel_payment' => 1]);
+        if (!$occupant) {
+            continue;
+        }
+        $hostelQuery = DB::table('hostel')->where('occupant', $occupant);
+        if (!empty($row->hostel_id)) {
+            $hostelQuery->where('id', $row->hostel_id);
+        } else {
+            $hostelQuery->where(function ($query) {
+                $query->whereNull('hostel_payment')->orWhere('hostel_payment', '!=', 1);
+            })->orderBy('id');
+        }
+        $hostelToSettle = $hostelQuery->first(['id']);
+        if ($hostelToSettle) {
+            DB::table('hostel')->where('id', $hostelToSettle->id)->update(['hostel_payment' => 1]);
+        }
     }
     return redirect()->back()->with('success', 'Done!!!');
 });
@@ -1394,6 +1411,9 @@ Route::get('/print-receipt/{rrr}', [InvoicesController::class, 'printReceipt'])-
 Route::get('/admin/receipts', [InvoicesController::class, 'adminReceipts'])->name('admin.receipts');
 Route::get('/admin/remita-split-report', [App\Http\Controllers\RemitaSplitReportController::class, 'index'])
     ->name('admin.remita.split.report')
+    ->middleware('role');
+Route::get('/admin/remita-split-report/export', [App\Http\Controllers\RemitaSplitReportController::class, 'export'])
+    ->name('admin.remita.split.report.export')
     ->middleware('role');
 Route::get('/admin/receipts/download-all', [InvoicesController::class, 'downloadAllReceipts'])->name('admin.receipts.download_all');
 Route::post('/admin/receipts/export-paid-students', [InvoicesController::class, 'exportPaidStudents'])->name('admin.receipts.export_paid_students');

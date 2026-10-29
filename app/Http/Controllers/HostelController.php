@@ -227,7 +227,11 @@ class HostelController extends Controller
         $data['eligibility'] = $eligibility;
 
         $check = DB::table('hostel')->select('id', 'occupant', 'amount')->where('occupant', $studentId)->first();
-        $data['data'] = DB::table('hostel')->select('id', 'hall', 'block', 'room', 'bed', 'occupant', 'payment_method', 'hostel_payment')->where('occupant', $studentId)->get();
+        $data['data'] = DB::table('hostel')
+            ->select('id', 'hall', 'block', 'room', 'bed', 'occupant', 'amount', 'payment_method', 'hostel_payment')
+            ->where('occupant', $studentId)
+            ->orderBy('id')
+            ->get();
 
         // Do not scan the availability table when the student already has a
         // reservation or applications are closed. The short cache absorbs the
@@ -263,27 +267,47 @@ class HostelController extends Controller
         }
 
         if ($check) {
-            // get amount
-            $amount = $check->amount;
-            $flag = 1;
-
+            // A student may have more than one administrator-assigned space.
+            // Each space gets its own invoice and payment state. Legacy hostel
+            // invoices without hostel_id are only associated automatically when
+            // the student has exactly one space; this avoids paying every bed
+            // from one old invoice.
             $fetching_session = SystemSettingsController::getHostelFeesSession();
-            $data['invoice'] = DB::table('invoices')
-                ->where([
-                    'username' => session('id'),
-                    'description' => 'HOSTEL-MAINTENANCE/FEES',
-                    'amount' => $amount,
-                    'session' => $fetching_session,
-                ])
-                ->get();
-            if ($data['invoice']->isNotEmpty()) {
-                $flag = 2;
-                $data['rrr'] = $data['invoice']->last()->rrr;
-            }
-        }
+            $hostelIds = $data['data']->pluck('id')->filter()->values();
+            $invoices = $hostelIds->isNotEmpty()
+                ? DB::table('invoices')
+                    ->where('username', session('id'))
+                    ->where('description', 'HOSTEL-MAINTENANCE/FEES')
+                    ->where('session', $fetching_session)
+                    ->whereIn('hostel_id', $hostelIds->all())
+                    ->orderBy('id')
+                    ->get()
+                    ->groupBy('hostel_id')
+                : collect();
 
-        if ($data['data']->contains(fn ($row) => (string) $row->hostel_payment === '1')) {
-            $flag = 3;
+            if ($data['data']->count() === 1) {
+                $legacyInvoice = DB::table('invoices')
+                    ->where('username', session('id'))
+                    ->where('description', 'HOSTEL-MAINTENANCE/FEES')
+                    ->where('session', $fetching_session)
+                    ->whereNull('hostel_id')
+                    ->orderByDesc('id')
+                    ->first();
+                if ($legacyInvoice) {
+                    $invoices->put((string) $data['data']->first()->id, collect([$legacyInvoice]));
+                }
+            }
+
+            $data['data']->each(function ($reservation) use ($invoices) {
+                $reservationInvoices = $invoices->get($reservation->id, collect());
+                $reservation->invoice = $reservationInvoices->sortByDesc('id')->first();
+                $reservation->invoice_pending = $reservation->invoice
+                    && !in_array(strtolower((string) $reservation->invoice->status), ['paid', 'cancelled'], true);
+            });
+
+            // The view renders each reservation independently (flag 6). Keep
+            // the old flags for non-reservation states only.
+            $flag = 6;
         }
 
         if ($isStudent && !$check) {
@@ -1239,34 +1263,81 @@ class HostelController extends Controller
             return redirect('/');
         }
 
-        //$exist = HostelPin::where('username', $request -> username)->first();
-        $exist = 1;
-        if ($exist == 1) {
-            $hostel = Hostel::where('occupant', $request->username)->first();
-            if ($hostel) {
-                $msg = "This student (" . $request->username . ") already has bed space in " . $hostel['hall'] . " | " . $hostel['block'] . " | " . $hostel['room'] . " | " . $hostel['bed'];
-                return redirect()->back()->with('error', $msg);
-            }
-            $genderH = Hostel::where('id', $request->id)->first();
-            $genderS = User::where('username', $request->username)->first();
-            //echo $genderH['gender'].' '.$genderS['gender'];
-            //die;
-            if ($genderS) {
-                $genderS = $genderS['gender'];
-                $genderH = $genderH['gender'];
-                if ($genderH != $genderS) {
-                    return redirect()->back()->with('error', 'Gender Error!!!');
-                }
-            }
+        $username = trim((string) $request->input('username'));
+        $bedId = (int) $request->input('id');
+        $existingAllocations = Hostel::where('occupant', $username)
+            ->orderBy('hall')
+            ->orderBy('block')
+            ->orderBy('room')
+            ->orderBy('bed')
+            ->get();
+        $existing = $existingAllocations->first();
+        $confirmation = session('hostel_assignment_confirmation');
+        $hasConfirmation = $request->boolean('confirm_multiple')
+            && is_array($confirmation)
+            && !empty($confirmation['token'])
+            && hash_equals((string) $confirmation['token'], (string) $request->input('confirmation_token'))
+            && (string) ($confirmation['username'] ?? '') === $username
+            && (int) ($confirmation['bed_id'] ?? 0) === $bedId
+            && (int) ($confirmation['expires_at'] ?? 0) >= now()->timestamp;
 
-            DB::table('hostel')->where(['id' => $request->id])->update([
-                'occupant' => $request->username,
-                'status' => 1
+        // A duplicate allocation requires an explicit second confirmation.
+        // The check is repeated below before the write, so the warning cannot
+        // be bypassed by replaying an old form or by a concurrent request.
+        if ($existing && !$hasConfirmation) {
+            $token = Str::random(40);
+            session()->put('hostel_assignment_confirmation', [
+                'token' => $token,
+                'username' => $username,
+                'bed_id' => $bedId,
+                'expires_at' => now()->addMinutes(10)->timestamp,
             ]);
-            return redirect()->back()->with('success', 'Successfully Assigned');
-        } else {
-            return redirect()->back()->with('error', 'PIN is Required!!!');
+            return redirect()->back()->with('assignment_warning', [
+                'username' => $username,
+                'bed_id' => $bedId,
+                'token' => $token,
+                'hall' => $existing->hall,
+                'block' => $existing->block,
+                'room' => $existing->room,
+                'bed' => $existing->bed,
+                'allocations' => $existingAllocations->map(fn ($allocation) => [
+                    'hall' => $allocation->hall,
+                    'block' => $allocation->block,
+                    'room' => $allocation->room,
+                    'bed' => $allocation->bed,
+                ])->values()->all(),
+            ]);
         }
+
+        $genderH = Hostel::where('id', $bedId)->first();
+        if (!$genderH) {
+            return redirect()->back()->with('error', 'The selected bed space could not be found. Please refresh and try again.');
+        }
+
+        $genderS = User::where('username', $username)->first();
+        if ($genderS && $genderH->gender != $genderS->gender) {
+            return redirect()->back()->with('error', 'The student’s gender does not match this bed space.');
+        }
+
+        // Only claim a genuinely available bed. This prevents a second admin
+        // from overwriting an occupant while the confirmation dialog is open.
+        $updated = DB::table('hostel')
+            ->where('id', $bedId)
+            ->where('status', 0)
+            ->update([
+                'occupant' => $username,
+                'status' => 1,
+            ]);
+
+        if ($updated !== 1) {
+            return redirect()->back()->with('error', 'Sorry, this bed space has just been assigned. Please choose another available space.');
+        }
+
+        session()->forget('hostel_assignment_confirmation');
+
+        return redirect()->back()->with('success', $existing
+            ? 'The additional bed space was assigned successfully.'
+            : 'Successfully assigned.');
     }
 
     public function revoke(Request $request)
@@ -1336,9 +1407,12 @@ class HostelController extends Controller
         if (session('accType') === 'Admin') {
             $hostel = DB::table('hostel')->where('id', $id)->first();
         } else {
-            $hostel = DB::table('hostel')->where('occupant', session('id_number'))->first();
+            $hostel = DB::table('hostel')
+                ->where('id', $id)
+                ->where('occupant', session('id_number'))
+                ->first();
 
-            if (!$hostel || (string) $hostel->id !== (string) $id) {
+            if (!$hostel) {
                 return redirect()->back()->with('error', 'You can only download the permit assigned to your account.');
             }
         }

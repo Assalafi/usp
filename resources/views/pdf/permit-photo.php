@@ -76,17 +76,34 @@ foreach ($users as $row) {
     // the amount stored on the allocated bed when no invoice is available.
     $permitPayment = null;
     if ($student && !empty($student->user_id)) {
-        $permitPayment = DB::table('invoices')
+        $paymentQuery = DB::table('invoices')
             ->where('username', $student->user_id)
             ->where(function ($query) {
                 $query->where('description', 'HOSTEL-MAINTENANCE/FEES')
                     ->orWhereRaw('UPPER(description) LIKE ?', ['%HOSTEL%']);
             })
-            ->whereIn('status', ['Paid', 'paid', 'Successful', 'successful', 'Success', 'success', 'Completed', 'completed'])
+            ->whereIn('status', ['Paid', 'paid', 'Successful', 'successful', 'Success', 'success', 'Completed', 'completed']);
+
+        // New invoices are linked to the exact hostel row. This prevents a
+        // student with multiple spaces from receiving another space's RRR.
+        $permitPayment = (clone $paymentQuery)
+            ->where('hostel_id', $row->id)
             ->orderByRaw("CASE WHEN COALESCE(rrr, '') = '' AND COALESCE(orderId, '') = '' THEN 1 ELSE 0 END")
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
             ->first();
+
+        // Older single-space allocations predate hostel_id. Use their legacy
+        // invoice only when the student has exactly one hostel row; never
+        // copy a legacy payment onto one of several spaces.
+        if (!$permitPayment && DB::table('hostel')->where('occupant', $row->occupant)->count() === 1) {
+            $permitPayment = (clone $paymentQuery)
+                ->whereNull('hostel_id')
+                ->orderByRaw("CASE WHEN COALESCE(rrr, '') = '' AND COALESCE(orderId, '') = '' THEN 1 ELSE 0 END")
+                ->orderByDesc('updated_at')
+                ->orderByDesc('id')
+                ->first();
+        }
     }
     $externalPaymentAmount = is_array($external) ? ($external['payment_amount'] ?? null) : null;
     $paymentAmount = $permitPayment

@@ -468,18 +468,51 @@ class InvoicesController extends Controller
             return redirect()->back()->with('error', 'Your Personal Record Not Found in Current Uploaded Data, Report to Student Affairs.');
         }
 
+        $hostelId = null;
         if ($req->page == 'hostel') {
             $datas['session'] = \App\Http\Controllers\SystemSettingsController::getHostelFeesSession();
             $name = $datas['name'] = $name . ' (' . session('id_number') . ')';
             $phone = $datas['phone'] = $req->phone;
             $email = $datas['email'] = strtolower($req->email);
 
+            $hostelId = (int) $req->input('hostel_id');
+            $studentSpaces = DB::table('hostel')
+                ->where('occupant', session('id_number'))
+                ->orderBy('id')
+                ->get(['id', 'amount', 'hostel_payment']);
+            if (!$hostelId && $studentSpaces->count() === 1) {
+                $hostelId = (int) $studentSpaces->first()->id;
+            }
+            if (!$hostelId) {
+                return redirect()->back()->with('error', 'Select the specific hostel space you want to pay for.');
+            }
+
+            $hostel = $studentSpaces->firstWhere('id', $hostelId);
+            if (!$hostel) {
+                return redirect()->back()->with('error', 'That hostel space is not assigned to your account.');
+            }
+            if ((string) $hostel->hostel_payment === '1') {
+                return redirect()->back()->with('error', 'This hostel space has already been paid for.');
+            }
+
             $description = config('services.remita.hostel_description');
             $serviceTypeId = \App\Http\Controllers\SystemSettingsController::getRemitaServiceType('hostel', config('services.remita.hostel_key'));
-            $amount = DB::table('hostel')->where('occupant', session('id_number'))->select('amount')->value('amount');
+            $amount = $hostel->amount;
             if ($amount > 0) {
             } else {
                 return redirect()->back()->with('error', 'No Bed Space Reservation Assign to Your ID NO.');
+            }
+
+            $pendingHostelInvoice = DB::table('invoices')
+                ->where('username', session('id'))
+                ->where('description', 'HOSTEL-MAINTENANCE/FEES')
+                ->where('session', $datas['session'])
+                ->where('hostel_id', $hostelId)
+                ->whereIn('status', ['Pending', 'Processing'])
+                ->orderByDesc('id')
+                ->first();
+            if ($pendingHostelInvoice) {
+                return redirect()->back()->with('error', 'A payment invoice is already open for this hostel space. Use its existing payment reference.');
             }
         } else if ($req->page == 'school-fees') {
             $amounts = DB::table('school_fees')->where(['program' => $row->program, 'level' => $row->level_of_entry, 'type' => 'NEW'])->select('amount')->value('amount');
@@ -600,6 +633,9 @@ class InvoicesController extends Controller
         }
         $rrr = $result['rrr'];
         $datas['username'] = session('id');
+            if ($req->page === 'hostel') {
+                $datas['hostel_id'] = $hostelId;
+            }
             $datas['description'] = $description;
             $datas['amount'] = $amount;
             $datas['orderId'] = $orderId;
@@ -804,35 +840,32 @@ class InvoicesController extends Controller
 
         if ($rrr == NULL) {
             return redirect()->back()->with('error', 'There is an error from the REMITA site. Try Again');
-        } else {
-            $datas['username'] = session('id');
-            $datas['description'] = $description;
-            $datas['amount'] = $amount;
-            $datas['orderId'] = $orderId;
-            $datas['serviceTypeId'] = $serviceTypeId;
-            $datas['rrr'] = $rrr;
-            $datas['base_amount'] = $prepared['base_amount'];
-            $datas['surcharge_amount'] = $prepared['surcharge_amount'];
-            $datas['split_enabled'] = $prepared['split_enabled'] ? 1 : 0;
-            $datas['split_details'] = $prepared['line_item_summary'] !== []
-                ? json_encode($prepared['line_item_summary'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
-                : null;
-            try {
-                RemitaPaymentService::storeInvoice($datas, $prepared);
-            } catch (QueryException $e) {
-                if ($e->errorInfo[1] == 1062) {
-                    return redirect()->back()->with('error', 'You already have pending invoice for this service');
-                } else {
-                    dd($e);
-                    return redirect()->back()->with('error', 'Something went Wrong...');
-                }
-            } catch (\Exception $e) {
-                return redirect()->back()->with('error', 'Something went Wrong ');
-            } finally {
-            }
-
-            return redirect()->back()->with('success', 'Payment Generated');
         }
+
+        $datas['username'] = session('id');
+        $datas['description'] = $description;
+        $datas['amount'] = $amount;
+        $datas['orderId'] = $orderId;
+        $datas['serviceTypeId'] = $serviceTypeId;
+        $datas['rrr'] = $rrr;
+        $datas['base_amount'] = $prepared['base_amount'];
+        $datas['surcharge_amount'] = $prepared['surcharge_amount'];
+        $datas['split_enabled'] = $prepared['split_enabled'] ? 1 : 0;
+        $datas['split_details'] = $prepared['line_item_summary'] !== []
+            ? json_encode($prepared['line_item_summary'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+            : null;
+        try {
+            RemitaPaymentService::storeInvoice($datas, $prepared);
+        } catch (QueryException $e) {
+            if ($e->errorInfo[1] == 1062) {
+                return redirect()->back()->with('error', 'You already have pending invoice for this service');
+            }
+            return redirect()->back()->with('error', 'Something went Wrong...');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Something went Wrong ');
+        }
+
+        return redirect()->back()->with('success', 'Payment Generated');
     }
 
     public function create(Request $req)
@@ -999,7 +1032,7 @@ class InvoicesController extends Controller
             // Get invoice descriptions for this payment
             $invoices = DB::table('invoices')
                 ->where(['rrr' => $rrr, 'username' => session('id')])
-                ->select('description', 'username')
+                ->select('description', 'username', 'hostel_id')
                 ->get();
 
             $hasPostUtme = false;
@@ -1010,9 +1043,23 @@ class InvoicesController extends Controller
                         ->where('user_id', $invoice->username)
                         ->value('username');
 
-                    DB::table('hostel')
-                        ->where('occupant', $username)
-                        ->update(['hostel_payment' => '1']);
+                    $hostelQuery = DB::table('hostel')->where('occupant', $username);
+                    if (!empty($invoice->hostel_id)) {
+                        // New invoices are tied to exactly one assigned space.
+                        $hostelQuery->where('id', $invoice->hostel_id);
+                    } else {
+                        // Legacy invoice fallback: only settle one unpaid space,
+                        // never every space owned by the student.
+                        $hostelQuery->where(function ($query) {
+                            $query->whereNull('hostel_payment')->orWhere('hostel_payment', '!=', '1');
+                        })->orderBy('id');
+                    }
+                    $hostelToSettle = $hostelQuery->first(['id']);
+                    if ($hostelToSettle) {
+                        DB::table('hostel')
+                            ->where('id', $hostelToSettle->id)
+                            ->update(['hostel_payment' => '1']);
+                    }
                     // dd($invoice, $username);
                 } elseif ($invoice->description == 'UNIVERSITY OF MAIDUGURI-1000127 FEES') {
                     // Handle ID number assignment
@@ -1385,7 +1432,7 @@ class InvoicesController extends Controller
             // Get invoice descriptions for this payment
             $invoices = DB::table('invoices')
                 ->where('rrr', $rrr)
-                ->select('description', 'username', 'session')
+                ->select('description', 'username', 'session', 'hostel_id')
                 ->get();
 
             foreach ($invoices as $invoice) {
@@ -1396,9 +1443,20 @@ class InvoicesController extends Controller
                         ->value('username');
 
                     if ($studentUsername) {
-                        DB::table('hostel')
-                            ->where('occupant', $studentUsername)
-                            ->update(['hostel_payment' => '1']);
+                        $hostelQuery = DB::table('hostel')->where('occupant', $studentUsername);
+                        if (!empty($invoice->hostel_id)) {
+                            $hostelQuery->where('id', $invoice->hostel_id);
+                        } else {
+                            $hostelQuery->where(function ($query) {
+                                $query->whereNull('hostel_payment')->orWhere('hostel_payment', '!=', '1');
+                            })->orderBy('id');
+                        }
+                        $hostelToSettle = $hostelQuery->first(['id']);
+                        if ($hostelToSettle) {
+                            DB::table('hostel')
+                                ->where('id', $hostelToSettle->id)
+                                ->update(['hostel_payment' => '1']);
+                        }
                     }
                 } elseif ($invoice->description == 'UNIVERSITY OF MAIDUGURI-1000127 FEES') {
                     // Handle ID number assignment
