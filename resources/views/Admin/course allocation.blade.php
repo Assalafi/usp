@@ -391,6 +391,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                             // submitted value in sync.
                                             courseSelect.value = this.dataset.value;
                                             document.getElementById('courseValue').value = this.dataset.value;
+                                            courseSearch.setCustomValidity('');
                                             
                                             // Hide results
                                             courseResults.style.display = 'none';
