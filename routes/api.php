@@ -37,3 +37,9 @@ Route::prefix('v1/hostel')->middleware(['hostel.api', 'throttle:120,1'])->group(
     Route::post('release', [\App\Http\Controllers\Api\HostelApiController::class, 'release']);
     Route::post('confirm-payment', [\App\Http\Controllers\Api\HostelApiController::class, 'confirmPayment']);
 });
+
+Route::prefix('v1/remita-split-report')
+    ->middleware(['remita.split.api', 'throttle:60,1'])
+    ->group(function () {
+        Route::get('summary', [\App\Http\Controllers\Api\RemitaSplitReportController::class, 'summary']);
+    });

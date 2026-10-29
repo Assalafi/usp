@@ -42,6 +42,30 @@ return [
         'change_of_course_key' => env('REMITA_CHANGE_OF_COURSE_KEY'),
         'inter_transfer_key' => env('REMITA_INTER_TRANSFER_KEY'),
     ],
+    'remita_split_report' => [
+        'api_key' => env('REMITA_SPLIT_REPORT_API_KEY', ''),
+        'source' => env('REMITA_SPLIT_REPORT_SOURCE', 'ug'),
+    ],
+    'remita_aggregate' => [
+        'enabled' => env('REMITA_AGGREGATE_ENABLED', true),
+        'sources' => [
+            'pg' => [
+                'label' => 'Postgraduate',
+                'url' => env('PG_REMITA_SPLIT_REPORT_URL', 'https://pg.umstad.online/api/v1/remita-split-report/summary'),
+                'api_key' => env('PG_REMITA_SPLIT_REPORT_API_KEY', ''),
+            ],
+            'sbrs' => [
+                'label' => 'SBRS',
+                'url' => env('SBRS_REMITA_SPLIT_REPORT_URL', 'https://sbrs.umstad.online/api/v1/remita-split-report/summary'),
+                'api_key' => env('SBRS_REMITA_SPLIT_REPORT_API_KEY', ''),
+            ],
+            'institute' => [
+                'label' => 'Institute',
+                'url' => env('INSTITUTE_REMITA_SPLIT_REPORT_URL', 'https://institute.umstad.online/api/v1/remita-split-report/summary'),
+                'api_key' => env('INSTITUTE_REMITA_SPLIT_REPORT_API_KEY', ''),
+            ],
+        ],
+    ],
     'face_search' => [
         'python' => env('FACE_SEARCH_PYTHON', '/opt/pg-photo-venv/bin/python3'),
         'model_dir' => env('FACE_SEARCH_MODEL_DIR', storage_path('app/ai-models/face-search')),
