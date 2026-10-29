@@ -194,6 +194,28 @@ document.addEventListener('DOMContentLoaded', function () {
             this.setCustomValidity(courseValue.value ? '' : 'Choose a course from the suggestions.');
         });
         createForm.addEventListener('submit', function (event) {
+            // Recover the selected code from the lookup control (or from the
+            // visible suggestion text) before validating. This protects the
+            // form when a browser or an older cached script drops the hidden
+            // value after the role field is changed.
+            if (!courseValue.value && courseSelect.value) {
+                courseValue.value = courseSelect.value;
+            }
+            if (!courseValue.value && courseSearch.value.trim()) {
+                const searchText = courseSearch.value.trim().toLowerCase();
+                Array.from(courseSelect.options).some(function (option) {
+                    const optionCode = option.value.trim().toLowerCase();
+                    const optionText = option.textContent.trim().toLowerCase();
+                    const optionLabelCode = optionText.split(':')[0].replace(/\s+/g, '');
+                    const searchCode = searchText.split(':')[0].replace(/\s+/g, '');
+                    if (optionCode && (optionText === searchText || optionLabelCode === searchCode)) {
+                        courseSelect.value = option.value;
+                        courseValue.value = option.value;
+                        return true;
+                    }
+                    return false;
+                });
+            }
             if (!courseValue.value || !courseSelect.value || courseValue.value !== courseSelect.value) {
                 event.preventDefault();
                 courseValue.value = '';
@@ -202,6 +224,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 courseSearch.reportValidity();
                 return;
             }
+            courseSearch.setCustomValidity('');
             if (!programmeList || !programmeList.querySelector('input[name="programs[]"]:checked')) {
                 event.preventDefault();
                 window.alert('Select at least one programme linked to this course.');
