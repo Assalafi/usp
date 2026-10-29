@@ -42,10 +42,43 @@
     .ug-hostel-admin .ug-pagination .page-item.disabled .page-link { color: #aab8c1; background: #f7fafc; }
     .ug-hostel-admin .modal-content { border: 0; border-radius: 16px; box-shadow: 0 18px 45px rgba(20, 49, 73, .22); }
     .ug-hostel-admin .modal-header { background: #f2f8fc; border-bottom: 1px solid #e3edf2; }
+    .ug-hostel-admin .ug-assignment-warning { display:flex; align-items:flex-start; gap: .9rem; padding:1rem 1.1rem; border:1px solid #f0d28a; border-radius:16px; background:#fff8e7; color:#6f4b00; box-shadow:0 5px 18px rgba(136,95,15,.07); }
+    .ug-hostel-admin .ug-assignment-warning-icon { width:2.35rem; height:2.35rem; flex:0 0 2.35rem; display:grid; place-items:center; border-radius:12px; background:#ffe9ad; color:#a66c00; }
+    .ug-hostel-admin .ug-assignment-warning h5 { margin:0 0 .3rem; color:#6a4700; font-size:1rem; }
+    .ug-hostel-admin .ug-assignment-warning p { margin:0; color:#7a5a18; line-height:1.5; }
     @media (max-width: 767.98px) { .ug-hostel-admin .ug-hero { border-radius: 14px; } .ug-hostel-admin .ug-hero-icon { width: 48px; height: 48px; } .ug-hostel-admin .ug-stat strong { font-size: 1.2rem; } }
 </style>
 
 <div class="main-body ug-hostel-admin"><div class="page-wrapper"><div class="row g-3">
+    @if (session('assignment_warning'))
+        @php($assignmentWarning = session('assignment_warning'))
+        <div class="col-12">
+            <section class="ug-assignment-warning" role="alert">
+                <div class="ug-assignment-warning-icon"><i class="fas fa-triangle-exclamation"></i></div>
+                <div class="flex-grow-1">
+                    <h5>Student already has a bed space</h5>
+                    <p class="mb-2">{{ $assignmentWarning['username'] }} already has {{ count($assignmentWarning['allocations'] ?? []) > 1 ? 'these bed spaces' : 'this bed space' }}:</p>
+                    <ul class="mb-2 ps-3">
+                        @foreach (($assignmentWarning['allocations'] ?? []) as $allocation)
+                            <li><strong>{{ $allocation['hall'] ?: 'Hall not recorded' }} · {{ $allocation['block'] ?: 'Block not recorded' }} · Room {{ $allocation['room'] ?: '—' }} · Bed {{ $allocation['bed'] ?: '—' }}</strong></li>
+                        @endforeach
+                    </ul>
+                    <p class="mb-3">You may assign this student another space only when there is a valid administrative reason. Do you want to continue?</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        <form method="POST" action="{{ url('assign bed') }}" class="d-inline">
+                            @csrf
+                            <input type="hidden" name="username" value="{{ $assignmentWarning['username'] }}">
+                            <input type="hidden" name="id" value="{{ $assignmentWarning['bed_id'] }}">
+                            <input type="hidden" name="confirm_multiple" value="1">
+                            <input type="hidden" name="confirmation_token" value="{{ $assignmentWarning['token'] }}">
+                            <button type="submit" class="btn btn-warning"><i class="fas fa-check me-1"></i>Proceed with second space</button>
+                        </form>
+                        <a href="{{ url('available bed space') }}" class="btn btn-light border">Abort</a>
+                    </div>
+                </div>
+            </section>
+        </div>
+    @endif
     <div class="col-12"><section class="ug-hero p-4"><div class="d-flex align-items-center justify-content-between gap-3"><div><h3><i class="fas fa-bed me-2"></i>Available bed spaces</h3><p>Find an open space by hall, category, and assignment type, then assign it to a student.</p></div><div class="ug-hero-icon d-none d-sm-grid"><i class="fas fa-building"></i></div></div></section></div>
     <div class="col-12 col-sm-4"><div class="ug-stat"><span class="ug-stat-icon blue"><i class="fas fa-layer-group"></i></span><strong>{{ number_format($stats['total']) }}</strong><small>Spaces in this view</small></div></div>
     <div class="col-12 col-sm-4"><div class="ug-stat"><span class="ug-stat-icon green"><i class="fas fa-check-circle"></i></span><strong>{{ number_format($stats['available']) }}</strong><small>Available to assign</small></div></div>
@@ -69,6 +102,6 @@
 
 @foreach ($data as $row)
     @if ((int)$row->status === 0)
-        <div id="assignBed{{ $row->id }}" class="modal fade" tabindex="-1" aria-labelledby="assignBedLabel{{ $row->id }}" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title mb-1" id="assignBedLabel{{ $row->id }}">Assign bed space</h5><small class="text-muted">{{ $row->hall }} · {{ $row->block }} · Room {{ $row->room }} · Bed {{ $row->bed }}</small></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form action="{{ url('assign bed') }}" method="POST"><div class="modal-body">@csrf<label class="form-label fw-semibold" for="username{{ $row->id }}">Student ID number</label><input type="text" class="form-control" name="username" id="username{{ $row->id }}" required autocomplete="off" placeholder="e.g. 22/08/08/0010"><small class="text-muted d-block mt-2">The system checks that the student does not already have a bed and that the gender matches the bed.</small><input type="hidden" name="id" value="{{ $row->id }}"></div><div class="modal-footer"><button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary"><i class="fas fa-user-plus me-1"></i>Assign bed</button></div></form></div></div></div>
+        <div id="assignBed{{ $row->id }}" class="modal fade" tabindex="-1" aria-labelledby="assignBedLabel{{ $row->id }}" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><div><h5 class="modal-title mb-1" id="assignBedLabel{{ $row->id }}">Assign bed space</h5><small class="text-muted">{{ $row->hall }} · {{ $row->block }} · Room {{ $row->room }} · Bed {{ $row->bed }}</small></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><form action="{{ url('assign bed') }}" method="POST"><div class="modal-body">@csrf<label class="form-label fw-semibold" for="username{{ $row->id }}">Student ID number</label><input type="text" class="form-control" name="username" id="username{{ $row->id }}" required autocomplete="off" placeholder="e.g. 22/08/08/0010"><small class="text-muted d-block mt-2">The system checks existing allocations, warns before assigning a second space, and confirms that the student’s gender matches the bed.</small><input type="hidden" name="id" value="{{ $row->id }}"></div><div class="modal-footer"><button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary"><i class="fas fa-user-plus me-1"></i>Check and assign</button></div></form></div></div></div>
     @endif
 @endforeach
