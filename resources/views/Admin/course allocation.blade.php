@@ -186,15 +186,18 @@
 document.addEventListener('DOMContentLoaded', function () {
     const createForm = document.querySelector('#create form');
     const courseSelect = document.getElementById('course');
+    const courseValue = document.getElementById('courseValue');
     const courseSearch = document.getElementById('courseSearch');
     const programmeList = document.getElementById('displayPrograms');
-    if (createForm && courseSelect && courseSearch) {
+    if (createForm && courseSelect && courseValue && courseSearch) {
         courseSearch.addEventListener('input', function () {
-            this.setCustomValidity(courseSelect.value ? '' : 'Choose a course from the suggestions.');
+            this.setCustomValidity(courseValue.value ? '' : 'Choose a course from the suggestions.');
         });
         createForm.addEventListener('submit', function (event) {
-            if (!courseSelect.value) {
+            if (!courseValue.value || !courseSelect.value || courseValue.value !== courseSelect.value) {
                 event.preventDefault();
+                courseValue.value = '';
+                courseSelect.value = '';
                 courseSearch.setCustomValidity('Choose a course from the suggestions.');
                 courseSearch.reportValidity();
                 return;
@@ -295,7 +298,11 @@ document.addEventListener('DOMContentLoaded', function () {
                             <small class="form-hint">Choose a course from the suggestions so its linked programmes can be loaded.</small>
                         </div>
                         <div class="form-group" style="position: relative;">
-                            <select class="form-control getAllocationPrograms" name="course" id="course" required style="position:absolute;left:-10000px;width:1px;height:1px;opacity:0;">
+                            {{-- Keep the submitted course in a normal hidden field. The
+                                 off-screen select is only the programme lookup control;
+                                 browser validation can otherwise ignore its value. --}}
+                            <input type="hidden" name="course" id="courseValue" value="">
+                            <select class="form-control getAllocationPrograms" id="course" tabindex="-1" aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;opacity:0;">
                                 <option value="">Select Option</option>
                                 @foreach ($courses as $course)
                                     <option value="{{ $course->code }}">{{ $course->code }}: {{ $course->title }}</option>
@@ -357,8 +364,10 @@ document.addEventListener('DOMContentLoaded', function () {
                                             // Set the visible text
                                             courseSearch.value = this.textContent;
                                             
-                                            // Update the hidden select value
+                                            // Keep both the lookup select and the actual
+                                            // submitted value in sync.
                                             courseSelect.value = this.dataset.value;
+                                            document.getElementById('courseValue').value = this.dataset.value;
                                             
                                             // Hide results
                                             courseResults.style.display = 'none';
@@ -388,6 +397,10 @@ document.addEventListener('DOMContentLoaded', function () {
                             
                             // Handle input events
                             courseSearch.addEventListener('input', function() {
+                                // Once the user edits the search text, the previous
+                                // course is no longer a trustworthy selection.
+                                courseSelect.value = '';
+                                document.getElementById('courseValue').value = '';
                                 updateResults(this.value);
                             });
                             
