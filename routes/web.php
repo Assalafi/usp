@@ -1383,6 +1383,7 @@ Route::post('program ajax public', [ProgramController::class, 'programAjaxPublic
 Route::post('program ajax', [ProgramController::class, 'programAjax']);
 Route::post('course ajax', [ProgramController::class, 'courseAjax']);
 Route::get('allocation-programs', [ProgramController::class, 'allocationPrograms']);
+Route::post('/program/sync-duration', [ProgramController::class, 'syncDuration'])->middleware('role')->name('program.sync-duration');
 Route::post('description-ajax', [ManageFixedAssetsController::class, 'descriptionAjax']);
 
 Route::post('sub-committee-ajax', [CommitteeController::class, 'subCommitteeAjax']);

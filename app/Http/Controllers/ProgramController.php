@@ -25,12 +25,127 @@ class ProgramController extends Controller
 
     public function index()
     {
-        //if(!session()->has('log')){return redirect('/');}
-        $data['data'] = DB::table($this->table)->orderBy('no', 'ASC')->get();
+        $query = DB::table($this->table . ' as p')
+            ->leftJoin('faculty as f', 'f.code', '=', 'p.faculty')
+            ->leftJoin('department as d', 'd.code', '=', 'p.department')
+            ->select([
+                'p.*',
+                'f.title as faculty_title',
+                'd.title as department_title',
+            ])
+            ->selectSub(
+                DB::table('students')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('students.program', 'p.code'),
+                'student_count'
+            )
+            ->selectSub(
+                DB::table('program_course_registration')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('program_course_registration.program', 'p.code'),
+                'course_count'
+            );
+
+        $search = trim((string) request('q', ''));
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder->where('p.code', 'like', "%{$search}%")
+                    ->orWhere('p.title', 'like', "%{$search}%")
+                    ->orWhere('f.title', 'like', "%{$search}%")
+                    ->orWhere('d.title', 'like', "%{$search}%");
+            });
+        }
+        foreach (['faculty', 'department', 'award', 'courses'] as $filter) {
+            if (request($filter) !== null && request($filter) !== '' && request($filter) !== 'all') {
+                $query->where('p.' . $filter, request($filter));
+            }
+        }
+        if (request('duration') !== null && request('duration') !== '' && request('duration') !== 'all') {
+            request('duration') === 'missing'
+                ? $query->where(function ($builder) {
+                    $builder->whereNull('p.duration')->orWhere('p.duration', '<=', 0);
+                })
+                : $query->where('p.duration', request('duration'));
+        }
+
+        $data['data'] = $query->orderBy('p.no', 'ASC')->orderBy('p.title')->paginate(50)->withQueryString();
         $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
+        $data['departments'] = DB::table('department')->where(['status' => '1'])->select('code', 'title', 'faculty')->orderBy('title', 'ASC')->get();
+        $data['awards'] = DB::table($this->table)->whereNotNull('award')->where('award', '<>', '')->distinct()->orderBy('award')->pluck('award');
+        $data['durationOptions'] = DB::table($this->table)->whereNotNull('duration')->where('duration', '>', 0)->distinct()->orderBy('duration')->pluck('duration');
+        $data['summary'] = [
+            'total' => DB::table($this->table)->count(),
+            'active' => DB::table($this->table)->where('courses', '1')->count(),
+            'inactive' => DB::table($this->table)->where(function ($builder) {
+                $builder->where('courses', '!=', '1')->orWhereNull('courses');
+            })->count(),
+            'missing_duration' => DB::table($this->table)->where(function ($builder) {
+                $builder->whereNull('duration')->orWhere('duration', '<=', 0);
+            })->count(),
+            'students' => DB::table('students')->where('status', 1)->whereNotNull('program')->count(),
+        ];
         $data['page'] = $this->page;
         $data['title'] = $this->title;
         return view('main',$data);
+    }
+
+    public function syncDuration(Request $req)
+    {
+        $validated = $req->validate([
+            'id' => ['required'],
+            'code' => ['required', 'string', 'max:50'],
+            'duration' => ['required', 'integer', 'min:1', 'max:20'],
+            'last_id' => ['nullable', 'integer', 'min:0'],
+            'processed' => ['nullable', 'integer', 'min:0'],
+            'batch' => ['nullable', 'integer', 'min:100', 'max:1000'],
+        ]);
+
+        $program = DB::table('program')->where('id', $validated['id'])->where('code', $validated['code'])->first();
+        abort_unless($program, 404);
+
+        $batchSize = (int) ($validated['batch'] ?? 500);
+        $lastId = (int) ($validated['last_id'] ?? 0);
+        $processed = (int) ($validated['processed'] ?? 0);
+        $total = DB::table('students')->where('program', $validated['code'])->count();
+
+        DB::table('program')->where('id', $program->id)->update([
+            'duration' => $validated['duration'],
+            'updated_at' => now(),
+        ]);
+
+        $studentIds = DB::table('students')
+            ->where('program', $validated['code'])
+            ->where('id', '>', $lastId)
+            ->orderBy('id')
+            ->limit($batchSize)
+            ->pluck('id');
+
+        if ($studentIds->isEmpty()) {
+            return response()->json([
+                'ok' => true,
+                'done' => true,
+                'total' => $total,
+                'processed' => min($processed, $total),
+                'last_id' => $lastId,
+            ]);
+        }
+
+        DB::table('students')->whereIn('id', $studentIds)->update([
+            'duration' => $validated['duration'],
+            'updated_at' => now(),
+        ]);
+
+        $count = $studentIds->count();
+        $processed += $count;
+        $nextLastId = (int) $studentIds->last();
+
+        return response()->json([
+            'ok' => true,
+            'done' => $processed >= $total || $count < $batchSize,
+            'total' => $total,
+            'processed' => min($processed, $total),
+            'last_id' => $nextLastId,
+        ]);
     }
 
     public function create(Request $req)

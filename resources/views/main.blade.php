@@ -498,6 +498,8 @@
                     <!-- Start Content-->
                     @if ($page == 'remita split report')
                         @include('Admin.remita split report redesigned')
+                    @elseif ($page == 'program' && session('accType') == 'Admin')
+                        @include('Admin.program-modern')
                     @elseif ($page == 'program course registration')
                         @include('Admin.program-course-registration-modern')
                     @elseif (session('accType') == 'Admin' && $page == 'election results')
