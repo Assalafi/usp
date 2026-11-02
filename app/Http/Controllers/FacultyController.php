@@ -27,7 +27,31 @@ class FacultyController extends Controller
     public function index()
     {
         if(!session()->has('log')){return redirect('/');}
-        $data['data'] = DB::table($this->table)->orderBy('no', 'ASC')->get();
+        $query = DB::table($this->table . ' as f')
+            ->select('f.*')
+            ->selectSub(DB::table('department')->selectRaw('COUNT(*)')->whereColumn('department.faculty', 'f.code'), 'department_count')
+            ->selectSub(DB::table('program')->selectRaw('COUNT(*)')->whereColumn('program.faculty', 'f.code'), 'program_count')
+            ->selectSub(DB::table('students')->selectRaw('COUNT(*)')->whereColumn('students.faculty', 'f.code'), 'student_count');
+        $search = trim((string) request('q', ''));
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder->where('f.code', 'like', "%{$search}%")
+                    ->orWhere('f.title', 'like', "%{$search}%");
+            });
+        }
+        if (request('college') !== null && request('college') !== '' && request('college') !== 'all') {
+            $query->where('f.college', request('college'));
+        }
+        if (request('status') !== null && request('status') !== '' && request('status') !== 'all') {
+            $query->where('f.status', request('status'));
+        }
+        $data['data'] = $query->orderBy('f.no', 'ASC')->orderBy('f.title')->paginate(50)->withQueryString();
+        $data['summary'] = [
+            'total' => DB::table($this->table)->count(),
+            'active' => DB::table($this->table)->where('status', '1')->count(),
+            'departments' => DB::table('department')->count(),
+            'programs' => DB::table('program')->count(),
+        ];
         $data['page'] = $this->page;
         $data['title'] = $this->title;
         return view('main',$data);
