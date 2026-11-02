@@ -25,26 +25,31 @@ class ProgramController extends Controller
 
     public function index()
     {
+        $studentCounts = DB::table('students')
+            ->select('program')
+            ->selectRaw('COUNT(*) as student_count')
+            ->groupBy('program');
+        $courseCounts = DB::table('program_course_registration')
+            ->select('program')
+            ->selectRaw('COUNT(*) as course_count')
+            ->groupBy('program');
+
         $query = DB::table($this->table . ' as p')
             ->leftJoin('faculty as f', 'f.code', '=', 'p.faculty')
             ->leftJoin('department as d', 'd.code', '=', 'p.department')
+            ->leftJoinSub($studentCounts, 'student_counts', function ($join) {
+                $join->on('student_counts.program', '=', 'p.code');
+            })
+            ->leftJoinSub($courseCounts, 'course_counts', function ($join) {
+                $join->on('course_counts.program', '=', 'p.code');
+            })
             ->select([
                 'p.*',
                 'f.title as faculty_title',
                 'd.title as department_title',
-            ])
-            ->selectSub(
-                DB::table('students')
-                    ->selectRaw('COUNT(*)')
-                    ->whereColumn('students.program', 'p.code'),
-                'student_count'
-            )
-            ->selectSub(
-                DB::table('program_course_registration')
-                    ->selectRaw('COUNT(*)')
-                    ->whereColumn('program_course_registration.program', 'p.code'),
-                'course_count'
-            );
+                DB::raw('COALESCE(student_counts.student_count, 0) as student_count'),
+                DB::raw('COALESCE(course_counts.course_count, 0) as course_count'),
+            ]);
 
         $search = trim((string) request('q', ''));
         if ($search !== '') {
