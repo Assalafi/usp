@@ -184,54 +184,160 @@ class ApproveResultsController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
-        $datas = $req->all();
-        $code = $datas['code'];
-        $records['comment'] = $datas['comment'];
-        // $session = $datas['session'];
-        $session = $datas['session'];
-        $semester = $datas['semester'];
-        $data = DB::table('results')->where(['code' => $code, 'session' => $session, 'semester' => $semester])->select('approve')->limit(1)->get();
-        // dd($datas);
-        foreach ($data as $row) {
-            if ($req->approve == 'system') {
-                $status = 'Rejeted Back to Lecturer';
-                $records['approve'] = 'system';
-                $records['lecturer'] = session('username');
-            } else if ($req->approve == 'lecturer') {
-                $status = 'Rejeted Back to Lecturer';
-                $records['approve'] = 'system';
-                $records['hod'] = session('username');
-            } else if ($req->approve == 'hod') {
-                $status = 'Rejeted Back to Department';
-                $records['approve'] = 'lecturer';
-                $records['dean'] = session('username');
-            } else if ($req->approve == 'dean') {
-                $status = 'Rejeted Back to Faculty';
-                $records['approve'] = 'hod';
-                $records['cs'] = session('username');
-            } else if ($req->approve == 'cs') {
-                $status = 'Rejeted!!!';
-                $records['approve'] = 'dean';
-                $records['vc'] = session('username');
-            } else {
-                return redirect()->back()->with('error', 'Something Went Wrong');
-            }
+        $validated = $req->validate([
+            'code' => ['required', 'string', 'max:50'],
+            'session' => ['required', 'string', 'max:15'],
+            'semester' => ['required', 'string', 'max:25'],
+            'approve' => ['required', 'in:system,lecturer,hod,dean,cs'],
+            'comment' => ['required', 'string', 'min:5', 'max:2000'],
+        ], [
+            'comment.required' => 'Please explain why this result is being rejected.',
+            'comment.min' => 'Please provide a meaningful rejection reason (at least 5 characters).',
+        ]);
+
+        $code = trim($validated['code']);
+        $session = trim($validated['session']);
+        $semester = trim($validated['semester']);
+        $currentStage = strtolower(trim($validated['approve']));
+        $reason = trim($validated['comment']);
+        $username = (string) session('username');
+        $appointment = strtoupper(trim((string) session('appointment')));
+        $isAdmin = strtoupper(trim((string) session('accType'))) === 'ADMIN';
+
+        $stageActions = [
+            'system' => [
+                'next' => 'system',
+                'actor' => 'lecturer',
+                'label' => 'Rejected back to the lecturer',
+                'allowed_appointments' => ['LECTURER'],
+                'clear' => ['hod', 'dean', 'cs', 'vc'],
+            ],
+            'lecturer' => [
+                'next' => 'system',
+                'actor' => 'hod',
+                'label' => 'Rejected back to the lecturer',
+                'allowed_appointments' => ['HOD'],
+                'clear' => ['dean', 'cs', 'vc'],
+            ],
+            'hod' => [
+                'next' => 'lecturer',
+                'actor' => 'dean',
+                'label' => 'Rejected back to the department',
+                'allowed_appointments' => ['DEAN'],
+                'clear' => ['cs', 'vc'],
+            ],
+            'dean' => [
+                'next' => 'hod',
+                'actor' => 'cs',
+                'label' => 'Rejected back to the faculty',
+                'allowed_appointments' => ['COURSE SYSTEM'],
+                'clear' => ['vc'],
+            ],
+            'cs' => [
+                'next' => 'dean',
+                'actor' => 'vc',
+                'label' => 'Rejected back to the course system',
+                'allowed_appointments' => ['VC'],
+                'clear' => [],
+            ],
+        ];
+
+        $action = $stageActions[$currentStage] ?? null;
+        if (!$action) {
+            return redirect()->back()->withInput()->with('error', 'This result cannot be rejected from its current approval stage.');
         }
 
-        $records['updated_at'] = NOW();
+        // The page only exposes the rejection button to the correct reviewer,
+        // but the server must enforce the same rule for forged/replayed posts.
+        if (!$isAdmin && !in_array($appointment, $action['allowed_appointments'], true)) {
+            return redirect()->back()->withInput()->with('error', 'You are not authorised to reject results at this approval stage.');
+        }
+
         try {
-            DB::table('results')->where(['code' => $code, 'session' => $session, 'semester' => $semester])->update($records);
-            dd($code,$session,$semester,$records);
-            return redirect()->back()->with('success', 'Results ' . $status);
+            $resultQuery = DB::table('results')
+                ->where('code', $code)
+                ->where('session', $session)
+                ->where('semester', $semester);
+
+            $resultSample = (clone $resultQuery)->select('department', 'program', 'lecturer')->first();
+            if (!$resultSample) {
+                return redirect()->back()->withInput()->with('error', 'No result was found for the selected course, session and semester.');
+            }
+
+            $course = DB::table('course')
+                ->where('code', $code)
+                ->select('department', 'faculty')
+                ->first();
+            $courseDepartment = (string) ($course->department ?? $resultSample->department ?? '');
+            $courseFaculty = (string) ($course->faculty ?? '');
+            if ($courseFaculty === '' && $courseDepartment !== '') {
+                $courseFaculty = (string) DB::table('department')->where('code', $courseDepartment)->value('faculty');
+            }
+
+            if (!$isAdmin && $currentStage === 'lecturer' && $courseDepartment !== (string) session('department')) {
+                return redirect()->back()->withInput()->with('error', 'This result does not belong to your department.');
+            }
+            if (!$isAdmin && $currentStage === 'hod' && session('faculty') && $courseFaculty !== (string) session('faculty')) {
+                return redirect()->back()->withInput()->with('error', 'This result does not belong to your faculty.');
+            }
+            if (!$isAdmin && $currentStage === 'system' && strtoupper((string) ($resultSample->lecturer ?? '')) !== strtoupper($username)) {
+                return redirect()->back()->withInput()->with('error', 'You can only reject results assigned to your lecturer account.');
+            }
+
+            $affected = DB::transaction(function () use ($resultQuery, $currentStage, $action, $reason, $username) {
+                // Lock the batch and only move rows that are still at the stage
+                // the reviewer saw. A stale/replayed form cannot overwrite a
+                // batch that has already progressed to another approval stage.
+                $stageQuery = (clone $resultQuery)
+                    ->where('approve', $currentStage)
+                    ->lockForUpdate();
+                $count = $stageQuery->count();
+                if ($count === 0) {
+                    return 0;
+                }
+
+                $records = [
+                    'approve' => $action['next'],
+                    'comment' => $reason,
+                    $action['actor'] => $username,
+                    'updated_at' => now(),
+                ];
+                foreach ($action['clear'] as $field) {
+                    $records[$field] = null;
+                }
+
+                return (clone $resultQuery)
+                    ->where('approve', $currentStage)
+                    ->update($records);
+            });
+
+            if ($affected === 0) {
+                return redirect()->back()->withInput()->with('error', 'This result has already changed approval stage. Refresh the page and review it again.');
+            }
+
+            return redirect()->back()->with('success', $action['label'] . ' successfully. ' . $affected . ' result row(s) were updated.');
         } catch (QueryException $e) {
-            Log::error('Error updating results: ' . $e->getMessage(), [
+            Log::error('Result rejection failed', [
                 'code' => $code,
                 'session' => $session,
                 'semester' => $semester,
-                'exception' => $e
+                'approval_stage' => $currentStage,
+                'username' => $username,
+                'exception' => $e,
             ]);
-            dd($e);
-            return redirect()->back()->with('error', 'Failed to update results. Please try again.');
+
+            return redirect()->back()->withInput()->with('error', 'The result could not be rejected right now. No changes were saved.');
+        } catch (\Throwable $e) {
+            Log::error('Unexpected result rejection failure', [
+                'code' => $code,
+                'session' => $session,
+                'semester' => $semester,
+                'approval_stage' => $currentStage,
+                'username' => $username,
+                'exception' => $e,
+            ]);
+
+            return redirect()->back()->withInput()->with('error', 'The result could not be rejected right now. No changes were saved.');
         }
     }
 

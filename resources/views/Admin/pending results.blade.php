@@ -358,8 +358,10 @@ aria-hidden="true">
                             <input type="hidden" name="approve" value="{{ $approve }}">
                             <div class="form-group">
                                 <label for="">Reason for rejection</label>
-                                <textarea name="comment" class="form-control" id="" cols="30" rows="10"
-                                    placeholder="Reason for rejection"></textarea>
+                                <textarea name="comment" class="form-control" cols="30" rows="10"
+                                    minlength="5" maxlength="2000" required
+                                    placeholder="Explain what should be corrected before resubmission"></textarea>
+                                <small class="text-muted d-block mt-2">A clear explanation is required so the lecturer knows exactly what to correct.</small>
                             </div>
                             <!-- Details View End -->
                             <button type="button" class="btn btn-info" data-bs-dismiss="modal">No</button>
