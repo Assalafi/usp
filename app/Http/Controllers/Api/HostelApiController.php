@@ -15,6 +15,25 @@ class HostelApiController extends Controller
     private const REMEDIAL_BED_TYPE = 3;
 
     /**
+     * An SBRS student may be assigned a bed by Hostel Management from the
+     * Undergraduate portal. Those assignments can be made on a bed that was
+     * not originally marked as the remedial bed type, so the student's
+     * registration prefix is also a trusted SBRS marker for read/confirm
+     * operations. Self-service availability and reservation remain limited to
+     * bed_type = 3 below.
+     */
+    private function sbrsOccupantQuery($query, string $registrationNumber)
+    {
+        return $query->where(function ($q) use ($registrationNumber) {
+            $q->where('bed_type', self::REMEDIAL_BED_TYPE)
+                ->orWhere(function ($sbrs) use ($registrationNumber) {
+                    $sbrs->where('occupant', $registrationNumber)
+                        ->whereRaw("UPPER(occupant) LIKE 'SBRS/%'");
+                });
+        });
+    }
+
+    /**
      * Summary + available halls for remedial students.
      */
     public function overview(Request $request)
@@ -365,11 +384,11 @@ class HostelApiController extends Controller
             return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
         }
 
-        $reservation = DB::table('hostel')
+        $registrationNumber = trim((string) $request->registration_number);
+        $reservationQuery = DB::table('hostel')
             ->select('id', 'hall', 'block', 'room', 'bed', 'occupant', 'amount', 'hostel_amount', 'category', 'hostel_payment', 'payment_method', 'status')
-            ->where('occupant', trim($request->registration_number))
-            ->where('bed_type', self::REMEDIAL_BED_TYPE)
-            ->first();
+            ->where('occupant', $registrationNumber);
+        $reservation = $this->sbrsOccupantQuery($reservationQuery, $registrationNumber)->first();
 
         if (!$reservation) {
             return response()->json([
@@ -411,11 +430,11 @@ class HostelApiController extends Controller
 
         try {
             return DB::transaction(function () use ($request) {
-                $reservation = DB::table('hostel')
-                    ->where('occupant', trim($request->registration_number))
-                    ->where('bed_type', self::REMEDIAL_BED_TYPE)
-                    ->lockForUpdate()
-                    ->first();
+                $registrationNumber = trim((string) $request->registration_number);
+                $reservationQuery = DB::table('hostel')
+                    ->where('occupant', $registrationNumber)
+                    ->lockForUpdate();
+                $reservation = $this->sbrsOccupantQuery($reservationQuery, $registrationNumber)->first();
 
                 if (!$reservation) {
                     return response()->json(['success' => false, 'message' => 'No reservation found to release.'], 404);
@@ -460,11 +479,11 @@ class HostelApiController extends Controller
 
         try {
             return DB::transaction(function () use ($request) {
-                $reservation = DB::table('hostel')
-                    ->where('occupant', trim($request->registration_number))
-                    ->where('bed_type', self::REMEDIAL_BED_TYPE)
-                    ->lockForUpdate()
-                    ->first();
+                $registrationNumber = trim((string) $request->registration_number);
+                $reservationQuery = DB::table('hostel')
+                    ->where('occupant', $registrationNumber)
+                    ->lockForUpdate();
+                $reservation = $this->sbrsOccupantQuery($reservationQuery, $registrationNumber)->first();
 
                 if (!$reservation) {
                     return response()->json(['success' => false, 'message' => 'No reservation found for this student.'], 404);

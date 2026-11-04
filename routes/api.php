@@ -22,8 +22,10 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 |--------------------------------------------------------------------------
 | SBRS Hostel API (consumed by the SBRS student portal)
 |--------------------------------------------------------------------------
-| Exposes remedial student (bed_type = 3) hostel operations to the
-| School of Basic and Remedial Studies portal.
+| Exposes remedial/SBRS hostel operations to the School of Basic and
+| Remedial Studies portal. Self-service beds remain bed_type = 3, while an
+| SBRS registration assigned by UG Hostel Management is also readable even
+| if the selected bed was originally configured under another bed type.
 */
 Route::prefix('v1/hostel')->middleware(['hostel.api', 'throttle:120,1'])->group(function () {
     Route::get('overview', [\App\Http\Controllers\Api\HostelApiController::class, 'overview']);
