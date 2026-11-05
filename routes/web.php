@@ -783,7 +783,11 @@ Route::get('/hostel-invoice', function (Request $req) {
     }
     $data = DB::table('invoices')
         ->select('username', 'hostel_id')
-        ->where(['description' => 'HOSTEL-MAINTENANCE/FEES', 'status' => 'Paid'])
+        ->where([
+            'description' => 'HOSTEL-MAINTENANCE/FEES',
+            'status' => 'Paid',
+            'session' => \App\Http\Controllers\SystemSettingsController::getHostelFeesSession(),
+        ])
         ->get();
     foreach ($data as $row) {
         $occupant = DB::table('users')->select('username')->where('id', $row->username)->value('username');
