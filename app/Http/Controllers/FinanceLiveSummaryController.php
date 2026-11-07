@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\RemitaSplitAggregationService;
+use App\Services\FinanceSummaryAggregationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -42,7 +42,7 @@ class FinanceLiveSummaryController extends Controller
 
         $surcharge = 'COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0)';
         $base = 'COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - ' . $surcharge . ', 0))';
-        $gross = '(' . $base . ' + ' . $surcharge . ')';
+        $gross = $base;
         $query = DB::table('invoices')->whereBetween('invoices.created_at', [$from, $to]);
 
         $summary = (clone $query)->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $gross . '),0) AS gross_amount')->first();
@@ -68,8 +68,8 @@ class FinanceLiveSummaryController extends Controller
         ];
 
         $remote = $includeRemote
-            ? app(RemitaSplitAggregationService::class)->collect($from, $to, [], 'all')
-            : ['summary' => ['invoice_count' => 0, 'gross_amount' => 0], 'status_summary' => [], 'service_summary' => [], 'trend' => [], 'sources' => collect((array) config('services.remita_aggregate.sources', []))->map(fn ($source, $key) => ['source' => (string) $key, 'label' => (string) ($source['label'] ?? ucfirst((string) $key)), 'status' => 'syncing', 'error' => 'Waiting for the first source sync.'])->values()->all()];
+            ? app(FinanceSummaryAggregationService::class)->collect($from, $to)
+            : ['summary' => ['invoice_count' => 0, 'gross_amount' => 0], 'status_summary' => [], 'service_summary' => [], 'trend' => [], 'sources' => collect((array) config('services.finance_summary.sources', []))->map(fn ($source, $key) => ['source' => (string) $key, 'label' => (string) ($source['label'] ?? ucfirst((string) $key)), 'status' => 'syncing', 'error' => 'Waiting for the first source sync.'])->values()->all()];
         $status = $this->normaliseStatuses(array_merge($localStatus, (array) ($remote['status_summary'] ?? [])));
         $services = $this->mergeServices($serviceRows->map(fn ($row) => [
             'label' => (string) ($row->description ?: 'Payment'),

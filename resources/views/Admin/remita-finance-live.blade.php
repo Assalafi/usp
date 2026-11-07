@@ -4,6 +4,12 @@
     @media(max-width:1100px){.finance-kpis{grid-template-columns:repeat(3,1fr)}.finance-systems{grid-template-columns:repeat(2,1fr)}.finance-grid{grid-template-columns:1fr}.finance-bottom{grid-template-columns:1fr}}
     @media(max-width:680px){.finance-live{margin:-15px;padding:15px}.finance-top{align-items:flex-start;flex-direction:column}.finance-actions{width:100%;justify-content:space-between}.finance-updated{text-align:left}.finance-kpis{grid-template-columns:repeat(2,1fr);gap:9px}.finance-kpi{padding:14px}.finance-value{font-size:18px}.finance-systems{grid-template-columns:1fr}.finance-panel{padding:15px}.finance-section-title{margin-top:19px}}
 </style>
+<style>
+    /* Match Fees Collection: blue hero, compact bordered KPI cards, and calm
+       white panels. This page is intentionally independent of Split Report. */
+    .finance-live{background:#f5f8fc;margin:-8px -8px 22px;padding:0 0 24px;min-height:calc(100vh - 70px);color:#172b4d}.finance-wall{max-width:1540px;padding:0 8px}.finance-top{background:linear-gradient(135deg,#123b67 0%,#1769aa 55%,#24a6c8 100%);padding:24px 26px;border-radius:20px;box-shadow:0 14px 34px rgba(22,67,111,.18);position:relative;overflow:hidden;margin-bottom:16px}.finance-top:after{content:"";position:absolute;width:260px;height:260px;border-radius:50%;right:-85px;top:-135px;background:rgba(255,255,255,.12)}.finance-top>div{position:relative;z-index:1}.finance-top .finance-kicker{color:rgba(255,255,255,.72)}.finance-top .finance-title{color:#fff;font-size:clamp(23px,2.7vw,35px);margin-top:6px}.finance-top .finance-subtitle{color:rgba(255,255,255,.8)}.finance-top .finance-link{display:none}.finance-top .finance-live-pill{background:rgba(255,255,255,.15);color:#fff}.finance-top .finance-updated{color:rgba(255,255,255,.72)}.finance-kpis{gap:14px}.finance-card{border-radius:15px;box-shadow:0 5px 18px rgba(24,49,80,.05)}.finance-kpi{border-top:4px solid #1769aa;padding:17px 18px}.finance-kpi.green{border-top-color:#159570}.finance-kpi.amber{border-top-color:#de9b16}.finance-kpi.red{border-top-color:#d9534f}.finance-kpi.purple{display:none}.finance-section-title{margin:20px 0 10px}.finance-section-title h2{font-size:1rem}.finance-system{border-radius:15px}.finance-panel{border-radius:15px}.finance-alert{margin-top:0}
+    @media(max-width:680px){.finance-live{margin:0 -2px 18px;padding-bottom:14px}.finance-wall{padding:0 2px}.finance-top{border-radius:15px;padding:20px 17px}.finance-top .finance-title{font-size:1.25rem}.finance-top .finance-actions{width:100%;justify-content:flex-start}.finance-kpis{grid-template-columns:1fr 1fr;gap:9px}.finance-kpi{padding:13px 12px;border-radius:12px}.finance-kpi-value{font-size:1rem}.finance-system,.finance-panel{border-radius:13px}}
+</style>
 
 <div class="finance-live" id="financeLive" data-endpoint="{{ url('/admin/remita-finance-live/data') }}">
     <div class="finance-wall">
@@ -15,23 +21,22 @@
             </div>
             <div class="finance-actions">
                 <div><div class="finance-live-pill"><i></i> Live · 10-second sync</div><div class="finance-updated" id="financeUpdated">Connecting…</div></div>
-                <a class="finance-link" href="{{ url('/admin/remita-split-report') }}"><i class="fas fa-chart-pie me-1"></i> Split report</a>
             </div>
         </div>
         <div class="finance-alert" id="financeAlert"><i class="fas fa-triangle-exclamation"></i><span>Some payment systems are temporarily unavailable. Available totals remain live.</span></div>
         <section class="finance-kpis" aria-label="Institution summary">
-            <div class="finance-card finance-kpi blue"><div class="finance-label">Collected today</div><div class="finance-value" id="kpiPaid">₦0.00</div><div class="finance-meta"><strong id="kpiPaidCount">0</strong> successful payments</div></div>
-            <div class="finance-card finance-kpi green"><div class="finance-label">All payments today</div><div class="finance-value" id="kpiGross">₦0.00</div><div class="finance-meta"><strong id="kpiCount">0</strong> payment records</div></div>
+            <div class="finance-card finance-kpi blue"><div class="finance-label">Base amount collected</div><div class="finance-value" id="kpiPaid">₦0.00</div><div class="finance-meta"><strong id="kpiPaidCount">0</strong> successful payments</div></div>
+            <div class="finance-card finance-kpi green"><div class="finance-label">All base payments</div><div class="finance-value" id="kpiGross">₦0.00</div><div class="finance-meta"><strong id="kpiCount">0</strong> payment records</div></div>
             <div class="finance-card finance-kpi amber"><div class="finance-label">Awaiting settlement</div><div class="finance-value" id="kpiPending">₦0.00</div><div class="finance-meta"><strong id="kpiPendingCount">0</strong> pending or processing</div></div>
             <div class="finance-card finance-kpi red"><div class="finance-label">Failed / cancelled</div><div class="finance-value" id="kpiCancelled">₦0.00</div><div class="finance-meta"><strong id="kpiCancelledCount">0</strong> unsuccessful records</div></div>
             <div class="finance-card finance-kpi purple"><div class="finance-label">Latest payment</div><div class="finance-value" id="kpiLatest">—</div><div class="finance-meta">Last recorded activity</div></div>
         </section>
 
-        <div class="finance-section-title"><h2>System pulse</h2><span>Undergraduate · Postgraduate · SBRS · Institute</span></div>
+        <div class="finance-section-title"><h2>Collections by system</h2><span>Base amount only · Undergraduate · Postgraduate · SBRS · Institute</span></div>
         <section class="finance-systems" id="financeSystems"></section>
 
         <div class="finance-grid">
-            <section class="finance-card finance-panel"><h3>Collection activity</h3><p>Hourly payment value across all systems today</p><div class="finance-chart" id="financeTrend"></div><div class="finance-axis"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Now</span></div></section>
+            <section class="finance-card finance-panel"><h3>Collection activity</h3><p>Hourly base amount across all systems today</p><div class="finance-chart" id="financeTrend"></div><div class="finance-axis"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Now</span></div></section>
             <section class="finance-card finance-panel"><h3>Payment status</h3><p>How today’s payment records are progressing</p><div id="financeStatuses"></div></section>
         </div>
         <div class="finance-bottom">

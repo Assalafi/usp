@@ -18,7 +18,9 @@ class RemitaSplitReportController
         }
 
         $status = strtolower(trim((string) $request->query('status', '')));
-        $splitOnly = strtolower(trim((string) $request->query('scope', 'split'))) !== 'all';
+        $scope = strtolower(trim((string) $request->query('scope', 'split')));
+        $splitOnly = $scope === 'split';
+        $baseOnly = $scope === 'base';
         $query = DB::table('invoices');
         if ($splitOnly) {
             $query->where('invoices.split_enabled', 1);
@@ -43,7 +45,7 @@ class RemitaSplitReportController
         $base = $splitOnly
             ? '0'
             : 'COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - ' . $surcharge . ', 0))';
-        $gross = $splitOnly ? $surcharge : '(' . $base . ' + ' . $surcharge . ')';
+        $gross = $splitOnly ? $surcharge : ($baseOnly ? $base : '(' . $base . ' + ' . $surcharge . ')');
 
         $summary = (clone $query)->selectRaw(
             'COUNT(*) AS invoice_count, COALESCE(SUM(' . $gross . '), 0) AS gross_amount,

@@ -45,3 +45,9 @@ Route::prefix('v1/remita-split-report')
     ->group(function () {
         Route::get('summary', [\App\Http\Controllers\Api\RemitaSplitReportController::class, 'summary']);
     });
+
+Route::prefix('v1/finance-summary')
+    ->middleware(['remita.split.api', 'throttle:60,1'])
+    ->group(function () {
+        Route::get('summary', [\App\Http\Controllers\Api\RemitaSplitReportController::class, 'summary']);
+    });

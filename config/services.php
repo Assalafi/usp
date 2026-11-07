@@ -66,6 +66,25 @@ return [
             ],
         ],
     ],
+    'finance_summary' => [
+        'sources' => [
+            'pg' => [
+                'label' => 'Postgraduate',
+                'url' => env('PG_FINANCE_SUMMARY_URL', 'https://pg.umstad.online/api/v1/finance-summary/summary'),
+                'api_key' => env('PG_FINANCE_SUMMARY_API_KEY', env('PG_REMITA_SPLIT_REPORT_API_KEY', '')),
+            ],
+            'sbrs' => [
+                'label' => 'SBRS',
+                'url' => env('SBRS_FINANCE_SUMMARY_URL', 'https://sbrs.umstad.online/api/v1/finance-summary/summary'),
+                'api_key' => env('SBRS_FINANCE_SUMMARY_API_KEY', env('SBRS_REMITA_SPLIT_REPORT_API_KEY', '')),
+            ],
+            'institute' => [
+                'label' => 'Institute',
+                'url' => env('INSTITUTE_FINANCE_SUMMARY_URL', 'https://institute.umstad.online/api/v1/finance-summary/summary'),
+                'api_key' => env('INSTITUTE_FINANCE_SUMMARY_API_KEY', env('INSTITUTE_REMITA_SPLIT_REPORT_API_KEY', '')),
+            ],
+        ],
+    ],
     'face_search' => [
         'python' => env('FACE_SEARCH_PYTHON', '/opt/pg-photo-venv/bin/python3'),
         'model_dir' => env('FACE_SEARCH_MODEL_DIR', storage_path('app/ai-models/face-search')),
