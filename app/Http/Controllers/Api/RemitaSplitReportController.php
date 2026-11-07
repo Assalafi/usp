@@ -35,9 +35,11 @@ class RemitaSplitReportController
             });
         }
 
-        $gross = 'COALESCE(CAST(invoices.amount AS DECIMAL(15,2)), 0)';
-        $base = 'COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0), 0))';
-        $surcharge = 'COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), 0), 0))';
+        // This endpoint is surcharge-only as well, so the base fee and gateway
+        // total never participate in report calculations.
+        $gross = 'COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0)';
+        $base = '0';
+        $surcharge = $gross;
 
         $summary = (clone $query)->selectRaw(
             'COUNT(*) AS invoice_count, COALESCE(SUM(' . $gross . '), 0) AS gross_amount,
@@ -78,12 +80,12 @@ class RemitaSplitReportController
                     ->orWhere('invoices.orderId', 'like', '%' . $rrr . '%');
             });
         }
-        $allocationSummary = $allocationQuery
-            ->select('invoice_split_items.beneficiary_name')
-            ->selectRaw('COUNT(DISTINCT invoice_split_items.invoice_id) AS invoice_count, COALESCE(SUM(invoice_split_items.beneficiary_amount), 0) AS allocated_amount')
-            ->groupBy('invoice_split_items.beneficiary_name')
-            ->orderByDesc('allocated_amount')
-            ->get();
+        $allocationRows = $allocationQuery->select([
+            'invoice_split_items.invoice_id', 'invoice_split_items.beneficiary_name',
+            'invoice_split_items.beneficiary_amount', 'invoice_split_items.is_primary',
+            'invoices.surcharge_amount',
+        ])->get();
+        $allocationSummary = $this->surchargeAllocationSummary($allocationRows);
 
         $trend = (clone $query)
             ->selectRaw("DATE_FORMAT(invoices.created_at, '%Y-%m') AS bucket")
@@ -96,8 +98,7 @@ class RemitaSplitReportController
         $rows = (clone $query)
             ->select([
                 'invoices.id', 'invoices.rrr', 'invoices.orderId', 'invoices.description',
-                'invoices.status', 'invoices.amount', 'invoices.base_amount',
-                'invoices.surcharge_amount', 'invoices.created_at', 'invoices.username',
+                'invoices.status', 'invoices.surcharge_amount', 'invoices.created_at', 'invoices.username',
             ])
             ->selectRaw($gross . ' AS gross_amount')
             ->selectRaw($base . ' AS base_amount_normalized')
@@ -203,6 +204,33 @@ class RemitaSplitReportController
             ])->values(),
             'rows' => $rows,
         ]);
+    }
+
+    private function surchargeAllocationSummary($rows)
+    {
+        $groups = [];
+        foreach (collect($rows)->groupBy('invoice_id') as $invoiceRows) {
+            $charge = max((float) ($invoiceRows->first()->surcharge_amount ?? 0), 0);
+            $nonPrimary = $invoiceRows->filter(fn ($row) => ! (bool) $row->is_primary)
+                ->sum(fn ($row) => max((float) ($row->beneficiary_amount ?? 0), 0));
+            foreach ($invoiceRows as $row) {
+                $name = (string) ($row->beneficiary_name ?: 'Beneficiary');
+                $amount = (bool) $row->is_primary
+                    ? max($charge - $nonPrimary, 0)
+                    : max((float) ($row->beneficiary_amount ?? 0), 0);
+                if (! isset($groups[$name])) {
+                    $groups[$name] = ['beneficiary_name' => $name, 'invoice_count' => 0, 'allocated_amount' => 0.0, '_invoices' => []];
+                }
+                $groups[$name]['allocated_amount'] += $amount;
+                $groups[$name]['_invoices'][(string) $row->invoice_id] = true;
+            }
+        }
+
+        return collect($groups)->map(function ($item) {
+            $item['invoice_count'] = count($item['_invoices']);
+            unset($item['_invoices']);
+            return (object) $item;
+        })->sortByDesc('allocated_amount')->values();
     }
 
     private function date($value): ?Carbon
