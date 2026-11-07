@@ -116,7 +116,7 @@ class CheckRoleAccess
         $protectedPages = [
             'faculty', 'department', 'program', 'semester', 'session',
             'halls', 'hall allocation', 'lecture timetable', 'exam timetable',
-            'ca timetable', 'fees due', 'remita-split-report', 'admin/remita-split-report', 'fees type', 'fees master list',
+            'ca timetable', 'fees due', 'remita-split-report', 'admin/remita-split-report', 'remita-finance-live', 'admin/remita-finance-live', 'fees type', 'fees master list',
             'students list', 'student id card', 'course allocation',
             'course material', 'attendance', 'assignment', 'student exit',
             'status', 'results', 'results/upload', 'approve results', 'program course registration',

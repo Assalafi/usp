@@ -1194,6 +1194,8 @@ $allPages = [
     'fees due',
     'remita split report',
     'admin/remita-split-report',
+    'remita finance live',
+    'admin/remita-finance-live',
     'committee',
     'committee role',
     'committee membership',
@@ -1416,6 +1418,12 @@ Route::get('/print-receipt/{rrr}', [InvoicesController::class, 'printReceipt'])-
 Route::get('/admin/receipts', [InvoicesController::class, 'adminReceipts'])->name('admin.receipts');
 Route::get('/admin/remita-split-report', [App\Http\Controllers\RemitaSplitReportController::class, 'index'])
     ->name('admin.remita.split.report')
+    ->middleware('role');
+Route::get('/admin/remita-finance-live', [App\Http\Controllers\FinanceLiveSummaryController::class, 'index'])
+    ->name('admin.remita.finance.live')
+    ->middleware('role');
+Route::get('/admin/remita-finance-live/data', [App\Http\Controllers\FinanceLiveSummaryController::class, 'data'])
+    ->name('admin.remita.finance.live.data')
     ->middleware('role');
 Route::get('/admin/remita-split-report/export', [App\Http\Controllers\RemitaSplitReportController::class, 'export'])
     ->name('admin.remita.split.report.export')

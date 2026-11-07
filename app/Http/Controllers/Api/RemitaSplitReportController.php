@@ -18,7 +18,11 @@ class RemitaSplitReportController
         }
 
         $status = strtolower(trim((string) $request->query('status', '')));
-        $query = DB::table('invoices')->where('invoices.split_enabled', 1);
+        $splitOnly = strtolower(trim((string) $request->query('scope', 'split'))) !== 'all';
+        $query = DB::table('invoices');
+        if ($splitOnly) {
+            $query->where('invoices.split_enabled', 1);
+        }
         if ($from) {
             $query->where('invoices.created_at', '>=', $from->startOfDay());
         }
@@ -35,11 +39,11 @@ class RemitaSplitReportController
             });
         }
 
-        // This endpoint is surcharge-only as well, so the base fee and gateway
-        // total never participate in report calculations.
-        $gross = 'COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0)';
-        $base = '0';
-        $surcharge = $gross;
+        $surcharge = 'COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0)';
+        $base = $splitOnly
+            ? '0'
+            : 'COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - ' . $surcharge . ', 0))';
+        $gross = $splitOnly ? $surcharge : '(' . $base . ' + ' . $surcharge . ')';
 
         $summary = (clone $query)->selectRaw(
             'COUNT(*) AS invoice_count, COALESCE(SUM(' . $gross . '), 0) AS gross_amount,
@@ -80,15 +84,16 @@ class RemitaSplitReportController
                     ->orWhere('invoices.orderId', 'like', '%' . $rrr . '%');
             });
         }
-        $allocationRows = $allocationQuery->select([
+        $allocationRows = $splitOnly ? $allocationQuery->select([
             'invoice_split_items.invoice_id', 'invoice_split_items.beneficiary_name',
             'invoice_split_items.beneficiary_amount', 'invoice_split_items.is_primary',
             'invoices.surcharge_amount',
-        ])->get();
-        $allocationSummary = $this->surchargeAllocationSummary($allocationRows);
+        ])->get() : collect();
+        $allocationSummary = $splitOnly ? $this->surchargeAllocationSummary($allocationRows) : collect();
 
+        $trendFormat = $splitOnly ? '%Y-%m' : '%Y-%m-%d %H:00';
         $trend = (clone $query)
-            ->selectRaw("DATE_FORMAT(invoices.created_at, '%Y-%m') AS bucket")
+            ->selectRaw("DATE_FORMAT(invoices.created_at, '" . $trendFormat . "') AS bucket")
             ->selectRaw('COUNT(*) AS invoice_count, COALESCE(SUM(' . $gross . '), 0) AS gross_amount, COALESCE(SUM(' . $surcharge . '), 0) AS surcharge_amount')
             ->groupBy('bucket')
             ->orderBy('bucket')

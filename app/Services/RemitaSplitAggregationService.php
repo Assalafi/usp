@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Http;
 
 class RemitaSplitAggregationService
 {
-    public function collect(?Carbon $from, ?Carbon $to, array $filters = []): array
+    public function collect(?Carbon $from, ?Carbon $to, array $filters = [], string $scope = 'split'): array
     {
         $result = [
             'sources' => [],
@@ -52,6 +52,7 @@ class RemitaSplitAggregationService
             'date_to' => $to?->toDateString(),
             'status' => trim((string) ($filters['status'] ?? '')),
             'rrr' => trim((string) ($filters['rrr'] ?? '')),
+            'scope' => strtolower(trim($scope)) === 'all' ? 'all' : 'split',
             'limit' => 250,
         ], static fn ($value) => $value !== null && $value !== '');
 
@@ -59,7 +60,7 @@ class RemitaSplitAggregationService
             $label = (string) ($source['label'] ?? ucfirst((string) $key));
             $url = trim((string) ($source['url'] ?? ''));
             $apiKey = trim((string) ($source['api_key'] ?? ''));
-            $meta = ['source' => (string) $key, 'label' => $label, 'status' => 'unavailable', 'count' => 0, 'gross_amount' => 0.0, 'surcharge_amount' => 0.0, 'error' => null];
+            $meta = ['source' => (string) $key, 'label' => $label, 'status' => 'unavailable', 'count' => 0, 'gross_amount' => 0.0, 'surcharge_amount' => 0.0, 'paid_amount' => 0.0, 'pending_amount' => 0.0, 'cancelled_amount' => 0.0, 'paid_count' => 0, 'pending_count' => 0, 'cancelled_count' => 0, 'last_payment_at' => null, 'error' => null];
 
             if ($url === '' || $apiKey === '') {
                 $meta['error'] = 'API endpoint or key is not configured.';
@@ -86,6 +87,15 @@ class RemitaSplitAggregationService
                 $meta['count'] = (int) ($summary['invoice_count'] ?? 0);
                 $meta['gross_amount'] = (float) ($summary['gross_amount'] ?? 0);
                 $meta['surcharge_amount'] = (float) ($summary['surcharge_amount'] ?? $meta['gross_amount']);
+                foreach ((array) ($payload['status_summary'] ?? []) as $statusRow) {
+                    $statusName = strtolower((string) ($statusRow['status'] ?? ''));
+                    $amount = (float) ($statusRow['gross_amount'] ?? 0);
+                    $count = (int) ($statusRow['invoice_count'] ?? 0);
+                    if (in_array($statusName, ['paid', 'successful', 'success'], true)) { $meta['paid_amount'] += $amount; $meta['paid_count'] += $count; }
+                    elseif (in_array($statusName, ['pending', 'processing'], true)) { $meta['pending_amount'] += $amount; $meta['pending_count'] += $count; }
+                    elseif (in_array($statusName, ['cancelled', 'canceled', 'failed', 'rejected'], true)) { $meta['cancelled_amount'] += $amount; $meta['cancelled_count'] += $count; }
+                }
+                $meta['last_payment_at'] = collect((array) ($payload['rows'] ?? []))->pluck('created_at')->filter()->sortDesc()->first();
                 $result['sources'][] = $meta;
                 $this->addSummary($result['summary'], $summary);
                 $this->mergeGrouped($result['status_summary'], (array) ($payload['status_summary'] ?? []), 'status', 'gross_amount');
