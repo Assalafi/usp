@@ -42,7 +42,7 @@ class FinanceSummaryAggregationService
                 $response = Http::timeout(8)->withOptions(['connect_timeout' => 3])->retry(1, 150)
                     ->withHeaders(['Accept' => 'application/json', 'X-API-Key' => $apiKey])
                     ->get($url, array_filter([
-                        'date_from' => $from?->toDateString(), 'date_to' => $to?->toDateString(),
+                        'date_from' => $from?->toDateString(), 'date_to' => $to?->toDateString(), 'status' => 'Paid',
                         'scope' => 'base', 'limit' => 250,
                     ], static fn ($value) => $value !== null && $value !== ''));
 

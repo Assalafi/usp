@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Services\FinanceSummaryAggregationService;
+use App\Exports\UnpaidStudentsExport;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class FinanceLiveSummaryController extends Controller
@@ -43,7 +45,7 @@ class FinanceLiveSummaryController extends Controller
         $surcharge = 'COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0)';
         $base = 'COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - ' . $surcharge . ', 0))';
         $gross = $base;
-        $query = DB::table('invoices')->whereBetween('invoices.created_at', [$from, $to]);
+        $query = DB::table('invoices')->whereBetween('invoices.created_at', [$from, $to])->where('invoices.status', 'Paid');
 
         $summary = (clone $query)->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $gross . '),0) AS gross_amount')->first();
         $statusRows = (clone $query)->select('invoices.status')->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $gross . '),0) AS gross_amount')->groupBy('invoices.status')->get();
@@ -65,6 +67,13 @@ class FinanceLiveSummaryController extends Controller
             'pending_amount' => $localTotals['pending_amount'], 'pending_count' => $localTotals['pending_count'],
             'cancelled_amount' => $localTotals['cancelled_amount'], 'cancelled_count' => $localTotals['cancelled_count'],
             'last_payment_at' => $lastLocal ? Carbon::parse($lastLocal)->toIso8601String() : null,
+        ];
+
+        $schoolFeesSession = SystemSettingsController::getSchoolFeesSession();
+        $debtLevels = Cache::remember('live_finance_ug_debt_levels_' . md5($schoolFeesSession), 20, fn () => UnpaidStudentsExport::summaryByLevel($schoolFeesSession));
+        $debt = [
+            'students' => (int) collect($debtLevels)->sum('students'),
+            'outstanding_amount' => (float) collect($debtLevels)->sum('outstanding_amount'),
         ];
 
         $remote = $includeRemote
@@ -111,10 +120,12 @@ class FinanceLiveSummaryController extends Controller
                 'gross_amount' => (float) ($summary->gross_amount ?? 0) + $remoteGross,
                 'payment_count' => (int) ($summary->payment_count ?? 0) + (int) ($remote['summary']['invoice_count'] ?? 0),
                 'paid_amount' => $statusTotals['paid_amount'], 'paid_count' => $statusTotals['paid_count'],
-                'pending_amount' => $statusTotals['pending_amount'], 'pending_count' => $statusTotals['pending_count'],
-                'cancelled_amount' => $statusTotals['cancelled_amount'], 'cancelled_count' => $statusTotals['cancelled_count'],
+                'ug_debt_amount' => (float) ($debt['outstanding_amount'] ?? 0),
+                'ug_debt_students' => (int) ($debt['students'] ?? 0),
                 'last_payment_at' => $lastPayment,
             ],
+            'debt' => ['session' => $schoolFeesSession, 'amount' => (float) ($debt['outstanding_amount'] ?? 0), 'students' => (int) ($debt['students'] ?? 0)],
+            'debt_levels' => $debtLevels,
             'systems' => $systems,
             'status_summary' => $status,
             'service_summary' => $services,
