@@ -49,7 +49,7 @@ class FinanceLiveSummaryController extends Controller
 
         $summary = (clone $query)->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $gross . '),0) AS gross_amount')->first();
         $statusRows = (clone $query)->select('invoices.status')->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $gross . '),0) AS gross_amount')->groupBy('invoices.status')->get();
-        $serviceRows = (clone $query)->select('invoices.description')->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $gross . '),0) AS gross_amount')->groupBy('invoices.description')->orderByDesc('gross_amount')->limit(12)->get();
+        $serviceRows = (clone $query)->select('invoices.description')->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $gross . '),0) AS gross_amount')->groupBy('invoices.description')->orderByDesc('gross_amount')->get();
         $trendRows = (clone $query)->selectRaw("DATE_FORMAT(invoices.created_at, '%Y-%m-%d %H:00') AS bucket")->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $gross . '),0) AS gross_amount')->groupBy('bucket')->orderBy('bucket')->get();
         $lastLocal = (clone $query)->orderByDesc('invoices.created_at')->value('invoices.created_at');
 
@@ -67,6 +67,11 @@ class FinanceLiveSummaryController extends Controller
             'pending_amount' => $localTotals['pending_amount'], 'pending_count' => $localTotals['pending_count'],
             'cancelled_amount' => $localTotals['cancelled_amount'], 'cancelled_count' => $localTotals['cancelled_count'],
             'last_payment_at' => $lastLocal ? Carbon::parse($lastLocal)->toIso8601String() : null,
+            'services' => $serviceRows->map(fn ($row) => [
+                'label' => (string) ($row->description ?: 'Payment'),
+                'invoice_count' => (int) $row->payment_count,
+                'gross_amount' => (float) $row->gross_amount,
+            ])->values()->all(),
         ];
 
         $schoolFeesSession = SystemSettingsController::getSchoolFeesSession();
@@ -103,6 +108,7 @@ class FinanceLiveSummaryController extends Controller
                 'pending_amount' => (float) ($source['pending_amount'] ?? 0), 'pending_count' => (int) ($source['pending_count'] ?? 0),
                 'cancelled_amount' => (float) ($source['cancelled_amount'] ?? 0), 'cancelled_count' => (int) ($source['cancelled_count'] ?? 0),
                 'last_payment_at' => $source['last_payment_at'] ?? null,
+                'services' => (array) ($source['services'] ?? []),
             ];
         })->values()->all();
         $systems = array_merge([$localSource], $remoteSources);

@@ -30,7 +30,7 @@ class FinanceSummaryAggregationService
                 'source' => (string) $key, 'label' => $label, 'status' => 'unavailable', 'error' => null,
                 'count' => 0, 'gross_amount' => 0.0, 'paid_amount' => 0.0, 'paid_count' => 0,
                 'pending_amount' => 0.0, 'pending_count' => 0, 'cancelled_amount' => 0.0,
-                'cancelled_count' => 0, 'last_payment_at' => null,
+                'cancelled_count' => 0, 'last_payment_at' => null, 'services' => [],
             ];
             if ($url === '' || $apiKey === '') {
                 $meta['error'] = 'Finance source is not configured.';
@@ -57,6 +57,11 @@ class FinanceSummaryAggregationService
                 $meta['count'] = (int) ($summary['invoice_count'] ?? 0);
                 $meta['gross_amount'] = (float) ($summary['gross_amount'] ?? 0);
                 $meta['last_payment_at'] = collect((array) ($payload['rows'] ?? []))->pluck('created_at')->filter()->sortDesc()->first();
+                $meta['services'] = collect((array) ($payload['service_summary'] ?? []))->map(fn ($row) => [
+                    'label' => (string) ($row['label'] ?? 'Payment'),
+                    'invoice_count' => (int) ($row['invoice_count'] ?? 0),
+                    'gross_amount' => (float) ($row['gross_amount'] ?? 0),
+                ])->values()->all();
                 foreach ((array) ($payload['status_summary'] ?? []) as $row) {
                     $status = strtolower((string) ($row['status'] ?? ''));
                     $amount = (float) ($row['gross_amount'] ?? 0);
