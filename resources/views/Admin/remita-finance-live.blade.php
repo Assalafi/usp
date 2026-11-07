@@ -16,7 +16,7 @@
         <div class="finance-top">
             <div>
                 <div class="finance-kicker">Finance command centre</div>
-                <h1 class="finance-title">Live payment overview</h1>
+                <h1 class="finance-title">Institutional collection summary</h1>
                 <p class="finance-subtitle">A clear, institution-wide view of today’s collections across all four payment systems.</p>
             </div>
             <div class="finance-actions">
