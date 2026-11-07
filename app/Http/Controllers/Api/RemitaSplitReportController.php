@@ -18,6 +18,7 @@ class RemitaSplitReportController
         }
 
         $status = strtolower(trim((string) $request->query('status', '')));
+        $session = trim((string) $request->query('session', ''));
         $scope = strtolower(trim((string) $request->query('scope', 'split')));
         $splitOnly = $scope === 'split';
         $baseOnly = $scope === 'base';
@@ -33,6 +34,9 @@ class RemitaSplitReportController
         }
         if ($status !== '') {
             $query->whereIn('invoices.status', $this->statuses($status));
+        }
+        if ($session !== '' && strtolower($session) !== 'all') {
+            $query->where('invoices.session', $session);
         }
         if (($rrr = trim((string) $request->query('rrr', ''))) !== '') {
             $query->where(function ($nested) use ($rrr) {
@@ -79,6 +83,9 @@ class RemitaSplitReportController
         }
         if ($status !== '') {
             $allocationQuery->whereIn('invoices.status', $this->statuses($status));
+        }
+        if ($session !== '' && strtolower($session) !== 'all') {
+            $allocationQuery->where('invoices.session', $session);
         }
         if ($rrr !== '') {
             $allocationQuery->where(function ($nested) use ($rrr) {

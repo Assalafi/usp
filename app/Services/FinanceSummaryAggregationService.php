@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Http;
  */
 class FinanceSummaryAggregationService
 {
-    public function collect(?Carbon $from, ?Carbon $to): array
+    public function collect(?Carbon $from, ?Carbon $to, ?string $session = null): array
     {
         $result = [
             'sources' => [],
@@ -43,7 +43,7 @@ class FinanceSummaryAggregationService
                     ->withHeaders(['Accept' => 'application/json', 'X-API-Key' => $apiKey])
                     ->get($url, array_filter([
                         'date_from' => $from?->toDateString(), 'date_to' => $to?->toDateString(), 'status' => 'Paid',
-                        'scope' => 'base', 'limit' => 250,
+                        'scope' => 'base', 'limit' => 250, 'session' => $session,
                     ], static fn ($value) => $value !== null && $value !== ''));
 
                 if (! $response->successful() || ! $response->json('success')) {

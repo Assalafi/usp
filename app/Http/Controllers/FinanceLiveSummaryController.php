@@ -14,18 +14,27 @@ class FinanceLiveSummaryController extends Controller
     public function index(Request $request)
     {
         $this->authorise();
+        $sessions = DB::table('session')->select('title', 'status')->whereNotNull('title')->where('title', '<>', '')->orderByDesc('title')->get();
+        $selectedSession = trim((string) $request->query('session', ''));
+        if ($selectedSession === '' || strtolower($selectedSession) === 'current') {
+            $selectedSession = (string) ($sessions->firstWhere('status', '1')->title ?? $sessions->first()->title ?? 'all');
+        }
+        if ($selectedSession === '') $selectedSession = 'all';
         // Render immediately from the local ledger. Remote systems are pulled
         // by the first background sync so a slow source cannot delay the page.
-        return view('main', array_merge($this->payload(false), [
+        return view('main', array_merge($this->payload(false, $selectedSession), [
             'page' => 'remita finance live',
             'title' => 'Live Finance Summary',
+            'financeSessions' => $sessions,
+            'selectedFinanceSession' => $selectedSession,
         ]));
     }
 
     public function data(Request $request)
     {
         $this->authorise();
-        return response()->json($this->payload())
+        $selectedSession = trim((string) $request->query('session', 'all')) ?: 'all';
+        return response()->json($this->payload(true, $selectedSession))
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
     }
 
@@ -36,16 +45,23 @@ class FinanceLiveSummaryController extends Controller
         }
     }
 
-    private function payload(bool $includeRemote = true): array
+    private function payload(bool $includeRemote = true, ?string $selectedSession = null): array
     {
+        $selectedSession = trim((string) ($selectedSession ?? 'all')) ?: 'all';
+        $sessionFilter = strtolower($selectedSession) === 'all' ? null : $selectedSession;
         $now = now();
-        $from = $now->copy()->startOfDay();
-        $to = $now->copy();
+        $from = $sessionFilter ? null : $now->copy()->startOfDay();
+        $to = $sessionFilter ? null : $now->copy();
 
         $surcharge = 'COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0)';
         $base = 'COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - ' . $surcharge . ', 0))';
         $gross = $base;
-        $query = DB::table('invoices')->whereBetween('invoices.created_at', [$from, $to])->where('invoices.status', 'Paid');
+        $query = DB::table('invoices')->where('invoices.status', 'Paid');
+        if ($sessionFilter) {
+            $query->where('invoices.session', $sessionFilter);
+        } else {
+            $query->whereBetween('invoices.created_at', [$from, $to]);
+        }
 
         $summary = (clone $query)->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $gross . '),0) AS gross_amount')->first();
         $statusRows = (clone $query)->select('invoices.status')->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $gross . '),0) AS gross_amount')->groupBy('invoices.status')->get();
@@ -75,14 +91,15 @@ class FinanceLiveSummaryController extends Controller
         ];
 
         $schoolFeesSession = SystemSettingsController::getSchoolFeesSession();
-        $debtLevels = Cache::remember('live_finance_ug_debt_levels_' . md5($schoolFeesSession), 20, fn () => UnpaidStudentsExport::summaryByLevel($schoolFeesSession));
+        $debtSession = $sessionFilter ?: $schoolFeesSession;
+        $debtLevels = Cache::remember('live_finance_ug_debt_levels_' . md5($debtSession), 20, fn () => UnpaidStudentsExport::summaryByLevel($debtSession));
         $debt = [
             'students' => (int) collect($debtLevels)->sum('students'),
             'outstanding_amount' => (float) collect($debtLevels)->sum('outstanding_amount'),
         ];
 
         $remote = $includeRemote
-            ? app(FinanceSummaryAggregationService::class)->collect($from, $to)
+            ? app(FinanceSummaryAggregationService::class)->collect($from, $to, $sessionFilter)
             : ['summary' => ['invoice_count' => 0, 'gross_amount' => 0], 'status_summary' => [], 'service_summary' => [], 'trend' => [], 'sources' => collect((array) config('services.finance_summary.sources', []))->map(fn ($source, $key) => ['source' => (string) $key, 'label' => (string) ($source['label'] ?? ucfirst((string) $key)), 'status' => 'syncing', 'error' => 'Waiting for the first source sync.'])->values()->all()];
         $status = $this->normaliseStatuses(array_merge($localStatus, (array) ($remote['status_summary'] ?? [])));
         $services = $this->mergeServices($serviceRows->map(fn ($row) => [
@@ -121,7 +138,7 @@ class FinanceLiveSummaryController extends Controller
             'success' => true,
             'status' => 'live',
             'updated_at' => now()->toIso8601String(),
-            'period' => ['label' => 'Today', 'from' => $from->toIso8601String(), 'to' => $to->toIso8601String()],
+            'period' => ['label' => $sessionFilter ? 'Session ' . $sessionFilter : 'All sessions · today', 'from' => $from?->toIso8601String(), 'to' => $to?->toIso8601String(), 'session' => $selectedSession],
             'totals' => [
                 'gross_amount' => (float) ($summary->gross_amount ?? 0) + $remoteGross,
                 'payment_count' => (int) ($summary->payment_count ?? 0) + (int) ($remote['summary']['invoice_count'] ?? 0),
@@ -130,7 +147,7 @@ class FinanceLiveSummaryController extends Controller
                 'ug_debt_students' => (int) ($debt['students'] ?? 0),
                 'last_payment_at' => $lastPayment,
             ],
-            'debt' => ['session' => $schoolFeesSession, 'amount' => (float) ($debt['outstanding_amount'] ?? 0), 'students' => (int) ($debt['students'] ?? 0)],
+            'debt' => ['session' => $debtSession, 'amount' => (float) ($debt['outstanding_amount'] ?? 0), 'students' => (int) ($debt['students'] ?? 0)],
             'debt_levels' => $debtLevels,
             'systems' => $systems,
             'status_summary' => $status,
