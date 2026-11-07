@@ -39,6 +39,7 @@ class RemitaSplitAggregationService
                     'status' => 'filtered',
                     'count' => 0,
                     'gross_amount' => 0.0,
+                    'surcharge_amount' => 0.0,
                     'error' => 'Excluded because the selected academic filter is only available in Undergraduate records.',
                 ];
             }
@@ -58,7 +59,7 @@ class RemitaSplitAggregationService
             $label = (string) ($source['label'] ?? ucfirst((string) $key));
             $url = trim((string) ($source['url'] ?? ''));
             $apiKey = trim((string) ($source['api_key'] ?? ''));
-            $meta = ['source' => (string) $key, 'label' => $label, 'status' => 'unavailable', 'count' => 0, 'gross_amount' => 0.0, 'error' => null];
+            $meta = ['source' => (string) $key, 'label' => $label, 'status' => 'unavailable', 'count' => 0, 'gross_amount' => 0.0, 'surcharge_amount' => 0.0, 'error' => null];
 
             if ($url === '' || $apiKey === '') {
                 $meta['error'] = 'API endpoint or key is not configured.';
@@ -84,6 +85,7 @@ class RemitaSplitAggregationService
                 $meta['status'] = 'ok';
                 $meta['count'] = (int) ($summary['invoice_count'] ?? 0);
                 $meta['gross_amount'] = (float) ($summary['gross_amount'] ?? 0);
+                $meta['surcharge_amount'] = (float) ($summary['surcharge_amount'] ?? $meta['gross_amount']);
                 $result['sources'][] = $meta;
                 $this->addSummary($result['summary'], $summary);
                 $this->mergeGrouped($result['status_summary'], (array) ($payload['status_summary'] ?? []), 'status', 'gross_amount');

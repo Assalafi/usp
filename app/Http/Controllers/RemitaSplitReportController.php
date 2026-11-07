@@ -52,20 +52,16 @@ class RemitaSplitReportController extends Controller
 
         $baseQuery = DB::table('invoices')->where('invoices.split_enabled', 1);
         $this->applyFilters($baseQuery, $filters, $serviceFilters, $dateFrom, $dateTo);
-        // `amount` is the amount charged at Remita (base fee plus split
-        // surcharge). Keep each component available so the overall report can
-        // reconcile every portal consistently.
-        $grossExpression = "COALESCE(CAST(amount AS DECIMAL(15,2)), 0)";
-        $baseExpression = "COALESCE(CAST(base_amount AS DECIMAL(15,2)), GREATEST(CAST(amount AS DECIMAL(15,2)) - COALESCE(CAST(surcharge_amount AS DECIMAL(15,2)), 0), 0))";
-        $surchargeExpression = "COALESCE(CAST(surcharge_amount AS DECIMAL(15,2)), GREATEST(CAST(amount AS DECIMAL(15,2)) - COALESCE(CAST(base_amount AS DECIMAL(15,2)), 0), 0))";
-        $qualifiedGrossExpression = "COALESCE(CAST(invoices.amount AS DECIMAL(15,2)), 0)";
-        $qualifiedBaseExpression = "COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0), 0))";
-        $qualifiedSurchargeExpression = "COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), 0), 0))";
+        // This page is a surcharge-only report. Never use the base fee or
+        // gateway total for any amount shown or calculated here.
+        $surchargeExpression = "COALESCE(CAST(surcharge_amount AS DECIMAL(15,2)), 0)";
+        $grossExpression = $surchargeExpression;
+        $qualifiedGrossExpression = "COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0)";
 
         $summary = (clone $baseQuery)->selectRaw(
             'COUNT(*) AS invoice_count,
              COALESCE(SUM('.$grossExpression.'), 0) AS gross_amount,
-             COALESCE(SUM('.$baseExpression.'), 0) AS base_amount,
+             0 AS base_amount,
              COALESCE(SUM('.$surchargeExpression.'), 0) AS surcharge_amount'
         )->first();
 
@@ -87,12 +83,13 @@ class RemitaSplitReportController extends Controller
             ->join('invoices', 'invoices.id', '=', 'invoice_split_items.invoice_id')
             ->where('invoices.split_enabled', 1);
         $this->applyFilters($allocationSummary, $filters, $serviceFilters, $dateFrom, $dateTo, 'invoices');
-        $allocationSummary = $allocationSummary
-            ->select('invoice_split_items.beneficiary_name')
-            ->selectRaw('COUNT(DISTINCT invoice_split_items.invoice_id) AS invoice_count, COALESCE(SUM(invoice_split_items.beneficiary_amount), 0) AS allocated_amount')
-            ->groupBy('invoice_split_items.beneficiary_name')
-            ->orderByDesc('allocated_amount')
-            ->get();
+        $allocationRows = $allocationSummary
+            ->select([
+                'invoice_split_items.invoice_id', 'invoice_split_items.beneficiary_name',
+                'invoice_split_items.beneficiary_amount', 'invoice_split_items.is_primary',
+                'invoices.surcharge_amount',
+            ])->get();
+        $allocationSummary = $this->surchargeAllocationSummary($allocationRows);
 
         $paid = $statusSummary->filter(fn ($row) => in_array(strtolower((string) $row->status), ['paid', 'successful', 'success'], true))->sum('gross_amount');
         $pending = $statusSummary->filter(fn ($row) => in_array(strtolower((string) $row->status), ['pending', 'processing'], true))->sum('gross_amount');
@@ -114,7 +111,7 @@ class RemitaSplitReportController extends Controller
             ->leftJoin('program', 'program.code', '=', 'invoices.program')
             ->select([
                 'invoices.id', 'invoices.rrr', 'invoices.orderId', 'invoices.description', 'invoices.status',
-                'invoices.amount', 'invoices.base_amount', 'invoices.surcharge_amount', 'invoices.session',
+                'invoices.surcharge_amount', 'invoices.session',
                 'invoices.created_at', 'invoices.username', 'invoices.faculty', 'invoices.department', 'invoices.program', 'invoices.level',
                 'students.username AS matric_number', 'students.fullname',
                 'faculty.title AS faculty_title', 'department.title AS department_title', 'program.title AS program_title',
@@ -124,10 +121,6 @@ class RemitaSplitReportController extends Controller
             ->orderByDesc('invoices.id')
             ->paginate(25)
             ->withQueryString();
-        $rows->getCollection()->transform(function ($row) {
-            $row->amount = (float) ($row->gross_amount ?? $row->amount ?? 0);
-            return $row;
-        });
 
         // Pull the same normalized read-only shape from PG, SBRS and
         // Institute. A source outage never breaks the UG report; its status is
@@ -139,7 +132,7 @@ class RemitaSplitReportController extends Controller
         $summary = (object) [
             'invoice_count' => (int) ($ugSummary->invoice_count ?? 0) + (int) ($remoteSummary['invoice_count'] ?? 0),
             'gross_amount' => (float) ($ugSummary->gross_amount ?? 0) + (float) ($remoteSummary['gross_amount'] ?? 0),
-            'base_amount' => (float) ($ugSummary->base_amount ?? 0) + (float) ($remoteSummary['base_amount'] ?? 0),
+            'base_amount' => 0.0,
             'surcharge_amount' => (float) ($ugSummary->surcharge_amount ?? 0) + (float) ($remoteSummary['surcharge_amount'] ?? 0),
         ];
         $paid += (float) ($aggregation['paid'] ?? 0);
@@ -171,7 +164,7 @@ class RemitaSplitReportController extends Controller
         $trend = $mergeGroups($trend, (array) ($aggregation['trend'] ?? []), 'bucket', 'bucket', 'gross_amount')->sortBy('bucket')->values();
         $externalRows = collect($aggregation['rows'] ?? []);
         $sourceBreakdown = collect([
-            ['source' => 'ug', 'label' => 'Undergraduate', 'status' => 'ok', 'count' => (int) ($ugSummary->invoice_count ?? 0), 'gross_amount' => (float) ($ugSummary->gross_amount ?? 0), 'error' => null],
+            ['source' => 'ug', 'label' => 'Undergraduate', 'status' => 'ok', 'count' => (int) ($ugSummary->invoice_count ?? 0), 'gross_amount' => (float) ($ugSummary->gross_amount ?? 0), 'surcharge_amount' => (float) ($ugSummary->surcharge_amount ?? 0), 'error' => null],
         ])->merge($aggregation['sources'] ?? [])->values();
 
         $faculties = DB::table('faculty')->where('status', 1)->select('code', 'title')->orderBy('title')->get();
@@ -255,7 +248,7 @@ class RemitaSplitReportController extends Controller
 
         $query = DB::table('invoices')->where('invoices.split_enabled', 1);
         $this->applyFilters($query, $filters, $serviceFilters, $dateFrom, $dateTo);
-        $qualifiedGrossExpression = "COALESCE(CAST(invoices.amount AS DECIMAL(15,2)), 0)";
+        $qualifiedGrossExpression = "COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0)";
         $rows = $query
             ->leftJoin('students', 'students.user_id', '=', 'invoices.username')
             ->leftJoin('faculty', 'faculty.code', '=', 'invoices.faculty')
@@ -282,14 +275,10 @@ class RemitaSplitReportController extends Controller
             [
                 'Invoice ID', 'RRR', 'Order Reference', 'Student ID', 'Student Name',
                 'Service', 'Service Type ID', 'Faculty', 'Department', 'Programme',
-                'Level', 'Academic Session', 'Sponsor', 'Base Amount', 'Service Charge',
-                'Overall Payment', 'Status', 'Created At',
+                'Level', 'Academic Session', 'Sponsor', 'Service Charge', 'Status', 'Created At',
             ],
             static function ($row): array {
-                $base = $row->base_amount !== null
-                    ? (float) $row->base_amount
-                    : max((float) $row->amount - (float) ($row->surcharge_amount ?? 0), 0);
-                $gross = (float) ($row->gross_amount ?? $row->amount ?? 0);
+                $charge = (float) ($row->surcharge_amount ?? 0);
 
                 return [
                     $row->id,
@@ -305,9 +294,7 @@ class RemitaSplitReportController extends Controller
                     $row->level ?: '',
                     $row->session ?: '',
                     strtolower((string) $row->fees_type) === 'nelfund' ? 'NELFUND' : 'Self sponsored',
-                    number_format($base, 2, '.', ''),
-                    number_format((float) ($row->surcharge_amount ?? 0), 2, '.', ''),
-                    number_format($gross, 2, '.', ''),
+                    number_format($charge, 2, '.', ''),
                     $row->status ?: 'Unknown',
                     $row->created_at ? Carbon::parse($row->created_at)->format('Y-m-d H:i:s') : '',
                 ];
@@ -428,6 +415,38 @@ class RemitaSplitReportController extends Controller
         } catch (\Throwable $e) {
             return null;
         }
+    }
+
+    /**
+     * Return beneficiary allocations for the surcharge only. The primary
+     * Remita line also contains the base fee, so its charge share is the
+     * stored surcharge less the non-primary line amounts.
+     */
+    private function surchargeAllocationSummary($rows)
+    {
+        $groups = [];
+        foreach (collect($rows)->groupBy('invoice_id') as $invoiceRows) {
+            $charge = max((float) ($invoiceRows->first()->surcharge_amount ?? 0), 0);
+            $nonPrimary = $invoiceRows->filter(fn ($row) => ! (bool) $row->is_primary)
+                ->sum(fn ($row) => max((float) ($row->beneficiary_amount ?? 0), 0));
+            foreach ($invoiceRows as $row) {
+                $name = (string) ($row->beneficiary_name ?: 'Beneficiary');
+                $amount = (bool) $row->is_primary
+                    ? max($charge - $nonPrimary, 0)
+                    : max((float) ($row->beneficiary_amount ?? 0), 0);
+                if (! isset($groups[$name])) {
+                    $groups[$name] = ['beneficiary_name' => $name, 'invoice_count' => 0, 'allocated_amount' => 0.0, '_invoices' => []];
+                }
+                $groups[$name]['allocated_amount'] += $amount;
+                $groups[$name]['_invoices'][(string) $row->invoice_id] = true;
+            }
+        }
+
+        return collect($groups)->map(function ($item) {
+            $item['invoice_count'] = count($item['_invoices']);
+            unset($item['_invoices']);
+            return (object) $item;
+        })->sortByDesc('allocated_amount')->values();
     }
 
     private function applyFilters($query, array $filters, $serviceFilters, ?Carbon $from, ?Carbon $to, string $table = 'invoices'): void
