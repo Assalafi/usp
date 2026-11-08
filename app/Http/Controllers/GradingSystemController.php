@@ -67,8 +67,8 @@ class GradingSystemController extends Controller
         if(!session()->has('log')){return redirect('/');}
         $validated = $req->validate([
             'name' => 'required|string|max:50',
-            'from' => 'required|numeric|min:0|max:100',
-            'to' => 'required|numeric|min:0|max:100',
+            'from' => 'required|digits:4|integer|min:1900|max:3100',
+            'to' => 'required|string|max:20',
             'min_score' => 'required|array|min:1',
             'min_score.*' => 'required|numeric|min:0|max:100',
             'max_score' => 'required|array|min:1',
@@ -80,8 +80,11 @@ class GradingSystemController extends Controller
             'point' => 'required|array|min:1',
             'point.*' => 'required|numeric|min:0|max:10',
         ]);
-        if ((float) $validated['from'] > (float) $validated['to']) {
-            return redirect()->back()->withInput()->with('error', 'The overall minimum mark cannot be greater than the maximum mark.');
+        if (!preg_match('/^(current|\d{4})$/i', (string) $validated['to'])) {
+            return redirect()->back()->withInput()->with('error', 'The ending academic year must be a four-digit year or current.');
+        }
+        if (strtolower((string) $validated['to']) !== 'current' && (int) $validated['from'] > (int) $validated['to']) {
+            return redirect()->back()->withInput()->with('error', 'The starting academic year cannot be later than the ending year.');
         }
         $bandCount = count($validated['min_score']);
         foreach (['max_score', 'grade', 'remark', 'point'] as $field) {
@@ -132,7 +135,7 @@ class GradingSystemController extends Controller
         $validated = $req->validate([
             'ref' => 'required|string|max:120',
             'name' => 'required|string|max:50',
-            'from' => 'nullable|string|max:20',
+            'from' => 'required|digits:4|integer|min:1900|max:3100',
             'to' => 'required|string|max:20',
             'min_score' => 'required|array|min:1',
             'min_score.*' => 'required|numeric|min:0|max:100',
@@ -148,6 +151,12 @@ class GradingSystemController extends Controller
 
         if (count($validated['min_score']) !== count($validated['max_score']) || count($validated['min_score']) !== count($validated['grade']) || count($validated['min_score']) !== count($validated['remark']) || count($validated['min_score']) !== count($validated['point'])) {
             return redirect()->back()->withInput()->with('error', 'Please complete every grade band before saving.');
+        }
+        if (!preg_match('/^(current|\d{4})$/i', (string) $validated['to'])) {
+            return redirect()->back()->withInput()->with('error', 'The ending academic year must be a four-digit year or current.');
+        }
+        if (strtolower((string) $validated['to']) !== 'current' && (int) $validated['from'] > (int) $validated['to']) {
+            return redirect()->back()->withInput()->with('error', 'The starting academic year cannot be later than the ending year.');
         }
 
         try {
