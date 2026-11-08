@@ -29,19 +29,32 @@ class GradingSystemController extends Controller
     public function index(Request $req)
     {
         if(!session()->has('log')){return redirect('/');}
-        if ($req->has('_token')) {
-            $data = $req->all();
-            unset($data['_token']);
-            $filteredData = array_filter($data);
-            $query = DB::table($this->table);
-            foreach ($filteredData as $key => $value) {
-                $query->where($key, $value);
-            }
-            $data['data'] = $query->orderBy('code', 'ASC')->get();
-        }else{
-            $data['data'] = DB::table($this->table)->where(['status' => '1'])->select('ref','name','from','to')->groupBy('ref','name','from','to')->orderBy('name', 'DESC')->orderBy('from', 'ASC')->get();
+        $filters = $req->only(['search', 'name', 'from', 'to']);
+        $query = DB::table($this->table)->where('status', '1');
+        if (($search = trim((string) ($filters['search'] ?? ''))) !== '') {
+            $query->where(function ($nested) use ($search) {
+                $nested->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('ref', 'like', '%' . $search . '%')
+                    ->orWhere('grade', 'like', '%' . $search . '%');
+            });
         }
+        foreach (['name', 'from', 'to'] as $field) {
+            if (($value = trim((string) ($filters[$field] ?? ''))) !== '') {
+                $query->where($field, $value);
+            }
+        }
+        $data['data'] = $query->select('ref', 'name', 'from', 'to')
+            ->groupBy('ref', 'name', 'from', 'to')
+            ->orderBy('name', 'ASC')->orderBy('from', 'ASC')->get();
+        $refs = $data['data']->pluck('ref')->filter()->values();
+        $data['gradingDetails'] = DB::table($this->table)->whereIn('ref', $refs)
+            ->orderBy('min_score', 'ASC')->get()->groupBy('ref');
+        $data['filters'] = $filters;
+        $data['scaleCount'] = $data['data']->count();
+        $data['bandCount'] = $data['gradingDetails']->flatten(1)->count();
         $data['grading'] = DB::table($this->table)->select('name')->groupBy('name')->orderBy('name', 'ASC')->get();
+        $data['gradingScales'] = $data['data'];
+        $data['gradingNames'] = $data['grading'];
         $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
         $data['page'] = $this->page;
         $data['title'] = $this->title;
@@ -51,30 +64,52 @@ class GradingSystemController extends Controller
     public function create(Request $req)
     {
         if(!session()->has('log')){return redirect('/');}
+        $validated = $req->validate([
+            'name' => 'required|string|max:50',
+            'from' => 'required|numeric|min:0|max:100',
+            'to' => 'required|numeric|min:0|max:100',
+            'min_score' => 'required|array|min:1',
+            'min_score.*' => 'required|numeric|min:0|max:100',
+            'max_score' => 'required|array|min:1',
+            'max_score.*' => 'required|numeric|min:0|max:100',
+            'grade' => 'required|array|min:1',
+            'grade.*' => 'required|string|max:10',
+            'remark' => 'required|array|min:1',
+            'remark.*' => 'required|string|max:60',
+            'point' => 'required|array|min:1',
+            'point.*' => 'required|numeric|min:0|max:10',
+        ]);
+        if ((float) $validated['from'] > (float) $validated['to']) {
+            return redirect()->back()->withInput()->with('error', 'The overall minimum mark cannot be greater than the maximum mark.');
+        }
+        $bandCount = count($validated['min_score']);
+        foreach (['max_score', 'grade', 'remark', 'point'] as $field) {
+            if (count($validated[$field]) !== $bandCount) {
+                return redirect()->back()->withInput()->with('error', 'Please complete every grade band before saving.');
+            }
+        }
         try {
+            $ref = strtoupper(preg_replace('/[^A-Z0-9]+/i', '', $validated['name'] . $validated['from'] . $validated['to']));
+            if (DB::table($this->table)->where('ref', $ref)->exists()) {
+                return redirect()->back()->withInput()->with('error', 'A grading scale with the same name and mark range already exists. Edit the existing scale instead.');
+            }
             DB::beginTransaction();
-
-            $min_score = $req->input('min_score');
-            $max_score = $req->input('max_score');
-            $grade = $req->input('grade');
-            $remark = $req->input('remark');
-            $point = $req->input('point');
-            $name = $req->input('name');
-            $from = $req->input('from');
-            $to = $req->input('to');
-
-            foreach ($min_score as $key => $page) {
+            foreach ($validated['min_score'] as $key => $min) {
+                if ((float) $min > (float) $validated['max_score'][$key]) {
+                    throw new \RuntimeException('A minimum mark cannot be greater than its maximum mark.');
+                }
                 DB::table($this->table)->insert([
-                    'ref' => strtoupper($name.$from.$to),
-                    'name' => strtoupper($name),
-                    'from' => $from,
-                    'to' => $to,
-                    'min_score' => $min_score[$key],
-                    'max_score' => $max_score[$key],
-                    'grade' => strtoupper($grade[$key]),
-                    'remark' => $remark[$key],
-                    'point' => $point[$key],
+                    'ref' => $ref,
+                    'name' => strtoupper($validated['name']),
+                    'from' => $validated['from'],
+                    'to' => $validated['to'],
+                    'min_score' => $min,
+                    'max_score' => $validated['max_score'][$key],
+                    'grade' => strtoupper($validated['grade'][$key]),
+                    'remark' => strtoupper($validated['remark'][$key]),
+                    'point' => $validated['point'][$key],
                     'user' => session('username'),
+                    'status' => '1',
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -86,6 +121,62 @@ class GradingSystemController extends Controller
             // dd($e);
             // die;
             return redirect()->back()->with('error', 'Error storing data.');
+        }
+    }
+
+    public function edit(Request $req)
+    {
+        if (!session()->has('log')) { return redirect('/'); }
+
+        $validated = $req->validate([
+            'ref' => 'required|string|max:120',
+            'name' => 'required|string|max:50',
+            'from' => 'nullable|string|max:20',
+            'to' => 'required|string|max:20',
+            'min_score' => 'required|array|min:1',
+            'min_score.*' => 'required|numeric|min:0|max:100',
+            'max_score' => 'required|array|min:1',
+            'max_score.*' => 'required|numeric|min:0|max:100',
+            'grade' => 'required|array|min:1',
+            'grade.*' => 'required|string|max:10',
+            'remark' => 'required|array|min:1',
+            'remark.*' => 'required|string|max:60',
+            'point' => 'required|array|min:1',
+            'point.*' => 'required|numeric|min:0|max:10',
+        ]);
+
+        if (count($validated['min_score']) !== count($validated['max_score']) || count($validated['min_score']) !== count($validated['grade']) || count($validated['min_score']) !== count($validated['remark']) || count($validated['min_score']) !== count($validated['point'])) {
+            return redirect()->back()->withInput()->with('error', 'Please complete every grade band before saving.');
+        }
+
+        try {
+            DB::transaction(function () use ($validated) {
+                $now = now();
+                DB::table($this->table)->where('ref', $validated['ref'])->delete();
+                foreach ($validated['min_score'] as $index => $min) {
+                    if ((float) $min > (float) $validated['max_score'][$index]) {
+                        throw new \RuntimeException('A minimum mark cannot be greater than its maximum mark.');
+                    }
+                    DB::table($this->table)->insert([
+                        'ref' => $validated['ref'],
+                        'name' => strtoupper($validated['name']),
+                        'from' => $validated['from'] ?: null,
+                        'to' => $validated['to'],
+                        'min_score' => $min,
+                        'max_score' => $validated['max_score'][$index],
+                        'grade' => strtoupper($validated['grade'][$index]),
+                        'remark' => strtoupper($validated['remark'][$index]),
+                        'point' => $validated['point'][$index],
+                        'user' => session('username'),
+                        'status' => '1',
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ]);
+                }
+            });
+            return redirect()->back()->with('success', 'Grading scale updated successfully.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage() ?: 'The grading scale could not be updated.');
         }
     }
 

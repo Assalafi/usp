@@ -1666,6 +1666,10 @@ foreach ($links as $key => $link) {
     Route::post("/upload $link", [$controller, 'upload'])->middleware('role');
 }
 
+// A grading scale is edited as one complete set of mark bands. Keep this
+// separate from the generic update route, which assigns a scale to courses.
+Route::post('/edit grading system', [App\Http\Controllers\GradingSystemController::class, 'edit'])->middleware('role');
+
 // Recruitment Routes
 use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\RecruitmentManagementController;

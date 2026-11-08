@@ -506,6 +506,8 @@
                         @include('Admin.faculty-modern')
                     @elseif ($page == 'department' && session('accType') == 'Admin')
                         @include('Admin.department-modern')
+                    @elseif ($page == 'grading system' && session('accType') == 'Admin')
+                        @include('Admin.grading-system-modern')
                     @elseif ($page == 'program course registration')
                         @include('Admin.program-course-registration-modern')
                     @elseif (session('accType') == 'Admin' && $page == 'election results')
