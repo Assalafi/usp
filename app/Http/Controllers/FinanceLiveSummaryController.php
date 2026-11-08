@@ -16,7 +16,7 @@ class FinanceLiveSummaryController extends Controller
         $this->authorise();
         $sessions = DB::table('session')->select('title', 'status')->whereNotNull('title')->where('title', '<>', '')->orderByDesc('title')->get();
         $selectedSession = trim((string) $request->query('session', ''));
-        if ($selectedSession === '' || strtolower($selectedSession) === 'current') {
+        if (strtolower($selectedSession) === 'current') {
             $selectedSession = (string) ($sessions->firstWhere('status', '1')->title ?? $sessions->first()->title ?? 'all');
         }
         if ($selectedSession === '') $selectedSession = 'all';
