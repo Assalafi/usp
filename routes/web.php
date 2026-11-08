@@ -1577,6 +1577,14 @@ Route::get('/settings/export', [App\Http\Controllers\SystemSettingsController::c
 Route::get('/offline-payments/search', [App\Http\Controllers\FeesDueController::class, 'searchApplicants'])->name('offline-payments.search');
 Route::post('/offline-payments/confirm', [App\Http\Controllers\FeesDueController::class, 'confirmPayment'])->name('offline-payments.confirm');
 
+// Administrator-initiated Remita payment workspace.
+Route::get('/admin/make-payment', [App\Http\Controllers\FeesDueController::class, 'adminPaymentPage'])
+    ->name('admin.make-payment')
+    ->middleware('role');
+Route::post('/admin/make-payment', [App\Http\Controllers\FeesDueController::class, 'createAdminPayment'])
+    ->name('admin.make-payment.create')
+    ->middleware('role');
+
 Route::get('/pdf-viewers', function (Request $request) {
     $pdfPath = $request->query('file');  // Get the PDF file path from the query parameter
     return redirect()->to('/pdf-viewers/web/viewer.html?file=' . urlencode($pdfPath));

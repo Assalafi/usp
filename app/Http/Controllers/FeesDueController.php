@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Exports\PaidStudentsExport;
 use App\Exports\UnpaidStudentsExport;
+use App\Services\RemitaPaymentService;
 
 class FeesDueController extends Controller
 {
@@ -193,6 +195,141 @@ class FeesDueController extends Controller
             $data['page'] = $this->page;
             $data['title'] = $this->title;
         return view('main',$data);
+    }
+
+    /**
+     * Show the administrator payment workspace. This is separate from the
+     * student payment page so an administrator can create a payment for a
+     * payer who is not a portal student.
+     */
+    public function adminPaymentPage(Request $request)
+    {
+        if (!session()->has('log') || session('accType') !== 'Admin') {
+            return redirect('/')->with('error', 'Only administrators can open this payment page.');
+        }
+
+        $services = collect(SystemSettingsController::getRemitaServiceCatalog())
+            ->filter(function (array $service) {
+                return !empty($service['active'])
+                    && trim((string) ($service['service_type_id'] ?? '')) !== '';
+            })
+            ->values();
+
+        return view('main', [
+            'page' => 'admin make payment',
+            'title' => 'MAKE PAYMENT',
+            'paymentServices' => $services,
+            'paymentSessions' => DB::table('session')->select('title')->orderByDesc('title')->get(),
+            'paymentSession' => SystemSettingsController::getSchoolFeesSession(),
+        ]);
+    }
+
+    /**
+     * Generate a Remita invoice for an administrator-entered payer using the
+     * same preparation, split allocation and invoice transaction as students.
+     */
+    public function createAdminPayment(Request $request)
+    {
+        if (!session()->has('log') || session('accType') !== 'Admin') {
+            return redirect('/')->with('error', 'Only administrators can create a payment.');
+        }
+
+        $validated = $request->validate([
+            'payer_name' => 'required|string|max:160',
+            'email' => 'required|email:rfc,dns|max:160',
+            'phone' => ['required', 'string', 'max:30', 'regex:/^[0-9+()\s-]{7,30}$/'],
+            'description' => 'required|string|max:180',
+            'service_type' => 'required|string|max:80',
+            'amount' => 'nullable|numeric|min:1|max:999999999.99',
+            'session' => 'required|string|max:30',
+        ]);
+
+        $service = collect(SystemSettingsController::getRemitaServiceCatalog())
+            ->filter(fn (array $item) => !empty($item['active']) && trim((string) ($item['service_type_id'] ?? '')) !== '')
+            ->firstWhere('key', trim((string) $validated['service_type']));
+
+        if (!is_array($service)) {
+            return redirect()->back()->withInput()->with('error', 'Select a valid payment service from the list.');
+        }
+
+        $baseAmount = (float) ($validated['amount'] ?? 0);
+        if ($baseAmount <= 0) {
+            $baseAmount = (float) ($service['amount'] ?? 0);
+        }
+        if ($baseAmount <= 0) {
+            return redirect()->back()->withInput()->with('error', 'Enter the amount to collect for this service.');
+        }
+
+        $orderId = (string) random_int(92343459459, 93438458488);
+        $payer = [
+            'name' => trim($validated['payer_name']),
+            'email' => strtolower(trim($validated['email'])),
+            'phone' => trim($validated['phone']),
+        ];
+        $description = trim($validated['description']);
+
+        try {
+            $prepared = RemitaPaymentService::prepare(
+                (string) $service['key'],
+                $baseAmount,
+                $orderId,
+                $payer,
+                $description
+            );
+        } catch (\Throwable $exception) {
+            Log::error('UG administrator payment preparation failed', [
+                'service_key' => $service['key'] ?? null,
+                'message' => $exception->getMessage(),
+            ]);
+            return redirect()->back()->withInput()->with('error', 'This payment service is not configured correctly. Please review the payment settings.');
+        }
+
+        $result = RemitaPaymentService::createReference($prepared, 'UG administrator payment');
+        if (!$result['success']) {
+            return redirect()->back()->withInput()->with('error', 'Remita could not create the payment reference: ' . $result['message']);
+        }
+
+        try {
+            $invoiceId = RemitaPaymentService::storeInvoice([
+                'username' => session('id'),
+                'name' => $payer['name'],
+                'phone' => $payer['phone'],
+                'email' => $payer['email'],
+                'session' => trim($validated['session']),
+                'description' => $description,
+                'amount' => $prepared['total_amount'],
+                'orderId' => $orderId,
+                'serviceTypeId' => $prepared['service_type_id'],
+                'rrr' => $result['rrr'],
+                'status' => 'Pending',
+                'payment_method' => 'Remita',
+                'fees_type' => 'Admin initiated',
+                'amount_type' => 'External payer',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ], $prepared);
+        } catch (\Throwable $exception) {
+            Log::error('UG administrator invoice storage failed', [
+                'rrr' => $result['rrr'] ?? null,
+                'message' => $exception->getMessage(),
+            ]);
+            return redirect()->back()->withInput()->with('error', 'The payment reference was created, but the invoice could not be saved. Do not create another payment until this is reviewed.');
+        }
+
+        return redirect()->route('admin.make-payment')->with([
+            'success' => 'Payment invoice created successfully.',
+            'adminPaymentResult' => [
+                'invoice_id' => $invoiceId,
+                'rrr' => $result['rrr'],
+                'order_id' => $orderId,
+                'payer_name' => $payer['name'],
+                'description' => $description,
+                'service_label' => $service['label'] ?? $service['key'],
+                'base_amount' => $prepared['base_amount'],
+                'surcharge_amount' => $prepared['surcharge_amount'],
+                'total_amount' => $prepared['total_amount'],
+            ],
+        ]);
     }
 
     public function create(Request $req)

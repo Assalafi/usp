@@ -46,6 +46,7 @@
             </div>
             <div class="col-lg-5">
                 <div class="fees-hero-actions">
+                    <a href="{{ route('admin.make-payment') }}" class="btn btn-success"><i class="fas fa-money-check-dollar me-1"></i> Make payment</a>
                     <a href="/admin/receipts" class="btn btn-light"><i class="fas fa-file-pdf me-1"></i> Receipts</a>
                     <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#exportPaidStudentsModal"><i class="fas fa-file-excel me-1"></i> Paid export</button>
                     <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#exportUnpaidStudentsModal"><i class="fas fa-user-clock me-1"></i> Unpaid export</button>
