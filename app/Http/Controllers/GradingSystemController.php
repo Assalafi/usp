@@ -21,6 +21,7 @@ class GradingSystemController extends Controller
         $contents = str_replace("download ", "", $contents);
         $contents = str_replace("update ", "", $contents);
         $contents = str_replace("delete ", "", $contents);
+        $contents = str_replace("edit ", "", $contents);
         $this->page = $contents;
         $this->table = str_replace(" ", "_", $this->page);
         $this->title = strtoupper($this->page);
