@@ -95,7 +95,47 @@
     const fillRows = (form, items) => { const list=form.querySelector('.gs-band-list'); list.innerHTML=''; (items && items.length ? items : [emptyBand]).forEach(item => list.insertAdjacentHTML('beforeend', bandTemplate(item))); };
     const detailsFor = ref => { const node=[...document.querySelectorAll('.gs-json')].find(n => n.dataset.ref===ref); try { return node ? JSON.parse(node.textContent || '[]') : []; } catch(e) { return []; } };
     const showModal = selector => { const element=document.querySelector(selector); if(!element) return; if(window.bootstrap && bootstrap.Modal){ bootstrap.Modal.getOrCreateInstance(element).show(); } else if(window.jQuery){ window.jQuery(element).modal('show'); } };
-    document.querySelectorAll('.gs-scale-form').forEach(form => { fillRows(form, []); form.addEventListener('click', event => { if(event.target.closest('.js-add-band')) fillRows(form, [...form.querySelectorAll('.gs-band-row')].map(row => ({min_score:row.querySelector('[name="min_score[]"]').value,max_score:row.querySelector('[name="max_score[]"]').value,grade:row.querySelector('[name="grade[]"]').value,remark:row.querySelector('[name="remark[]"]').value,point:row.querySelector('[name="point[]"]').value}), emptyBand); if(event.target.closest('.gs-remove')) { const row=event.target.closest('.gs-band-row'); row.remove(); if(!form.querySelector('.gs-band-row')) fillRows(form, []); } }); form.addEventListener('submit', event => { const ranges=[...form.querySelectorAll('.gs-band-row')].map(row => [Number(row.querySelector('[name="min_score[]"]').value),Number(row.querySelector('[name="max_score[]"]').value)]); const overall=[Number(form.querySelector('[name="from"]').value),Number(form.querySelector('[name="to"]').value)]; if(!ranges.length || ranges.some(range => Number.isNaN(range[0]) || Number.isNaN(range[1]) || range[0]>range[1]) || overall[0]>overall[1]) { event.preventDefault(); alert('Please check the score ranges. The minimum must not be greater than the maximum.'); return; } const button=form.querySelector('.gs-submit'); if(button){button.disabled=true;button.innerHTML='<i class="fas fa-spinner fa-spin mr-1"></i> Saving...';} }); });
+    document.querySelectorAll('.gs-scale-form').forEach(form => {
+        fillRows(form, []);
+        form.addEventListener('click', event => {
+            const addButton = event.target.closest('.js-add-band');
+            if (addButton) {
+                const items = [...form.querySelectorAll('.gs-band-row')].map(row => ({
+                    min_score: row.querySelector('[name="min_score[]"]').value,
+                    max_score: row.querySelector('[name="max_score[]"]').value,
+                    grade: row.querySelector('[name="grade[]"]').value,
+                    remark: row.querySelector('[name="remark[]"]').value,
+                    point: row.querySelector('[name="point[]"]').value
+                }));
+                items.push(emptyBand);
+                fillRows(form, items);
+                return;
+            }
+            const removeButton = event.target.closest('.gs-remove');
+            if (removeButton) {
+                const row = removeButton.closest('.gs-band-row');
+                if (row) row.remove();
+                if (!form.querySelector('.gs-band-row')) fillRows(form, []);
+            }
+        });
+        form.addEventListener('submit', event => {
+            const ranges = [...form.querySelectorAll('.gs-band-row')].map(row => [
+                Number(row.querySelector('[name="min_score[]"]').value),
+                Number(row.querySelector('[name="max_score[]"]').value)
+            ]);
+            const overall = [Number(form.querySelector('[name="from"]').value), Number(form.querySelector('[name="to"]').value)];
+            if (!ranges.length || ranges.some(range => Number.isNaN(range[0]) || Number.isNaN(range[1]) || range[0] > range[1]) || overall[0] > overall[1]) {
+                event.preventDefault();
+                alert('Please check the score ranges. The minimum must not be greater than the maximum.');
+                return;
+            }
+            const button = form.querySelector('.gs-submit');
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving...';
+            }
+        });
+    });
     document.querySelectorAll('.js-edit-scale').forEach(button => button.addEventListener('click', () => { const form=document.querySelector('#gsEditModal form'); form.querySelector('.js-edit-ref').value=button.dataset.ref; form.querySelector('.js-edit-name').value=button.dataset.name; form.querySelector('.js-edit-from').value=button.dataset.from; form.querySelector('.js-edit-to').value=button.dataset.to; fillRows(form, detailsFor(button.dataset.ref)); showModal('#gsEditModal'); }));
     document.querySelectorAll('.js-view-scale').forEach(button => button.addEventListener('click', () => { const bands=detailsFor(button.dataset.ref); document.querySelector('.js-view-title').textContent=button.closest('.gs-card').querySelector('.gs-card-title').textContent.trim(); document.querySelector('.js-view-ref').textContent=button.dataset.ref; document.querySelector('.js-view-body').innerHTML=bands.map(b=>`<tr><td>${esc(b.min_score)}</td><td>${esc(b.max_score)}</td><td><strong>${esc(b.grade)}</strong></td><td>${esc(b.point)}</td><td>${esc(b.remark)}</td></tr>`).join(''); showModal('#gsViewModal'); }));
     document.querySelectorAll('.js-delete-scale').forEach(button => button.addEventListener('click', () => { document.querySelector('.js-delete-ref').value=button.dataset.ref; document.querySelector('.js-delete-name').textContent=button.dataset.name; showModal('#gsDeleteModal'); }));
