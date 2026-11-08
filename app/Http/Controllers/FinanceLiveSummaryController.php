@@ -56,7 +56,8 @@ class FinanceLiveSummaryController extends Controller
         $surcharge = 'COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0)';
         $base = 'COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - ' . $surcharge . ', 0))';
         $gross = $base;
-        $query = DB::table('invoices')->where('invoices.status', 'Paid');
+        $query = DB::table('invoices')->where('invoices.status', 'Paid')
+            ->whereRaw("UPPER(COALESCE(invoices.description, '')) NOT LIKE ?", ['%REFUND%']);
         if ($sessionFilter) {
             $query->where('invoices.session', $sessionFilter);
         } else {

@@ -22,7 +22,8 @@ class RemitaSplitReportController
         $scope = strtolower(trim((string) $request->query('scope', 'split')));
         $splitOnly = $scope === 'split';
         $baseOnly = $scope === 'base';
-        $query = DB::table('invoices');
+        $query = DB::table('invoices')
+            ->whereRaw("UPPER(COALESCE(invoices.description, '')) NOT LIKE ?", ['%REFUND%']);
         if ($splitOnly) {
             $query->where('invoices.split_enabled', 1);
         }
