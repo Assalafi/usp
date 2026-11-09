@@ -215,12 +215,99 @@ class FeesDueController extends Controller
             })
             ->values();
 
+        // Keep the payment desk useful after an invoice is created: administrators
+        // should be able to find every invoice without leaving this workspace.
+        // The query is deliberately server-side and paginated because the invoices
+        // table contains the complete payment history.
+        $search = trim((string) $request->input('q', ''));
+        $status = trim((string) $request->input('status', ''));
+        $sessionFilter = trim((string) $request->input('payment_session', ''));
+        $descriptionFilter = trim((string) $request->input('description', ''));
+        $from = trim((string) $request->input('from', ''));
+        $to = trim((string) $request->input('to', ''));
+
+        $paymentQuery = DB::table('invoices')
+            ->leftJoin('users', 'users.id', '=', 'invoices.username')
+            ->leftJoin('students', 'students.user_id', '=', 'invoices.username');
+
+        if ($search !== '') {
+            $paymentQuery->where(function ($query) use ($search) {
+                $like = '%' . $search . '%';
+                $query->where('invoices.name', 'LIKE', $like)
+                    ->orWhere('invoices.email', 'LIKE', $like)
+                    ->orWhere('invoices.phone', 'LIKE', $like)
+                    ->orWhere('invoices.rrr', 'LIKE', $like)
+                    ->orWhere('invoices.orderId', 'LIKE', $like)
+                    ->orWhere('invoices.description', 'LIKE', $like)
+                    ->orWhere('students.username', 'LIKE', $like)
+                    ->orWhere('users.name', 'LIKE', $like);
+            });
+        }
+        if ($status !== '' && strtolower($status) !== 'all') {
+            $paymentQuery->where('invoices.status', $status);
+        }
+        if ($sessionFilter !== '' && strtolower($sessionFilter) !== 'all') {
+            $paymentQuery->where('invoices.session', $sessionFilter);
+        }
+        if ($descriptionFilter !== '' && strtolower($descriptionFilter) !== 'all') {
+            $paymentQuery->where('invoices.description', $descriptionFilter);
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
+            $paymentQuery->whereDate('invoices.created_at', '>=', $from);
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) {
+            $paymentQuery->whereDate('invoices.created_at', '<=', $to);
+        }
+
+        $payments = (clone $paymentQuery)
+            ->select([
+                'invoices.id', 'invoices.username', 'invoices.name', 'invoices.email',
+                'invoices.phone', 'invoices.description', 'invoices.amount',
+                'invoices.base_amount', 'invoices.surcharge_amount', 'invoices.session',
+                'invoices.rrr', 'invoices.orderId', 'invoices.status',
+                'invoices.payment_method', 'invoices.created_at', 'invoices.updated_at',
+                'users.name as account_name', 'students.username as student_id',
+            ])
+            ->orderByDesc('invoices.created_at')
+            ->orderByDesc('invoices.id')
+            ->paginate(25, ['*'], 'payments_page')
+            ->withQueryString();
+
+        $paymentMetrics = [
+            'records' => (int) (clone $paymentQuery)->count('invoices.id'),
+            'paid_count' => (int) (clone $paymentQuery)->where('invoices.status', 'Paid')->count('invoices.id'),
+            'paid_amount' => (float) (clone $paymentQuery)->where('invoices.status', 'Paid')->sum('invoices.amount'),
+            'pending_count' => (int) (clone $paymentQuery)->whereIn('invoices.status', ['Pending', 'Processing'])->count('invoices.id'),
+            'pending_amount' => (float) (clone $paymentQuery)->whereIn('invoices.status', ['Pending', 'Processing'])->sum('invoices.amount'),
+            'failed_count' => (int) (clone $paymentQuery)->whereIn('invoices.status', ['Failed', 'Cancelled', 'Rejected'])->count('invoices.id'),
+        ];
+
+        $paymentDescriptions = DB::table('invoices')
+            ->whereNotNull('description')
+            ->where('description', '!=', '')
+            ->select('description')
+            ->distinct()
+            ->orderBy('description')
+            ->limit(250)
+            ->pluck('description');
+
         return view('main', [
             'page' => 'admin make payment',
-            'title' => 'MAKE PAYMENT',
+            'title' => 'ALL PAYMENTS',
             'paymentServices' => $services,
             'paymentSessions' => DB::table('session')->select('title')->orderByDesc('title')->get(),
             'paymentSession' => SystemSettingsController::getSchoolFeesSession(),
+            'payments' => $payments,
+            'paymentMetrics' => $paymentMetrics,
+            'paymentDescriptions' => $paymentDescriptions,
+            'paymentFilters' => [
+                'q' => $search,
+                'status' => $status,
+                'payment_session' => $sessionFilter,
+                'description' => $descriptionFilter,
+                'from' => $from,
+                'to' => $to,
+            ],
         ]);
     }
 
