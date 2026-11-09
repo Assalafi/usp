@@ -64,6 +64,13 @@ class EnsureStudentProfileSubmitted
             return $next($request);
         }
 
+        // Administrators can pause the profile-update requirement from
+        // General Settings without changing students' stored records.
+        $profileUpdateEnabled = (string) \App\Http\Controllers\SystemSettingsController::get('student_profile_update_enabled', '1') !== '0';
+        if (!$profileUpdateEnabled) {
+            return $next($request);
+        }
+
         $message = 'Your student portal access is restricted because the student record update deadline has expired.';
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json(['message' => $message, 'redirect' => url('/profile-update-expired')], 423);

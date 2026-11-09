@@ -1570,6 +1570,7 @@ Route::post('/settings/update', [App\Http\Controllers\SystemSettingsController::
 Route::post('/settings/update-single', [App\Http\Controllers\SystemSettingsController::class, 'updateSingle'])->name('settings.update-single');
 Route::post('/settings/security/request-nin-update', [App\Http\Controllers\SystemSettingsController::class, 'requestStudentNinUpdate'])->name('settings.request-nin-update');
 Route::post('/settings/security/student-nin-verification', [App\Http\Controllers\SystemSettingsController::class, 'setStudentNinVerification'])->name('settings.student-nin-verification');
+Route::post('/settings/security/student-profile-update', [App\Http\Controllers\SystemSettingsController::class, 'setStudentProfileUpdate'])->name('settings.student-profile-update');
 Route::post('/settings/reset', [App\Http\Controllers\SystemSettingsController::class, 'resetDefaults'])->name('settings.reset');
 Route::get('/settings/export', [App\Http\Controllers\SystemSettingsController::class, 'export'])->name('settings.export');
 

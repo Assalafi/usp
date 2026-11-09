@@ -48,6 +48,7 @@ class SystemSettingsController extends Controller
         $hodStaff = collect();
         $hodManagementUsers = [];
         $ninVerification = null;
+        $profileUpdateManagement = null;
         if ($category === 'academic') {
             $hodStaff = DB::table('staff as s')
                 ->leftJoin('department as d', 'd.code', '=', 's.department')
@@ -101,6 +102,28 @@ class SystemSettingsController extends Controller
                 'completion' => $eligibleCount > 0 ? round(($confirmedCount / $eligibleCount) * 100, 1) : 0,
                 'cycle_started_at' => optional($settings->firstWhere('key', 'student_nin_update_version'))->updated_at,
             ];
+
+            $profileEnabled = (string) self::get('student_profile_update_enabled', '1') !== '0';
+            $profileEligible = DB::table('students')->where('status', '1');
+            $profileSubmitted = DB::table('students')
+                ->where('status', '1')
+                ->where('profile_status', 'submitted')
+                ->whereNotNull('profile_submitted_at');
+            if ($currentSession) {
+                $profileSubmitted
+                    ->where('profile_submission_session', $currentSession)
+                    ->where('profile_level_session', $currentSession);
+            }
+            $eligibleProfiles = (clone $profileEligible)->count();
+            $submittedProfiles = (clone $profileSubmitted)->count();
+            $profileUpdateManagement = [
+                'enabled' => $profileEnabled,
+                'session' => $currentSession,
+                'eligible' => $eligibleProfiles,
+                'submitted' => $submittedProfiles,
+                'pending' => max(0, $eligibleProfiles - $submittedProfiles),
+                'completion' => $eligibleProfiles > 0 ? round(($submittedProfiles / $eligibleProfiles) * 100, 1) : 0,
+            ];
         }
 
         $data = [
@@ -113,6 +136,7 @@ class SystemSettingsController extends Controller
             'hodStaff' => $hodStaff,
             'hodManagementUsers' => $hodManagementUsers,
             'ninVerification' => $ninVerification,
+            'profileUpdateManagement' => $profileUpdateManagement,
         ];
 
         return view('main', $data);
@@ -494,6 +518,39 @@ class SystemSettingsController extends Controller
             'message' => $enabled
                 ? 'NIN verification is active. Students who have not completed the current cycle will be redirected to confirm their NIN.'
                 : 'NIN verification is paused. Students can use the portal without completing the NIN confirmation screen.',
+        ]);
+    }
+
+    public function setStudentProfileUpdate(Request $request)
+    {
+        if (!session()->has('log') || session('accType') !== 'Admin') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $validated = $request->validate([
+            'enabled' => ['required', 'boolean'],
+        ]);
+        $enabled = (bool) $validated['enabled'];
+
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => 'student_profile_update_enabled'],
+            [
+                'value' => $enabled ? '1' : '0',
+                'category' => 'security',
+                'type' => 'boolean',
+                'label' => 'Student profile update requirement',
+                'description' => 'Require active undergraduate students to submit their profile for the current academic session before using portal services.',
+                'updated_at' => now(),
+            ]
+        );
+        Cache::forget('system_settings');
+
+        return response()->json([
+            'success' => true,
+            'enabled' => $enabled,
+            'message' => $enabled
+                ? 'Student profile update enforcement is active.'
+                : 'Student profile update enforcement is paused. Students may use the portal without a current profile submission.',
         ]);
     }
 
