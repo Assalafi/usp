@@ -423,6 +423,120 @@ class FeesDueController extends Controller
         ]);
     }
 
+    /**
+     * Verify an admin-created Remita invoice without applying student-only
+     * side effects such as ID assignment or hostel settlement.
+     */
+    public function verifyAdminPayment(Request $request, $id)
+    {
+        if (!session()->has('log') || session('accType') !== 'Admin') {
+            return redirect('/')->with('error', 'Only administrators can verify this payment.');
+        }
+
+        $invoice = DB::table('invoices')
+            ->where('id', $id)
+            ->where('fees_type', 'Admin initiated')
+            ->first(['id', 'rrr', 'status']);
+
+        if (!$invoice) {
+            return redirect()->back()->with('error', 'Admin payment record not found.');
+        }
+        if (in_array(strtolower((string) $invoice->status), ['paid', 'successful', 'success'], true)) {
+            return redirect()->back()->with('success', 'This payment is already marked as paid.');
+        }
+        if (trim((string) $invoice->rrr) === '') {
+            return redirect()->back()->with('error', 'This invoice has no Remita reference to verify.');
+        }
+
+        $merchantId = trim((string) config('services.remita.merchant_id'));
+        $apiKey = trim((string) config('services.remita.api_key'));
+        if ($merchantId === '' || $apiKey === '') {
+            return redirect()->back()->with('error', 'Remita verification is not configured.');
+        }
+
+        $rrr = trim((string) $invoice->rrr);
+        $apiHash = hash('sha512', $rrr . $apiKey . $merchantId);
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => SystemSettingsController::getRemitaBaseUrl() . '/remita/exapp/api/v1/send/api/echannelsvc/' . $merchantId . '/' . $rrr . '/' . $apiHash . '/status.reg',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 3,
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'GET',
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Authorization: remitaConsumerKey=' . $merchantId . ',remitaConsumerToken=' . $apiHash,
+            ],
+        ]);
+        $response = curl_exec($curl);
+        $curlError = curl_error($curl);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        curl_close($curl);
+
+        if ($response === false || $curlError !== '') {
+            return redirect()->back()->with('error', 'Payment verification could not connect to Remita. Please try again.');
+        }
+        if ($httpCode !== 200) {
+            return redirect()->back()->with('error', 'Remita verification is temporarily unavailable (HTTP ' . $httpCode . ').');
+        }
+
+        $payload = json_decode($response, true);
+        $remitaStatus = is_array($payload) ? trim((string) ($payload['status'] ?? '')) : '';
+        if ($remitaStatus === '') {
+            return redirect()->back()->with('error', 'Remita returned an incomplete verification response.');
+        }
+
+        $newStatus = in_array($remitaStatus, ['00', '01'], true)
+            ? 'Paid'
+            : (in_array($remitaStatus, ['021'], true) ? 'Pending' : 'Failed');
+
+        DB::table('invoices')
+            ->where('id', $invoice->id)
+            ->where('fees_type', 'Admin initiated')
+            ->update([
+                'status' => $newStatus,
+                'rrr_status' => $remitaStatus,
+                'updated_at' => now(),
+            ]);
+
+        if ($newStatus === 'Paid') {
+            return redirect()->back()->with('success', 'Payment verified successfully and marked as paid.');
+        }
+        if ($newStatus === 'Pending') {
+            return redirect()->back()->with('error', 'Remita still reports this payment as pending.');
+        }
+
+        return redirect()->back()->with('error', 'Remita did not confirm this payment (status ' . $remitaStatus . ').');
+    }
+
+    /** Cancel a pending admin-created invoice while keeping its audit trail. */
+    public function cancelAdminPayment(Request $request, $id)
+    {
+        if (!session()->has('log') || session('accType') !== 'Admin') {
+            return redirect('/')->with('error', 'Only administrators can cancel this payment.');
+        }
+
+        $updated = DB::table('invoices')
+            ->where('id', $id)
+            ->where('fees_type', 'Admin initiated')
+            ->whereIn('status', ['Pending', 'Processing'])
+            ->update([
+                'status' => 'Cancelled',
+                'rrr_status' => 'CANCELLED',
+                'updated_at' => now(),
+            ]);
+
+        if (!$updated) {
+            return redirect()->back()->with('error', 'Only a pending admin payment can be cancelled.');
+        }
+
+        return redirect()->back()->with('success', 'Pending admin payment cancelled successfully.');
+    }
+
     public function create(Request $req)
     {
         if(!session()->has('log')){return redirect('/');}

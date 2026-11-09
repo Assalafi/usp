@@ -1584,6 +1584,12 @@ Route::get('/admin/make-payment', [App\Http\Controllers\FeesDueController::class
 Route::post('/admin/make-payment', [App\Http\Controllers\FeesDueController::class, 'createAdminPayment'])
     ->name('admin.make-payment.create')
     ->middleware('role');
+Route::post('/admin/make-payment/{id}/verify', [App\Http\Controllers\FeesDueController::class, 'verifyAdminPayment'])
+    ->name('admin.make-payment.verify')
+    ->middleware('role');
+Route::post('/admin/make-payment/{id}/cancel', [App\Http\Controllers\FeesDueController::class, 'cancelAdminPayment'])
+    ->name('admin.make-payment.cancel')
+    ->middleware('role');
 
 Route::get('/pdf-viewers', function (Request $request) {
     $pdfPath = $request->query('file');  // Get the PDF file path from the query parameter
