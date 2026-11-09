@@ -1096,7 +1096,9 @@
 
         $('#toggleStudentNinVerification').on('click', function() {
             var button = $(this);
-            var currentlyEnabled = button.data('enabled') == 1;
+            // Read the attribute each time so a previous click/re-render never
+            // leaves jQuery's data cache with an old enforcement state.
+            var currentlyEnabled = String(button.attr('data-enabled')) === '1';
             var enabling = !currentlyEnabled;
             Swal.fire({
                 title: enabling ? 'Resume NIN verification?' : 'Pause NIN verification?',
@@ -1133,7 +1135,7 @@
 
         $('#toggleStudentProfileUpdate').on('click', function() {
             var button = $(this);
-            var currentlyEnabled = button.data('enabled') == 1;
+            var currentlyEnabled = String(button.attr('data-enabled')) === '1';
             var enabling = !currentlyEnabled;
             Swal.fire({
                 title: enabling ? 'Resume profile enforcement?' : 'Pause profile enforcement?',
@@ -1151,6 +1153,8 @@
                 $.ajax({
                     url: '{{ route('settings.student-profile-update') }}',
                     type: 'POST',
+                    dataType: 'json',
+                    cache: false,
                     data: { _token: '{{ csrf_token() }}', enabled: enabling ? 1 : 0 },
                     success: function(response) {
                         Swal.fire({ icon: 'success', title: response.enabled ? 'Requirement active' : 'Requirement paused', text: response.message }).then(function() { location.reload(); });

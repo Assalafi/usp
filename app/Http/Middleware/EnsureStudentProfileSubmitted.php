@@ -66,7 +66,8 @@ class EnsureStudentProfileSubmitted
 
         // Administrators can pause the profile-update requirement from
         // General Settings without changing students' stored records.
-        $profileUpdateEnabled = (string) \App\Http\Controllers\SystemSettingsController::get('student_profile_update_enabled', '1') !== '0';
+        $profileUpdateSetting = strtolower(trim((string) \App\Http\Controllers\SystemSettingsController::get('student_profile_update_enabled', '1')));
+        $profileUpdateEnabled = !in_array($profileUpdateSetting, ['0', 'false', 'off', 'no'], true);
         if (!$profileUpdateEnabled) {
             return $next($request);
         }

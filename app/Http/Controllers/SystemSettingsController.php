@@ -511,6 +511,14 @@ class SystemSettingsController extends Controller
             ]
         );
         Cache::forget('system_settings');
+        // Refresh the shared settings snapshot immediately. This avoids a
+        // worker serving the previous value for the duration of the cache TTL
+        // after an administrator pauses or resumes enforcement.
+        Cache::put(
+            'system_settings',
+            DB::table('system_settings')->pluck('value', 'key')->toArray(),
+            now()->addHour()
+        );
 
         return response()->json([
             'success' => true,
@@ -544,6 +552,13 @@ class SystemSettingsController extends Controller
             ]
         );
         Cache::forget('system_settings');
+        // Refresh the shared settings snapshot immediately so profile
+        // enforcement changes take effect for the next student request.
+        Cache::put(
+            'system_settings',
+            DB::table('system_settings')->pluck('value', 'key')->toArray(),
+            now()->addHour()
+        );
 
         return response()->json([
             'success' => true,
