@@ -23,7 +23,8 @@ class RemitaPaymentService
         string $orderId,
         array $payer,
         string $description,
-        array $customFields = []
+        array $customFields = [],
+        ?array $primaryBeneficiaryOverride = null
     ): array {
         $baseKobo = self::toKobo($baseAmount);
         if ($baseKobo < 0) {
@@ -59,7 +60,45 @@ class RemitaPaymentService
         ];
 
         $lineItems = [];
-        if ($splitEnabled && $surchargeKobo > 0) {
+        $hasPrimaryOverride = is_array($primaryBeneficiaryOverride)
+            && trim((string) ($primaryBeneficiaryOverride['account_number'] ?? '')) !== ''
+            && trim((string) ($primaryBeneficiaryOverride['bank_code'] ?? '')) !== '';
+
+        if ($hasPrimaryOverride) {
+            // Administrator-created invoices may route their primary share to
+            // a different Remita-whitelisted account for this payment only.
+            // Keep the configured secondary split beneficiaries where the
+            // service supports splitting; otherwise send the complete amount
+            // to the supplied primary account as one line item.
+            if ($splitEnabled) {
+                $beneficiaries = array_values($splitSettings['beneficiaries'] ?? []);
+                $beneficiaries[0] = array_merge($beneficiaries[0] ?? [], [
+                    'label' => $primaryBeneficiaryOverride['label'] ?? 'Primary account',
+                    'account_number' => $primaryBeneficiaryOverride['account_number'],
+                    'bank_code' => $primaryBeneficiaryOverride['bank_code'],
+                ]);
+                $lineItems = $surchargeKobo > 0
+                    ? self::buildLineItems($baseKobo, $surchargeKobo, $beneficiaries)
+                    : [[
+                        'lineItemsId' => 'beneficiary1',
+                        'beneficiaryName' => self::cleanText($primaryBeneficiaryOverride['label'] ?? 'Primary account'),
+                        'beneficiaryAccount' => preg_replace('/\D+/', '', (string) $primaryBeneficiaryOverride['account_number']),
+                        'bankCode' => preg_replace('/\D+/', '', (string) $primaryBeneficiaryOverride['bank_code']),
+                        'beneficiaryAmount' => self::formatKobo($totalKobo),
+                        'deductFeeFrom' => '1',
+                    ]];
+            } else {
+                $lineItems = [[
+                    'lineItemsId' => 'beneficiary1',
+                    'beneficiaryName' => self::cleanText($primaryBeneficiaryOverride['label'] ?? 'Primary account'),
+                    'beneficiaryAccount' => preg_replace('/\D+/', '', (string) $primaryBeneficiaryOverride['account_number']),
+                    'bankCode' => preg_replace('/\D+/', '', (string) $primaryBeneficiaryOverride['bank_code']),
+                    'beneficiaryAmount' => self::formatKobo($totalKobo),
+                    'deductFeeFrom' => '1',
+                ]];
+            }
+            $payload['lineItems'] = $lineItems;
+        } elseif ($splitEnabled && $surchargeKobo > 0) {
             $lineItems = self::buildLineItems($baseKobo, $surchargeKobo, $splitSettings['beneficiaries'] ?? []);
             $payload['lineItems'] = $lineItems;
         }
@@ -79,7 +118,7 @@ class RemitaPaymentService
             'base_amount' => self::fromKobo($baseKobo),
             'surcharge_amount' => self::fromKobo($surchargeKobo),
             'total_amount' => self::fromKobo($totalKobo),
-            'split_enabled' => $splitEnabled && $surchargeKobo > 0,
+            'split_enabled' => $lineItems !== [],
             'line_items' => $lineItems,
             'line_item_summary' => array_map(function (array $item): array {
                 $account = (string) ($item['beneficiaryAccount'] ?? '');

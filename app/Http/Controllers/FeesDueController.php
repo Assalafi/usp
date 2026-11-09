@@ -333,6 +333,12 @@ class FeesDueController extends Controller
             'service_type' => 'required|string|max:80',
             'amount' => 'nullable|numeric|min:1|max:999999999.99',
             'session' => 'required|string|max:30',
+            'primary_account_name' => 'required|string|max:160',
+            'primary_account_number' => ['required', 'string', 'regex:/^\d{10}$/'],
+            'primary_bank_code' => ['required', 'string', 'regex:/^\d{3,12}$/'],
+        ], [
+            'primary_account_number.regex' => 'Enter the exact 10-digit account number that Remita has whitelisted for this merchant profile.',
+            'primary_bank_code.regex' => 'Enter a numeric bank code or routing code between 3 and 12 digits.',
         ]);
 
         $service = collect(SystemSettingsController::getRemitaServiceCatalog())
@@ -365,7 +371,12 @@ class FeesDueController extends Controller
                 $baseAmount,
                 $orderId,
                 $payer,
-                $description
+                $description,
+                [], [
+                    'label' => trim($validated['primary_account_name']),
+                    'account_number' => trim($validated['primary_account_number']),
+                    'bank_code' => trim($validated['primary_bank_code']),
+                ]
             );
         } catch (\Throwable $exception) {
             Log::error('UG administrator payment preparation failed', [
