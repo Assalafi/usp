@@ -25,6 +25,33 @@
 .ap-pending-head{align-items:center}.ap-pending-list{display:grid;gap:8px;padding:0 20px 17px}.ap-pending-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #e3edf4;border-radius:10px;padding:10px 12px;background:#fbfdff}.ap-pending-info{min-width:0}.ap-pending-info strong{display:block;color:#21445d;font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ap-pending-info small{display:block;color:#7b8e9e;font-size:.7rem;margin-top:2px}.ap-pending-actions{display:flex;gap:6px;align-items:center;flex-shrink:0}.ap-pending-actions .btn{min-height:32px;border-radius:7px;font-size:.68rem;font-weight:800}@media(max-width:575px){.ap-pending-list{padding:0 14px 14px}.ap-pending-row{align-items:flex-start;flex-direction:column}.ap-pending-actions{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.ap-pending-actions .btn{width:100%;padding-left:5px;padding-right:5px}}
 </style>
 
+<style>
+@media (max-width:700px){
+    .ap-table-wrap{overflow:visible;padding:10px 9px}
+    .ap-table{min-width:0;display:block}
+    .ap-table thead{display:none}
+    .ap-table tbody{display:grid;gap:10px}
+    .ap-table tbody tr{display:grid;grid-template-columns:1fr 1fr;background:#fff;border:1px solid #e2ebf1;border-radius:12px;box-shadow:0 4px 12px rgba(30,67,98,.04);overflow:hidden}
+    .ap-table tbody td{display:block;padding:10px 11px;border-bottom:1px solid #edf2f6;min-width:0}
+    .ap-table tbody td::before{display:block;color:#8293a1;font-size:.61rem;letter-spacing:.05em;text-transform:uppercase;font-weight:800;margin-bottom:3px}
+    .ap-table tbody td:nth-child(1)::before{content:'Date'}
+    .ap-table tbody td:nth-child(2)::before{content:'Payer'}
+    .ap-table tbody td:nth-child(3)::before{content:'Service'}
+    .ap-table tbody td:nth-child(4)::before{content:'Session'}
+    .ap-table tbody td:nth-child(5)::before{content:'Reference'}
+    .ap-table tbody td:nth-child(6)::before{content:'Amount'}
+    .ap-table tbody td:nth-child(7)::before{content:'Status'}
+    .ap-table tbody td:nth-child(8){grid-column:1/-1;border-bottom:0;padding-top:8px}
+    .ap-table tbody td:nth-child(8)::before{content:'Actions'}
+    .ap-table tbody td[colspan]{grid-column:1/-1;border-bottom:0;text-align:center}
+    .ap-table tbody td[colspan]::before{display:none}
+    .ap-person,.ap-description{max-width:none}
+    .ap-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;width:100%}
+    .ap-actions .btn,.ap-actions .ap-action-form,.ap-actions .ap-action-form .btn{width:100%;min-width:0}
+    .ap-actions .btn{padding-left:5px;padding-right:5px;font-size:.64rem}
+}
+</style>
+
 <div class="admin-payment-page">
     <div class="admin-payment-wrap">
         <section class="ap-hero">
