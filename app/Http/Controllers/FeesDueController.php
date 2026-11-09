@@ -228,7 +228,10 @@ class FeesDueController extends Controller
 
         $paymentQuery = DB::table('invoices')
             ->leftJoin('users', 'users.id', '=', 'invoices.username')
-            ->leftJoin('students', 'students.user_id', '=', 'invoices.username');
+            ->leftJoin('students', 'students.user_id', '=', 'invoices.username')
+            // The admin payment desk must not mix student-generated invoices
+            // into its records. Admin invoices are marked at creation time.
+            ->where('invoices.fees_type', 'Admin initiated');
 
         if ($search !== '') {
             $paymentQuery->where(function ($query) use ($search) {
@@ -283,6 +286,7 @@ class FeesDueController extends Controller
         ];
 
         $paymentDescriptions = DB::table('invoices')
+            ->where('fees_type', 'Admin initiated')
             ->whereNotNull('description')
             ->where('description', '!=', '')
             ->select('description')
@@ -293,7 +297,7 @@ class FeesDueController extends Controller
 
         return view('main', [
             'page' => 'admin make payment',
-            'title' => 'ALL PAYMENTS',
+            'title' => 'ADMIN PAYMENTS',
             'paymentServices' => $services,
             'paymentSessions' => DB::table('session')->select('title')->orderByDesc('title')->get(),
             'paymentSession' => SystemSettingsController::getSchoolFeesSession(),

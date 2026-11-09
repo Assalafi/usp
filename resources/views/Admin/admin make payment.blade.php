@@ -20,7 +20,7 @@
         <section class="ap-hero">
             <p class="ap-kicker"><i class="fas fa-shield-alt mr-1"></i> Finance workspace</p>
             <div class="d-flex justify-content-between align-items-end flex-wrap" style="gap:14px">
-                <div><h1>Make a payment</h1><p>Create a secure Remita invoice for a payer directly from the fees collection workspace. The selected service’s configured split rules are applied automatically.</p></div>
+                <div><h1>Admin payments</h1><p>Review invoices created by the administration team, follow their status, and create a secure Remita invoice from one workspace.</p></div>
                 <a href="{{ url('/fees due') }}" class="btn btn-light"><i class="fas fa-arrow-left mr-1"></i> Back to fees</a>
             </div>
         </section>
@@ -79,7 +79,7 @@
         </div>
 
         <section class="ap-card mt-3">
-            <div class="ap-card-head ap-filter-head"><div><h2><i class="fas fa-list-ul mr-1 text-primary"></i> Payment transactions</h2><p>All invoices are shown here, including paid, pending and unsuccessful payments.</p></div><button class="btn btn-outline-primary btn-sm ap-filter-toggle" type="button" id="paymentFilterToggle"><i class="fas fa-sliders-h mr-1"></i> Filters</button></div>
+            <div class="ap-card-head ap-filter-head"><div><h2><i class="fas fa-list-ul mr-1 text-primary"></i> Admin payment transactions</h2><p>Invoices created through this admin payment desk, including paid, pending and unsuccessful payments.</p></div><button class="btn btn-outline-primary btn-sm ap-filter-toggle" type="button" id="paymentFilterToggle"><i class="fas fa-sliders-h mr-1"></i> Filters</button></div>
             <form method="GET" action="{{ route('admin.make-payment') }}" class="ap-filter" id="paymentFilterForm">
                 <div><label for="payment_q">Search</label><input id="payment_q" name="q" class="form-control" value="{{ $filters['q'] ?? '' }}" placeholder="Name, ID, RRR or description"></div>
                 <div><label for="payment_status">Status</label><select id="payment_status" name="status" class="form-select"><option value="">All statuses</option>@foreach(['Paid','Pending','Processing','Failed','Cancelled','Rejected'] as $statusOption)<option value="{{ $statusOption }}" {{ ($filters['status'] ?? '') === $statusOption ? 'selected' : '' }}>{{ $statusOption }}</option>@endforeach</select></div>
