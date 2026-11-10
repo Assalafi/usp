@@ -1577,6 +1577,9 @@ Route::get('/settings/export', [App\Http\Controllers\SystemSettingsController::c
 // Offline Payment Confirmation Routes
 Route::get('/offline-payments/search', [App\Http\Controllers\FeesDueController::class, 'searchApplicants'])->name('offline-payments.search');
 Route::post('/offline-payments/confirm', [App\Http\Controllers\FeesDueController::class, 'confirmPayment'])->name('offline-payments.confirm');
+Route::get('/fees-due/school-summary', [App\Http\Controllers\FeesDueController::class, 'schoolSummary'])
+    ->name('fees-due.school-summary')
+    ->middleware('role');
 
 // Administrator-initiated Remita payment workspace.
 Route::get('/admin/make-payment', [App\Http\Controllers\FeesDueController::class, 'adminPaymentPage'])

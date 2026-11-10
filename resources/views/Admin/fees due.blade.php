@@ -18,6 +18,17 @@
     .fees-filter{background:#fff;border:1px solid var(--fees-border);border-radius:16px;box-shadow:0 5px 18px rgba(24,49,80,.05);padding:18px;margin-top:16px}.fees-filter .form-label{font-size:.75rem;font-weight:700;color:#52657b;margin-bottom:5px}.fees-filter .form-control,.fees-filter .form-select{border-color:#dce5ef;border-radius:9px;min-height:40px;font-size:.84rem}.fees-filter .btn{border-radius:9px;min-height:40px;font-weight:700}.fees-filter-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}.fees-filter-heading h5{margin:0;color:var(--fees-ink);font-size:1rem;font-weight:800}.fees-filter-heading small{color:var(--fees-muted)}
     .fees-results-info{font-size:.82rem}.fees-pagination-wrap .pagination{margin:0;gap:4px}.fees-pagination-wrap .page-item .page-link{border:1px solid #dfe7f1;border-radius:8px;color:#36516d;font-size:.8rem;font-weight:700;min-width:34px;text-align:center;padding:.45rem .65rem}.fees-pagination-wrap .page-item.active .page-link{background:#1769aa;border-color:#1769aa;color:#fff}.fees-pagination-wrap .page-item.disabled .page-link{color:#a5b1bf;background:#f7f9fc}@media(max-width:575px){.fees-pagination-row>[class*=col-]{width:100%}.fees-pagination-wrap{justify-content:flex-start!important;margin-top:10px;overflow-x:auto;padding-bottom:3px}.fees-pagination-wrap .pagination{flex-wrap:nowrap}.fees-results-info{font-size:.75rem}}
     .fees-section{margin-top:16px}.fees-section .card{border:1px solid var(--fees-border);border-radius:16px;box-shadow:0 5px 18px rgba(24,49,80,.05);overflow:hidden}.fees-section .card-block{padding:0}.fees-section .table-responsive{border-radius:inherit}.fees-section .table{margin-bottom:0}.fees-section .table thead th{background:#f7f9fc;color:#667890;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--fees-border)}
+    .fees-school-overview{margin-top:16px;background:#fff;border:1px solid var(--fees-border);border-radius:18px;box-shadow:0 8px 24px rgba(24,49,80,.06);overflow:hidden}
+    .fees-school-header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:20px 22px;border-bottom:1px solid var(--fees-border);background:linear-gradient(180deg,#fbfdff,#fff)}
+    .fees-school-header h4{margin:0;color:var(--fees-ink);font-size:1.08rem;font-weight:800}.fees-school-header p{margin:5px 0 0;color:var(--fees-muted);font-size:.82rem}
+    .fees-school-refresh{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;background:#f2f7fc;color:#54708d;font-size:.75rem;font-weight:700;white-space:nowrap}.fees-school-refresh.is-ready{background:#eaf8f1;color:#15754f}.fees-school-refresh.is-error{background:#fff2f1;color:#a13d38}
+    .fees-school-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:14px 22px;border-bottom:1px solid var(--fees-border);background:#fcfdff}
+    .fees-school-summary-item{display:flex;align-items:center;gap:10px;min-width:0}.fees-school-summary-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:#eaf3fb;color:#1769aa;flex:0 0 auto}.fees-school-summary-item:nth-child(2) .fees-school-summary-icon{background:#eaf8f1;color:#159570}.fees-school-summary-item:nth-child(3) .fees-school-summary-icon{background:#fff6df;color:#b17a08}.fees-school-summary strong{display:block;color:var(--fees-ink);font-size:1rem;line-height:1.2}.fees-school-summary small{display:block;color:var(--fees-muted);font-size:.72rem;margin-top:2px}
+    .fees-school-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:18px 22px}
+    .fees-school-card{min-width:0;border:1px solid var(--fees-border);border-radius:14px;padding:15px;background:#fff;position:relative;overflow:hidden}.fees-school-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#1769aa}.fees-school-card[data-school-key=pg]:before{background:#7c5ac7}.fees-school-card[data-school-key=sbrs]:before{background:#159570}.fees-school-card[data-school-key=institute]:before{background:#e39a17}.fees-school-card.is-unavailable{background:#fbfcfe}.fees-school-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.fees-school-name{font-weight:800;color:var(--fees-ink);font-size:.92rem}.fees-school-code{display:inline-flex;margin-top:3px;padding:2px 7px;border-radius:999px;background:#f0f4f8;color:#667890;font-size:.66rem;font-weight:800;letter-spacing:.05em}.fees-school-status{font-size:.66rem;font-weight:800;white-space:nowrap;color:#15845a}.fees-school-status.is-unavailable{color:#9a6d17}.fees-school-amount{font-size:1.25rem;color:var(--fees-ink);font-weight:800;margin-top:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fees-school-meta{display:flex;justify-content:space-between;gap:8px;color:var(--fees-muted);font-size:.75rem;margin-top:5px}.fees-school-note{min-height:31px;color:#8a97a8;font-size:.7rem;line-height:1.4;margin-top:10px}.fees-school-services{margin-top:10px;padding-top:10px;border-top:1px solid #edf1f6}.fees-school-service-line{display:flex;justify-content:space-between;gap:8px;color:#62748a;font-size:.7rem}.fees-school-service-line+.fees-school-service-line{margin-top:4px}.fees-school-service-line span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fees-school-service-line strong{color:var(--fees-ink);white-space:nowrap}
+    .fees-school-service-panel{padding:0 22px 20px}.fees-school-service-panel .fees-panel-title{margin:0 0 10px}.fees-school-service-panel .table-responsive{border:1px solid var(--fees-border);border-radius:12px}.fees-school-service-panel .fees-table th{border-top:0}.fees-school-service-empty{color:#8a97a8;font-size:.8rem;text-align:center;padding:18px}
+    @media(max-width:991px){.fees-school-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:575px){.fees-school-header{padding:16px;display:block}.fees-school-refresh{margin-top:12px}.fees-school-summary{grid-template-columns:1fr;padding:12px 16px}.fees-school-grid{grid-template-columns:1fr;padding:14px 16px}.fees-school-service-panel{padding:0 16px 16px}.fees-school-card{padding:14px}.fees-school-amount{font-size:1.16rem}}
     @media(max-width:991px){.fees-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.fees-hero-actions{justify-content:flex-start;margin-top:16px}.fees-panel{margin-bottom:14px}}
     @media(max-width:575px){.fees-dashboard{margin:0 -2px 18px}.fees-hero{padding:20px 17px;border-radius:15px}.fees-hero h2{font-size:1.22rem}.fees-hero-actions .btn{font-size:.75rem;padding:.48rem .62rem}.fees-kpis{grid-template-columns:1fr 1fr;gap:9px}.fees-kpi{padding:13px 12px;border-radius:12px}.fees-kpi-value{font-size:1rem}.fees-kpi-note{font-size:.68rem}.fees-sponsor-grid{grid-template-columns:1fr}.fees-panel{padding:14px;border-radius:13px}.fees-table th,.fees-table td{padding:8px 7px}.fees-filter{padding:14px;border-radius:13px}.fees-filter-heading{align-items:flex-start;gap:10px}.fees-filter-heading small{font-size:.7rem}.fees-filter .row>[class*=col-]{margin-bottom:9px}}
 </style>
@@ -68,6 +79,43 @@
         <div class="fees-kpi green"><div class="fees-kpi-label">Programme fees paid</div><div class="fees-kpi-value">N{{ number_format((float) ($schoolFeeTotals['amount_paid'] ?? 0), 2) }}</div><div class="fees-kpi-note">Validated school-fee collection</div></div>
         <div class="fees-kpi amber"><div class="fees-kpi-label">Paid records + hostel PINs</div><div class="fees-kpi-value">{{ number_format($paymentRecords) }}</div><div class="fees-kpi-note">Invoices plus validated hostel PIN records</div></div>
     </div>
+
+    <section class="fees-school-overview" id="feesSchoolOverview"
+        data-url="{{ route('fees-due.school-summary') }}"
+        data-session="{{ $fees_session ?? '' }}"
+        aria-labelledby="feesSchoolOverviewTitle">
+        <div class="fees-school-header">
+            <div>
+                <h4 id="feesSchoolOverviewTitle"><i class="fas fa-building-columns me-2 text-primary"></i>Collections across schools</h4>
+                <p>One clear view of successful payments received by each school for the selected session.</p>
+            </div>
+            <span class="fees-school-refresh" id="feesSchoolRefresh"><i class="fas fa-circle-notch fa-spin"></i> Loading collections</span>
+        </div>
+        <div class="fees-school-summary" aria-label="School collection totals">
+            <div class="fees-school-summary-item"><span class="fees-school-summary-icon"><i class="fas fa-school"></i></span><span><strong id="feesSchoolCount">—</strong><small>Schools reporting</small></span></div>
+            <div class="fees-school-summary-item"><span class="fees-school-summary-icon"><i class="fas fa-money-bill-wave"></i></span><span><strong id="feesSchoolAmount">—</strong><small>Total collected</small></span></div>
+            <div class="fees-school-summary-item"><span class="fees-school-summary-icon"><i class="fas fa-receipt"></i></span><span><strong id="feesSchoolPayments">—</strong><small>Successful payments</small></span></div>
+        </div>
+        <div class="fees-school-grid" id="feesSchoolCards">
+            @foreach ([['key' => 'ug', 'label' => 'Undergraduate', 'short' => 'UG'], ['key' => 'pg', 'label' => 'Postgraduate', 'short' => 'PG'], ['key' => 'sbrs', 'label' => 'School of Basic & Remedial Studies', 'short' => 'SBRS'], ['key' => 'institute', 'label' => 'Institute', 'short' => 'Institute']] as $school)
+                <article class="fees-school-card" data-school-key="{{ $school['key'] }}">
+                    <div class="fees-school-card-head"><div><div class="fees-school-name">{{ $school['label'] }}</div><span class="fees-school-code">{{ $school['short'] }}</span></div><span class="fees-school-status"><i class="fas fa-circle-notch fa-spin"></i></span></div>
+                    <div class="fees-school-amount">Loading…</div>
+                    <div class="fees-school-meta"><span>— payments</span><span>—</span></div>
+                    <div class="fees-school-note">Checking the school payment records.</div>
+                </article>
+            @endforeach
+        </div>
+        <div class="fees-school-service-panel">
+            <div class="fees-panel-title"><div><h5>Paid services by school</h5><small>Service descriptions are grouped under the school that received the payment.</small></div><i class="fas fa-layer-group text-primary"></i></div>
+            <div class="table-responsive">
+                <table class="fees-table mb-0" id="feesSchoolServices">
+                    <thead><tr><th>School</th><th>Service</th><th>Payments</th><th class="text-end">Amount</th></tr></thead>
+                    <tbody><tr><td colspan="4" class="fees-school-service-empty">Loading service details…</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
 
     <div class="row g-3 mt-1">
         <div class="col-xl-5">
@@ -432,6 +480,131 @@
     </div>
 </div>
 @endif
+
+<script>
+(function () {
+    const root = document.getElementById('feesSchoolOverview');
+    if (!root || typeof window.fetch !== 'function') return;
+
+    const cards = document.getElementById('feesSchoolCards');
+    const servicesBody = document.querySelector('#feesSchoolServices tbody');
+    const refreshBadge = document.getElementById('feesSchoolRefresh');
+    const countEl = document.getElementById('feesSchoolCount');
+    const amountEl = document.getElementById('feesSchoolAmount');
+    const paymentsEl = document.getElementById('feesSchoolPayments');
+    const url = root.dataset.url || '';
+    const session = root.dataset.session || '';
+    const number = new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const integer = new Intl.NumberFormat('en-NG');
+
+    const naira = value => '₦' + number.format(Number(value || 0));
+    const setRefresh = (text, state, icon) => {
+        refreshBadge.className = 'fees-school-refresh' + (state ? ' is-' + state : '');
+        refreshBadge.innerHTML = '<i class="fas ' + icon + '"></i> ' + text;
+    };
+    const statusText = status => status === 'ok' ? 'Available' : 'Temporarily unavailable';
+
+    function render(data) {
+        const schools = Array.isArray(data.schools) ? data.schools : [];
+        const available = schools.filter(school => school.status === 'ok');
+        countEl.textContent = integer.format(available.length);
+        amountEl.textContent = naira(data.totals && data.totals.amount);
+        paymentsEl.textContent = integer.format(Number(data.totals && data.totals.payments || 0));
+
+        schools.forEach(school => {
+            const card = cards.querySelector('[data-school-key="' + school.key + '"]');
+            if (!card) return;
+            const status = card.querySelector('.fees-school-status');
+            const amount = card.querySelector('.fees-school-amount');
+            const meta = card.querySelector('.fees-school-meta');
+            const note = card.querySelector('.fees-school-note');
+            const serviceList = document.createElement('div');
+            serviceList.className = 'fees-school-services';
+
+            status.className = 'fees-school-status' + (school.status === 'ok' ? '' : ' is-unavailable');
+            status.innerHTML = '<i class="fas ' + (school.status === 'ok' ? 'fa-circle-check' : 'fa-triangle-exclamation') + '"></i> ' + statusText(school.status);
+            amount.textContent = school.status === 'ok' ? naira(school.amount) : 'Not available';
+            meta.innerHTML = '<span>' + (school.status === 'ok' ? integer.format(Number(school.payments || 0)) + ' payments' : 'No figures') + '</span><span>' + (school.status === 'ok' ? 'Paid' : 'Check later') + '</span>';
+            note.textContent = school.status === 'ok'
+                ? ((school.services || []).length ? 'Successful payments grouped by service below.' : 'No paid records found for this session.')
+                : (school.error || 'This school could not return its payment summary right now.');
+            card.classList.toggle('is-unavailable', school.status !== 'ok');
+
+            (school.services || []).slice(0, 3).forEach(service => {
+                const line = document.createElement('div');
+                line.className = 'fees-school-service-line';
+                const label = document.createElement('span');
+                label.textContent = service.label || 'Payment';
+                const value = document.createElement('strong');
+                value.textContent = naira(service.amount);
+                line.appendChild(label);
+                line.appendChild(value);
+                serviceList.appendChild(line);
+            });
+            const existing = card.querySelector('.fees-school-services');
+            if (existing) existing.remove();
+            if (serviceList.children.length) card.appendChild(serviceList);
+        });
+
+        servicesBody.innerHTML = '';
+        const rows = [];
+        schools.forEach(school => {
+            if (school.status !== 'ok') return;
+            (school.services || []).forEach(service => rows.push({
+                school: school.label,
+                label: service.label || 'Payment',
+                payments: Number(service.payments || 0),
+                amount: Number(service.amount || 0)
+            }));
+        });
+        rows.sort((a, b) => b.amount - a.amount);
+        if (!rows.length) {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="4" class="fees-school-service-empty">No paid service records were returned for this session.</td>';
+            servicesBody.appendChild(row);
+            return;
+        }
+        rows.forEach(item => {
+            const row = document.createElement('tr');
+            [item.school, item.label, integer.format(item.payments)].forEach(value => {
+                const cell = document.createElement('td');
+                cell.textContent = value;
+                row.appendChild(cell);
+            });
+            const amountCell = document.createElement('td');
+            amountCell.className = 'amount text-end';
+            amountCell.textContent = naira(item.amount);
+            row.appendChild(amountCell);
+            servicesBody.appendChild(row);
+        });
+    }
+
+    async function load() {
+        setRefresh('Refreshing collections', '', 'fa-circle-notch fa-spin');
+        try {
+            const response = await fetch(url + '?session=' + encodeURIComponent(session), {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                cache: 'no-store'
+            });
+            if (!response.ok) throw new Error('The school collection summary is temporarily unavailable.');
+            const data = await response.json();
+            if (!data || data.success !== true) throw new Error('The school collection summary is temporarily unavailable.');
+            render(data);
+            setRefresh('Updated just now', 'ready', 'fa-circle-check');
+        } catch (error) {
+            setRefresh('Could not refresh now', 'error', 'fa-triangle-exclamation');
+            countEl.textContent = '—';
+            amountEl.textContent = '—';
+            paymentsEl.textContent = '—';
+            servicesBody.innerHTML = '<tr><td colspan="4" class="fees-school-service-empty">The other school summaries could not be loaded. The UG records above remain available.</td></tr>';
+        }
+    }
+
+    load();
+    window.setInterval(load, 60000);
+})();
+</script>
             </div>
         </div>
         <!-- [ Main Content ] end -->

@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use App\Exports\PaidStudentsExport;
 use App\Exports\UnpaidStudentsExport;
+use App\Services\FinanceSummaryAggregationService;
 use App\Services\RemitaPaymentService;
 
 class FeesDueController extends Controller
@@ -196,6 +198,105 @@ class FeesDueController extends Controller
             $data['page'] = $this->page;
             $data['title'] = $this->title;
         return view('main',$data);
+    }
+
+    /**
+     * Return a cached cross-school collection overview for the Fees Due page.
+     * The page loads this endpoint asynchronously so a slow external school
+     * system never blocks the UG invoice table.
+     */
+    public function schoolSummary(Request $request)
+    {
+        if (! session()->has('log') || ! in_array(session('accType'), ['Admin', 'Staff'], true)) {
+            return response()->json(['message' => 'You do not have permission to view school collections.'], 403);
+        }
+
+        $session = trim((string) $request->query('session', ''));
+        if ($session === '') {
+            $session = SystemSettingsController::getSchoolFeesSession();
+        }
+        $cacheKey = 'fees_due_school_summary:' . md5($session ?: 'all');
+        $payload = Cache::remember($cacheKey, now()->addSeconds(45), function () use ($session) {
+            return $this->buildSchoolSummary($session);
+        });
+
+        return response()->json($payload)->header('Cache-Control', 'private, max-age=30');
+    }
+
+    private function buildSchoolSummary(string $session): array
+    {
+        $sessionFilter = strtolower($session) === 'all' ? null : $session;
+        $baseAmount = "COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0), 0))";
+        $query = DB::table('invoices')
+            ->where('invoices.status', 'Paid')
+            ->whereRaw("UPPER(COALESCE(invoices.description, '')) NOT LIKE ?", ['%REFUND%']);
+        if ($sessionFilter) {
+            $query->where('invoices.session', $sessionFilter);
+        }
+
+        $summary = (clone $query)
+            ->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $baseAmount . '), 0) AS amount')
+            ->first();
+        $services = (clone $query)
+            ->selectRaw("COALESCE(NULLIF(TRIM(invoices.description), ''), 'Other payments') AS label")
+            ->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $baseAmount . '), 0) AS amount')
+            ->groupByRaw("COALESCE(NULLIF(TRIM(invoices.description), ''), 'Other payments')")
+            ->orderByDesc('amount')
+            ->get()
+            ->map(fn ($row) => [
+                'label' => (string) $row->label,
+                'payments' => (int) $row->payment_count,
+                'amount' => (float) $row->amount,
+            ])->values()->all();
+
+        $schools = [[
+            'key' => 'ug',
+            'label' => 'Undergraduate',
+            'short_label' => 'UG',
+            'status' => 'ok',
+            'error' => null,
+            'payments' => (int) ($summary->payment_count ?? 0),
+            'amount' => (float) ($summary->amount ?? 0),
+            'services' => $services,
+        ]];
+
+        $remote = app(FinanceSummaryAggregationService::class)->collect(null, null, $sessionFilter);
+        foreach ((array) ($remote['sources'] ?? []) as $source) {
+            $sourceKey = strtolower((string) ($source['source'] ?? 'school'));
+            $remoteAmount = (float) ($source['paid_amount'] ?? 0);
+            if ($remoteAmount <= 0 && (float) ($source['gross_amount'] ?? 0) > 0) {
+                $remoteAmount = (float) $source['gross_amount'];
+            }
+            $remotePayments = (int) ($source['paid_count'] ?? 0);
+            if ($remotePayments <= 0) {
+                $remotePayments = (int) ($source['count'] ?? 0);
+            }
+            $schools[] = [
+                'key' => $sourceKey,
+                'label' => (string) ($source['label'] ?? ucfirst($sourceKey)),
+                'short_label' => $sourceKey === 'sbrs' ? 'SBRS' : ($sourceKey === 'institute' ? 'Institute' : 'PG'),
+                'status' => (string) ($source['status'] ?? 'unavailable'),
+                'error' => $source['error'] ?? null,
+                'payments' => $remotePayments,
+                'amount' => $remoteAmount,
+                'services' => collect((array) ($source['services'] ?? []))->map(fn ($service) => [
+                    'label' => (string) ($service['label'] ?? 'Payment'),
+                    'payments' => (int) ($service['invoice_count'] ?? $service['payment_count'] ?? 0),
+                    'amount' => (float) ($service['gross_amount'] ?? $service['amount'] ?? 0),
+                ])->values()->all(),
+            ];
+        }
+
+        return [
+            'success' => true,
+            'session' => $session ?: 'All sessions',
+            'updated_at' => now()->toIso8601String(),
+            'schools' => $schools,
+            'totals' => [
+                'payments' => (int) collect($schools)->sum('payments'),
+                'amount' => (float) collect($schools)->sum('amount'),
+            ],
+        ];
     }
 
     /**
