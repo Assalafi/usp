@@ -114,7 +114,7 @@ class InvoicesController extends Controller
      */
     public function adminReceipts(Request $request)
     {
-        if (!session()->has('log') || !in_array(session('accType'), ['Admin', 'Staff'])) {
+        if (!session()->has('log') || session('accType') !== 'Admin') {
             return redirect('/')->with('error', 'Unauthorized access');
         }
 
@@ -176,7 +176,7 @@ class InvoicesController extends Controller
      */
     public function downloadAllReceipts(Request $request)
     {
-        if (!session()->has('log') || !in_array(session('accType'), ['Admin', 'Staff'])) {
+        if (!session()->has('log') || session('accType') !== 'Admin') {
             return redirect('/')->with('error', 'Unauthorized access');
         }
 
@@ -340,7 +340,7 @@ class InvoicesController extends Controller
      */
     public function exportPaidStudents(Request $request)
     {
-        if (!session()->has('log') || !in_array(session('accType'), ['Admin', 'Staff'])) {
+        if (!session()->has('log') || session('accType') !== 'Admin') {
             return redirect('/')->with('error', 'Unauthorized access');
         }
 
@@ -378,7 +378,7 @@ class InvoicesController extends Controller
      */
     public function exportUnpaidStudents(Request $request)
     {
-        if (!session()->has('log') || !in_array(session('accType'), ['Admin', 'Staff'])) {
+        if (!session()->has('log') || session('accType') !== 'Admin') {
             return redirect('/')->with('error', 'Unauthorized access');
         }
 
@@ -1145,8 +1145,8 @@ class InvoicesController extends Controller
 
     public function uploadPayment(Request $request)
     {
-        if (!session()->has('log')) {
-            return redirect('/');
+        if (!session()->has('log') || session('accType') !== 'Admin') {
+            return redirect('/')->with('error', 'Only administrators can upload payment records.');
         }
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls',
@@ -1176,8 +1176,8 @@ class InvoicesController extends Controller
      */
     public function showBulkVerifyProgress(Request $request)
     {
-        if (!session()->has('log')) {
-            return redirect('/');
+        if (!session()->has('log') || session('accType') !== 'Admin') {
+            return redirect('/')->with('error', 'Only administrators can verify payment references in bulk.');
         }
 
         $serviceTypeId = $request->input('serviceTypeId');
@@ -1196,7 +1196,7 @@ class InvoicesController extends Controller
      */
     public function bulkVerifyStream(Request $request)
     {
-        if (!session()->has('log')) {
+        if (!session()->has('log') || session('accType') !== 'Admin') {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 

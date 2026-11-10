@@ -560,7 +560,9 @@ class FeesDueController extends Controller
 
     public function update(Request $req)
     {
-        if(!session()->has('log')){return redirect('/');}
+        if (!session()->has('log') || session('accType') !== 'Admin') {
+            return redirect('/')->with('error', 'Only administrators can update payment transactions.');
+        }
         $validated = $req->validate([
             'id' => 'required|integer',
             'session' => 'required|string|max:20',
@@ -591,7 +593,9 @@ class FeesDueController extends Controller
 
     public function delete(Request $req)
     {
-        if(!session()->has('log')){return redirect('/');}
+        if (!session()->has('log') || session('accType') !== 'Admin') {
+            return redirect('/')->with('error', 'Only administrators can delete payment transactions.');
+        }
         $id = DB::table($this->table)->where('id',$req->id)->delete();
 
         return redirect()->back()->with('success', 'Record Delete!!!');

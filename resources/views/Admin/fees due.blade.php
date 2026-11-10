@@ -23,6 +23,7 @@
 </style>
 
 @php
+    $isAdmin = session('accType') === 'Admin';
     $schoolFeeTotals = $school_fee_totals ?? [];
     $sponsorSummary = $fee_sponsor_summary ?? [];
     $unpaidSummary = $fee_unpaid_summary ?? [];
@@ -44,6 +45,7 @@
                 <p>Review programme-fee collections, NELFUND support, self-sponsored payments and active outstanding balances in one place.</p>
                 <span class="fees-session-pill"><i class="far fa-calendar-alt"></i> Session {{ $fees_session ?? '—' }}</span>
             </div>
+            @if ($isAdmin)
             <div class="col-lg-5">
                 <div class="fees-hero-actions">
                     <a href="{{ route('admin.make-payment') }}" class="btn btn-success"><i class="fas fa-money-check-dollar me-1"></i> Make payment</a>
@@ -56,6 +58,7 @@
                      @endif
                 </div>
             </div>
+            @endif
         </div>
     </div>
 
@@ -135,7 +138,9 @@
                         <div class="col-md-6 mb-2"><label class="form-label" for="status">Status</label><select class="form-select" id="status" name="status"><option value="{{ $_GET['status'] ?? '' }}">{{ $_GET['status'] ?? 'All statuses' }}</option><option value="Paid">Paid</option><option value="Pending">Pending</option></select></div>
                         <div class="col-md-6 mb-2"><label class="form-label" for="start">From date</label><input type="date" name="start" id="start" class="form-control" value="{{ $_GET['start'] ?? '2024-01-01' }}"></div>
                         <div class="col-md-6 mb-2"><label class="form-label" for="end">To date</label><input type="date" name="end" id="end" class="form-control" value="{{ $_GET['end'] ?? date('Y-m-d') }}"></div>
-                        <div class="col-12 mt-2"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-search me-1"></i> Search payments</button></div>
+                        @if ($isAdmin)
+                            <div class="col-12 mt-2"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-search me-1"></i> Search payments</button></div>
+                        @endif
                     </div>
                 </form>
             </div>
@@ -216,7 +221,7 @@
                     <div class="card-block">
                         <!-- [ Data table ] start -->
                         <div class="table-responsive">
-                            <table id="export-table" class="display table nowrap table-striped table-hover"
+                            <table id="export-table" class="display table nowrap table-striped table-hover {{ $isAdmin ? '' : 'fees-readonly-table' }}"
                                 style="width:100%">
                                 <thead>
                                     <tr>
@@ -228,7 +233,7 @@
                                         <th>{{ 'PHONE' }}</th>
                                         <th>{{ 'STATUS' }}</th>
                                         <th>{{ 'DATE' }}</th>
-                                        <th>{{ 'ACTION' }}</th>
+                                        @if ($isAdmin)<th>{{ 'ACTION' }}</th>@endif
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -245,8 +250,8 @@
                                             <td>{{ $row->phone }}</td>
                                             <td>{{ $row->status }}</td>
                                             <td>{{ date('d-m-y', strtotime($row->updated_at)) }}</td>
+                                            @if ($isAdmin)
                                             <td>
-
                                                 <button type="button"
                                                     class="btn btn-icon btn-primary btn-sm me-1"
                                                     data-bs-toggle="modal"
@@ -260,8 +265,10 @@
                                                     <i class="fas fa-trash-alt"></i>
                                                 </button>
                                             </td>
+                                            @endif
                                         </tr>
 
+                                        @if ($isAdmin)
                                         <!-- Show modal content -->
                                         <div id="editSessionModal{{ $row->id }}" class="modal fade" tabindex="-1"
                                             role="dialog" aria-labelledby="editSessionModalLabel{{ $row->id }}" aria-hidden="true">
@@ -344,6 +351,7 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        @endif
                                     @endforeach
                                 </tbody>
                             </table>
@@ -368,6 +376,7 @@
                     </div>
                 </div>
 
+@if ($isAdmin)
 <!-- Offline Payment Creation Section -->
 <div class="col-sm-12">
     <div class="card">
@@ -416,6 +425,7 @@
         </div>
     </div>
 </div>
+@endif
             </div>
         </div>
         <!-- [ Main Content ] end -->
@@ -423,6 +433,7 @@
 </div>
 <!-- End Content-->
 
+@if ($isAdmin)
 <!-- Bulk Verify RRR Modal -->
 <div id="bulkVerifyModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
     aria-hidden="true">
@@ -828,3 +839,4 @@ $(document).ready(function() {
         </div>
     </div>
 </div>
+@endif
