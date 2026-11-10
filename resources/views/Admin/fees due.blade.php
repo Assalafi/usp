@@ -27,8 +27,10 @@
     .fees-school-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:18px 22px}
     .fees-school-card{min-width:0;border:1px solid var(--fees-border);border-radius:14px;padding:15px;background:#fff;position:relative;overflow:hidden}.fees-school-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#1769aa}.fees-school-card[data-school-key=pg]:before{background:#7c5ac7}.fees-school-card[data-school-key=sbrs]:before{background:#159570}.fees-school-card[data-school-key=institute]:before{background:#e39a17}.fees-school-card.is-unavailable{background:#fbfcfe}.fees-school-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.fees-school-name{font-weight:800;color:var(--fees-ink);font-size:.92rem}.fees-school-code{display:inline-flex;margin-top:3px;padding:2px 7px;border-radius:999px;background:#f0f4f8;color:#667890;font-size:.66rem;font-weight:800;letter-spacing:.05em}.fees-school-status{font-size:.66rem;font-weight:800;white-space:nowrap;color:#15845a}.fees-school-status.is-unavailable{color:#9a6d17}.fees-school-amount{font-size:1.25rem;color:var(--fees-ink);font-weight:800;margin-top:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fees-school-meta{display:flex;justify-content:space-between;gap:8px;color:var(--fees-muted);font-size:.75rem;margin-top:5px}.fees-school-note{min-height:31px;color:#8a97a8;font-size:.7rem;line-height:1.4;margin-top:10px}.fees-school-services{margin-top:10px;padding-top:10px;border-top:1px solid #edf1f6}.fees-school-service-line{display:flex;justify-content:space-between;gap:8px;color:#62748a;font-size:.7rem}.fees-school-service-line+.fees-school-service-line{margin-top:4px}.fees-school-service-line span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fees-school-service-line strong{color:var(--fees-ink);white-space:nowrap}
     .fees-school-service-panel{padding:0 22px 20px}.fees-school-service-panel .fees-panel-title{margin:0 0 10px}.fees-school-service-panel .table-responsive{border:1px solid var(--fees-border);border-radius:12px}.fees-school-service-panel .fees-table th{border-top:0}.fees-school-service-empty{color:#8a97a8;font-size:.8rem;text-align:center;padding:18px}
+    .fees-records-workspace{margin-top:16px;background:#fff;border:1px solid var(--fees-border);border-radius:18px;box-shadow:0 8px 24px rgba(24,49,80,.06);overflow:hidden}.fees-records-heading{padding:20px 22px 12px}.fees-records-heading h4{margin:0;color:var(--fees-ink);font-size:1.08rem;font-weight:800}.fees-records-heading p{margin:5px 0 0;color:var(--fees-muted);font-size:.82rem}
+    .fees-school-tabs{display:flex;gap:7px;overflow-x:auto;padding:0 22px;border-bottom:1px solid var(--fees-border);scrollbar-width:thin}.fees-school-tab{border:0;background:transparent;border-bottom:3px solid transparent;color:#667890;font-size:.8rem;font-weight:800;padding:12px 13px;white-space:nowrap;cursor:pointer}.fees-school-tab:hover{color:#1769aa}.fees-school-tab.active{color:#1769aa;border-bottom-color:#1769aa;background:#f8fbff}.fees-school-pane{padding:18px 22px 22px}.fees-record-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}.fees-record-kpi{border:1px solid var(--fees-border);border-radius:12px;padding:13px 14px;background:#fbfdff}.fees-record-kpi small{display:block;color:var(--fees-muted);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em}.fees-record-kpi strong{display:block;color:var(--fees-ink);font-size:1.08rem;margin-top:5px}.fees-record-filters{border:1px solid var(--fees-border);background:#f9fbfd;border-radius:12px;padding:12px;margin-bottom:14px}.fees-record-filters .form-label{font-size:.7rem;font-weight:800;color:#52657b;margin-bottom:4px}.fees-record-filters .form-control,.fees-record-filters .form-select{height:38px;border-color:#dce5ef;border-radius:8px;font-size:.78rem}.fees-record-filters .btn{height:38px;border-radius:8px;font-size:.78rem;font-weight:800}.fees-record-table{width:100%;border-collapse:separate;border-spacing:0}.fees-record-table th{padding:9px 10px;background:#f5f8fc;color:#708197;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--fees-border);white-space:nowrap}.fees-record-table td{padding:10px;border-bottom:1px solid #edf1f6;color:#34465c;font-size:.78rem;vertical-align:middle}.fees-record-table .record-name{font-weight:800;color:var(--fees-ink)}.fees-record-table .record-muted{color:#8794a5;font-size:.7rem}.fees-record-table .record-amount{font-weight:800;color:var(--fees-ink);white-space:nowrap}.fees-record-status{display:inline-flex;align-items:center;padding:3px 7px;border-radius:999px;background:#eaf8f1;color:#15754f;font-size:.65rem;font-weight:800}.fees-record-empty{padding:24px!important;text-align:center;color:#8a97a8}.fees-record-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:11px;color:#75859a;font-size:.72rem}.fees-record-loading{color:#1769aa}.fees-legacy-ug{margin-top:16px}.fees-legacy-ug>summary{cursor:pointer;list-style:none;padding:13px 16px;border:1px solid var(--fees-border);border-radius:12px;background:#fff;color:var(--fees-ink);font-size:.82rem;font-weight:800}.fees-legacy-ug>summary::-webkit-details-marker{display:none}.fees-legacy-ug[open]>summary{border-radius:12px 12px 0 0;border-bottom-color:transparent}.fees-legacy-ug-content{padding-top:0}
     @media(max-width:991px){.fees-school-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-    @media(max-width:575px){.fees-school-header{padding:16px;display:block}.fees-school-refresh{margin-top:12px}.fees-school-summary{grid-template-columns:1fr;padding:12px 16px}.fees-school-grid{grid-template-columns:1fr;padding:14px 16px}.fees-school-service-panel{padding:0 16px 16px}.fees-school-card{padding:14px}.fees-school-amount{font-size:1.16rem}}
+    @media(max-width:575px){.fees-school-header{padding:16px;display:block}.fees-school-refresh{margin-top:12px}.fees-school-summary{grid-template-columns:1fr;padding:12px 16px}.fees-school-grid{grid-template-columns:1fr;padding:14px 16px}.fees-school-service-panel{padding:0 16px 16px}.fees-school-card{padding:14px}.fees-school-amount{font-size:1.16rem}.fees-records-heading{padding:16px 16px 10px}.fees-school-tabs{padding:0 16px}.fees-school-tab{padding:11px 10px;font-size:.74rem}.fees-school-pane{padding:14px 16px 16px}.fees-record-kpis{grid-template-columns:1fr 1fr}.fees-record-kpi:last-child{grid-column:1 / -1}.fees-record-filters .row>[class*=col-]{margin-bottom:8px}.fees-record-table{min-width:650px}.fees-record-foot{align-items:flex-start;flex-direction:column}}
     @media(max-width:991px){.fees-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.fees-hero-actions{justify-content:flex-start;margin-top:16px}.fees-panel{margin-bottom:14px}}
     @media(max-width:575px){.fees-dashboard{margin:0 -2px 18px}.fees-hero{padding:20px 17px;border-radius:15px}.fees-hero h2{font-size:1.22rem}.fees-hero-actions .btn{font-size:.75rem;padding:.48rem .62rem}.fees-kpis{grid-template-columns:1fr 1fr;gap:9px}.fees-kpi{padding:13px 12px;border-radius:12px}.fees-kpi-value{font-size:1rem}.fees-kpi-note{font-size:.68rem}.fees-sponsor-grid{grid-template-columns:1fr}.fees-panel{padding:14px;border-radius:13px}.fees-table th,.fees-table td{padding:8px 7px}.fees-filter{padding:14px;border-radius:13px}.fees-filter-heading{align-items:flex-start;gap:10px}.fees-filter-heading small{font-size:.7rem}.fees-filter .row>[class*=col-]{margin-bottom:9px}}
 </style>
@@ -117,6 +119,49 @@
         </div>
     </section>
 
+    <section class="fees-records-workspace" id="feesRecordsWorkspace"
+        data-url="{{ route('fees-due.school-records') }}"
+        data-session="{{ $fees_session ?? '' }}"
+        aria-labelledby="feesRecordsTitle">
+        <div class="fees-records-heading">
+            <h4 id="feesRecordsTitle"><i class="fas fa-table-list me-2 text-primary"></i>Payment records by school</h4>
+            <p>Choose a school to review its paid records. Filters update the list without reloading the page.</p>
+        </div>
+        <nav class="fees-school-tabs" aria-label="School payment records">
+            <button type="button" class="fees-school-tab active" data-school-tab="ug"><i class="fas fa-graduation-cap me-1"></i> Undergraduate</button>
+            <button type="button" class="fees-school-tab" data-school-tab="pg"><i class="fas fa-user-graduate me-1"></i> Postgraduate</button>
+            <button type="button" class="fees-school-tab" data-school-tab="sbrs"><i class="fas fa-book-open me-1"></i> SBRS</button>
+            <button type="button" class="fees-school-tab" data-school-tab="institute"><i class="fas fa-building me-1"></i> Institute</button>
+        </nav>
+        <div class="fees-school-pane" id="feesRecordsPane">
+            <div class="fees-record-kpis">
+                <div class="fees-record-kpi"><small>Successful payments</small><strong id="feesRecordsCount">—</strong></div>
+                <div class="fees-record-kpi"><small>Collected</small><strong id="feesRecordsAmount">—</strong></div>
+                <div class="fees-record-kpi"><small>View</small><strong id="feesRecordsStatus">Loading…</strong></div>
+            </div>
+            <form class="fees-record-filters" id="feesRecordsFilter" autocomplete="off">
+                <div class="row gx-2 align-items-end">
+                    <div class="col-lg-4 col-md-6"><label class="form-label" for="feesRecordsSearch">Search records</label><input class="form-control" id="feesRecordsSearch" type="search" placeholder="Name, student ID, RRR or description"></div>
+                    <div class="col-lg-3 col-md-6"><label class="form-label" for="feesRecordsService">Payment service</label><select class="form-select" id="feesRecordsService"><option value="">All paid services</option></select></div>
+                    <div class="col-lg-2 col-md-6"><label class="form-label" for="feesRecordsFrom">From</label><input class="form-control" id="feesRecordsFrom" type="date"></div>
+                    <div class="col-lg-2 col-md-6"><label class="form-label" for="feesRecordsTo">To</label><input class="form-control" id="feesRecordsTo" type="date"></div>
+                    <div class="col-lg-1 col-md-6"><button type="submit" class="btn btn-primary w-100" title="Apply filters"><i class="fas fa-search"></i><span class="d-lg-none ms-1">Apply</span></button></div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center gap-2 mt-2"><small class="text-muted">Session: {{ $fees_session ?? 'Current session' }}</small><button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="feesRecordsReset">Clear filters</button></div>
+            </form>
+            <div class="table-responsive">
+                <table class="fees-record-table" id="feesRecordsTable">
+                    <thead><tr><th>#</th><th>Payer / student</th><th>Reference</th><th>Service</th><th>Status</th><th class="text-end">Amount</th><th>Date</th></tr></thead>
+                    <tbody><tr><td colspan="7" class="fees-record-empty"><span class="fees-record-loading"><i class="fas fa-circle-notch fa-spin me-1"></i> Loading payment records…</span></td></tr></tbody>
+                </table>
+            </div>
+            <div class="fees-record-foot"><span id="feesRecordsFootnote">Paid records only.</span><span id="feesRecordsUpdated"></span></div>
+        </div>
+    </section>
+
+    <details class="fees-legacy-ug">
+        <summary><i class="fas fa-sliders me-2 text-primary"></i> Undergraduate reconciliation details</summary>
+        <div class="fees-legacy-ug-content">
     <div class="row g-3 mt-1">
         <div class="col-xl-5">
             <div class="fees-panel">
@@ -194,6 +239,8 @@
             </div>
         </div>
     </div>
+        </div>
+    </details>
 </div>
 
 @if (in_array(strtoupper((string) session('username')), ['SP11913', 'SU'], true))
@@ -260,6 +307,9 @@
         </div>
     </div>
 @endif
+<details class="fees-legacy-ug">
+    <summary><i class="fas fa-user-shield me-2 text-primary"></i> Undergraduate payment administration</summary>
+    <div class="fees-legacy-ug-content">
             <div class="col-sm-12 fees-section">
                 <div class="card">
                     <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -480,6 +530,167 @@
     </div>
 </div>
 @endif
+
+    </div>
+</details>
+
+<script>
+(function () {
+    const root = document.getElementById('feesRecordsWorkspace');
+    if (!root || typeof window.fetch !== 'function') return;
+    const url = root.dataset.url || '';
+    const session = root.dataset.session || '';
+    const tabs = Array.from(document.querySelectorAll('[data-school-tab]'));
+    const filterForm = document.getElementById('feesRecordsFilter');
+    const search = document.getElementById('feesRecordsSearch');
+    const service = document.getElementById('feesRecordsService');
+    const from = document.getElementById('feesRecordsFrom');
+    const to = document.getElementById('feesRecordsTo');
+    const reset = document.getElementById('feesRecordsReset');
+    const tableBody = document.querySelector('#feesRecordsTable tbody');
+    const countEl = document.getElementById('feesRecordsCount');
+    const amountEl = document.getElementById('feesRecordsAmount');
+    const statusEl = document.getElementById('feesRecordsStatus');
+    const footnote = document.getElementById('feesRecordsFootnote');
+    const updated = document.getElementById('feesRecordsUpdated');
+    const number = new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const integer = new Intl.NumberFormat('en-NG');
+    const filtersBySchool = {};
+    let school = 'ug';
+    let requestToken = 0;
+    let timer;
+
+    const naira = value => '₦' + number.format(Number(value || 0));
+    const getFilters = () => filtersBySchool[school] || (filtersBySchool[school] = { q: '', service: '', date_from: '', date_to: '' });
+    const setLoading = text => {
+        statusEl.textContent = text || 'Loading…';
+        tableBody.innerHTML = '<tr><td colspan="7" class="fees-record-empty"><span class="fees-record-loading"><i class="fas fa-circle-notch fa-spin me-1"></i> Loading payment records…</span></td></tr>';
+    };
+    const setFormValues = () => {
+        const values = getFilters();
+        search.value = values.q || '';
+        from.value = values.date_from || '';
+        to.value = values.date_to || '';
+        service.value = values.service || '';
+    };
+    const cell = (value, className) => {
+        const node = document.createElement('td');
+        if (className) node.className = className;
+        node.textContent = value == null || value === '' ? '—' : value;
+        return node;
+    };
+    const formatDate = value => {
+        if (!value) return '—';
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+    const renderServices = services => {
+        const current = getFilters().service || '';
+        service.innerHTML = '<option value="">All paid services</option>';
+        (services || []).forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.label || '';
+            option.textContent = (item.label || 'Payment') + ' · ' + integer.format(Number(item.payments || 0));
+            service.appendChild(option);
+        });
+        service.value = current;
+    };
+    const render = data => {
+        const filters = getFilters();
+        const summary = data.summary || {};
+        countEl.textContent = integer.format(Number(summary.payments || 0));
+        amountEl.textContent = naira(summary.amount);
+        statusEl.textContent = data.status === 'ok' ? 'Paid records' : 'Temporarily unavailable';
+        renderServices(data.services || []);
+        tableBody.innerHTML = '';
+        if (data.status !== 'ok') {
+            const row = document.createElement('tr');
+            const empty = document.createElement('td');
+            empty.colSpan = 7;
+            empty.className = 'fees-record-empty';
+            empty.innerHTML = '<i class="fas fa-triangle-exclamation text-warning me-1"></i> ' + (data.error || 'This school payment source could not be reached.');
+            row.appendChild(empty);
+            tableBody.appendChild(row);
+            footnote.textContent = 'Try again later; other school tabs remain available.';
+        } else if (!Array.isArray(data.rows) || data.rows.length === 0) {
+            const row = document.createElement('tr');
+            const empty = document.createElement('td');
+            empty.colSpan = 7;
+            empty.className = 'fees-record-empty';
+            empty.textContent = 'No paid records match the selected filters.';
+            row.appendChild(empty);
+            tableBody.appendChild(row);
+            footnote.textContent = 'Paid records only.';
+        } else {
+            data.rows.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.appendChild(cell(index + 1));
+                const payer = document.createElement('td');
+                const name = document.createElement('div');
+                name.className = 'record-name';
+                name.textContent = item.name || 'Payment record';
+                const id = document.createElement('div');
+                id.className = 'record-muted';
+                id.textContent = item.student_id || '';
+                payer.appendChild(name);
+                if (id.textContent) payer.appendChild(id);
+                row.appendChild(payer);
+                row.appendChild(cell(item.reference || '—'));
+                row.appendChild(cell(item.description || 'Payment'));
+                const status = document.createElement('td');
+                const badge = document.createElement('span');
+                badge.className = 'fees-record-status';
+                badge.textContent = item.status || 'Paid';
+                status.appendChild(badge);
+                row.appendChild(status);
+                row.appendChild(cell(naira(item.amount), 'record-amount text-end'));
+                row.appendChild(cell(formatDate(item.created_at), 'record-muted'));
+                tableBody.appendChild(row);
+            });
+            footnote.textContent = data.has_more ? 'Showing the latest records. Use filters to narrow the list.' : 'Paid records only.';
+        }
+        updated.textContent = data.status === 'ok' ? 'Updated just now' : '';
+        Object.assign(filters, { service: service.value || '' });
+    };
+    async function load() {
+        const token = ++requestToken;
+        const values = getFilters();
+        setLoading('Loading…');
+        const params = new URLSearchParams({ school, session });
+        Object.keys(values).forEach(key => { if (values[key]) params.set(key, values[key]); });
+        try {
+            const response = await fetch(url + '?' + params.toString(), { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin', cache: 'no-store' });
+            if (!response.ok) throw new Error('Unable to load records.');
+            const data = await response.json();
+            if (token !== requestToken) return;
+            render(data);
+        } catch (error) {
+            if (token !== requestToken) return;
+            render({ status: 'unavailable', error: 'Payment records could not be loaded right now.', summary: { payments: 0, amount: 0 }, services: [], rows: [] });
+        }
+    }
+    tabs.forEach(button => button.addEventListener('click', () => {
+        school = button.dataset.schoolTab || 'ug';
+        tabs.forEach(item => item.classList.toggle('active', item === button));
+        setFormValues();
+        load();
+    }));
+    filterForm.addEventListener('submit', event => {
+        event.preventDefault();
+        filtersBySchool[school] = { q: search.value.trim(), service: service.value, date_from: from.value, date_to: to.value };
+        load();
+    });
+    reset.addEventListener('click', () => {
+        filtersBySchool[school] = { q: '', service: '', date_from: '', date_to: '' };
+        setFormValues();
+        load();
+    });
+    setFormValues();
+    load();
+    timer = window.setInterval(() => { if (!document.hidden) load(); }, 60000);
+    window.addEventListener('beforeunload', () => window.clearInterval(timer));
+})();
+</script>
 
 <script>
 (function () {

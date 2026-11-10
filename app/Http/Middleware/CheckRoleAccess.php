@@ -48,7 +48,7 @@ class CheckRoleAccess
         }
         // The Fees Due school overview is an asynchronous child request of
         // the same page and must use the existing Fees Due permission.
-        if ($page === 'fees-due/school-summary') {
+        if (in_array($page, ['fees-due/school-summary', 'fees-due/school-records'], true)) {
             $page = 'fees due';
         }
 

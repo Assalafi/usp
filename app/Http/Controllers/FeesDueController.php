@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use App\Exports\PaidStudentsExport;
 use App\Exports\UnpaidStudentsExport;
 use App\Services\FinanceSummaryAggregationService;
@@ -222,6 +223,154 @@ class FeesDueController extends Controller
         });
 
         return response()->json($payload)->header('Cache-Control', 'private, max-age=30');
+    }
+
+    /**
+     * Load the records for one school tab. UG is read from the local invoice
+     * ledger; the other schools are read from their protected finance-summary
+     * endpoints. Every response uses the same paid-record shape.
+     */
+    public function schoolRecords(Request $request)
+    {
+        if (! session()->has('log') || ! in_array(session('accType'), ['Admin', 'Staff'], true)) {
+            return response()->json(['message' => 'You do not have permission to view school records.'], 403);
+        }
+
+        $school = strtolower(trim((string) $request->query('school', 'ug')));
+        if (! in_array($school, ['ug', 'pg', 'sbrs', 'institute'], true)) {
+            return response()->json(['message' => 'Select a valid school.'], 422);
+        }
+
+        $filters = [
+            'session' => trim((string) $request->query('session', '')) ?: SystemSettingsController::getSchoolFeesSession(),
+            'q' => trim((string) $request->query('q', '')),
+            'service' => trim((string) $request->query('service', '')),
+            'date_from' => trim((string) $request->query('date_from', '')),
+            'date_to' => trim((string) $request->query('date_to', '')),
+            'limit' => min(100, max(10, (int) $request->query('limit', 50))),
+        ];
+        $cacheKey = 'fees_due_school_records:' . md5($school . '|' . json_encode($filters));
+        $payload = Cache::remember($cacheKey, now()->addSeconds(20), function () use ($school, $filters) {
+            return $school === 'ug'
+                ? $this->buildUndergraduateRecords($filters)
+                : $this->buildRemoteSchoolRecords($school, $filters);
+        });
+
+        return response()->json($payload)->header('Cache-Control', 'private, max-age=15');
+    }
+
+    private function buildUndergraduateRecords(array $filters): array
+    {
+        $baseAmount = "COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0), 0))";
+        $query = DB::table('invoices')
+            ->where('invoices.status', 'Paid')
+            ->whereRaw("UPPER(COALESCE(invoices.description, '')) NOT LIKE ?", ['%REFUND%']);
+        if (strtolower($filters['session']) !== 'all') $query->where('invoices.session', $filters['session']);
+        if ($filters['q'] !== '') {
+            $like = '%' . $filters['q'] . '%';
+            $query->where(function ($nested) use ($like) {
+                $nested->where('invoices.name', 'LIKE', $like)
+                    ->orWhere('invoices.rrr', 'LIKE', $like)
+                    ->orWhere('invoices.description', 'LIKE', $like)
+                    ->orWhere('invoices.username', 'LIKE', $like);
+            });
+        }
+        if ($filters['service'] !== '') $query->where('invoices.description', $filters['service']);
+        if (preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $filters['date_from'])) $query->whereDate('invoices.updated_at', '>=', $filters['date_from']);
+        if (preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $filters['date_to'])) $query->whereDate('invoices.updated_at', '<=', $filters['date_to']);
+
+        $summary = (clone $query)->selectRaw('COUNT(*) AS payments, COALESCE(SUM(' . $baseAmount . '), 0) AS amount')->first();
+        $services = (clone $query)
+            ->selectRaw('invoices.description AS payment_description')
+            ->selectRaw('COUNT(*) AS payments, COALESCE(SUM(' . $baseAmount . '), 0) AS amount')
+            ->groupBy('invoices.description')->orderByDesc('amount')->limit(100)->get()
+            ->map(fn ($row) => ['label' => trim((string) ($row->payment_description ?? '')) ?: 'Other payments', 'payments' => (int) $row->payments, 'amount' => (float) $row->amount])->values()->all();
+        $rows = (clone $query)
+            ->select(['invoices.id', 'invoices.name', 'invoices.username', 'invoices.rrr', 'invoices.description', 'invoices.status', 'invoices.updated_at'])
+            ->selectRaw($baseAmount . ' AS amount')
+            ->orderByDesc('invoices.updated_at')->orderByDesc('invoices.id')->limit($filters['limit'])->get()
+            ->map(fn ($row) => [
+                'id' => (string) $row->id,
+                'name' => (string) ($row->name ?: 'Payment record'),
+                'student_id' => (string) ($row->username ?: ''),
+                'reference' => (string) ($row->rrr ?: ''),
+                'description' => trim((string) ($row->description ?? '')) ?: 'Other payments',
+                'status' => (string) ($row->status ?: 'Paid'),
+                'amount' => (float) $row->amount,
+                'created_at' => $row->updated_at ? \Carbon\Carbon::parse($row->updated_at)->toIso8601String() : null,
+            ])->values()->all();
+
+        return [
+            'success' => true, 'school' => 'ug', 'label' => 'Undergraduate', 'status' => 'ok',
+            'session' => $filters['session'], 'summary' => ['payments' => (int) ($summary->payments ?? 0), 'amount' => (float) ($summary->amount ?? 0)],
+            'services' => $services, 'rows' => $rows, 'has_more' => count($rows) >= $filters['limit'],
+        ];
+    }
+
+    private function buildRemoteSchoolRecords(string $school, array $filters): array
+    {
+        $source = (array) config('services.finance_summary.sources.' . $school, []);
+        $label = (string) ($source['label'] ?? ucfirst($school));
+        $url = trim((string) ($source['url'] ?? ''));
+        $apiKey = trim((string) ($source['api_key'] ?? ''));
+        if ($url === '' || $apiKey === '') {
+            return ['success' => true, 'school' => $school, 'label' => $label, 'status' => 'unavailable', 'error' => 'This school payment source is not configured.', 'session' => $filters['session'], 'summary' => ['payments' => 0, 'amount' => 0], 'services' => [], 'rows' => [], 'has_more' => false];
+        }
+
+        try {
+            $response = Http::timeout(6)->withOptions(['connect_timeout' => 2])->retry(1, 120)
+                ->withHeaders(['Accept' => 'application/json', 'X-API-Key' => $apiKey])
+                ->get($url, array_filter([
+                    'session' => $filters['session'],
+                    'status' => 'Paid',
+                    'scope' => 'base',
+                    'date_from' => $filters['date_from'] ?: null,
+                    'date_to' => $filters['date_to'] ?: null,
+                    'limit' => 250,
+                ], static fn ($value) => $value !== null && $value !== ''));
+            if (! $response->successful() || ! $response->json('success')) {
+                return ['success' => true, 'school' => $school, 'label' => $label, 'status' => 'unavailable', 'error' => 'The school payment source returned an error.', 'session' => $filters['session'], 'summary' => ['payments' => 0, 'amount' => 0], 'services' => [], 'rows' => [], 'has_more' => false];
+            }
+
+            $payload = (array) $response->json();
+            $rows = collect((array) ($payload['rows'] ?? []))->map(fn ($row) => [
+                'id' => (string) ($row['id'] ?? ''),
+                'name' => (string) ($row['name'] ?? 'Payment record'),
+                'student_id' => (string) ($row['student_id'] ?? ''),
+                'reference' => (string) ($row['reference'] ?? ''),
+                'description' => (string) ($row['description'] ?? 'Payment'),
+                'status' => (string) ($row['status'] ?? 'Paid'),
+                'amount' => (float) ($row['base_amount'] ?? $row['gross_amount'] ?? 0),
+                'created_at' => $row['created_at'] ?? null,
+            ]);
+            if ($filters['q'] !== '') {
+                $needle = strtolower($filters['q']);
+                $rows = $rows->filter(fn ($row) => str_contains(strtolower(implode(' ', [$row['name'], $row['student_id'], $row['reference'], $row['description']])), $needle));
+            }
+            if ($filters['service'] !== '') $rows = $rows->filter(fn ($row) => strcasecmp($row['description'], $filters['service']) === 0);
+            $rows = $rows->values();
+
+            $useApiTotals = $filters['q'] === '' && $filters['service'] === '';
+            $summary = (array) ($payload['summary'] ?? []);
+            $services = collect((array) ($payload['service_summary'] ?? []))->map(fn ($service) => [
+                'label' => (string) ($service['label'] ?? 'Payment'),
+                'payments' => (int) ($service['invoice_count'] ?? 0),
+                'amount' => (float) ($service['gross_amount'] ?? 0),
+            ])->values();
+            if (! $useApiTotals) {
+                $summary = ['invoice_count' => $rows->count(), 'gross_amount' => $rows->sum('amount')];
+                $services = $rows->groupBy('description')->map(fn ($items, $name) => ['label' => $name ?: 'Other payments', 'payments' => $items->count(), 'amount' => $items->sum('amount')])->sortByDesc('amount')->values();
+            }
+
+            return [
+                'success' => true, 'school' => $school, 'label' => $label, 'status' => 'ok', 'error' => null, 'session' => $filters['session'],
+                'summary' => ['payments' => (int) ($summary['invoice_count'] ?? 0), 'amount' => (float) ($summary['gross_amount'] ?? 0)],
+                'services' => $services->all(), 'rows' => $rows->take($filters['limit'])->values()->all(), 'has_more' => $rows->count() >= $filters['limit'],
+            ];
+        } catch (\Throwable $exception) {
+            Log::warning('School payment records unavailable', ['school' => $school, 'error' => $exception->getMessage()]);
+            return ['success' => true, 'school' => $school, 'label' => $label, 'status' => 'unavailable', 'error' => 'The school payment source could not be reached.', 'session' => $filters['session'], 'summary' => ['payments' => 0, 'amount' => 0], 'services' => [], 'rows' => [], 'has_more' => false];
+        }
     }
 
     private function buildSchoolSummary(string $session): array
