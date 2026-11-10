@@ -245,10 +245,19 @@ class FeesDueController extends Controller
             'session' => trim((string) $request->query('session', '')) ?: SystemSettingsController::getSchoolFeesSession(),
             'q' => trim((string) $request->query('q', '')),
             'service' => trim((string) $request->query('service', '')),
+            'student_id' => trim((string) $request->query('student_id', '')),
+            'faculty' => trim((string) $request->query('faculty', '')),
+            'department' => trim((string) $request->query('department', '')),
+            'program' => trim((string) $request->query('program', '')),
+            'rrr' => trim((string) $request->query('rrr', '')),
+            'status' => strtolower(trim((string) $request->query('status', 'paid'))) ?: 'paid',
             'date_from' => trim((string) $request->query('date_from', '')),
             'date_to' => trim((string) $request->query('date_to', '')),
             'limit' => min(100, max(10, (int) $request->query('limit', 50))),
         ];
+        if (! in_array($filters['status'], ['all', 'paid', 'pending', 'processing', 'failed', 'cancelled'], true)) {
+            $filters['status'] = 'paid';
+        }
         $cacheKey = 'fees_due_school_records:' . md5($school . '|' . json_encode($filters));
         $payload = Cache::remember($cacheKey, now()->addSeconds(20), function () use ($school, $filters) {
             return $school === 'ug'
@@ -263,8 +272,12 @@ class FeesDueController extends Controller
     {
         $baseAmount = "COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0), 0))";
         $query = DB::table('invoices')
-            ->where('invoices.status', 'Paid')
             ->whereRaw("UPPER(COALESCE(invoices.description, '')) NOT LIKE ?", ['%REFUND%']);
+        if ($filters['status'] === 'all') {
+            $query->whereNotIn('invoices.status', ['Refund', 'Refunded']);
+        } else {
+            $query->where('invoices.status', ucfirst($filters['status']));
+        }
         if (strtolower($filters['session']) !== 'all') $query->where('invoices.session', $filters['session']);
         if ($filters['q'] !== '') {
             $like = '%' . $filters['q'] . '%';
@@ -275,6 +288,16 @@ class FeesDueController extends Controller
                     ->orWhere('invoices.username', 'LIKE', $like);
             });
         }
+        if ($filters['student_id'] !== '' || $filters['faculty'] !== '' || $filters['department'] !== '' || $filters['program'] !== '') {
+            $query->whereIn('invoices.username', function ($studentQuery) use ($filters) {
+                $studentQuery->select('user_id')->from('students');
+                if ($filters['student_id'] !== '') $studentQuery->where('username', $filters['student_id']);
+                if ($filters['faculty'] !== '') $studentQuery->where('faculty', $filters['faculty']);
+                if ($filters['department'] !== '') $studentQuery->where('department', $filters['department']);
+                if ($filters['program'] !== '') $studentQuery->where('program', $filters['program']);
+            });
+        }
+        if ($filters['rrr'] !== '') $query->where('invoices.rrr', 'LIKE', '%' . $filters['rrr'] . '%');
         if ($filters['service'] !== '') $query->where('invoices.description', $filters['service']);
         if (preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $filters['date_from'])) $query->whereDate('invoices.updated_at', '>=', $filters['date_from']);
         if (preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $filters['date_to'])) $query->whereDate('invoices.updated_at', '<=', $filters['date_to']);
@@ -302,7 +325,7 @@ class FeesDueController extends Controller
 
         return [
             'success' => true, 'school' => 'ug', 'label' => 'Undergraduate', 'status' => 'ok',
-            'session' => $filters['session'], 'summary' => ['payments' => (int) ($summary->payments ?? 0), 'amount' => (float) ($summary->amount ?? 0)],
+            'session' => $filters['session'], 'status_filter' => $filters['status'], 'summary' => ['payments' => (int) ($summary->payments ?? 0), 'amount' => (float) ($summary->amount ?? 0)],
             'services' => $services, 'rows' => $rows, 'has_more' => count($rows) >= $filters['limit'],
         ];
     }
@@ -363,7 +386,7 @@ class FeesDueController extends Controller
             }
 
             return [
-                'success' => true, 'school' => $school, 'label' => $label, 'status' => 'ok', 'error' => null, 'session' => $filters['session'],
+                'success' => true, 'school' => $school, 'label' => $label, 'status' => 'ok', 'error' => null, 'session' => $filters['session'], 'status_filter' => 'paid',
                 'summary' => ['payments' => (int) ($summary['invoice_count'] ?? 0), 'amount' => (float) ($summary['gross_amount'] ?? 0)],
                 'services' => $services->all(), 'rows' => $rows->take($filters['limit'])->values()->all(), 'has_more' => $rows->count() >= $filters['limit'],
             ];

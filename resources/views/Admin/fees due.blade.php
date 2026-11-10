@@ -29,6 +29,7 @@
     .fees-school-service-panel{padding:0 22px 20px}.fees-school-service-panel .fees-panel-title{margin:0 0 10px}.fees-school-service-panel .table-responsive{border:1px solid var(--fees-border);border-radius:12px}.fees-school-service-panel .fees-table th{border-top:0}.fees-school-service-empty{color:#8a97a8;font-size:.8rem;text-align:center;padding:18px}
     .fees-records-workspace{margin-top:16px;background:#fff;border:1px solid var(--fees-border);border-radius:18px;box-shadow:0 8px 24px rgba(24,49,80,.06);overflow:hidden}.fees-records-heading{padding:20px 22px 12px}.fees-records-heading h4{margin:0;color:var(--fees-ink);font-size:1.08rem;font-weight:800}.fees-records-heading p{margin:5px 0 0;color:var(--fees-muted);font-size:.82rem}
     .fees-school-tabs{display:flex;gap:7px;overflow-x:auto;padding:0 22px;border-bottom:1px solid var(--fees-border);scrollbar-width:thin}.fees-school-tab{border:0;background:transparent;border-bottom:3px solid transparent;color:#667890;font-size:.8rem;font-weight:800;padding:12px 13px;white-space:nowrap;cursor:pointer}.fees-school-tab:hover{color:#1769aa}.fees-school-tab.active{color:#1769aa;border-bottom-color:#1769aa;background:#f8fbff}.fees-school-pane{padding:18px 22px 22px}.fees-record-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}.fees-record-kpi{border:1px solid var(--fees-border);border-radius:12px;padding:13px 14px;background:#fbfdff}.fees-record-kpi small{display:block;color:var(--fees-muted);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em}.fees-record-kpi strong{display:block;color:var(--fees-ink);font-size:1.08rem;margin-top:5px}.fees-record-filters{border:1px solid var(--fees-border);background:#f9fbfd;border-radius:12px;padding:12px;margin-bottom:14px}.fees-record-filters .form-label{font-size:.7rem;font-weight:800;color:#52657b;margin-bottom:4px}.fees-record-filters .form-control,.fees-record-filters .form-select{height:38px;border-color:#dce5ef;border-radius:8px;font-size:.78rem}.fees-record-filters .btn{height:38px;border-radius:8px;font-size:.78rem;font-weight:800}.fees-record-table{width:100%;border-collapse:separate;border-spacing:0}.fees-record-table th{padding:9px 10px;background:#f5f8fc;color:#708197;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--fees-border);white-space:nowrap}.fees-record-table td{padding:10px;border-bottom:1px solid #edf1f6;color:#34465c;font-size:.78rem;vertical-align:middle}.fees-record-table .record-name{font-weight:800;color:var(--fees-ink)}.fees-record-table .record-muted{color:#8794a5;font-size:.7rem}.fees-record-table .record-amount{font-weight:800;color:var(--fees-ink);white-space:nowrap}.fees-record-status{display:inline-flex;align-items:center;padding:3px 7px;border-radius:999px;background:#eaf8f1;color:#15754f;font-size:.65rem;font-weight:800}.fees-record-empty{padding:24px!important;text-align:center;color:#8a97a8}.fees-record-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:11px;color:#75859a;font-size:.72rem}.fees-record-loading{color:#1769aa}.fees-legacy-ug{margin-top:16px}.fees-legacy-ug>summary{cursor:pointer;list-style:none;padding:13px 16px;border:1px solid var(--fees-border);border-radius:12px;background:#fff;color:var(--fees-ink);font-size:.82rem;font-weight:800}.fees-legacy-ug>summary::-webkit-details-marker{display:none}.fees-legacy-ug[open]>summary{border-radius:12px 12px 0 0;border-bottom-color:transparent}.fees-legacy-ug-content{padding-top:0}
+    .fees-record-status.status-pending,.fees-record-status.status-processing{background:#fff6df;color:#9a6d17}.fees-record-status.status-failed,.fees-record-status.status-cancelled{background:#fff0ef;color:#ad4038}
     @media(max-width:991px){.fees-school-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:575px){.fees-school-header{padding:16px;display:block}.fees-school-refresh{margin-top:12px}.fees-school-summary{grid-template-columns:1fr;padding:12px 16px}.fees-school-grid{grid-template-columns:1fr;padding:14px 16px}.fees-school-service-panel{padding:0 16px 16px}.fees-school-card{padding:14px}.fees-school-amount{font-size:1.16rem}.fees-records-heading{padding:16px 16px 10px}.fees-school-tabs{padding:0 16px}.fees-school-tab{padding:11px 10px;font-size:.74rem}.fees-school-pane{padding:14px 16px 16px}.fees-record-kpis{grid-template-columns:1fr 1fr}.fees-record-kpi:last-child{grid-column:1 / -1}.fees-record-filters .row>[class*=col-]{margin-bottom:8px}.fees-record-table{min-width:650px}.fees-record-foot{align-items:flex-start;flex-direction:column}}
     @media(max-width:991px){.fees-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.fees-hero-actions{justify-content:flex-start;margin-top:16px}.fees-panel{margin-bottom:14px}}
@@ -147,7 +148,15 @@
                     <div class="col-lg-2 col-md-6"><label class="form-label" for="feesRecordsTo">To</label><input class="form-control" id="feesRecordsTo" type="date"></div>
                     <div class="col-lg-1 col-md-6"><button type="submit" class="btn btn-primary w-100" title="Apply filters"><i class="fas fa-search"></i><span class="d-lg-none ms-1">Apply</span></button></div>
                 </div>
-                <div class="d-flex justify-content-between align-items-center gap-2 mt-2"><small class="text-muted">Session: {{ $fees_session ?? 'Current session' }}</small><button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="feesRecordsReset">Clear filters</button></div>
+                <div class="row gx-2 align-items-end mt-1" id="feesUgFilterFields">
+                    <div class="col-lg-3 col-md-6" data-ug-filter><label class="form-label" for="feesRecordsStudentId">Student ID</label><input class="form-control" id="feesRecordsStudentId" type="search" placeholder="e.g. 22/08/08/0010"></div>
+                    <div class="col-lg-3 col-md-6" data-ug-filter><label class="form-label" for="feesRecordsFaculty">Faculty / college</label><select class="form-select" id="feesRecordsFaculty"><option value="">All faculties</option>@foreach (($faculty ?? collect()) as $facultyOption)<option value="{{ $facultyOption->code }}">{{ $facultyOption->title }}</option>@endforeach</select></div>
+                    <div class="col-lg-3 col-md-6" data-ug-filter><label class="form-label" for="feesRecordsDepartment">Department</label><select class="form-select" id="feesRecordsDepartment"><option value="">All departments</option></select></div>
+                    <div class="col-lg-3 col-md-6" data-ug-filter><label class="form-label" for="feesRecordsProgram">Programme</label><select class="form-select" id="feesRecordsProgram"><option value="">All programmes</option></select></div>
+                    <div class="col-lg-3 col-md-6" data-ug-filter><label class="form-label" for="feesRecordsRrr">RRR</label><input class="form-control" id="feesRecordsRrr" type="search" placeholder="Enter RRR"></div>
+                    <div class="col-lg-3 col-md-6" data-ug-filter><label class="form-label" for="feesRecordsStatus">Status</label><select class="form-select" id="feesRecordsStatus"><option value="paid">Paid</option><option value="all">All statuses</option><option value="pending">Pending</option><option value="processing">Processing</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option></select></div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center gap-2 mt-2 flex-wrap"><label class="d-flex align-items-center gap-2 mb-0 text-muted" for="feesRecordsSession"><small>Academic session</small><select class="form-select form-select-sm" id="feesRecordsSession" style="width:auto;min-width:150px"><option value="{{ $fees_session ?? '' }}">{{ $fees_session ?? 'Current session' }}</option>@foreach (($session ?? collect()) as $sessionOption)<option value="{{ $sessionOption->title }}">{{ $sessionOption->title }}</option>@endforeach</select></label><button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="feesRecordsReset">Clear filters</button></div>
             </form>
             <div class="table-responsive">
                 <table class="fees-record-table" id="feesRecordsTable">
@@ -539,14 +548,22 @@
     const root = document.getElementById('feesRecordsWorkspace');
     if (!root || typeof window.fetch !== 'function') return;
     const url = root.dataset.url || '';
-    const session = root.dataset.session || '';
+    let session = root.dataset.session || '';
     const tabs = Array.from(document.querySelectorAll('[data-school-tab]'));
     const filterForm = document.getElementById('feesRecordsFilter');
     const search = document.getElementById('feesRecordsSearch');
     const service = document.getElementById('feesRecordsService');
     const from = document.getElementById('feesRecordsFrom');
     const to = document.getElementById('feesRecordsTo');
+    const studentId = document.getElementById('feesRecordsStudentId');
+    const faculty = document.getElementById('feesRecordsFaculty');
+    const department = document.getElementById('feesRecordsDepartment');
+    const program = document.getElementById('feesRecordsProgram');
+    const rrr = document.getElementById('feesRecordsRrr');
+    const status = document.getElementById('feesRecordsStatus');
+    const ugFields = Array.from(document.querySelectorAll('[data-ug-filter]'));
     const reset = document.getElementById('feesRecordsReset');
+    const sessionSelect = document.getElementById('feesRecordsSession');
     const tableBody = document.querySelector('#feesRecordsTable tbody');
     const countEl = document.getElementById('feesRecordsCount');
     const amountEl = document.getElementById('feesRecordsAmount');
@@ -561,7 +578,8 @@
     let timer;
 
     const naira = value => '₦' + number.format(Number(value || 0));
-    const getFilters = () => filtersBySchool[school] || (filtersBySchool[school] = { q: '', service: '', date_from: '', date_to: '' });
+    const emptyFilters = () => ({ q: '', service: '', date_from: '', date_to: '', student_id: '', faculty: '', department: '', program: '', rrr: '', status: 'paid' });
+    const getFilters = () => filtersBySchool[school] || (filtersBySchool[school] = emptyFilters());
     const setLoading = text => {
         statusEl.textContent = text || 'Loading…';
         tableBody.innerHTML = '<tr><td colspan="7" class="fees-record-empty"><span class="fees-record-loading"><i class="fas fa-circle-notch fa-spin me-1"></i> Loading payment records…</span></td></tr>';
@@ -571,8 +589,57 @@
         search.value = values.q || '';
         from.value = values.date_from || '';
         to.value = values.date_to || '';
+        studentId.value = values.student_id || '';
+        faculty.value = values.faculty || '';
+        rrr.value = values.rrr || '';
+        status.value = values.status || 'paid';
+        ugFields.forEach(field => field.classList.toggle('d-none', school !== 'ug'));
         service.value = values.service || '';
     };
+    async function loadDepartments(selectedDepartment, selectedProgram) {
+        department.innerHTML = '<option value="">Loading departments…</option>';
+        program.innerHTML = '<option value="">All programmes</option>';
+        if (!faculty.value) {
+            department.innerHTML = '<option value="">All departments</option>';
+            return;
+        }
+        try {
+            const response = await fetch('/get-departments/' + encodeURIComponent(faculty.value), { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+            const rows = await response.json();
+            department.innerHTML = '<option value="">All departments</option>';
+            (Array.isArray(rows) ? rows : []).forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.code || '';
+                option.textContent = item.title || item.code || '';
+                department.appendChild(option);
+            });
+            department.value = selectedDepartment || '';
+            await loadPrograms(selectedProgram);
+        } catch (error) {
+            department.innerHTML = '<option value="">Unable to load departments</option>';
+        }
+    }
+    async function loadPrograms(selectedProgram) {
+        program.innerHTML = '<option value="">Loading programmes…</option>';
+        if (!department.value) {
+            program.innerHTML = '<option value="">All programmes</option>';
+            return;
+        }
+        try {
+            const response = await fetch('/get-programs/' + encodeURIComponent(department.value), { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+            const rows = await response.json();
+            program.innerHTML = '<option value="">All programmes</option>';
+            (Array.isArray(rows) ? rows : []).forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.code || '';
+                option.textContent = item.title || item.code || '';
+                program.appendChild(option);
+            });
+            program.value = selectedProgram || '';
+        } catch (error) {
+            program.innerHTML = '<option value="">Unable to load programmes</option>';
+        }
+    }
     const cell = (value, className) => {
         const node = document.createElement('td');
         if (className) node.className = className;
@@ -620,7 +687,7 @@
             empty.textContent = 'No paid records match the selected filters.';
             row.appendChild(empty);
             tableBody.appendChild(row);
-            footnote.textContent = 'Paid records only.';
+            footnote.textContent = (data.status_filter && data.status_filter !== 'all' ? data.status_filter.charAt(0).toUpperCase() + data.status_filter.slice(1) : 'Paid') + ' records only.';
         } else {
             data.rows.forEach((item, index) => {
                 const row = document.createElement('tr');
@@ -639,7 +706,7 @@
                 row.appendChild(cell(item.description || 'Payment'));
                 const status = document.createElement('td');
                 const badge = document.createElement('span');
-                badge.className = 'fees-record-status';
+                badge.className = 'fees-record-status status-' + String(item.status || 'paid').toLowerCase().replace(/[^a-z]+/g, '-');
                 badge.textContent = item.status || 'Paid';
                 status.appendChild(badge);
                 row.appendChild(status);
@@ -647,7 +714,8 @@
                 row.appendChild(cell(formatDate(item.created_at), 'record-muted'));
                 tableBody.appendChild(row);
             });
-            footnote.textContent = data.has_more ? 'Showing the latest records. Use filters to narrow the list.' : 'Paid records only.';
+            const statusLabel = data.status_filter && data.status_filter !== 'all' ? data.status_filter.charAt(0).toUpperCase() + data.status_filter.slice(1) : 'Paid';
+            footnote.textContent = data.has_more ? 'Showing the latest records. Use filters to narrow the list.' : statusLabel + ' records only.';
         }
         updated.textContent = data.status === 'ok' ? 'Updated just now' : '';
         Object.assign(filters, { service: service.value || '' });
@@ -673,19 +741,45 @@
         school = button.dataset.schoolTab || 'ug';
         tabs.forEach(item => item.classList.toggle('active', item === button));
         setFormValues();
+        if (school === 'ug' && faculty.value) loadDepartments(getFilters().department, getFilters().program);
         load();
     }));
     filterForm.addEventListener('submit', event => {
         event.preventDefault();
-        filtersBySchool[school] = { q: search.value.trim(), service: service.value, date_from: from.value, date_to: to.value };
+        filtersBySchool[school] = {
+            q: search.value.trim(), service: service.value, date_from: from.value, date_to: to.value,
+            student_id: studentId.value.trim(), faculty: faculty.value, department: department.value,
+            program: program.value, rrr: rrr.value.trim(), status: status.value || 'paid'
+        };
         load();
     });
     reset.addEventListener('click', () => {
-        filtersBySchool[school] = { q: '', service: '', date_from: '', date_to: '' };
+        filtersBySchool[school] = emptyFilters();
         setFormValues();
+        department.innerHTML = '<option value="">All departments</option>';
+        program.innerHTML = '<option value="">All programmes</option>';
         load();
     });
+    sessionSelect.addEventListener('change', () => {
+        session = sessionSelect.value || 'all';
+        window.dispatchEvent(new CustomEvent('fees-session-changed', { detail: { session } }));
+        load();
+    });
+    faculty.addEventListener('change', () => {
+        const values = getFilters();
+        values.faculty = faculty.value;
+        values.department = '';
+        values.program = '';
+        loadDepartments('', '');
+    });
+    department.addEventListener('change', () => {
+        const values = getFilters();
+        values.department = department.value;
+        values.program = '';
+        loadPrograms('');
+    });
     setFormValues();
+    if (faculty.value) loadDepartments(getFilters().department, getFilters().program);
     load();
     timer = window.setInterval(() => { if (!document.hidden) load(); }, 60000);
     window.addEventListener('beforeunload', () => window.clearInterval(timer));
@@ -704,7 +798,7 @@
     const amountEl = document.getElementById('feesSchoolAmount');
     const paymentsEl = document.getElementById('feesSchoolPayments');
     const url = root.dataset.url || '';
-    const session = root.dataset.session || '';
+    let session = root.dataset.session || '';
     const number = new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const integer = new Intl.NumberFormat('en-NG');
 
@@ -812,6 +906,10 @@
         }
     }
 
+    window.addEventListener('fees-session-changed', event => {
+        session = event.detail && event.detail.session ? event.detail.session : session;
+        load();
+    });
     load();
     window.setInterval(load, 60000);
 })();
