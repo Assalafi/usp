@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\UsersImport;
@@ -57,6 +58,16 @@ class GradingSystemController extends Controller
         $data['gradingScales'] = $data['data'];
         $data['gradingNames'] = $data['grading'];
         $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
+        $data['department'] = DB::table('department')
+            ->where(['status' => '1'])
+            ->select('code', 'title', 'faculty')
+            ->orderBy('title', 'ASC')
+            ->get();
+        $data['program'] = DB::table('program')
+            ->where(['status' => '1'])
+            ->select('code', 'title', 'department', 'faculty')
+            ->orderBy('title', 'ASC')
+            ->get();
         $data['page'] = $this->page;
         $data['title'] = $this->title;
         return view('main',$data);
@@ -213,24 +224,73 @@ class GradingSystemController extends Controller
 
     public function update(Request $req)
     {
-        if(!session()->has('log')){return redirect('/');}
-        if(isset($req -> program)){
-            $program = [$req -> program];
-        }else if(isset($req -> department)){
-            $program = DB::table('program')->where('department',$req -> department)->pluck('code');
-        }else if(isset($req -> faculty)){
-            $program = DB::table('program')->where('faculty',$req -> faculty)->pluck('code');
+        if (! session()->has('log')) {
+            return redirect('/');
         }
-        $datas['grading'] = $req -> name;
+
+        $validated = $req->validate([
+            'name' => 'required|string|max:120',
+            'faculty' => 'nullable|string|max:120',
+            'department' => 'nullable|string|max:120',
+            'program' => 'nullable|string|max:120',
+        ]);
+
+        $scaleName = trim((string) $validated['name']);
+        $faculty = trim((string) ($validated['faculty'] ?? ''));
+        $department = trim((string) ($validated['department'] ?? ''));
+        $program = trim((string) ($validated['program'] ?? ''));
+
+        if ($faculty === 'all') {
+            $faculty = '';
+        }
+        if ($department === 'all') {
+            $department = '';
+        }
+        if ($program === 'all') {
+            $program = '';
+        }
+
+        if ($faculty === '' && $department === '' && $program === '') {
+            return redirect()->back()->withInput()->with('error', 'Select at least one target: faculty, department, or programme.');
+        }
+
+        if (! DB::table($this->table)->where('name', $scaleName)->where('status', '1')->exists()) {
+            return redirect()->back()->withInput()->with('error', 'Select an active grading scale before applying it.');
+        }
+
+        $programQuery = DB::table('program')->where('status', '1');
+        if ($faculty !== '') {
+            $programQuery->where('faculty', $faculty);
+        }
+        if ($department !== '') {
+            $programQuery->where('department', $department);
+        }
+        if ($program !== '') {
+            $programQuery->where('code', $program);
+        }
+
+        $programCodes = $programQuery->pluck('code')->filter()->values();
+        if ($programCodes->isEmpty()) {
+            return redirect()->back()->withInput()->with('error', 'No programme matched the selected academic filters. Check that the faculty, department, and programme belong together.');
+        }
 
         try {
-            DB::table('program_course_registration')->whereIn('program',$program)->update($datas);
+            $updated = DB::table('program_course_registration')
+                ->whereIn('program', $programCodes->all())
+                ->update(['grading' => $scaleName]);
+
+            $scope = collect([
+                $faculty !== '' ? 'faculty' : null,
+                $department !== '' ? 'department' : null,
+                $program !== '' ? 'programme' : null,
+            ])->filter()->implode(' + ');
+
+            return redirect()->back()->with('success', "{$scaleName} applied to {$programCodes->count()} {$scope} target(s) and {$updated} course-structure mapping(s).");
         } catch (QueryException $e) {
-            return redirect()->back()->with('error', 'Something Went Wrong');
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Something Went Wrong');
-        } finally {
-            return redirect()->back()->with('success', 'Applied!!!');
+            return redirect()->back()->withInput()->with('error', 'The grading scale could not be applied. Please try again or contact ICT support.');
+        } catch (\Throwable $e) {
+            report($e);
+            return redirect()->back()->withInput()->with('error', 'The grading scale could not be applied. Please try again.');
         }
 
     }

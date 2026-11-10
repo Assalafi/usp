@@ -74,7 +74,46 @@
 
         <details class="gs-assignment">
             <summary><span><i class="fas fa-link mr-2"></i>Assign a grading scale to course structures</span><small class="text-muted font-weight-normal ml-2">Use this when a programme needs a specific scale</small></summary>
-            <div class="gs-assignment-body pt-3"><form method="POST" action="{{ url('update grading system') }}">@csrf<div class="row"><div class="col-lg-3 col-md-6 mb-2"><label class="gs-label">Grading scale</label><select class="form-control form-select" name="name" required><option value="">Select a scale</option>@foreach($names as $name)<option value="{{ $name }}">{{ $name }}</option>@endforeach</select></div><div class="col-lg-3 col-md-6 mb-2"><label class="gs-label">Faculty / college</label><select id="facultyf" lang="f" class="form-control form-select faculty" name="faculty" required><option value="">Select faculty</option>@foreach(($faculty ?? []) as $item)<option value="{{ $item->code }}">{{ $item->title }}</option>@endforeach</select></div><div class="col-lg-3 col-md-6 mb-2"><label class="gs-label">Department</label><select id="departmentf" lang="f" class="form-control form-select department" name="department" required><option value="">Select department</option>@foreach(($department ?? []) as $item)<option value="{{ $item->code }}">{{ $item->title }}</option>@endforeach</select></div><div class="col-lg-3 col-md-6 mb-2"><label class="gs-label">Programme</label><select id="programf" lang="f" class="form-control form-select program" name="program" required><option value="">Select programme</option>@foreach(($program ?? []) as $item)<option value="{{ $item->code }}">{{ $item->title }}</option>@endforeach</select></div></div><button type="submit" class="btn btn-primary mt-2"><i class="fas fa-check mr-1"></i> Apply to selected structure</button></form></div>
+            <div class="gs-assignment-body pt-3">
+                <p class="gs-note mb-3"><i class="fas fa-circle-info mr-1"></i>Select any one of the academic levels below, or combine them to narrow the target. You do not have to complete all three.</p>
+                <form method="POST" action="{{ url('update grading system') }}" id="gs-assignment-form">
+                    @csrf
+                    <div class="row">
+                        <div class="col-lg-3 col-md-6 mb-2">
+                            <label class="gs-label" for="gs-assignment-scale">Grading scale</label>
+                            <select class="form-control form-select" name="name" id="gs-assignment-scale" required>
+                                <option value="">Select a scale</option>
+                                @foreach($names as $name)<option value="{{ $name }}">{{ $name }}</option>@endforeach
+                            </select>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-2">
+                            <label class="gs-label" for="facultyf">Faculty / college <span class="font-weight-normal text-muted">(optional)</span></label>
+                            <select id="facultyf" class="form-control form-select" name="faculty">
+                                <option value="">Any faculty</option>
+                                @foreach(($faculty ?? []) as $item)<option value="{{ $item->code }}">{{ $item->title }}</option>@endforeach
+                            </select>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-2">
+                            <label class="gs-label" for="departmentf">Department <span class="font-weight-normal text-muted">(optional)</span></label>
+                            <select id="departmentf" class="form-control form-select" name="department">
+                                <option value="">Any department</option>
+                                @foreach(($department ?? []) as $item)<option value="{{ $item->code }}" data-faculty="{{ $item->faculty }}">{{ $item->title }}</option>@endforeach
+                            </select>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-2">
+                            <label class="gs-label" for="programf">Programme <span class="font-weight-normal text-muted">(optional)</span></label>
+                            <select id="programf" class="form-control form-select" name="program">
+                                <option value="">Any programme</option>
+                                @foreach(($program ?? []) as $item)<option value="{{ $item->code }}" data-faculty="{{ $item->faculty }}" data-department="{{ $item->department }}">{{ $item->title }}</option>@endforeach
+                            </select>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center flex-wrap gap-2 mt-2">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-check mr-1"></i> Apply to matching course structures</button>
+                        <span class="small text-muted" id="gs-assignment-hint">Choose at least one target above.</span>
+                    </div>
+                </form>
+            </div>
         </details>
     </div>
 </div>
@@ -141,5 +180,91 @@
     document.querySelectorAll('.js-edit-scale').forEach(button => button.addEventListener('click', () => { const form=document.querySelector('#gsEditModal form'); form.querySelector('.js-edit-ref').value=button.dataset.ref; form.querySelector('.js-edit-name').value=button.dataset.name; form.querySelector('.js-edit-from').value=button.dataset.from; form.querySelector('.js-edit-to').value=button.dataset.to; fillRows(form, detailsFor(button.dataset.ref)); showModal('#gsEditModal'); }));
     document.querySelectorAll('.js-view-scale').forEach(button => button.addEventListener('click', () => { const bands=detailsFor(button.dataset.ref); document.querySelector('.js-view-title').textContent=button.closest('.gs-card').querySelector('.gs-card-title').textContent.trim(); document.querySelector('.js-view-ref').textContent=button.dataset.ref; document.querySelector('.js-view-body').innerHTML=bands.map(b=>`<tr><td>${esc(b.min_score)}</td><td>${esc(b.max_score)}</td><td><strong>${esc(b.grade)}</strong></td><td>${esc(b.point)}</td><td>${esc(b.remark)}</td></tr>`).join(''); showModal('#gsViewModal'); }));
     document.querySelectorAll('.js-delete-scale').forEach(button => button.addEventListener('click', () => { document.querySelector('.js-delete-ref').value=button.dataset.ref; document.querySelector('.js-delete-name').textContent=button.dataset.name; showModal('#gsDeleteModal'); }));
+})();
+</script>
+
+<script>
+(function () {
+    const form = document.getElementById('gs-assignment-form');
+    if (!form) return;
+
+    const faculty = document.getElementById('facultyf');
+    const department = document.getElementById('departmentf');
+    const program = document.getElementById('programf');
+    const hint = document.getElementById('gs-assignment-hint');
+    const departmentItems = Array.from(department.options).slice(1).map(option => ({
+        value: option.value,
+        text: option.text,
+        faculty: option.dataset.faculty || ''
+    }));
+    const programItems = Array.from(program.options).slice(1).map(option => ({
+        value: option.value,
+        text: option.text,
+        faculty: option.dataset.faculty || '',
+        department: option.dataset.department || ''
+    }));
+
+    const rebuild = (select, placeholder, items, matches, selected) => {
+        select.innerHTML = `<option value="">${placeholder}</option>`;
+        items.filter(matches).forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.value;
+            option.textContent = item.text;
+            if (item.faculty !== undefined) option.dataset.faculty = item.faculty;
+            if (item.department !== undefined) option.dataset.department = item.department;
+            select.appendChild(option);
+        });
+        if (selected && Array.from(select.options).some(option => option.value === selected)) {
+            select.value = selected;
+        } else {
+            select.value = '';
+        }
+    };
+
+    const sync = (changed) => {
+        let facultyValue = faculty.value;
+        let departmentValue = department.value;
+        let programValue = program.value;
+
+        if (changed === 'program' && programValue) {
+            const selectedProgram = programItems.find(item => item.value === programValue);
+            if (selectedProgram) {
+                facultyValue = selectedProgram.faculty || facultyValue;
+                departmentValue = selectedProgram.department || departmentValue;
+                faculty.value = facultyValue;
+            }
+        }
+
+        const departmentMatches = item => !facultyValue || !item.faculty || item.faculty === facultyValue;
+        rebuild(department, 'Any department', departmentItems, departmentMatches, departmentValue);
+        departmentValue = department.value;
+
+        const programMatches = item =>
+            (!facultyValue || !item.faculty || item.faculty === facultyValue) &&
+            (!departmentValue || !item.department || item.department === departmentValue);
+        rebuild(program, 'Any programme', programItems, programMatches, programValue);
+
+        const selectedCount = [faculty.value, department.value, program.value].filter(Boolean).length;
+        hint.textContent = selectedCount
+            ? `${selectedCount} academic filter${selectedCount === 1 ? '' : 's'} selected. Matching programmes will be updated.`
+            : 'Choose at least one target above.';
+    };
+
+    faculty.addEventListener('change', () => sync('faculty'));
+    department.addEventListener('change', () => sync('department'));
+    program.addEventListener('change', () => sync('program'));
+    form.addEventListener('submit', event => {
+        if (![faculty.value, department.value, program.value].some(Boolean)) {
+            event.preventDefault();
+            hint.textContent = 'Select a faculty, department, or programme before applying the scale.';
+            hint.classList.add('text-danger');
+            return;
+        }
+        const button = form.querySelector('button[type="submit"]');
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Applying...';
+        }
+    });
 })();
 </script>
