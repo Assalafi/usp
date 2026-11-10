@@ -45,9 +45,9 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
         $filterSql = '';
         $filterParams = [];
         $filterColumns = [
-            'faculty' => 'active.faculty',
-            'department' => 'active.department',
-            'program' => 'active.program',
+            'faculty' => 'active.faculty_code',
+            'department' => 'active.department_code',
+            'program' => 'active.program_code',
             'level' => 'active.level',
         ];
         foreach ($this->filters as $key => $value) {
@@ -66,6 +66,9 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
                 active.faculty,
                 active.department,
                 active.program,
+                active.faculty_code,
+                active.department_code,
+                active.program_code,
                 active.level,
                 active.session_of_entry,
                 active.required_amount,
@@ -80,9 +83,12 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
                     s.fullname,
                     s.contact_phone,
                     s.contact_email,
-                    s.faculty,
-                    s.department,
-                    s.program,
+                    s.faculty AS faculty_code,
+                    s.department AS department_code,
+                    s.program AS program_code,
+                    COALESCE(faculty_lookup.title, s.faculty) AS faculty,
+                    COALESCE(department_lookup.title, s.department) AS department,
+                    COALESCE(program_lookup.title, s.program) AS program,
                     s.level,
                     s.session_of_entry,
                     s.status AS account_status,
@@ -94,6 +100,9 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
                     COALESCE(results_activity.result_count, 0) AS result_count,
                     COALESCE(history_activity.history_count, 0) AS history_count
                 FROM students s
+                LEFT JOIN faculty faculty_lookup ON faculty_lookup.code = s.faculty
+                LEFT JOIN department department_lookup ON department_lookup.code = s.department
+                LEFT JOIN program program_lookup ON program_lookup.code = s.program
                 LEFT JOIN (
                     SELECT first_new.program, first_new.level, sf.amount
                     FROM (
@@ -215,13 +224,25 @@ class UnpaidStudentsExport implements FromCollection, WithHeadings, ShouldAutoSi
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
                 $summaryStart = $sheet->getHighestRow() + 2;
+                $facultyFilter = $this->filters['faculty'] ?? null;
+                $departmentFilter = $this->filters['department'] ?? null;
+                $programFilter = $this->filters['program'] ?? null;
+                $facultyLabel = $facultyFilter
+                    ? (string) (DB::table('faculty')->where('code', $facultyFilter)->value('title') ?: $facultyFilter)
+                    : 'All faculties';
+                $departmentLabel = $departmentFilter
+                    ? (string) (DB::table('department')->where('code', $departmentFilter)->value('title') ?: $departmentFilter)
+                    : 'All departments';
+                $programLabel = $programFilter
+                    ? (string) (DB::table('program')->where('code', $programFilter)->value('title') ?: $programFilter)
+                    : 'All programmes';
                 $summaryRows = [
                     ['EXPORT SUMMARY', ''],
                     ['Session', (string) $this->session],
                     ['Sponsor', $this->feesType !== '' ? $this->feesType : 'All sponsors'],
-                    ['Faculty', $this->filters['faculty'] ?? 'All faculties'],
-                    ['Department', $this->filters['department'] ?? 'All departments'],
-                    ['Programme', $this->filters['program'] ?? 'All programmes'],
+                    ['Faculty', $facultyLabel],
+                    ['Department', $departmentLabel],
+                    ['Programme', $programLabel],
                     ['Level', $this->filters['level'] ?? 'All levels'],
                     ['Records', (int) ($this->summary['records'] ?? 0)],
                     ['Required amount', (float) ($this->summary['required_amount'] ?? 0)],
