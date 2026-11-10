@@ -89,9 +89,10 @@ class FeesDueController extends Controller
 
 
         }else{
-
-            $data['data'] = DB::table($this->table)->where(['status' => 'Paid', 'session' => $selectedSession])->paginate(100)->withQueryString();
-
+            // Keep the transaction table empty on first load. It can contain
+            // a very large invoice history, so records are fetched only after
+            // the administrator submits the filter form.
+            $data['data'] = collect();
 
         }
         $schoolDescription = 'UNIVERSITY OF MAIDUGURI-1000127 FEES';

@@ -240,7 +240,7 @@
                                     @php
                                         $sn = 1;
                                     @endphp
-                                    @foreach ($data as $row)
+                                    @forelse ($data as $row)
                                         <tr>
                                             <td>{{ $sn++ }}</td>
                                             <td>{{ $row->name }}</td>
@@ -352,7 +352,13 @@
                                             </div>
                                         </div>
                                         @endif
-                                    @endforeach
+                                    @empty
+                                        <tr>
+                                            <td colspan="{{ $isAdmin ? 9 : 8 }}" class="text-center text-muted py-4">
+                                                <i class="fas fa-filter me-1"></i>Apply a filter above to load payment transactions.
+                                            </td>
+                                        </tr>
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>
