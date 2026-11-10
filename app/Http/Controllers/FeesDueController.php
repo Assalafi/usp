@@ -140,14 +140,15 @@ class FeesDueController extends Controller
         $summaryRows = DB::table($this->table)
             ->where('session', $selectedSession)
             ->where('status', 'Paid')
-            ->selectRaw("COALESCE(NULLIF(TRIM(description), ''), 'Other payments') AS description, COUNT(*) AS payment_count, SUM(amount) AS total_amount")
-            ->groupByRaw("COALESCE(NULLIF(TRIM(description), ''), 'Other payments')")
+            ->selectRaw("description AS payment_description, COUNT(*) AS payment_count, SUM(amount) AS total_amount")
+            ->groupBy('description')
             ->orderByDesc('total_amount')
             ->get();
 
         $paymentSummary = collect();
         foreach ($summaryRows as $summaryRow) {
-            $description = trim((string) $summaryRow->description);
+            $description = trim((string) ($summaryRow->payment_description ?? ''));
+            $description = $description !== '' ? $description : 'Other payments';
             if (strcasecmp($description, $schoolDescription) === 0 || strcasecmp($description, 'REFUND') === 0) {
                 continue;
             }
@@ -238,13 +239,13 @@ class FeesDueController extends Controller
             ->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $baseAmount . '), 0) AS amount')
             ->first();
         $services = (clone $query)
-            ->selectRaw("COALESCE(NULLIF(TRIM(invoices.description), ''), 'Other payments') AS label")
+            ->selectRaw("invoices.description AS payment_description")
             ->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $baseAmount . '), 0) AS amount')
-            ->groupByRaw("COALESCE(NULLIF(TRIM(invoices.description), ''), 'Other payments')")
+            ->groupBy('invoices.description')
             ->orderByDesc('amount')
             ->get()
             ->map(fn ($row) => [
-                'label' => (string) $row->label,
+                'label' => trim((string) ($row->payment_description ?? '')) ?: 'Other payments',
                 'payments' => (int) $row->payment_count,
                 'amount' => (float) $row->amount,
             ])->values()->all();
