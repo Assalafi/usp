@@ -207,7 +207,6 @@
         <div class="sp-header-actions">
             @if($row->profile_status == 'submitted')
                 <a href="/staff-profile/download-cv" class="sp-edit-toggle" style="background:linear-gradient(135deg, #667eea, #764ba2); color:#fff;"><i class="fas fa-download"></i> Get CV</a>
-                <a href="/staff-profile/download-id-card" class="sp-edit-toggle" style="background:linear-gradient(135deg, #159957, #155799); color:#fff; margin-left:6px;" target="_blank"><i class="fas fa-id-card"></i> ID Card</a>
                 <a href="/staff-profile/download-audit-form" class="sp-edit-toggle" style="background:linear-gradient(135deg, #2d6a4f, #40916c); color:#fff; margin-left:6px;"><i class="fas fa-file-alt"></i> Audit Form</a>
             @endif
             @if($editMode)

@@ -697,6 +697,13 @@ class StaffController extends Controller
             return redirect('/');
         }
 
+        // Staff members can review and update their profile, but identity
+        // cards are issued/downloaded by the administration only. Keep this
+        // check server-side so the old URL cannot be used directly.
+        if (session('accType') !== 'Admin') {
+            abort(403, 'Staff ID cards are available to administrators only.');
+        }
+
         $row = DB::table('staff')->where('username', session('username'))->first();
         if (!$row) {
             return back()->with('error', 'Staff record not found.');
@@ -713,6 +720,12 @@ class StaffController extends Controller
     {
         if (!session()->has('log')) {
             return redirect('/');
+        }
+
+        // The staff-facing profile must never be able to generate a card,
+        // including through the legacy /staff id card/{id} URL.
+        if (session('accType') !== 'Admin') {
+            abort(403, 'Staff ID cards are available to administrators only.');
         }
 
         $row = DB::table('staff')->where('id', $id)->first();
