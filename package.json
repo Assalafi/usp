@@ -1,6 +1,7 @@
 {
     "private": true,
     "scripts": {
+        "build:finance": "node scripts/build-finance.cjs",
         "dev": "npm run development",
         "development": "mix",
         "watch": "mix watch",
@@ -11,11 +12,14 @@
     },
     "devDependencies": {
         "axios": "^0.21",
+        "esbuild": "0.25.12",
         "laravel-mix": "^6.0.6",
         "lodash": "^4.17.19",
         "postcss": "^8.1.14"
     },
     "dependencies": {
-        "gulp": "^5.0.0"
+        "gulp": "^5.0.0",
+        "react": "18.3.1",
+        "react-dom": "18.3.1"
     }
 }

@@ -32,174 +32,34 @@ class FeesDueController extends Controller
 
     public function index(Request $req)
     {
-        $selectedSession = $req->input('session') ?: SystemSettingsController::getSchoolFeesSession();
-        if ($req->has('_token')) {
-            $data = $req->all();
-            $start = $req -> start;
-            $end = $req -> end;
-            $fac = $req -> faculty;
-            $status = $req -> status;
-            $rrr = $req -> rrr;
-            $studentId = trim((string) $req->input('student_id', ''));
+        return view('main', [
+            'page' => 'fees due',
+            'title' => 'Fees & collections',
+            'fees_session' => \App\Support\FinanceAcademicSession::resolve($req->input('session')),
+            'session' => DB::table('session')->select('title')->orderByDesc('title')->get(),
+            'faculty' => DB::table('faculty')->where('status', '1')->select('code', 'title')->orderBy('title')->get(),
+            'exportLevels' => range(100, 800, 100),
+        ]);
+    }
 
-            // RRR remains the primary search; Student ID can narrow the matching invoice records.
-            if ($rrr) {
-                $query = DB::table($this->table)
-                    ->where('invoices.rrr', 'LIKE', '%' . $rrr . '%');
-                if ($studentId !== '') {
-                    // invoices.username stores the students.user_id, not the matric number.
-                    $query->whereIn('invoices.username', function ($studentQuery) use ($studentId) {
-                        $studentQuery->select('user_id')
-                            ->from('students')
-                            ->where('username', $studentId);
-                    });
-                }
-                $data['data'] = $query->paginate(100)->withQueryString();
-            } else {
-                if($fac == 'none'){
-                    unset($data['faculty']);
-                }
-                unset($data['_token']);
-                unset($data['start']);
-                unset($data['end']);
-                unset($data['rrr']);
-                unset($data['student_id']);
-                $filteredData = array_filter($data);
-                $query = DB::table($this->table)->where('invoices.session', $selectedSession);
-                if ($studentId !== '') {
-                    // invoices.username stores the students.user_id, not the matric number.
-                    $query->whereIn('invoices.username', function ($studentQuery) use ($studentId) {
-                        $studentQuery->select('user_id')
-                            ->from('students')
-                            ->where('username', $studentId);
-                    });
-                }
-                foreach ($filteredData as $key => $value) {
-                    $query->where('invoices.' . $key, $value);
-                }
-                if($fac == 'none'){
-                    $data['data'] = $query->where('invoices.status', 'Paid')->paginate(100)->withQueryString();
-                }else{
-                    if($status == 'Pending'){
-                        $data['data'] = $query->paginate(100)->withQueryString();
-                    }else{
-                        $data['data'] = $query->whereBetween('invoices.updated_at', [$start,$end])->paginate(100)->withQueryString();
-                    }
-
-                }
-            }
-
-
-
-        }else{
-            // Keep the transaction table empty on first load. It can contain
-            // a very large invoice history, so records are fetched only after
-            // the administrator submits the filter form.
-            $data['data'] = collect();
-
-        }
-        $schoolDescription = 'UNIVERSITY OF MAIDUGURI-1000127 FEES';
-        $schoolTotals = PaidStudentsExport::paidTotals($selectedSession);
-        $sponsorTotals = PaidStudentsExport::sponsorTotals($selectedSession);
-        $paidLevelSummary = PaidStudentsExport::levelTotals($selectedSession);
-        $unpaidLevelSummary = UnpaidStudentsExport::summaryByLevel($selectedSession);
-        $levelMap = [];
-        foreach ($paidLevelSummary as $level) {
-            $key = (string) ($level['level'] ?: 'Not set');
-            $levelMap[$key] = [
-                'level' => $key,
-                'paid_students' => (int) $level['fully_paid'],
-                'paid_amount' => (float) $level['amount_paid'],
-                'unpaid_students' => 0,
-                'outstanding_amount' => 0.0,
+    public function undergraduateSummary(Request $request)
+    {
+        abort_unless(session()->has('log') && in_array(session('accType'), ['Admin', 'Staff'], true), 403);
+        $validated = $request->validate(['session' => 'required|string|max:20']);
+        $session = \App\Support\FinanceAcademicSession::resolve($validated['session']);
+        $data = Cache::remember('fees_ug_details_v2:' . Cache::get('finance_ledger_revision', '0') . ':' . md5($session), 60, function () use ($session) {
+            $paid = PaidStudentsExport::paidTotals($session);
+            $unpaid = UnpaidStudentsExport::summaryByLevel($session);
+            return [
+                'paid' => $paid,
+                'sponsors' => PaidStudentsExport::sponsorTotals($session),
+                'paid_levels' => PaidStudentsExport::levelTotals($session),
+                'unpaid_levels' => $unpaid,
+                'outstanding' => (float) collect($unpaid)->sum('outstanding_amount'),
+                'students' => (int) collect($unpaid)->sum('students'),
             ];
-        }
-        foreach ($unpaidLevelSummary as $level) {
-            $key = (string) ($level['level'] ?: 'Not set');
-            $levelMap[$key] ??= [
-                'level' => $key,
-                'paid_students' => 0,
-                'paid_amount' => 0.0,
-                'unpaid_students' => 0,
-                'outstanding_amount' => 0.0,
-            ];
-            $levelMap[$key]['unpaid_students'] = (int) $level['students'];
-            $levelMap[$key]['outstanding_amount'] = (float) $level['outstanding_amount'];
-        }
-        $levelSummary = collect($levelMap)->sortBy(function ($row) {
-            return is_numeric($row['level']) ? (int) $row['level'] : 9999;
-        })->values();
-        $unpaidTotals = [
-            'students' => (int) collect($unpaidLevelSummary)->sum('students'),
-            'required_amount' => (float) collect($unpaidLevelSummary)->sum('required_amount'),
-            'amount_paid' => (float) collect($unpaidLevelSummary)->sum('amount_paid'),
-            'outstanding_amount' => (float) collect($unpaidLevelSummary)->sum('outstanding_amount'),
-        ];
-
-        // Keep the description summary useful for reconciliation while using
-        // the validated school-fee total for the programme-fee line.
-        $summaryRows = DB::table($this->table)
-            ->where('session', $selectedSession)
-            ->where('status', 'Paid')
-            ->selectRaw("description AS payment_description, COUNT(*) AS payment_count, SUM(amount) AS total_amount")
-            ->groupBy('description')
-            ->orderByDesc('total_amount')
-            ->get();
-
-        $paymentSummary = collect();
-        foreach ($summaryRows as $summaryRow) {
-            $description = trim((string) ($summaryRow->payment_description ?? ''));
-            $description = $description !== '' ? $description : 'Other payments';
-            if (strcasecmp($description, $schoolDescription) === 0 || strcasecmp($description, 'REFUND') === 0) {
-                continue;
-            }
-            $paymentSummary->push([
-                'description' => $description !== '' ? $description : 'Other payments',
-                'filter' => $description !== '' ? $description : 'Other payments',
-                'amount' => (float) $summaryRow->total_amount,
-                'count' => (int) $summaryRow->payment_count,
-            ]);
-        }
-        if (($schoolTotals['amount_paid'] ?? 0) > 0) {
-            $paymentSummary->push([
-                'description' => 'SCHOOL FEES',
-                'filter' => $schoolDescription,
-                'amount' => (float) $schoolTotals['amount_paid'],
-                'count' => (int) ($schoolTotals['students'] ?? 0),
-            ]);
-        }
-        if (($schoolTotals['surcharge_paid'] ?? 0) > 0) {
-            $paymentSummary->push([
-                'description' => 'SCHOOL FEES ADDITIONAL CHARGES',
-                'filter' => $schoolDescription,
-                'amount' => (float) $schoolTotals['surcharge_paid'],
-                'count' => (int) ($schoolTotals['students'] ?? 0),
-            ]);
-        }
-        $hostelPinCount = DB::table('hostel_pin')
-            ->where('flag', 1)
-            ->where('username', '!=', 'Awaiting')
-            ->count();
-        $hostelPinSummary = [
-            'count' => (int) $hostelPinCount,
-            'amount' => (float) $hostelPinCount * 2000,
-        ];
-        $paymentSummary = $paymentSummary->sortByDesc('amount')->values();
-        $data['payment_summary'] = $paymentSummary;
-        $data['hostel_pin_summary'] = $hostelPinSummary;
-        $data['payment_summary_total'] = (float) $paymentSummary->sum('amount') + (float) $hostelPinSummary['amount'];
-        $data['school_fee_totals'] = $schoolTotals;
-        $data['fee_sponsor_summary'] = $sponsorTotals;
-        $data['fee_unpaid_summary'] = $unpaidTotals;
-        $data['fee_level_summary'] = $levelSummary;
-        $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
-            $data['fees_type'] = DB::table('fees_type')->where(['status' => '1'])->select('title')->orderBy('title', 'ASC')->get();
-        // Export and filtering must support historical sessions, not only the active one.
-            $data['session'] = DB::table('session')->select('title')->orderByDesc('title')->get();
-            $data['fees_session'] = $selectedSession;
-            $data['page'] = $this->page;
-            $data['title'] = $this->title;
-        return view('main',$data);
+        });
+        return response()->json(['success' => true, 'session' => $session, 'data' => $data]);
     }
 
     /**
@@ -213,11 +73,11 @@ class FeesDueController extends Controller
             return response()->json(['message' => 'You do not have permission to view school collections.'], 403);
         }
 
-        $session = trim((string) $request->query('session', ''));
+        $session = \App\Support\FinanceAcademicSession::resolve($request->query('session'));
         if ($session === '') {
             $session = SystemSettingsController::getSchoolFeesSession();
         }
-        $cacheKey = 'fees_due_school_summary:' . md5($session ?: 'all');
+        $cacheKey = 'fees_due_school_summary:' . Cache::get('finance_ledger_revision', '0') . ':' . md5($session ?: 'all');
         $payload = Cache::remember($cacheKey, now()->addSeconds(45), function () use ($session) {
             return $this->buildSchoolSummary($session);
         });
@@ -236,13 +96,24 @@ class FeesDueController extends Controller
             return response()->json(['message' => 'You do not have permission to view school records.'], 403);
         }
 
+        $request->validate([
+            'session' => 'nullable|string|max:20', 'q' => 'nullable|string|max:150',
+            'service' => 'nullable|string|max:255', 'student_id' => 'nullable|string|max:60',
+            'faculty' => 'nullable|string|max:100', 'department' => 'nullable|string|max:100',
+            'program' => 'nullable|string|max:100', 'rrr' => 'nullable|string|max:100',
+            'date_from' => 'nullable|date_format:Y-m-d', 'date_to' => 'nullable|date_format:Y-m-d',
+            'page' => 'nullable|integer|min:1', 'limit' => 'nullable|integer|min:10|max:100',
+        ]);
+        if ($request->filled('date_from') && $request->filled('date_to') && $request->date_to < $request->date_from) {
+            return response()->json(['message' => 'The end date must be on or after the start date.'], 422);
+        }
         $school = strtolower(trim((string) $request->query('school', 'ug')));
         if (! in_array($school, ['ug', 'pg', 'sbrs', 'institute'], true)) {
             return response()->json(['message' => 'Select a valid school.'], 422);
         }
 
         $filters = [
-            'session' => trim((string) $request->query('session', '')) ?: SystemSettingsController::getSchoolFeesSession(),
+            'session' => \App\Support\FinanceAcademicSession::resolve($request->query('session')),
             'q' => trim((string) $request->query('q', '')),
             'service' => trim((string) $request->query('service', '')),
             'student_id' => trim((string) $request->query('student_id', '')),
@@ -254,11 +125,12 @@ class FeesDueController extends Controller
             'date_from' => trim((string) $request->query('date_from', '')),
             'date_to' => trim((string) $request->query('date_to', '')),
             'limit' => min(100, max(10, (int) $request->query('limit', 50))),
+            'page' => max(1, (int) $request->query('page', 1)),
         ];
         if (! in_array($filters['status'], ['all', 'paid', 'pending', 'processing', 'failed', 'cancelled'], true)) {
             $filters['status'] = 'paid';
         }
-        $cacheKey = 'fees_due_school_records:' . md5($school . '|' . json_encode($filters));
+        $cacheKey = 'fees_due_school_records_v3:' . Cache::get('finance_ledger_revision', '0') . ':' . md5($school . '|' . json_encode($filters));
         $payload = Cache::remember($cacheKey, now()->addSeconds(20), function () use ($school, $filters) {
             return $school === 'ug'
                 ? $this->buildUndergraduateRecords($filters)
@@ -285,7 +157,10 @@ class FeesDueController extends Controller
                 $nested->where('invoices.name', 'LIKE', $like)
                     ->orWhere('invoices.rrr', 'LIKE', $like)
                     ->orWhere('invoices.description', 'LIKE', $like)
-                    ->orWhere('invoices.username', 'LIKE', $like);
+                    ->orWhere('invoices.username', 'LIKE', $like)
+                    ->orWhereIn('invoices.username', function ($students) use ($like) {
+                        $students->select('user_id')->from('students')->where('username', 'LIKE', $like);
+                    });
             });
         }
         if ($filters['student_id'] !== '' || $filters['faculty'] !== '' || $filters['department'] !== '' || $filters['program'] !== '') {
@@ -309,11 +184,12 @@ class FeesDueController extends Controller
             ->groupBy('invoices.description')->orderByDesc('amount')->limit(100)->get()
             ->map(fn ($row) => ['label' => trim((string) ($row->payment_description ?? '')) ?: 'Other payments', 'payments' => (int) $row->payments, 'amount' => (float) $row->amount])->values()->all();
         $rows = (clone $query)
-            ->select(['invoices.id', 'invoices.name', 'invoices.username', 'invoices.rrr', 'invoices.description', 'invoices.status', 'invoices.updated_at'])
+            ->select(['invoices.id', 'invoices.name', 'invoices.username', 'invoices.rrr', 'invoices.description', 'invoices.status', 'invoices.session', 'invoices.updated_at'])
             ->selectRaw($baseAmount . ' AS amount')
-            ->orderByDesc('invoices.updated_at')->orderByDesc('invoices.id')->limit($filters['limit'])->get()
+            ->orderByDesc('invoices.updated_at')->orderByDesc('invoices.id')->offset(($filters['page'] - 1) * $filters['limit'])->limit($filters['limit'])->get()
             ->map(fn ($row) => [
                 'id' => (string) $row->id,
+                'session' => (string) $row->session,
                 'name' => (string) ($row->name ?: 'Payment record'),
                 'student_id' => (string) ($row->username ?: ''),
                 'reference' => (string) ($row->rrr ?: ''),
@@ -323,10 +199,18 @@ class FeesDueController extends Controller
                 'created_at' => $row->updated_at ? \Carbon\Carbon::parse($row->updated_at)->toIso8601String() : null,
             ])->values()->all();
 
+        $matrics = DB::table('students')->whereIn('user_id', array_column($rows, 'student_id'))->pluck('username', 'user_id');
+        foreach ($rows as &$row) {
+            $row['student_id'] = (string) ($matrics[$row['student_id']] ?? '');
+        }
+        unset($row);
+
         return [
             'success' => true, 'school' => 'ug', 'label' => 'Undergraduate', 'status' => 'ok',
             'session' => $filters['session'], 'status_filter' => $filters['status'], 'summary' => ['payments' => (int) ($summary->payments ?? 0), 'amount' => (float) ($summary->amount ?? 0)],
-            'services' => $services, 'rows' => $rows, 'has_more' => count($rows) >= $filters['limit'],
+            'services' => $services, 'rows' => $rows, 'page' => $filters['page'],
+            'last_page' => max(1, (int) ceil(($summary->payments ?? 0) / $filters['limit'])),
+            'has_more' => $filters['page'] * $filters['limit'] < ($summary->payments ?? 0),
         ];
     }
 
@@ -366,6 +250,7 @@ class FeesDueController extends Controller
                 'amount' => (float) ($row['base_amount'] ?? $row['gross_amount'] ?? 0),
                 'created_at' => $row['created_at'] ?? null,
             ]);
+            $descriptionOptions = $rows->pluck('description')->unique()->sort()->map(fn ($label) => ['label' => $label])->values()->all();
             if ($filters['q'] !== '') {
                 $needle = strtolower($filters['q']);
                 $rows = $rows->filter(fn ($row) => str_contains(strtolower(implode(' ', [$row['name'], $row['student_id'], $row['reference'], $row['description']])), $needle));
@@ -388,7 +273,12 @@ class FeesDueController extends Controller
             return [
                 'success' => true, 'school' => $school, 'label' => $label, 'status' => 'ok', 'error' => null, 'session' => $filters['session'], 'status_filter' => 'paid',
                 'summary' => ['payments' => (int) ($summary['invoice_count'] ?? 0), 'amount' => (float) ($summary['gross_amount'] ?? 0)],
-                'services' => $services->all(), 'rows' => $rows->take($filters['limit'])->values()->all(), 'has_more' => $rows->count() >= $filters['limit'],
+                'services' => $services->all(), 'rows' => $rows->slice(($filters['page'] - 1) * $filters['limit'], $filters['limit'])->values()->all(),
+                'page' => $filters['page'], 'last_page' => max(1, (int) ceil($rows->count() / $filters['limit'])),
+                'has_more' => $filters['page'] * $filters['limit'] < $rows->count(),
+                'limited' => true, 'available_count' => $rows->count(),
+                'description_options' => $descriptionOptions,
+                'scope_note' => 'The list and its search cover the latest 250 paid records supplied by this school. Narrow the dates to find older payments. Unfiltered totals cover the full selected period.',
             ];
         } catch (\Throwable $exception) {
             Log::warning('School payment records unavailable', ['school' => $school, 'error' => $exception->getMessage()]);
@@ -836,6 +726,7 @@ class FeesDueController extends Controller
     public function update(Request $req)
     {
         if (!session()->has('log') || session('accType') !== 'Admin') {
+            if ($req->expectsJson()) return response()->json(['message' => 'Only administrators can update payment transactions.'], 403);
             return redirect('/')->with('error', 'Only administrators can update payment transactions.');
         }
         $validated = $req->validate([
@@ -849,6 +740,7 @@ class FeesDueController extends Controller
             ->first(['amount', 'base_amount', 'surcharge_amount']);
 
         if (!$invoice) {
+            if ($req->expectsJson()) return response()->json(['message' => 'Payment transaction not found.'], 404);
             return redirect()->back()->withErrors(['id' => 'Payment transaction not found.']);
         }
 
@@ -863,16 +755,21 @@ class FeesDueController extends Controller
                 'amount' => round($baseAmount + $surchargeAmount, 2),
             ]);
 
+        Cache::forever('finance_ledger_revision', (string) microtime(true));
+        if ($req->expectsJson()) return response()->json(['success' => true]);
         return redirect()->back()->with('success', 'Record Updated!!!');
     }
 
     public function delete(Request $req)
     {
         if (!session()->has('log') || session('accType') !== 'Admin') {
+            if ($req->expectsJson()) return response()->json(['message' => 'Only administrators can delete payment transactions.'], 403);
             return redirect('/')->with('error', 'Only administrators can delete payment transactions.');
         }
+        $req->validate(['id' => 'required|integer']);
         $id = DB::table($this->table)->where('id',$req->id)->delete();
-
+        Cache::forever('finance_ledger_revision', (string) microtime(true));
+        if ($req->expectsJson()) return response()->json(['success' => true]);
         return redirect()->back()->with('success', 'Record Delete!!!');
     }
     public function searchApplicants(Request $req)

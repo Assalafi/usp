@@ -55,9 +55,7 @@ class ApproveResultsController extends Controller
             $data['sessions'] = $session;
 
             if (session('appointment') == 'DEAN') {
-                $lecturerCourses = DB::table('course_allocation')->where(['username' => session('username')])->select('course')->orderBy('course', 'ASC')->pluck('course');
-
-                $data['data'] = DB::table($this->table)->whereIn('code', $lecturerCourses)->select('code', 'session', 'semester', 'approve', 'lecturer', 'updated_at')->groupBy('code', 'session', 'semester', 'approve', 'lecturer', 'updated_at')->get();
+                $data['data'] = $this->assignedResultBatches(session('username'), $session);
             }
         }
         $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
@@ -65,11 +63,18 @@ class ApproveResultsController extends Controller
         if (session('accType') == 'Staff' && session('appointment') != 'DEAN' && session('appointment') != 'VC' && session('appointment') != 'COURSE SYSTEM') {
             $data['sessions'] = $session;
             if (session('appointment') == 'HOD') {
-                $lecturerCourses = DB::table('course')->where(['department' => session('department')])->select('code')->pluck('code');
+                $departmentCodes = DB::table('course')
+                    ->where('department', session('department'))
+                    ->pluck('code')
+                    ->all();
+                $allocationCodes = $this->allocatedCourseCodes(session('username'), $session);
+                $data['data'] = $this->resultBatchesForCodes(
+                    array_merge($departmentCodes, $allocationCodes),
+                    $session
+                );
             } else {
-                $lecturerCourses = DB::table('course_allocation')->where(['username' => session('username')])->select('course')->orderBy('course', 'ASC')->pluck('course');
+                $data['data'] = $this->assignedResultBatches(session('username'), $session);
             }
-            $data['data'] = DB::table($this->table)->whereIn('code', $lecturerCourses)->where('session', $session)->select('code', 'session', 'semester', 'approve', 'lecturer', 'updated_at')->groupBy('code', 'session', 'semester', 'approve', 'lecturer', 'updated_at')->get();
         }
 
         if (strtoupper(session('appointment')) == 'VC' || session('accType') == 'Admin') {
@@ -83,6 +88,66 @@ class ApproveResultsController extends Controller
         $data['page'] = $this->page;
         $data['title'] = $this->title;
         return view('main', $data);
+    }
+
+    /**
+     * Return result batches assigned to a staff account for the selected
+     * session. Older allocations contain inconsistent casing/spacing and
+     * some have no session value, so compare normalized values and allow a
+     * legacy blank session while still preferring the selected session.
+     */
+    private function assignedResultBatches(?string $username, ?string $session = null)
+    {
+        $username = strtoupper(trim((string) $username));
+        $codes = $this->allocatedCourseCodes($username, $session);
+
+        return $this->resultBatchesForCodes($codes, $session);
+    }
+
+    private function allocatedCourseCodes(?string $username, ?string $session = null): array
+    {
+        $username = strtoupper(trim((string) $username));
+        $allocation = DB::table('course_allocation')
+            ->whereRaw('UPPER(TRIM(username)) = ?', [$username])
+            ->whereNotNull('course');
+
+        if ($session !== null && trim($session) !== '') {
+            $allocation->where(function ($query) use ($session) {
+                $query->whereNull('session')->orWhereRaw('TRIM(session) = ?', [trim($session)]);
+            });
+        }
+
+        return $allocation->pluck('course')
+            ->map(static fn ($code) => strtoupper(trim((string) $code)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function resultBatchesForCodes(array $codes, ?string $session = null)
+    {
+        $codes = collect($codes)
+            ->map(static fn ($code) => strtoupper(trim((string) $code)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $query = DB::table($this->table);
+        if ($session !== null && trim($session) !== '') {
+            $query->where('session', trim($session));
+        }
+
+        if ($codes === []) {
+            return $query->whereRaw('1 = 0')->get();
+        }
+
+        $placeholders = implode(',', array_fill(0, count($codes), '?'));
+        return $query
+            ->whereRaw('UPPER(TRIM(code)) IN (' . $placeholders . ')', $codes)
+            ->select('code', 'session', 'semester', 'approve', 'lecturer', 'updated_at')
+            ->groupBy('code', 'session', 'semester', 'approve', 'lecturer', 'updated_at')
+            ->get();
     }
 
     public function create(Request $req)

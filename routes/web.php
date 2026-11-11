@@ -1583,6 +1583,7 @@ Route::get('/fees-due/school-summary', [App\Http\Controllers\FeesDueController::
 Route::get('/fees-due/school-records', [App\Http\Controllers\FeesDueController::class, 'schoolRecords'])
     ->name('fees-due.school-records')
     ->middleware('role');
+Route::get('/fees-due/ug-summary', [App\Http\Controllers\FeesDueController::class, 'undergraduateSummary'])->middleware('role');
 
 // Administrator-initiated Remita payment workspace.
 Route::get('/admin/make-payment', [App\Http\Controllers\FeesDueController::class, 'adminPaymentPage'])

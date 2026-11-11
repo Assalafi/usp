@@ -48,8 +48,11 @@ class CheckRoleAccess
         }
         // The Fees Due school overview is an asynchronous child request of
         // the same page and must use the existing Fees Due permission.
-        if (in_array($page, ['fees-due/school-summary', 'fees-due/school-records'], true)) {
+        if (in_array($page, ['fees-due/school-summary', 'fees-due/school-records', 'fees-due/ug-summary'], true)) {
             $page = 'fees due';
+        }
+        if ($page === 'admin/remita-finance-live/data') {
+            $page = 'admin/remita-finance-live';
         }
 
         if (in_array($page, $this->except)) {

@@ -497,7 +497,9 @@
                     </style>
                     <!-- Start Content-->
                     @if ($page == 'remita finance live')
-                        @include('Admin.remita-finance-live-v2')
+                        @include('Admin.finance-react')
+                    @elseif ($page == 'fees due')
+                        @include('Admin.finance-react')
                     @elseif ($page == 'remita split report')
                         @include('Admin.remita split report redesigned')
                     @elseif ($page == 'program' && session('accType') == 'Admin')

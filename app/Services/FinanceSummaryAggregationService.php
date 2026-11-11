@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Client\Pool;
 
 /**
  * Read-only institution finance summary. This service deliberately has no
@@ -22,7 +23,28 @@ class FinanceSummaryAggregationService
             'trend' => [],
         ];
 
-        foreach ((array) config('services.finance_summary.sources', []) as $key => $source) {
+        // Queue all schools on one HTTP handler before waiting for any response.
+        // Failures are handled per school, so a timeout never hides healthy schools.
+        $sources = (array) config('services.finance_summary.sources', []);
+        $pool = new Pool(Http::getFacadeRoot());
+        foreach ($sources as $key => $source) {
+            $url = trim((string) ($source['url'] ?? ''));
+            $apiKey = trim((string) ($source['api_key'] ?? ''));
+            if ($url === '' || $apiKey === '') continue;
+            try {
+                $pool->as((string) $key)->timeout(6)->withOptions(['connect_timeout' => 2])
+                    ->withHeaders(['Accept' => 'application/json', 'X-API-Key' => $apiKey])
+                    ->get($url, array_filter([
+                        'date_from' => $from?->toDateString(), 'date_to' => $to?->toDateString(),
+                        'status' => 'Paid', 'scope' => 'base', 'limit' => 250, 'session' => $session,
+                    ], static fn ($value) => $value !== null && $value !== ''));
+            } catch (\Throwable $exception) {
+                // The missing or rejected promise is reported below as unavailable.
+            }
+        }
+        $requests = $pool->getRequests();
+
+        foreach ($sources as $key => $source) {
             $label = (string) ($source['label'] ?? ucfirst((string) $key));
             $url = trim((string) ($source['url'] ?? ''));
             $apiKey = trim((string) ($source['api_key'] ?? ''));
@@ -39,12 +61,10 @@ class FinanceSummaryAggregationService
             }
 
             try {
-                $response = Http::timeout(8)->withOptions(['connect_timeout' => 3])->retry(1, 150)
-                    ->withHeaders(['Accept' => 'application/json', 'X-API-Key' => $apiKey])
-                    ->get($url, array_filter([
-                        'date_from' => $from?->toDateString(), 'date_to' => $to?->toDateString(), 'status' => 'Paid',
-                        'scope' => 'base', 'limit' => 250, 'session' => $session,
-                    ], static fn ($value) => $value !== null && $value !== ''));
+                $response = isset($requests[$key]) ? $requests[$key]->getPromise()?->wait() : null;
+                if (! $response instanceof \Illuminate\Http\Client\Response) {
+                    throw new \RuntimeException('School response unavailable.');
+                }
 
                 if (! $response->successful() || ! $response->json('success')) {
                     $meta['error'] = 'Finance source returned HTTP ' . $response->status() . '.';

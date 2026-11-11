@@ -206,7 +206,7 @@
                                                 ->value('comment');
                                             if (
                                                 $approve == 'system' &&
-                                                strtoupper($row->lecturer) == strtoupper(session('username'))
+                                                strtoupper(trim((string) $row->lecturer)) == strtoupper(trim((string) session('username')))
                                             ) {
                                                 $action = 1;
                                             } elseif ($approve == 'lecturer' && session('appointment') == 'HOD') {
@@ -248,7 +248,7 @@
                                                             type="submit" class="btn btn-info btn-sm"><i
                                                                 class="fas fa-eye"></i> Approved</a>
                                                     @else
-                                                        @if (strtoupper($row->lecturer) == strtoupper(session('username')))
+                                                        @if (strtoupper(trim((string) $row->lecturer)) == strtoupper(trim((string) session('username'))))
                                                             <a href="#" class="btn btn-icon btn-primary btn-sm"
                                                                 data-bs-toggle="modal"
                                                                 data-bs-target="#updateStudent{{ $sn }}">
@@ -297,7 +297,7 @@
                                         </div>
 
                                         <!-- Show modal content -->
-                                        @if (strtoupper(session('username')) == strtoupper($row->lecturer))
+                                        @if (strtoupper(trim((string) session('username'))) == strtoupper(trim((string) $row->lecturer)))
                                             <div id="updateStudent{{ $sn }}" class="modal fade"
                                                 tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
                                                 aria-hidden="true">

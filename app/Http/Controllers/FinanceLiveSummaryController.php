@@ -15,26 +15,24 @@ class FinanceLiveSummaryController extends Controller
     {
         $this->authorise();
         $sessions = DB::table('session')->select('title', 'status')->whereNotNull('title')->where('title', '<>', '')->orderByDesc('title')->get();
-        $selectedSession = trim((string) $request->query('session', ''));
-        if (strtolower($selectedSession) === 'current') {
-            $selectedSession = (string) ($sessions->firstWhere('status', '1')->title ?? $sessions->first()->title ?? 'all');
-        }
-        if ($selectedSession === '') $selectedSession = 'all';
+        $selectedSession = \App\Support\FinanceAcademicSession::resolve($request->query('session'));
         // Render immediately from the local ledger. Remote systems are pulled
         // by the first background sync so a slow source cannot delay the page.
-        return view('main', array_merge($this->payload(false, $selectedSession), [
+        return view('main', [
             'page' => 'remita finance live',
             'title' => 'Live Finance Summary',
             'financeSessions' => $sessions,
             'selectedFinanceSession' => $selectedSession,
-        ]));
+        ]);
     }
 
     public function data(Request $request)
     {
         $this->authorise();
-        $selectedSession = trim((string) $request->query('session', 'all')) ?: 'all';
-        return response()->json($this->payload(true, $selectedSession))
+        $selectedSession = \App\Support\FinanceAcademicSession::resolve($request->query('session'));
+        $request->validate(['session' => 'nullable|string|max:20']);
+        $payload = Cache::remember('finance_live_react_v1:' . md5($selectedSession), 8, fn () => $this->payload(true, $selectedSession));
+        return response()->json($payload)
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
     }
 
@@ -47,11 +45,11 @@ class FinanceLiveSummaryController extends Controller
 
     private function payload(bool $includeRemote = true, ?string $selectedSession = null): array
     {
-        $selectedSession = trim((string) ($selectedSession ?? 'all')) ?: 'all';
-        $sessionFilter = strtolower($selectedSession) === 'all' ? null : $selectedSession;
+        $selectedSession = \App\Support\FinanceAcademicSession::resolve($selectedSession);
+        $sessionFilter = $selectedSession;
         $now = now();
-        $from = $sessionFilter ? null : $now->copy()->startOfDay();
-        $to = $sessionFilter ? null : $now->copy();
+        $from = null;
+        $to = null;
 
         $surcharge = 'COALESCE(CAST(invoices.surcharge_amount AS DECIMAL(15,2)), 0)';
         $base = 'COALESCE(CAST(invoices.base_amount AS DECIMAL(15,2)), GREATEST(CAST(invoices.amount AS DECIMAL(15,2)) - ' . $surcharge . ', 0))';
@@ -60,14 +58,12 @@ class FinanceLiveSummaryController extends Controller
             ->whereRaw("UPPER(COALESCE(invoices.description, '')) NOT LIKE ?", ['%REFUND%']);
         if ($sessionFilter) {
             $query->where('invoices.session', $sessionFilter);
-        } else {
-            $query->whereBetween('invoices.created_at', [$from, $to]);
         }
 
         $summary = (clone $query)->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $gross . '),0) AS gross_amount')->first();
         $statusRows = (clone $query)->select('invoices.status')->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $gross . '),0) AS gross_amount')->groupBy('invoices.status')->get();
         $serviceRows = (clone $query)->select('invoices.description')->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $gross . '),0) AS gross_amount')->groupBy('invoices.description')->orderByDesc('gross_amount')->get();
-        $trendRows = (clone $query)->selectRaw("DATE_FORMAT(invoices.created_at, '%Y-%m-%d %H:00') AS bucket")->selectRaw('COUNT(*) AS payment_count, COALESCE(SUM(' . $gross . '),0) AS gross_amount')->groupBy('bucket')->orderBy('bucket')->get();
+        $trendRows = collect();
         $lastLocal = (clone $query)->orderByDesc('invoices.created_at')->value('invoices.created_at');
 
         $localStatus = $this->normaliseStatuses($statusRows->map(fn ($row) => [
@@ -139,7 +135,7 @@ class FinanceLiveSummaryController extends Controller
             'success' => true,
             'status' => 'live',
             'updated_at' => now()->toIso8601String(),
-            'period' => ['label' => $sessionFilter ? 'Session ' . $sessionFilter : 'All sessions · today', 'from' => $from?->toIso8601String(), 'to' => $to?->toIso8601String(), 'session' => $selectedSession],
+            'period' => ['label' => $sessionFilter ? 'Session ' . $sessionFilter : 'All sessions', 'from' => null, 'to' => null, 'session' => $selectedSession],
             'totals' => [
                 'gross_amount' => (float) ($summary->gross_amount ?? 0) + $remoteGross,
                 'payment_count' => (int) ($summary->payment_count ?? 0) + (int) ($remote['summary']['invoice_count'] ?? 0),
