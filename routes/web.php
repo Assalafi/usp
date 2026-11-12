@@ -1624,6 +1624,8 @@ Route::get('/pdf-viewers', function (Request $request) {
 
 Route::match(['get', 'post'], '/generate-session-history', [App\Http\Controllers\SessionHistoryController::class, 'generateFromEntry']);
 
+Route::post('/sync pages', [App\Http\Controllers\PagesController::class, 'syncGroups'])->middleware('role');
+
 // Curriculum preview uses the same filters as the programme course registration page.
 Route::get('/program-course-registration/preview', [ProgramCourseRegistrationController::class, 'previewPdf'])
     ->name('program-course-registration.preview')

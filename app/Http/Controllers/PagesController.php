@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 
 class PagesController extends Controller
 {
@@ -33,7 +34,7 @@ class PagesController extends Controller
             ->when($main !== '', fn ($query) => $query->where('main', 'like', '%' . $main . '%'))
             ->orderBy('main_order')->orderBy('sub_order')->orderBy('id')
             ->get();
-        $data['data'] = $rows->groupBy('main')->map(function ($items) {
+        $groups = $rows->groupBy('main')->map(function ($items) {
             $first = $items->first();
             return (object) [
                 'main' => $first->main,
@@ -44,17 +45,72 @@ class PagesController extends Controller
                 }),
             ];
         })->values();
+        $registeredGroups = $this->navigationGroups();
+        foreach ($registeredGroups as $position => $registeredGroup) {
+            if ($main !== '' && stripos($registeredGroup, $main) === false) {
+                continue;
+            }
+            if (!$groups->contains(fn ($group) => strcasecmp($group->main, $registeredGroup) === 0)) {
+                $groups->push((object) [
+                    'main' => $registeredGroup,
+                    'main_order' => $position + 1,
+                    'page_count' => 0,
+                    'action_count' => 0,
+                ]);
+            }
+        }
+        $data['data'] = $groups->sortBy('main_order')->values();
         $data['pageRows'] = $rows;
         $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
         $data['pageStats'] = [
-            'groups' => DB::table($this->table)->distinct()->count('main'),
+            'groups' => $this->navigationGroups()->count(),
             'pages' => DB::table($this->table)->count(),
             'links' => DB::table($this->table)->whereNotNull('link')->where('link', '!=', '')->count(),
         ];
         $data['pageFilter'] = $main;
+        $data['navigationGroups'] = $registeredGroups;
         $data['page'] = $this->page;
         $data['title'] = $this->title;
         return view('main',$data);
+    }
+
+    public function syncGroups(Request $req)
+    {
+        abort_unless(session()->has('log') && session('accType') === 'Admin', 403);
+
+        $navPath = base_path('resources/views/nav.blade.php');
+        $source = is_file($navPath) ? file_get_contents($navPath) : '';
+        preg_match_all('/<li class="nav-item pcoded-hasmenu[^>]*>[\s\S]*?<span class="pcoded-mtext">\s*([^<]+)\s*<\/span>/', $source, $matches);
+        $groups = collect($matches[1] ?? [])->map(fn ($name) => trim(preg_replace('/\s+/', ' ', $name)))->filter()->unique()->values();
+        $existing = DB::table('pages')->select('main', DB::raw('MIN(main_order) as sort_order'))->groupBy('main')->orderBy('sort_order')->get();
+        foreach ($existing as $row) {
+            if (!$groups->contains($row->main)) {
+                $groups->push($row->main);
+            }
+        }
+
+        DB::transaction(function () use ($groups) {
+            foreach ($groups as $index => $group) {
+                $values = ['sort_order' => $index + 1, 'source' => 'resources/views/nav.blade.php', 'updated_at' => now()];
+                if (DB::table('navigation_groups')->where('name', $group)->exists()) {
+                    DB::table('navigation_groups')->where('name', $group)->update($values);
+                } else {
+                    DB::table('navigation_groups')->insert($values + ['name' => $group, 'created_at' => now()]);
+                }
+            }
+        });
+
+        return redirect()->back()->with('success', $groups->count() . ' navigation groups are now available for page assignment.');
+    }
+
+    private function navigationGroups()
+    {
+        $groups = collect();
+        if (Schema::hasTable('navigation_groups')) {
+            $groups = DB::table('navigation_groups')->orderBy('sort_order')->orderBy('name')->pluck('name');
+        }
+        $pageGroups = DB::table('pages')->distinct()->orderBy('main_order')->pluck('main');
+        return $groups->merge($pageGroups)->filter()->unique()->values();
     }
     
     public function create(Request $req)
@@ -113,6 +169,23 @@ class PagesController extends Controller
                     'link' => trim((string) ($req->input('link')[$key] ?? '')),
                     'sub_order' => (int) ($req->input('sub_order')[$key] ?? 0),
                     'action' => strtolower(trim((string) ($req->input('action')[$key] ?? ''))),
+                ]);
+            }
+            $pages = $req->input('page', []);
+            $links = $req->input('link', []);
+            $subOrders = $req->input('sub_order', []);
+            $actions = $req->input('action', []);
+            foreach ($pages as $key => $page) {
+                if (isset($ids[$key]) || trim((string) $page) === '') {
+                    continue;
+                }
+                DB::table($this->table)->insert([
+                    'main' => strtoupper(trim((string) ($req->input('main') ?: ''))),
+                    'main_order' => (int) $req->input('main_order', 0),
+                    'page' => strtoupper(trim((string) $page)),
+                    'link' => trim((string) ($links[$key] ?? '')),
+                    'sub_order' => (int) ($subOrders[$key] ?? 0),
+                    'action' => strtolower(trim((string) ($actions[$key] ?? 'view'))),
                 ]);
             }
         } else {
