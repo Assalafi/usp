@@ -77,6 +77,14 @@ class CheckRoleAccess
             return $next($request);
         }
 
+        // Developers use the same portal login as staff. Their task board and
+        // task actions are explicitly scoped by the task controller.
+        if (session('accType') === 'Staff'
+            && in_array(strtoupper(trim((string) session('appointment'))), ['DEVELOPER', 'DEVELOPMENT', 'IT', 'ICT'], true)
+            && (strpos($page, 'developer-tasks') === 0 || strpos($page, 'developer tasks') === 0)) {
+            return $next($request);
+        }
+
         // Check course allocation
         $encodedPage = str_replace(' ', '%20', $page);
         if (in_array($page, $this->courseAllocationPages) || in_array($encodedPage, $this->courseAllocationPages)) {
@@ -140,7 +148,7 @@ class CheckRoleAccess
             'committee role', 'committee membership', 'committee meetings',
             'sub committee', 'session history',
             'available bed space', 'online bed space', 'hostel recipients', 'abs', 'obs',
-            'manage hostel', 'pins', 'bed space reservations',
+            'manage hostel', 'pins', 'bed space reservations', 'developer-tasks', 'developer tasks',
         ];
 
         if (in_array($page, $protectedPages) || in_array($encodedPage, $protectedPages)) {

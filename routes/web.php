@@ -33,6 +33,7 @@ use App\Http\Controllers\StudentCourseRegistrationController;
 use App\Http\Controllers\StudentResultsController;
 use App\Http\Controllers\AdminStudentResultsController;
 use App\Http\Controllers\ProgramCourseRegistrationController;
+use App\Http\Controllers\DeveloperTaskController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\IdCardFeesController;
 use App\Models\ProgramCourseRegistration;
@@ -84,6 +85,18 @@ Route::get('/sms/reset-and-notify-stream', [SmsController::class, 'resetAndNotif
 Route::post('/sms/resend/{sentSms}', [SmsController::class, 'resendSingle'])->name('sms.resend_single');
 Route::get('/sms/resend-all-progress', [SmsController::class, 'showResendAllProgress'])->name('sms.resend_all_progress');
 Route::get('/sms/resend-all-stream', [SmsController::class, 'resendAllStream'])->name('sms.resend_all_stream');
+
+// Developer task board (shared Admin/Developer login with role-aware actions).
+Route::prefix('developer-tasks')->name('developer.tasks.')->middleware('role')->group(function () {
+    Route::get('/', [DeveloperTaskController::class, 'index'])->name('index');
+    Route::get('/create', [DeveloperTaskController::class, 'create'])->name('create');
+    Route::post('/', [DeveloperTaskController::class, 'store'])->name('store');
+    Route::get('/{id}', [DeveloperTaskController::class, 'show'])->whereNumber('id')->name('show');
+    Route::put('/{id}', [DeveloperTaskController::class, 'update'])->whereNumber('id')->name('update');
+    Route::post('/{id}/updates', [DeveloperTaskController::class, 'addUpdate'])->whereNumber('id')->name('updates.store');
+    Route::post('/{id}/review', [DeveloperTaskController::class, 'review'])->whereNumber('id')->name('review');
+    Route::get('/{id}/files/{fileId}', [DeveloperTaskController::class, 'downloadFile'])->whereNumber('id')->whereNumber('fileId')->name('files.download');
+});
 
 Route::post('upload-degree', [StaffController::class, 'uploadDegree']);
 Route::get('/import-progress', [ResultsController::class, 'getProgress']);

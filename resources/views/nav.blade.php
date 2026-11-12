@@ -535,7 +535,7 @@
                     <li class=""><a href="#" class="">Certificate</a></li>
                 </ul>
             </li>
-            <li class="nav-item pcoded-hasmenu">
+            <li class="nav-item pcoded-hasmenu @if (in_array($page, ['developer tasks', 'developer task create', 'developer task show'])) pcoded-trigger active @endif">
                 <a href="#!" class="nav-link">
                     <span class="pcoded-micon"><i class="fas fa-bullhorn"></i></span>
                     <span class="pcoded-mtext">Communication</span>
@@ -544,6 +544,9 @@
                     <li class=""><a href="#" class="">Chat</a></li>
                     <li class=""><a href="{{ route('sms.create') }}" class="">Send SMS</a></li>
                     <li class=""><a href="{{ route('sms.sent') }}" class="">Sent SMS</a></li>
+                    @if (session('accType') == 'Admin' || (session('accType') == 'Staff' && in_array(strtoupper((string) session('appointment')), ['DEVELOPER', 'DEVELOPMENT', 'IT', 'ICT'], true)))
+                        <li class="@if (in_array($page, ['developer tasks', 'developer task create', 'developer task show'])) active @endif"><a href="{{ route('developer.tasks.index') }}" class=""><i class="fas fa-list-check me-1"></i>Developer Tasks</a></li>
+                    @endif
                     <li class=""><a href="#" class="">Event List</a></li>
                     <li class=""><a href="#" class="">Academic Calendar</a></li>
                     <li class=""><a href="#" class="">Notice List</a></li>
