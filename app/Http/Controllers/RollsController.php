@@ -41,6 +41,7 @@ class RollsController extends Controller
         $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
         $data['sp'] = DB::table('rolls')->select('username')->distinct()->orderBy('username', 'ASC')->get();
         $data['pageOptions'] = DB::table('pages')->orderBy('main_order')->orderBy('sub_order')->get();
+        $data['availableActions'] = $this->availableActions();
         $data['rollFilters'] = compact('username', 'facultyCode', 'pageFilter', 'level');
         $data['rollStats'] = [
             'assignments' => DB::table('rolls')->count(),
@@ -50,6 +51,20 @@ class RollsController extends Controller
         $data['page'] = $this->page;
         $data['title'] = $this->title;
         return view('main',$data);
+    }
+
+    private function availableActions()
+    {
+        $actions = collect(['view', 'create', 'update', 'delete', 'upload', 'approve', 'export']);
+        if (\Illuminate\Support\Facades\Schema::hasTable('navigation_actions')) {
+            $actions = $actions->merge(DB::table('navigation_actions')->orderBy('label')->pluck('name'));
+        }
+        foreach (DB::table('rolls')->select('action')->get() as $row) {
+            foreach (array_filter(array_map('trim', explode(',', (string) $row->action))) as $action) {
+                $actions->push(strtolower($action));
+            }
+        }
+        return $actions->filter()->unique()->values();
     }
 
     public function create(Request $req)

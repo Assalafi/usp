@@ -69,9 +69,27 @@ class PagesController extends Controller
         ];
         $data['pageFilter'] = $main;
         $data['navigationGroups'] = $registeredGroups;
+        $data['availableActions'] = $this->availableActions($rows);
         $data['page'] = $this->page;
         $data['title'] = $this->title;
         return view('main',$data);
+    }
+
+    public function createAction(Request $req)
+    {
+        abort_unless(session()->has('log') && session('accType') === 'Admin', 403);
+        $validated = $req->validate([
+            'name' => ['required', 'string', 'max:80', 'regex:/^[a-z][a-z0-9_-]*$/i'],
+            'label' => ['nullable', 'string', 'max:120'],
+        ]);
+        if (!Schema::hasTable('navigation_actions')) {
+            return redirect()->back()->with('error', 'Action registry is not available yet. Run the latest migrations.');
+        }
+        DB::table('navigation_actions')->updateOrInsert(
+            ['name' => strtolower(trim($validated['name']))],
+            ['label' => trim($validated['label'] ?? '') ?: ucfirst(str_replace(['-', '_'], ' ', $validated['name'])), 'created_by' => (string) session('username'), 'updated_at' => now(), 'created_at' => now()]
+        );
+        return redirect()->back()->with('success', 'Action is now available on Pages and Rolls.');
     }
 
     public function syncGroups(Request $req)
@@ -114,6 +132,20 @@ class PagesController extends Controller
         }
         $registered = DB::table('navigation_groups')->whereIn('name', $pageGroups->all())->orderBy('sort_order')->orderBy('name')->pluck('name');
         return $registered->merge($pageGroups)->filter()->unique()->values();
+    }
+
+    private function availableActions($rows = null)
+    {
+        $actions = collect(['view', 'create', 'update', 'delete', 'upload', 'approve', 'export']);
+        if (Schema::hasTable('navigation_actions')) {
+            $actions = $actions->merge(DB::table('navigation_actions')->orderBy('label')->pluck('name'));
+        }
+        foreach (($rows ?: DB::table('pages')->select('action')->get()) as $row) {
+            foreach (array_filter(array_map('trim', explode(',', (string) $row->action))) as $action) {
+                $actions->push(strtolower($action));
+            }
+        }
+        return $actions->filter()->unique()->values();
     }
     
     public function create(Request $req)
