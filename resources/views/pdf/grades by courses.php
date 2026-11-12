@@ -12,8 +12,43 @@ function codeMod($input)
     return preg_replace('/([A-Za-z]+)([0-9]+)/', '$1 $2', $input);
 }
 
+/**
+ * The legacy FPDF renderer is not UTF-8 aware. Course titles can contain
+ * Unicode Roman numeral glyphs (for example ⅠⅠ), which otherwise render as
+ * mojibake such as "â…" in the generated report. Convert those glyphs to
+ * their ASCII equivalents before passing text to FPDF.
+ */
+function normalizeRomanNumerals($input)
+{
+    $romanMap = [
+        "\xE2\x85\xA0" => 'I',
+        "\xE2\x85\xA1" => 'II',
+        "\xE2\x85\xA2" => 'III',
+        "\xE2\x85\xA3" => 'IV',
+        "\xE2\x85\xA4" => 'V',
+        "\xE2\x85\xA5" => 'VI',
+        "\xE2\x85\xA6" => 'VII',
+        "\xE2\x85\xA7" => 'VIII',
+        "\xE2\x85\xA8" => 'IX',
+        "\xE2\x85\xA9" => 'X',
+        "\xE2\x85\B0" => 'i',
+        "\xE2\x85\B1" => 'ii',
+        "\xE2\x85\B2" => 'iii',
+        "\xE2\x85\B3" => 'iv',
+        "\xE2\x85\B4" => 'v',
+        "\xE2\x85\B5" => 'vi',
+        "\xE2\x85\B6" => 'vii',
+        "\xE2\x85\B7" => 'viii',
+        "\xE2\x85\B8" => 'ix',
+        "\xE2\x85\B9" => 'x',
+    ];
+
+    return strtr((string) $input, $romanMap);
+}
+
 function firstUpper($input)
 {
+    $input = normalizeRomanNumerals($input);
     $excludeWords = ['or', 'and', 'of', 'the', 'in', 'on', 'at', 'by', 'for', 'to'];
     $input = ucwords(strtolower($input));
     $words = explode(' ', $input);
