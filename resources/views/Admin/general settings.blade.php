@@ -300,7 +300,11 @@
                                         'completion' => 0,
                                         'cycle_started_at' => null,
                                     ];
-                                    $profileManagement = $profileUpdateManagement ?? [
+                                    // Settings may have been stored before the three-mode profile
+                                    // control was introduced.  Always merge the complete shape so
+                                    // an older/partial payload cannot break this page with an
+                                    // "Undefined array key" exception.
+                                    $profileManagement = array_merge([
                                         'mode' => 1,
                                         'mode_label' => 'Profile update required',
                                         'enabled' => true,
@@ -309,7 +313,18 @@
                                         'submitted' => 0,
                                         'pending' => 0,
                                         'completion' => 0,
-                                    ];
+                                    ], is_array($profileUpdateManagement ?? null) ? $profileUpdateManagement : []);
+                                    $profileMode = (int) ($profileManagement['mode'] ?? ($profileManagement['enabled'] ? 1 : 0));
+                                    if (!in_array($profileMode, [0, 1, 2], true)) {
+                                        $profileMode = $profileManagement['enabled'] ? 1 : 0;
+                                    }
+                                    $profileManagement['mode'] = $profileMode;
+                                    $profileManagement['mode_label'] = $profileManagement['mode_label'] ?? match ($profileMode) {
+                                        2 => 'Portal access closed',
+                                        1 => 'Profile update required',
+                                        default => 'No restriction',
+                                    };
+                                    $profileManagement['enabled'] = $profileMode > 0;
                                 @endphp
                                 <style>
                                     .nin-control{border:1px solid #dfe7ee;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 8px 24px rgba(31,65,91,.07)}
