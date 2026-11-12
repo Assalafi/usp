@@ -103,7 +103,16 @@ class SystemSettingsController extends Controller
                 'cycle_started_at' => optional($settings->firstWhere('key', 'student_nin_update_version'))->updated_at,
             ];
 
-            $profileEnabled = (string) self::get('student_profile_update_enabled', '1') !== '0';
+            // Profile access has three deliberate modes:
+            // 0 = no restriction, 1 = require the student to complete the
+            // current-session profile update, 2 = close portal access and
+            // show the expired/deadline notice until the profile is submitted.
+            $profileMode = (int) self::get('student_profile_update_enabled', '1');
+            $profileMode = in_array($profileMode, [0, 1, 2], true) ? $profileMode : 1;
+            $profileEnabled = $profileMode > 0;
+            $profileModeLabel = $profileMode === 2
+                ? 'Portal closed for pending updates'
+                : ($profileMode === 1 ? 'Profile update required' : 'No restriction');
             $profileEligible = DB::table('students')->where('status', '1');
             $profileSubmitted = DB::table('students')
                 ->where('status', '1')
@@ -117,6 +126,8 @@ class SystemSettingsController extends Controller
             $eligibleProfiles = (clone $profileEligible)->count();
             $submittedProfiles = (clone $profileSubmitted)->count();
             $profileUpdateManagement = [
+                'mode' => $profileMode,
+                'mode_label' => $profileModeLabel,
                 'enabled' => $profileEnabled,
                 'session' => $currentSession,
                 'eligible' => $eligibleProfiles,
@@ -535,19 +546,29 @@ class SystemSettingsController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $validated = $request->validate([
-            'enabled' => ['required', 'boolean'],
-        ]);
-        $enabled = (bool) $validated['enabled'];
+        // `enabled` is accepted for compatibility with older admin pages:
+        // true maps to mode 1 and false maps to mode 0.
+        $modeInput = $request->has('mode')
+            ? $request->input('mode')
+            : ($request->boolean('enabled') ? 1 : 0);
+        $validated = validator(
+            ['mode' => $modeInput],
+            ['mode' => ['required', 'integer', 'in:0,1,2']]
+        )->validate();
+        $mode = (int) $validated['mode'];
+        $enabled = $mode > 0;
+        $modeLabel = $mode === 2
+            ? 'Portal closed for pending updates'
+            : ($mode === 1 ? 'Profile update required' : 'No restriction');
 
         DB::table('system_settings')->updateOrInsert(
             ['key' => 'student_profile_update_enabled'],
             [
-                'value' => $enabled ? '1' : '0',
+                'value' => (string) $mode,
                 'category' => 'security',
-                'type' => 'boolean',
+                'type' => 'number',
                 'label' => 'Student profile update requirement',
-                'description' => 'Require active undergraduate students to submit their profile for the current academic session before using portal services.',
+                'description' => '0: no restriction; 1: require the current-session profile update; 2: close portal access for students who have not submitted.',
                 'updated_at' => now(),
             ]
         );
@@ -563,9 +584,13 @@ class SystemSettingsController extends Controller
         return response()->json([
             'success' => true,
             'enabled' => $enabled,
-            'message' => $enabled
-                ? 'Student profile update enforcement is active.'
-                : 'Student profile update enforcement is paused. Students may use the portal without a current profile submission.',
+            'mode' => $mode,
+            'mode_label' => $modeLabel,
+            'message' => $mode === 2
+                ? 'Portal access is closed for students who have not submitted the current profile update.'
+                : ($mode === 1
+                    ? 'Students who have not submitted the current profile update must complete it before using portal services.'
+                    : 'Profile update enforcement is paused. Students may use the portal without a current profile submission.'),
         ]);
     }
 

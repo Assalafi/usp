@@ -301,6 +301,8 @@
                                         'cycle_started_at' => null,
                                     ];
                                     $profileManagement = $profileUpdateManagement ?? [
+                                        'mode' => 1,
+                                        'mode_label' => 'Profile update required',
                                         'enabled' => true,
                                         'session' => null,
                                         'eligible' => 0,
@@ -327,7 +329,7 @@
                                     .profile-control{border:1px solid #dfe7ee;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 8px 24px rgba(31,65,91,.07)}
                                     .profile-control-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:22px 24px;background:linear-gradient(135deg,#f7fafc,#eef5f8)}
                                     .profile-control-kicker{display:block;margin-bottom:6px;color:#547086;font-size:.68rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.profile-control h4{margin:0 0 7px;color:#213f56;font-weight:800}.profile-control-head p{max-width:690px;margin:0;color:#6c7f8e;font-size:.82rem;line-height:1.55}
-                                    .profile-status{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;border-radius:999px;padding:8px 12px;font-size:.7rem;font-weight:800}.profile-status.active{background:#e7f6ee;color:#18784a}.profile-status.paused{background:#fff1e5;color:#9b5b14}.profile-status i{font-size:.55rem}.profile-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:16px 20px}.profile-stat{border:1px solid #e4ebf0;border-radius:13px;padding:13px;background:#fff}.profile-stat small,.profile-stat strong{display:block}.profile-stat small{color:#7c8e9c;font-size:.66rem;font-weight:700}.profile-stat strong{margin-top:5px;color:#213f56;font-size:1.16rem}.profile-stat span{display:block;margin-top:3px;color:#91a0ab;font-size:.62rem}.profile-progress-wrap{padding:0 20px 16px}.profile-progress-meta{display:flex;justify-content:space-between;gap:12px;margin-bottom:7px;color:#6c7f8e;font-size:.7rem}.profile-progress{height:8px;overflow:hidden;border-radius:999px;background:#edf2f5}.profile-progress span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#2479ad,#36a06f)}.profile-actions{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 20px;border-top:1px solid #e8eef2;background:#fbfcfd}.profile-actions-note{color:#758795;font-size:.7rem;line-height:1.5}.profile-actions-buttons{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.profile-actions .btn{font-size:.72rem;font-weight:700}@media(max-width:850px){.profile-control-head{display:block}.profile-status{margin-top:13px}.profile-stats{grid-template-columns:repeat(2,1fr)}.profile-actions{display:block}.profile-actions-buttons{justify-content:flex-start;margin-top:12px}}@media(max-width:480px){.profile-control-head{padding:18px}.profile-stats{padding:13px;gap:7px}.profile-stat{padding:11px}.profile-progress-wrap{padding:0 13px 14px}.profile-actions{padding:14px}.profile-actions-buttons .btn{width:100%}}
+                                    .profile-status{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;border-radius:999px;padding:8px 12px;font-size:.7rem;font-weight:800}.profile-status.active{background:#e7f6ee;color:#18784a}.profile-status.paused{background:#fff1e5;color:#9b5b14}.profile-status.locked{background:#fde8e8;color:#b42318}.profile-status i{font-size:.55rem}.profile-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:16px 20px}.profile-stat{border:1px solid #e4ebf0;border-radius:13px;padding:13px;background:#fff}.profile-stat small,.profile-stat strong{display:block}.profile-stat small{color:#7c8e9c;font-size:.66rem;font-weight:700}.profile-stat strong{margin-top:5px;color:#213f56;font-size:1.16rem}.profile-stat span{display:block;margin-top:3px;color:#91a0ab;font-size:.62rem}.profile-progress-wrap{padding:0 20px 16px}.profile-progress-meta{display:flex;justify-content:space-between;gap:12px;margin-bottom:7px;color:#6c7f8e;font-size:.7rem}.profile-progress{height:8px;overflow:hidden;border-radius:999px;background:#edf2f5}.profile-progress span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#2479ad,#36a06f)}.profile-actions{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 20px;border-top:1px solid #e8eef2;background:#fbfcfd}.profile-actions-note{color:#758795;font-size:.7rem;line-height:1.5}.profile-actions-buttons{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.profile-actions .btn{font-size:.72rem;font-weight:700}@media(max-width:850px){.profile-control-head{display:block}.profile-status{margin-top:13px}.profile-stats{grid-template-columns:repeat(2,1fr)}.profile-actions{display:block}.profile-actions-buttons{justify-content:flex-start;margin-top:12px}}@media(max-width:480px){.profile-control-head{padding:18px}.profile-stats{padding:13px;gap:7px}.profile-stat{padding:11px}.profile-progress-wrap{padding:0 13px 14px}.profile-actions{padding:14px}.profile-actions-buttons .btn,.profile-actions-buttons select{width:100%!important}}
                                 </style>
                                 <section class="profile-control mb-4" aria-labelledby="profileControlTitle">
                                     <div class="profile-control-head">
@@ -336,16 +338,16 @@
                                             <h4 id="profileControlTitle"><i class="fas fa-user-check me-2"></i>Profile update requirement</h4>
                                             <p>Control whether active undergraduate students must submit their profile and current-session level before using portal services.</p>
                                         </div>
-                                        <span class="profile-status {{ $profileManagement['enabled'] ? 'active' : 'paused' }}"><i class="fas fa-circle"></i>{{ $profileManagement['enabled'] ? 'ENFORCEMENT ACTIVE' : 'ENFORCEMENT PAUSED' }}</span>
+                                        <span class="profile-status {{ $profileManagement['mode'] === 2 ? 'locked' : ($profileManagement['mode'] === 1 ? 'active' : 'paused') }}"><i class="fas fa-circle"></i>{{ strtoupper($profileManagement['mode_label']) }}</span>
                                     </div>
                                     <div class="profile-stats" aria-label="Profile update summary">
                                         <div class="profile-stat"><small>Current session</small><strong>{{ $profileManagement['session'] ?: '—' }}</strong><span>Active academic session</span></div>
                                         <div class="profile-stat"><small>Active students</small><strong>{{ number_format($profileManagement['eligible']) }}</strong><span>Covered by this setting</span></div>
                                         <div class="profile-stat"><small>Submitted</small><strong>{{ number_format($profileManagement['submitted']) }}</strong><span>Ready for portal access</span></div>
-                                        <div class="profile-stat"><small>Still pending</small><strong>{{ number_format($profileManagement['pending']) }}</strong><span>{{ $profileManagement['enabled'] ? 'Restricted while active' : 'Allowed while paused' }}</span></div>
+                                        <div class="profile-stat"><small>Still pending</small><strong>{{ number_format($profileManagement['pending']) }}</strong><span>{{ $profileManagement['mode'] === 2 ? 'Closed access' : ($profileManagement['mode'] === 1 ? 'Update required' : 'Allowed while paused') }}</span></div>
                                     </div>
                                     <div class="profile-progress-wrap"><div class="profile-progress-meta"><span>Submission progress</span><strong>{{ number_format($profileManagement['completion'], 1) }}%</strong></div><div class="profile-progress" role="progressbar" aria-valuenow="{{ $profileManagement['completion'] }}" aria-valuemin="0" aria-valuemax="100"><span style="width:{{ min(100, max(0, $profileManagement['completion'])) }}%"></span></div></div>
-                                    <div class="profile-actions"><div class="profile-actions-note">Pausing enforcement does not delete or alter student profile records. You can resume it at any time.</div><div class="profile-actions-buttons"><button type="button" class="btn {{ $profileManagement['enabled'] ? 'btn-outline-warning' : 'btn-success' }}" id="toggleStudentProfileUpdate" data-enabled="{{ $profileManagement['enabled'] ? '1' : '0' }}"><i class="fas {{ $profileManagement['enabled'] ? 'fa-pause' : 'fa-play' }} me-2"></i>{{ $profileManagement['enabled'] ? 'Pause requirement' : 'Resume requirement' }}</button></div></div>
+                                    <div class="profile-actions"><div class="profile-actions-note">Choose whether students may continue normally, must complete the update, or should see the closed-access notice. Changing the mode does not delete profile records.</div><div class="profile-actions-buttons"><select id="studentProfileUpdateMode" class="form-select form-select-sm" style="min-width:255px"><option value="0" {{ $profileManagement['mode'] === 0 ? 'selected' : '' }}>0 — No restriction</option><option value="1" {{ $profileManagement['mode'] === 1 ? 'selected' : '' }}>1 — Require profile update</option><option value="2" {{ $profileManagement['mode'] === 2 ? 'selected' : '' }}>2 — Close access for pending students</option></select><button type="button" class="btn btn-primary" id="saveStudentProfileUpdateMode"><i class="fas fa-save me-2"></i>Apply access mode</button></div></div>
                                 </section>
 
                                 <section class="nin-control mb-4" aria-labelledby="ninControlTitle">
@@ -1133,18 +1135,20 @@
             });
         });
 
-        $('#toggleStudentProfileUpdate').on('click', function() {
+        $('#saveStudentProfileUpdateMode').on('click', function() {
             var button = $(this);
-            var currentlyEnabled = String(button.attr('data-enabled')) === '1';
-            var enabling = !currentlyEnabled;
+            var mode = String($('#studentProfileUpdateMode').val() || '0');
+            var labels = {
+                '0': 'No restriction',
+                '1': 'Profile update required',
+                '2': 'Portal closed for pending updates'
+            };
             Swal.fire({
-                title: enabling ? 'Resume profile enforcement?' : 'Pause profile enforcement?',
-                text: enabling
-                    ? 'Students who have not submitted the current profile update will be restricted from portal services.'
-                    : 'Students will be allowed to use the portal without submitting the current profile update. Existing records will remain unchanged.',
-                icon: enabling ? 'question' : 'warning',
+                title: 'Apply profile access mode?',
+                text: 'Mode ' + mode + ': ' + labels[mode] + '. Existing profile records will remain unchanged.',
+                icon: mode === '2' ? 'warning' : 'question',
                 showCancelButton: true,
-                confirmButtonText: enabling ? 'Resume requirement' : 'Pause requirement',
+                confirmButtonText: 'Apply mode',
                 cancelButtonText: 'Cancel'
             }).then(function(result) {
                 if (!result.isConfirmed) return;
@@ -1155,9 +1159,9 @@
                     type: 'POST',
                     dataType: 'json',
                     cache: false,
-                    data: { _token: '{{ csrf_token() }}', enabled: enabling ? 1 : 0 },
+                    data: { _token: '{{ csrf_token() }}', mode: mode },
                     success: function(response) {
-                        Swal.fire({ icon: 'success', title: response.enabled ? 'Requirement active' : 'Requirement paused', text: response.message }).then(function() { location.reload(); });
+                        Swal.fire({ icon: 'success', title: response.mode_label || 'Access mode updated', text: response.message }).then(function() { location.reload(); });
                     },
                     error: function(xhr) {
                         button.prop('disabled', false).html(original);

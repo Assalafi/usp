@@ -66,18 +66,24 @@ class EnsureStudentProfileSubmitted
 
         // Administrators can pause the profile-update requirement from
         // General Settings without changing students' stored records.
-        $profileUpdateSetting = strtolower(trim((string) \App\Http\Controllers\SystemSettingsController::get('student_profile_update_enabled', '1')));
-        $profileUpdateEnabled = !in_array($profileUpdateSetting, ['0', 'false', 'off', 'no'], true);
-        if (!$profileUpdateEnabled) {
+        $profileMode = (int) \App\Http\Controllers\SystemSettingsController::get('student_profile_update_enabled', '1');
+        $profileMode = in_array($profileMode, [0, 1, 2], true) ? $profileMode : 1;
+        if ($profileMode === 0) {
             return $next($request);
         }
 
-        $message = 'Your student portal access is restricted because the student record update deadline has expired.';
+        if ($profileMode === 1) {
+            $redirect = url('/profile?mode=edit&required=1');
+            $message = 'Please complete and submit your current student profile update before using portal services.';
+        } else {
+            $redirect = url('/profile-update-expired');
+            $message = 'Your student portal access is restricted because the student record update deadline has expired.';
+        }
         if ($request->expectsJson() || $request->ajax()) {
-            return response()->json(['message' => $message, 'redirect' => url('/profile-update-expired')], 423);
+            return response()->json(['message' => $message, 'redirect' => $redirect], 423);
         }
 
-        return redirect('/profile-update-expired');
+        return redirect($redirect);
     }
 
     private function isAllowedWhileRestricted(Request $request): bool
