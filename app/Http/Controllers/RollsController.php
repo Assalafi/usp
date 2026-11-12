@@ -28,21 +28,25 @@ class RollsController extends Controller
     public function index(Request $req)
     {
         if(!session()->has('log')){return redirect('/');}
-        if ($req->has('_token')) {
-            $data = $req->all();
-            unset($data['_token']);
-            $filteredData = array_filter($data);
-            $query = DB::table($this->table);
-            foreach ($filteredData as $key => $value) {
-                $query->where($key, $value);
-            }
-            $data['data'] = $query->get();
-        }else{
-
-            $data['data'] = DB::table($this->table)->where(['username' => '900'])->get();
-        }
+        $username = trim((string) $req->input('username', ''));
+        $facultyCode = trim((string) $req->input('faculty', ''));
+        $pageFilter = trim((string) $req->input('page', ''));
+        $level = trim((string) $req->input('level', ''));
+        $query = DB::table($this->table)
+            ->when($username !== '', fn ($q) => $q->where('username', $username))
+            ->when($facultyCode !== '', fn ($q) => $q->where('faculty', $facultyCode))
+            ->when($pageFilter !== '', fn ($q) => $q->where('page', 'like', '%' . $pageFilter . '%'))
+            ->when($level !== '', fn ($q) => $q->where('level', $level));
+        $data['data'] = $query->orderBy('username')->orderBy('main_order')->orderBy('sub_order')->paginate(50)->withQueryString();
         $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
         $data['sp'] = DB::table('rolls')->select('username')->distinct()->orderBy('username', 'ASC')->get();
+        $data['pageOptions'] = DB::table('pages')->orderBy('main_order')->orderBy('sub_order')->get();
+        $data['rollFilters'] = compact('username', 'facultyCode', 'pageFilter', 'level');
+        $data['rollStats'] = [
+            'assignments' => DB::table('rolls')->count(),
+            'users' => DB::table('rolls')->distinct()->count('username'),
+            'pages' => DB::table('rolls')->distinct()->count('page'),
+        ];
         $data['page'] = $this->page;
         $data['title'] = $this->title;
         return view('main',$data);
@@ -61,16 +65,16 @@ class RollsController extends Controller
             $department = $req->input('department');
             $program = $req->input('program');
             $level = $req->input('level');
-            $ids = $req->input('ids');
+            $ids = $req->input('ids', []);
 
             foreach ($ids as $key => $id) {
                 $action = 'action'.$id;
                 $action = $req->input($action);
                 //echo $id.' '.$action;
                 //die;
-                $data = DB::table('pages')->where('id', $id)->select('main','main_order', 'page', 'sub_order', 'link')->get();
-                foreach ($data as $row) {
-                    // code...
+                $row = DB::table('pages')->where('id', $id)->select('main','main_order', 'page', 'sub_order', 'link')->first();
+                if (!$row) {
+                    continue;
                 }
                 // echo $row -> page;
                 // die;
