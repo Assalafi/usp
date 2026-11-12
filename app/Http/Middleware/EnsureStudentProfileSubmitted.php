@@ -84,8 +84,15 @@ class EnsureStudentProfileSubmitted
     {
         $path = trim($request->path(), '/');
 
+        if ($path === 'profile' && $request->query('mode') === 'edit' && $request->query('required') === '1') {
+            return true;
+        }
+
         return $path === 'profile-update-expired'
             || $path === 'nin-update'
+            || $path === 'update-profile'
+            || $path === 'submit-profile'
+            || $path === 'profile/photo/preview'
             || $path === 'logout';
     }
 }

@@ -547,7 +547,12 @@ Route::get('/profile', function () {
         && !empty($student->profile_submitted_at)
         && (string) ($student->profile_submission_session ?? '') === (string) ($currentSession ?? '')
         && (string) ($student->profile_level_session ?? '') === (string) ($currentSession ?? '');
-    if (session('accType') === 'Student' && request('mode') === 'edit') {
+    // Normal profile editing is currently closed, but students who have not
+    // completed the mandatory current-session update must still be allowed to
+    // open the required editor. Without this exception, /profile redirects
+    // to the required editor and the editor redirects straight back here.
+    $requiredProfileEdit = request('mode') === 'edit' && request('required') === '1';
+    if (session('accType') === 'Student' && request('mode') === 'edit' && !$requiredProfileEdit) {
         return redirect('/profile')->with('info', 'Profile editing is temporarily closed. You can still view your profile.');
     }
     if (session('accType') === 'Student' && !$profileIsSubmittedForCurrentSession && request('mode') !== 'edit') {
