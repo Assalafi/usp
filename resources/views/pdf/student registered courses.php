@@ -6,6 +6,7 @@ include ('pdf_mc_table.php');
 //include 'fpdf/fpdf.php';
 include 'exfpdf.php';
 include 'easyTable.php';
+include_once __DIR__ . '/pdf-text.php';
 
 function firstUpper($input) {
     $excludeWords = ['or', 'and', 'of', 'the', 'in', 'on', 'at', 'by', 'for', 'to', 'iii'];
@@ -121,7 +122,7 @@ foreach ($regs as $reg) {
     $table->rowStyle('align:{CCLCCC};');
     $table->easyCell($sn);
     $table->easyCell($reg->code);
-    $table->easyCell(DB::table('course')->where(['code' => $reg->code])->value('title'), 'colspan:2;');
+    $table->easyCell(normalizePdfRomanNumerals(DB::table('course')->where(['code' => $reg->code])->value('title')), 'colspan:2;');
     $table->easyCell($reg->unit);
     $table->easyCell($reg->level);
     $table->printRow();
@@ -164,7 +165,7 @@ foreach ($regs as $reg) {
     $table->rowStyle('align:{CCLCCC};');
     $table->easyCell($sn);
     $table->easyCell($reg->code);
-    $table->easyCell(DB::table('course')->where(['code' => $reg->code])->value('title'), 'colspan:2;');
+    $table->easyCell(normalizePdfRomanNumerals(DB::table('course')->where(['code' => $reg->code])->value('title')), 'colspan:2;');
     $table->easyCell($reg->unit);
     $table->easyCell($reg->level);
     $table->easyCell($reg->type);

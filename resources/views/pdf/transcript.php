@@ -6,6 +6,7 @@ include('pdf_mc_table.php');
 //include 'fpdf/fpdf.php';
 include 'exfpdf.php';
 include 'easyTable.php';
+include_once __DIR__ . '/pdf-text.php';
 $name = '';
 $pend = '';
 $p = 0;
@@ -130,7 +131,7 @@ foreach ($student as $row) {
 
         $table->rowStyle('align:{LLCCCCC};');
         $table->easyCell($reg->code);
-        $table->easyCell($title);
+        $table->easyCell(normalizePdfRomanNumerals($title));
         $table->easyCell($c->unit);
         $table->easyCell($reg->total);
         $table->easyCell($reg->grade);

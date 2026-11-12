@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\DB;
 include('pdf_mc_table.php');
 include 'exfpdf.php';
 include 'easyTable.php';
+include_once __DIR__ . '/pdf-text.php';
 
 class PDFWithWatermark extends exFPDF
 {
@@ -112,7 +113,7 @@ foreach ($dept as $dp) {
     $pdf->Ln(5);
     $table->easyCell(ucwords(strtolower($semester)) . ' Semester End-of-Course Examination Results for ' . $session . ' Acadamic Session', 'colspan:14; font-size:12; align:C;border:0;');
     $table->printRow();
-    $table->easyCell('Course Code/Title    ' . $course . ': ' . ucwords(strtolower($title)) . '  Units: ' . $unit, 'colspan:14; font-size:12; align:C;border:0;');
+    $table->easyCell('Course Code/Title    ' . $course . ': ' . pdfTitleCase($title) . '  Units: ' . $unit, 'colspan:14; font-size:12; align:C;border:0;');
     $table->printRow();
     $table->easyCell('Department of ' . ucwords(strtolower(DB::table('department')->where('code', $dp->department)->value('title'))) . ' ', 'colspan:14; font-size:12; align:C;border:0;');
     $table->printRow();
