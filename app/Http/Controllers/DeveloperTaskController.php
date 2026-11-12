@@ -58,7 +58,15 @@ class DeveloperTaskController extends Controller
         }
 
         $query = DB::table('developer_tasks')
-            ->leftJoin('users as assignee', 'assignee.username', '=', 'developer_tasks.assigned_to')
+            ->leftJoin('users as assignee', function ($join) {
+                // The legacy users table uses utf8mb4_general_ci while new
+                // Laravel tables default to utf8mb4_unicode_ci.
+                $join->on(
+                    DB::raw('assignee.username COLLATE utf8mb4_general_ci'),
+                    '=',
+                    DB::raw('developer_tasks.assigned_to COLLATE utf8mb4_general_ci')
+                );
+            })
             ->select('developer_tasks.*', 'assignee.name as assignee_name')
             ->when(!$this->isAdmin(), function ($q) {
                 $q->where(function ($inner) {
@@ -90,7 +98,13 @@ class DeveloperTaskController extends Controller
         }
 
         $developers = $this->isAdmin()
-            ? DB::table('users')->leftJoin('staff', 'staff.username', '=', 'users.username')
+            ? DB::table('users')->leftJoin('staff', function ($join) {
+                $join->on(
+                    DB::raw('staff.username COLLATE utf8mb4_general_ci'),
+                    '=',
+                    DB::raw('users.username COLLATE utf8mb4_general_ci')
+                );
+            })
                 ->whereIn('users.accType', ['Staff', 'Admin'])
                 ->where('users.status', '!=', '0')
                 ->select('users.username', DB::raw('COALESCE(NULLIF(staff.name, ""), NULLIF(users.name, ""), users.username) as display_name'), 'staff.appointment')
@@ -118,7 +132,13 @@ class DeveloperTaskController extends Controller
     {
         $this->requireAdmin();
 
-        $developers = DB::table('users')->leftJoin('staff', 'staff.username', '=', 'users.username')
+        $developers = DB::table('users')->leftJoin('staff', function ($join) {
+                $join->on(
+                    DB::raw('staff.username COLLATE utf8mb4_general_ci'),
+                    '=',
+                    DB::raw('users.username COLLATE utf8mb4_general_ci')
+                );
+            })
             ->whereIn('users.accType', ['Staff', 'Admin'])
             ->where('users.status', '!=', '0')
             ->select('users.username', DB::raw('COALESCE(NULLIF(staff.name, ""), NULLIF(users.name, ""), users.username) as display_name'), 'staff.appointment')
