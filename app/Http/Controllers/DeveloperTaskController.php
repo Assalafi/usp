@@ -51,6 +51,52 @@ class DeveloperTaskController extends Controller
         abort_unless($this->canView($task), 403, 'You do not have access to this task.');
     }
 
+    private function nextTaskOrder(): int
+    {
+        return ((int) DB::table('developer_tasks')->max('task_order')) + 1;
+    }
+
+    private function clampTaskOrder($requested, ?int $current = null): int
+    {
+        $count = (int) DB::table('developer_tasks')
+            ->when($current !== null, function ($query) use ($current) {
+                $query->where('id', '!=', $current);
+            })
+            ->count();
+
+        $max = $current === null ? $count + 1 : max(1, $count + 1);
+        return max(1, min((int) $requested, $max));
+    }
+
+    private function insertAtOrder(int $order): void
+    {
+        // Move the affected range out of the unique-index range first, then
+        // compact it back so inserting at any position never creates a clash.
+        $offset = 1000000;
+        DB::statement('UPDATE developer_tasks SET task_order = task_order + ? WHERE task_order >= ?', [$offset, $order]);
+        DB::statement('UPDATE developer_tasks SET task_order = task_order - ? WHERE task_order >= ?', [$offset - 1, $order + $offset]);
+    }
+
+    private function moveTaskOrder(int $taskId, int $current, int $desired): void
+    {
+        if ($current === $desired) {
+            return;
+        }
+
+        $offset = 1000000;
+        DB::table('developer_tasks')->where('id', $taskId)->update(['task_order' => 0]);
+
+        if ($current < $desired) {
+            DB::statement('UPDATE developer_tasks SET task_order = task_order + ? WHERE task_order > ? AND task_order <= ?', [$offset, $current, $desired]);
+            DB::statement('UPDATE developer_tasks SET task_order = task_order - ? WHERE task_order >= ? AND task_order <= ?', [$offset + 1, $current + 1 + $offset, $desired + $offset]);
+        } else {
+            DB::statement('UPDATE developer_tasks SET task_order = task_order + ? WHERE task_order >= ? AND task_order < ?', [$offset, $desired, $current]);
+            DB::statement('UPDATE developer_tasks SET task_order = task_order - ? WHERE task_order >= ? AND task_order < ?', [$offset - 1, $desired + $offset, $current + $offset]);
+        }
+
+        DB::table('developer_tasks')->where('id', $taskId)->update(['task_order' => $desired]);
+    }
+
     public function index(Request $request)
     {
         if (!session()->has('log')) {
@@ -85,7 +131,7 @@ class DeveloperTaskController extends Controller
                 });
             });
 
-        $tasks = $query->orderByRaw("FIELD(developer_tasks.status, 'changes_requested', 'assigned', 'in_progress', 'review', 'confirmed')")
+        $tasks = $query->orderBy('developer_tasks.task_order')
             ->orderByDesc('developer_tasks.updated_at')
             ->paginate(15)
             ->withQueryString();
@@ -148,6 +194,7 @@ class DeveloperTaskController extends Controller
             'page' => 'developer task create',
             'title' => 'Assign developer task',
             'taskDevelopers' => $developers,
+            'nextTaskOrder' => $this->nextTaskOrder(),
         ]);
     }
 
@@ -160,7 +207,7 @@ class DeveloperTaskController extends Controller
             'description' => ['required', 'string'],
             'priority' => ['required', 'in:low,medium,high,urgent'],
             'assigned_to' => ['nullable', 'string', 'max:120'],
-            'due_date' => ['nullable', 'date'],
+            'task_order' => ['required', 'integer', 'min:1'],
             'attachments' => ['nullable', 'array', 'max:10'],
             'attachments.*' => ['file', 'max:20480', 'mimes:pdf,doc,docx,xls,xlsx,csv,png,jpg,jpeg,zip,txt'],
             'attachment_descriptions' => ['nullable', 'array', 'max:10'],
@@ -168,14 +215,16 @@ class DeveloperTaskController extends Controller
         ]);
 
         $taskId = DB::transaction(function () use ($validated, $request) {
+            $order = $this->clampTaskOrder($validated['task_order']);
+            $this->insertAtOrder($order);
             $id = DB::table('developer_tasks')->insertGetId([
                 'title' => trim($validated['title']),
                 'description' => SystemSettingsController::sanitizeRichText($validated['description']),
                 'priority' => $validated['priority'],
                 'status' => 'assigned',
+                'task_order' => $order,
                 'assigned_to' => $validated['assigned_to'] ?: null,
                 'created_by' => $this->username(),
-                'due_date' => $validated['due_date'] ?? null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -203,6 +252,17 @@ class DeveloperTaskController extends Controller
             'task' => $task,
             'taskUpdates' => $updates,
             'taskFiles' => $files,
+            'taskDevelopers' => $this->isAdmin() ? DB::table('users')->leftJoin('staff', function ($join) {
+                $join->on(
+                    DB::raw('staff.username COLLATE utf8mb4_general_ci'),
+                    '=',
+                    DB::raw('users.username COLLATE utf8mb4_general_ci')
+                );
+            })
+                ->whereIn('users.accType', ['Staff', 'Admin'])
+                ->where('users.status', '!=', '0')
+                ->select('users.username', DB::raw('COALESCE(NULLIF(staff.name, ""), NULLIF(users.name, ""), users.username) as display_name'), 'staff.appointment')
+                ->orderBy('display_name')->get() : collect(),
             'isTaskAdmin' => $this->isAdmin(),
             'canTaskWork' => $this->isAdmin() || (string) $task->assigned_to === $this->username(),
         ]);
@@ -219,7 +279,7 @@ class DeveloperTaskController extends Controller
             'description' => ['required', 'string'],
             'priority' => ['required', 'in:low,medium,high,urgent'],
             'assigned_to' => ['nullable', 'string', 'max:120'],
-            'due_date' => ['nullable', 'date'],
+            'task_order' => ['required', 'integer', 'min:1'],
             'attachments' => ['nullable', 'array', 'max:10'],
             'attachments.*' => ['file', 'max:20480', 'mimes:pdf,doc,docx,xls,xlsx,csv,png,jpg,jpeg,zip,txt'],
             'attachment_descriptions' => ['nullable', 'array', 'max:10'],
@@ -227,12 +287,19 @@ class DeveloperTaskController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $request, $id, $task) {
+            $currentOrder = (int) ($task->task_order ?? 0);
+            $desiredOrder = $this->clampTaskOrder($validated['task_order'], $id);
+            if ($currentOrder < 1) {
+                $this->insertAtOrder($desiredOrder);
+            } else {
+                $this->moveTaskOrder($id, $currentOrder, $desiredOrder);
+            }
             DB::table('developer_tasks')->where('id', $id)->update([
                 'title' => trim($validated['title']),
                 'description' => SystemSettingsController::sanitizeRichText($validated['description']),
                 'priority' => $validated['priority'],
                 'assigned_to' => $validated['assigned_to'] ?: null,
-                'due_date' => $validated['due_date'] ?? null,
+                'task_order' => $desiredOrder,
                 'updated_at' => now(),
             ]);
             $this->recordUpdate($id, 'assignment', null, 'Task details or assignment were updated by the administrator.');

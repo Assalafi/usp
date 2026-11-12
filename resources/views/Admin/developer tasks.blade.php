@@ -32,7 +32,7 @@
                 <div class="col-lg-3 d-flex gap-2"><button class="btn btn-primary flex-fill"><i class="fas fa-filter me-1"></i>Filter</button><a href="{{ route('developer.tasks.index') }}" class="btn btn-light border">Clear</a></div>
             </form>
             @if($taskData->count())
-                <div class="dt-table-wrap"><table class="dt-table"><thead><tr><th>Task</th><th>Priority</th><th>Status</th><th>Assigned to</th><th>Due</th><th>Last updated</th><th></th></tr></thead><tbody>
+                <div class="dt-table-wrap"><table class="dt-table"><thead><tr><th>Order</th><th>Task</th><th>Priority</th><th>Status</th><th>Assigned to</th><th>Last updated</th><th></th></tr></thead><tbody>
                     @foreach($taskData as $task)
                         <tr><td><a class="dt-title" href="{{ route('developer.tasks.show',$task->id) }}">{{ $task->title }}</a><span class="dt-description">{{ trim(strip_tags($task->description)) }}</span><div class="dt-mobile-actions"><a class="btn btn-sm btn-outline-primary" href="{{ route('developer.tasks.show',$task->id) }}">Open</a></div></td><td><span class="dt-badge {{ $task->priority }}">{{ ucfirst($task->priority) }}</span></td><td><span class="dt-badge {{ $task->status }}">{{ ['assigned'=>'Assigned','in_progress'=>'In progress','review'=>'Ready for review','changes_requested'=>'Changes requested','confirmed'=>'Confirmed'][$task->status] ?? ucfirst(str_replace('_',' ',$task->status)) }}</span></td><td>{{ $task->assignee_name ?: ($task->assigned_to ?: 'Unassigned') }}</td><td>{{ $task->due_date ? \Carbon\Carbon::parse($task->due_date)->format('d M Y') : 'No deadline' }}</td><td>{{ $task->updated_at ? \Carbon\Carbon::parse($task->updated_at)->diffForHumans() : '—' }}</td><td class="text-end dt-desktop-actions"><a class="btn btn-sm btn-outline-primary" href="{{ route('developer.tasks.show',$task->id) }}"><i class="fas fa-arrow-up-right-from-square me-1"></i>Open</a></td></tr>
                     @endforeach
@@ -44,3 +44,21 @@
         </div>
     </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const orders = { @foreach($taskData as $task) "{{ $task->id }}": {{ (int) $task->task_order }}, @endforeach };
+    document.querySelectorAll('.dt-table tbody tr').forEach(function (row) {
+        const link = row.querySelector('a.dt-title');
+        if (!link) return;
+        const match = link.getAttribute('href').match(/(\d+)(?:$|[?#])/);
+        const order = match ? orders[match[1]] : null;
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 6) {
+            cells[4].remove();
+            const cell = document.createElement('td');
+            cell.innerHTML = '<span class="dt-badge medium"><i class="fas fa-arrow-down-1-9"></i>' + (order || '—') + '</span>';
+            row.insertBefore(cell, row.firstElementChild);
+        }
+    });
+});
+</script>

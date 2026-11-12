@@ -40,3 +40,26 @@
 <script>
 document.addEventListener('DOMContentLoaded',function(){const list=document.getElementById('updateAttachments'),add=document.getElementById('addUpdateAttachment');if(!list||!add)return;add.addEventListener('click',function(){const row=list.querySelector('.attachment-row').cloneNode(true);row.querySelectorAll('input').forEach(i=>i.value='');row.querySelector('.remove-attachment').classList.remove('d-none');list.appendChild(row);});list.addEventListener('click',function(e){const button=e.target.closest('.remove-attachment');if(button)button.closest('.attachment-row').remove();});});
 </script>
+@if($isTaskAdmin)
+<div class="container-fluid px-3 px-md-4 pb-4" style="background:#f4f8fb">
+    <div class="dt-show-shell">
+        <div class="dt-form mt-3"><h3 class="h6 fw-bold text-primary mb-3"><i class="fas fa-sliders me-2"></i>Task settings</h3>
+            <form method="POST" action="{{ route('developer.tasks.update',$task->id) }}" enctype="multipart/form-data">
+                @csrf @method('PUT')
+                <textarea name="description" class="d-none">{{ $task->description }}</textarea>
+                <div class="row g-3"><div class="col-lg-6"><label>Task title</label><input name="title" class="form-control mt-1" value="{{ $task->title }}" required></div><div class="col-sm-4 col-lg-2"><label>Order</label><input type="number" min="1" name="task_order" class="form-control mt-1" value="{{ $task->task_order }}" required></div><div class="col-sm-8 col-lg-4"><label>Priority</label><select name="priority" class="form-select mt-1" required>@foreach(['low'=>'Low','medium'=>'Medium','high'=>'High','urgent'=>'Urgent'] as $value=>$label)<option value="{{ $value }}" {{ $task->priority === $value ? 'selected' : '' }}>{{ $label }}</option>@endforeach</select></div><div class="col-lg-6"><label>Assign to</label><select name="assigned_to" class="form-select mt-1"><option value="">Unassigned (developer board)</option>@foreach($taskDevelopers as $developer)<option value="{{ $developer->username }}" {{ $task->assigned_to === $developer->username ? 'selected' : '' }}>{{ $developer->display_name }} · {{ $developer->username }}</option>@endforeach</select></div></div>
+                <button class="btn btn-primary mt-3"><i class="fas fa-save me-1"></i>Save task settings</button>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const meta = document.querySelector('.dt-meta');
+    if (meta) {
+        [...meta.querySelectorAll('.dt-chip')].forEach(function (chip) { if (chip.textContent.trim().startsWith('Due ')) chip.remove(); });
+        const chip = document.createElement('span'); chip.className = 'dt-chip'; chip.innerHTML = '<i class="fas fa-arrow-down-1-9"></i>Order {{ (int) $task->task_order }}'; meta.appendChild(chip);
+    }
+});
+</script>

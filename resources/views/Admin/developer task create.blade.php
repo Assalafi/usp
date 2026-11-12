@@ -27,3 +27,17 @@
 <script>
 document.addEventListener('DOMContentLoaded',function(){const list=document.getElementById('taskAttachments'),add=document.getElementById('addTaskAttachment');add.addEventListener('click',function(){const row=list.querySelector('.attachment-row').cloneNode(true);row.querySelectorAll('input').forEach(i=>i.value='');row.querySelector('.remove-attachment').classList.remove('d-none');list.appendChild(row);});list.addEventListener('click',function(e){const button=e.target.closest('.remove-attachment');if(button)button.closest('.attachment-row').remove();});});
 </script>
+<style>#taskDueDate,label[for="taskDueDate"]{display:none!important}</style>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const due = document.getElementById('taskDueDate');
+    if (due) {
+        const wrapper = due.closest('.col-sm-6');
+        if (wrapper) {
+            wrapper.innerHTML = '<label class="dt-label" for="taskOrder">Order *</label><input id="taskOrder" type="number" min="1" name="task_order" class="form-control dt-input" value="{{ old('task_order', $nextTaskOrder) }}" required><div class="dt-help mt-1">1 is first. Existing tasks shift automatically.</div>';
+        }
+    }
+    const intro = document.querySelector('.dt-form-head p');
+    if (intro) intro.textContent = 'Give the developer a clear brief, a priority, and its position in the work queue.';
+});
+</script>
