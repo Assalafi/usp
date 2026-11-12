@@ -81,15 +81,18 @@ class PagesController extends Controller
         $navPath = base_path('resources/views/nav.blade.php');
         $source = is_file($navPath) ? file_get_contents($navPath) : '';
         preg_match_all('/<li class="nav-item pcoded-hasmenu[^>]*>[\s\S]*?<span class="pcoded-mtext">\s*([^<]+)\s*<\/span>/', $source, $matches);
-        $groups = collect($matches[1] ?? [])->map(fn ($name) => trim(preg_replace('/\s+/', ' ', $name)))->filter()->unique()->values();
+        $codeGroups = collect($matches[1] ?? [])->map(fn ($name) => trim(preg_replace('/\s+/', ' ', $name)))->filter()->unique()->values();
         $existing = DB::table('pages')->select('main', DB::raw('MIN(main_order) as sort_order'))->groupBy('main')->orderBy('sort_order')->get();
-        foreach ($existing as $row) {
-            if (!$groups->contains($row->main)) {
-                $groups->push($row->main);
-            }
-        }
+        $codePosition = $codeGroups->flip();
+        // The pages table is the authoritative permission catalogue. The nav
+        // file supplies the current menu order, while stale navigation-only
+        // names are deliberately not added to the permission registry.
+        $groups = $existing->sortBy(function ($row) use ($codePosition) {
+            return $codePosition->get($row->main, 100000 + (int) $row->sort_order);
+        })->pluck('main')->values();
 
         DB::transaction(function () use ($groups) {
+            DB::table('navigation_groups')->whereNotIn('name', $groups->all())->delete();
             foreach ($groups as $index => $group) {
                 $values = ['sort_order' => $index + 1, 'source' => 'resources/views/nav.blade.php', 'updated_at' => now()];
                 if (DB::table('navigation_groups')->where('name', $group)->exists()) {
@@ -105,12 +108,12 @@ class PagesController extends Controller
 
     private function navigationGroups()
     {
-        $groups = collect();
-        if (Schema::hasTable('navigation_groups')) {
-            $groups = DB::table('navigation_groups')->orderBy('sort_order')->orderBy('name')->pluck('name');
-        }
         $pageGroups = DB::table('pages')->distinct()->orderBy('main_order')->pluck('main');
-        return $groups->merge($pageGroups)->filter()->unique()->values();
+        if (!Schema::hasTable('navigation_groups')) {
+            return $pageGroups->filter()->unique()->values();
+        }
+        $registered = DB::table('navigation_groups')->whereIn('name', $pageGroups->all())->orderBy('sort_order')->orderBy('name')->pluck('name');
+        return $registered->merge($pageGroups)->filter()->unique()->values();
     }
     
     public function create(Request $req)
