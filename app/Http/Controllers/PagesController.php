@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
+use App\Support\PortalPermission;
 
 class PagesController extends Controller
 {
@@ -92,6 +93,37 @@ class PagesController extends Controller
         return redirect()->back()->with('success', 'Action is now available on Pages and Rolls.');
     }
 
+    public function syncActions(Request $req)
+    {
+        abort_unless(session()->has('log') && session('accType') === 'Admin', 403);
+
+        if (!Schema::hasTable('navigation_actions')) {
+            return redirect()->back()->with('error', 'Action registry is not available yet. Run the latest migrations.');
+        }
+
+        $labels = PortalPermission::actionLabels();
+        $tokens = collect(PortalPermission::knownActions())
+            ->merge(DB::table('pages')->pluck('action'))
+            ->merge(DB::table('rolls')->pluck('action'))
+            ->flatMap(fn ($value) => array_map([PortalPermission::class, 'normalizeAction'], explode(',', (string) $value)))
+            ->filter()->unique()->values();
+
+        foreach ($tokens as $token) {
+            DB::table('navigation_actions')->updateOrInsert(
+                ['name' => $token],
+                [
+                    'label' => $labels[$token] ?? ucfirst(str_replace('_', ' ', $token)),
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+        }
+
+        PortalPermission::flush();
+
+        return redirect()->back()->with('success', $tokens->count() . ' actions are now available for page assignments.');
+    }
+
     public function syncGroups(Request $req)
     {
         abort_unless(session()->has('log') && session('accType') === 'Admin', 403);
@@ -121,6 +153,8 @@ class PagesController extends Controller
             }
         });
 
+        PortalPermission::flush();
+
         return redirect()->back()->with('success', $groups->count() . ' navigation groups are now available for page assignment.');
     }
 
@@ -136,13 +170,13 @@ class PagesController extends Controller
 
     private function availableActions($rows = null)
     {
-        $actions = collect(['view', 'create', 'update', 'delete', 'upload', 'approve', 'export']);
+        $actions = collect(PortalPermission::knownActions());
         if (Schema::hasTable('navigation_actions')) {
-            $actions = $actions->merge(DB::table('navigation_actions')->orderBy('label')->pluck('name'));
+            $actions = $actions->merge(DB::table('navigation_actions')->orderBy('label')->pluck('name')->map([PortalPermission::class, 'normalizeAction']));
         }
         foreach (($rows ?: DB::table('pages')->select('action')->get()) as $row) {
             foreach (array_filter(array_map('trim', explode(',', (string) $row->action))) as $action) {
-                $actions->push(strtolower($action));
+                $actions->push(PortalPermission::normalizeAction($action));
             }
         }
         return $actions->filter()->unique()->values();
@@ -173,11 +207,12 @@ class PagesController extends Controller
                     'page' => $page,
                     'link' => $link[$key],
                     'sub_order' => $sub_order[$key],
-                    'action' => $action[$key],
+                    'action' => PortalPermission::normalizeActionList($action[$key] ?? 'view'),
                 ]);
             }
 
             DB::commit();
+            PortalPermission::flush();
             return redirect()->back()->with('success', 'Record Created!!!');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -203,7 +238,7 @@ class PagesController extends Controller
                     'page' => strtoupper(trim((string) ($req->input('page')[$key] ?? ''))),
                     'link' => trim((string) ($req->input('link')[$key] ?? '')),
                     'sub_order' => (int) ($req->input('sub_order')[$key] ?? 0),
-                    'action' => strtolower(trim((string) ($req->input('action')[$key] ?? ''))),
+                    'action' => PortalPermission::normalizeActionList($req->input('action')[$key] ?? 'view'),
                 ]);
             }
             $pages = $req->input('page', []);
@@ -220,14 +255,19 @@ class PagesController extends Controller
                     'page' => strtoupper(trim((string) $page)),
                     'link' => trim((string) ($links[$key] ?? '')),
                     'sub_order' => (int) ($subOrders[$key] ?? 0),
-                    'action' => strtolower(trim((string) ($actions[$key] ?? 'view'))),
+                    'action' => PortalPermission::normalizeActionList($actions[$key] ?? 'view'),
                 ]);
             }
         } else {
             $id = $req->input('id');
-            DB::table($this->table)->where('id', $id)->update($req->except(['id', '_token']));
+            $payload = $req->except(['id', '_token']);
+            if (array_key_exists('action', $payload)) {
+                $payload['action'] = PortalPermission::normalizeActionList($payload['action']);
+            }
+            DB::table($this->table)->where('id', $id)->update($payload);
         }
 
+        PortalPermission::flush();
         return redirect()->back()->with('success', 'Record Updated!!!');
     }
     
@@ -235,6 +275,8 @@ class PagesController extends Controller
     {
         if(!session()->has('log')){return redirect('/');}
         $id = DB::table($this->table)->where('id',$req->id)->delete();
+
+        PortalPermission::flush();
 
         return redirect()->back()->with('success', 'Record Delete!!!');
     }

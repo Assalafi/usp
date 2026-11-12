@@ -175,59 +175,31 @@
                         $phoneb = 'no';
                         $jambb = 'no';
                         $idb = 'no';
-                        $lnk = '/' . strtolower($page);
-                        preg_match('/^\/[^\/]+/', $links, $matches);
-
-                        if (!empty($matches)) {
-                            $links = $matches[0]; // Output: /staff-record
+                        $resolvedPermission = \App\Support\PortalPermission::resolve(request());
+                        if ($resolvedPermission && !empty($resolvedPermission['link'])) {
+                            $links = $resolvedPermission['link'];
                         }
                         session()->put('links', $links);
                         //dd($links);
 
                         // Students and administrators do not use staff roll permissions.
-                        // Avoid three unnecessary permission queries on every high-traffic
-                        // student page request.
+                        // Resolve staff permissions once through the shared,
+                        // cached service so every control uses one result.
                         $datas = collect();
                         $getAllFaculty = collect();
                         if (!in_array(session('accType'), ['Student', 'Admin'], true)) {
-                            $staffAppointment = DB::table('staff')
-                                ->select('appointment')
-                                ->where('username', session('username'))
-                                ->value('appointment');
-                            if ($staffAppointment) {
-                                $datas = DB::table('rolls')
-                                    ->where(['link' => $links, 'username' => $staffAppointment])
-                                    ->select('page', 'action', 'faculty')
-                                    ->get();
-                                $getAllFaculty = DB::table('rolls')
-                                    ->select('faculty')
-                                    ->where(['link' => $links, 'username' => $staffAppointment])
-                                    ->pluck('faculty');
-                                $ch = DB::table('rolls')
-                                    ->where(['link' => $links, 'username' => $staffAppointment])
-                                    ->select('id')
-                                    ->value('id');
-                                if ($ch <= 0) {
-                                    $datas = DB::table('rolls')
-                                        ->where(['link' => $links, 'username' => session('username')])
-                                        ->select('page', 'action', 'faculty')
-                                        ->get();
-                                    $getAllFaculty = DB::table('rolls')
-                                        ->select('faculty')
-                                        ->where(['link' => $links, 'username' => session('username')])
-                                        ->pluck('faculty');
-                                }
-                            } else {
-                                $datas = DB::table('rolls')
-                                    ->where(['link' => $links, 'username' => session('username')])
-                                    ->select('page', 'action', 'faculty')
-                                    ->get();
-                                $getAllFaculty = DB::table('rolls')
-                                    ->select('faculty')
-                                    ->where(['link' => $links, 'username' => session('username')])
-                                    ->pluck('faculty');
-                            }
+                            $datas = \App\Support\PortalPermission::rowsForLink($links)
+                                ->map(fn ($row) => (object) [
+                                    'page' => $row->page,
+                                    'action' => $row->action,
+                                    'faculty' => $row->faculty,
+                                ]);
+                            $getAllFaculty = $datas->pluck('faculty')->filter()->unique()->values();
                         }
+                        $permissionActions = \App\Support\PortalPermission::actionsForLink($links);
+                        $actionTokens = collect(\App\Support\PortalPermission::knownActions())
+                            ->merge($datas->flatMap(fn ($row) => array_map([\App\Support\PortalPermission::class, 'normalizeAction'], explode(',', (string) $row->action))))
+                            ->filter()->unique()->values();
                     @endphp
                     @forelse ($datas as $roll)
                         @php
@@ -494,6 +466,17 @@
                                 display: inline;
                             }
                         @endif
+                    </style>
+                    <style>
+                        /* Every permission-aware control is hidden first. The
+                           shared service then reveals only actions assigned to
+                           this account; administrators retain full access. */
+                        @foreach ($actionTokens as $actionToken)
+                            .{{ \App\Support\PortalPermission::actionClass($actionToken) }} { display: none; }
+                            @if (session('accType') === 'Admin' || in_array($actionToken, $permissionActions, true))
+                                .{{ \App\Support\PortalPermission::actionClass($actionToken) }} { display: inline; }
+                            @endif
+                        @endforeach
                     </style>
                     <!-- Start Content-->
                     @if ($page == 'remita finance live')

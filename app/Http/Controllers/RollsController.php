@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Storage;
+use App\Support\PortalPermission;
 
 class RollsController extends Controller
 {
@@ -55,13 +56,13 @@ class RollsController extends Controller
 
     private function availableActions()
     {
-        $actions = collect(['view', 'create', 'update', 'delete', 'upload', 'approve', 'export']);
+        $actions = collect(PortalPermission::knownActions());
         if (\Illuminate\Support\Facades\Schema::hasTable('navigation_actions')) {
-            $actions = $actions->merge(DB::table('navigation_actions')->orderBy('label')->pluck('name'));
+            $actions = $actions->merge(DB::table('navigation_actions')->orderBy('label')->pluck('name')->map([PortalPermission::class, 'normalizeAction']));
         }
         foreach (DB::table('rolls')->select('action')->get() as $row) {
             foreach (array_filter(array_map('trim', explode(',', (string) $row->action))) as $action) {
-                $actions->push(strtolower($action));
+                $actions->push(PortalPermission::normalizeAction($action));
             }
         }
         return $actions->filter()->unique()->values();
@@ -93,7 +94,17 @@ class RollsController extends Controller
                 }
                 // echo $row -> page;
                 // die;
-                DB::table('rolls')->insert([
+                $actionList = PortalPermission::normalizeActionList($action ?: 'view');
+                $existing = DB::table('rolls')
+                    ->where('username', $username)
+                    ->where('link', $row->link)
+                    ->where('faculty', $faculty)
+                    ->where('department', $department)
+                    ->where('program', $program)
+                    ->where('level', $level)
+                    ->first();
+
+                $payload = [
                     'username' =>  $username,
                     'faculty' =>  $faculty,
                     'department' =>  $department,
@@ -104,12 +115,23 @@ class RollsController extends Controller
                     'page' => $row -> page,
                     'link' => $row -> link,
                     'sub_order' => $row -> sub_order,
-                    'action' => $action,
-                ]);
+                    'action' => $actionList,
+                ];
+
+                if ($existing) {
+                    $payload['action'] = PortalPermission::normalizeActionList(collect([
+                        $existing->action,
+                        $actionList,
+                    ])->implode(','));
+                    DB::table('rolls')->where('id', $existing->id)->update($payload);
+                } else {
+                    DB::table('rolls')->insert($payload);
+                }
 
             }
 
             DB::commit();
+            PortalPermission::flush();
             return redirect()->back()->with('success', 'Record Created!!!');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -127,7 +149,12 @@ class RollsController extends Controller
         $id = $datas['id'];
         unset($datas['id']);
         unset($datas['_token']);
+        if (array_key_exists('action', $datas)) {
+            $datas['action'] = PortalPermission::normalizeActionList($datas['action']);
+        }
         DB::table($this->table)->where('id',$id)->update($datas);
+
+        PortalPermission::flush();
 
         return redirect()->back()->with('success', 'Record Updated!!!');
     }
@@ -136,6 +163,8 @@ class RollsController extends Controller
     {
         if(!session()->has('log')){return redirect('/');}
         $id = DB::table($this->table)->where('id',$req->id)->delete();
+
+        PortalPermission::flush();
 
         return redirect()->back()->with('success', 'Record Delete!!!');
     }

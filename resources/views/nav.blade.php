@@ -557,7 +557,7 @@
             <li class="nav-item pcoded-hasmenu @if ($page == 'staff' || $page == 'staff' || $page == 'staff' || $page == 'staff' || $page == 'staff') pcoded-trigger active @endif ">
                 <a href="#!" class="nav-link">
                     <span class="pcoded-micon"><i class="fas fa-users"></i></span>
-                    <span class="pcoded-mtext">Human Resourse</span>
+                    <span class="pcoded-mtext">Human Resource</span>
                 </a>
                 <ul class="pcoded-submenu">
                     <li class="@if ($page == 'recruitment') active @endif"><a href="/recruitment" class="">Recruitment</a></li>

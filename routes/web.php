@@ -50,9 +50,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/id-card-fees', [IdCardFeesController::class, 'index']);
 
 Route::get('/alumni', [AlumniController::class, 'index'])->name('alumni.index')->middleware('role');
-Route::post('/update alumni', [AlumniController::class, 'update']);
-Route::post('/import-alumni', [AlumniController::class, 'upload']);
-Route::post('/upload-student-to-alumni', [AlumniController::class, 'uploadStudent']);
+Route::post('/update alumni', [AlumniController::class, 'update'])->middleware('role');
+Route::post('/import-alumni', [AlumniController::class, 'upload'])->middleware('role');
+Route::post('/upload-student-to-alumni', [AlumniController::class, 'uploadStudent'])->middleware('role');
 Route::post('/upload-student-ids-to-alumni', [AlumniController::class, 'uploadStudentIds'])
     ->name('alumni.upload_student_ids')
     ->middleware('role');
@@ -61,30 +61,30 @@ Route::get('/alumni/download-template', [AlumniController::class, 'downloadStude
     ->middleware('role');
 
 // Move to Alumni Progress Routes
-Route::get('/admin/move-to-alumni-progress', [AlumniController::class, 'showMoveToAlumniProgress'])->name('alumni.move_to_alumni_progress');
-Route::get('/admin/move-to-alumni-stream', [AlumniController::class, 'moveToAlumniStream'])->name('alumni.move_to_alumni_stream');
+Route::get('/admin/move-to-alumni-progress', [AlumniController::class, 'showMoveToAlumniProgress'])->name('alumni.move_to_alumni_progress')->middleware('role');
+Route::get('/admin/move-to-alumni-stream', [AlumniController::class, 'moveToAlumniStream'])->name('alumni.move_to_alumni_stream')->middleware('role');
 
 // Restore Alumni to Students Routes
-Route::get('/admin/restore-alumni-progress', [AlumniController::class, 'showRestoreAlumniProgress'])->name('alumni.restore_alumni_progress');
-Route::get('/admin/restore-alumni-stream', [AlumniController::class, 'restoreAlumniStream'])->name('alumni.restore_alumni_stream');
-Route::post('/admin/restore-alumni/{id}', [AlumniController::class, 'restoreSingleAlumni'])->name('alumni.restore_single');
-Route::post('/admin/restore-selected-alumni', [AlumniController::class, 'restoreSelectedAlumni'])->name('alumni.restore_selected');
-Route::get('/admin/restore-alumni-by-year-progress', [AlumniController::class, 'showRestoreByYearProgress'])->name('alumni.restore_by_year_progress');
-Route::get('/admin/restore-alumni-by-year-stream', [AlumniController::class, 'restoreByYearStream'])->name('alumni.restore_by_year_stream');
-Route::get('/admin/update-passwords-progress', [UsersController::class, 'accountNumberAsPasswordWithProgress'])->name('admin.password.progress');
+Route::get('/admin/restore-alumni-progress', [AlumniController::class, 'showRestoreAlumniProgress'])->name('alumni.restore_alumni_progress')->middleware('role');
+Route::get('/admin/restore-alumni-stream', [AlumniController::class, 'restoreAlumniStream'])->name('alumni.restore_alumni_stream')->middleware('role');
+Route::post('/admin/restore-alumni/{id}', [AlumniController::class, 'restoreSingleAlumni'])->name('alumni.restore_single')->middleware('role');
+Route::post('/admin/restore-selected-alumni', [AlumniController::class, 'restoreSelectedAlumni'])->name('alumni.restore_selected')->middleware('role');
+Route::get('/admin/restore-alumni-by-year-progress', [AlumniController::class, 'showRestoreByYearProgress'])->name('alumni.restore_by_year_progress')->middleware('role');
+Route::get('/admin/restore-alumni-by-year-stream', [AlumniController::class, 'restoreByYearStream'])->name('alumni.restore_by_year_stream')->middleware('role');
+Route::get('/admin/update-passwords-progress', [UsersController::class, 'accountNumberAsPasswordWithProgress'])->name('admin.password.progress')->middleware('role');
 
 // SMS Routes
-Route::get('/sms/create', [SmsController::class, 'create'])->name('sms.create');
-Route::post('/sms/send', [SmsController::class, 'send'])->name('sms.send');
-Route::get('/sms/sent', [SmsController::class, 'index'])->name('sms.sent');
-Route::get('/sms/non-academic-staff', [SmsController::class, 'viewNonAcademicStaff'])->name('sms.non_academic_staff');
-Route::get('/sms/reset-progress', [SmsController::class, 'showResetProgress'])->name('sms.reset_progress');
-Route::get('/sms/reset-and-notify-stream', [SmsController::class, 'resetAndNotifyStream'])->name('sms.reset_and_notify_stream');
+Route::get('/sms/create', [SmsController::class, 'create'])->name('sms.create')->middleware('role');
+Route::post('/sms/send', [SmsController::class, 'send'])->name('sms.send')->middleware('role');
+Route::get('/sms/sent', [SmsController::class, 'index'])->name('sms.sent')->middleware('role');
+Route::get('/sms/non-academic-staff', [SmsController::class, 'viewNonAcademicStaff'])->name('sms.non_academic_staff')->middleware('role');
+Route::get('/sms/reset-progress', [SmsController::class, 'showResetProgress'])->name('sms.reset_progress')->middleware('role');
+Route::get('/sms/reset-and-notify-stream', [SmsController::class, 'resetAndNotifyStream'])->name('sms.reset_and_notify_stream')->middleware('role');
 
 // Routes for resending SMS
-Route::post('/sms/resend/{sentSms}', [SmsController::class, 'resendSingle'])->name('sms.resend_single');
-Route::get('/sms/resend-all-progress', [SmsController::class, 'showResendAllProgress'])->name('sms.resend_all_progress');
-Route::get('/sms/resend-all-stream', [SmsController::class, 'resendAllStream'])->name('sms.resend_all_stream');
+Route::post('/sms/resend/{sentSms}', [SmsController::class, 'resendSingle'])->name('sms.resend_single')->middleware('role');
+Route::get('/sms/resend-all-progress', [SmsController::class, 'showResendAllProgress'])->name('sms.resend_all_progress')->middleware('role');
+Route::get('/sms/resend-all-stream', [SmsController::class, 'resendAllStream'])->name('sms.resend_all_stream')->middleware('role');
 
 // Developer task board (shared Admin/Developer login with role-aware actions).
 Route::prefix('developer-tasks')->name('developer.tasks.')->middleware('role')->group(function () {
@@ -98,14 +98,14 @@ Route::prefix('developer-tasks')->name('developer.tasks.')->middleware('role')->
     Route::get('/{id}/files/{fileId}', [DeveloperTaskController::class, 'downloadFile'])->whereNumber('id')->whereNumber('fileId')->name('files.download');
 });
 
-Route::post('upload-degree', [StaffController::class, 'uploadDegree']);
+Route::post('upload-degree', [StaffController::class, 'uploadDegree'])->middleware('role');
 Route::get('/import-progress', [ResultsController::class, 'getProgress']);
 Route::get('/pdff', function () {
     return view('view-pdf');
 });
 Route::get('/staff-password', function () {
     return view('staff-password');
-});
+})->middleware('role');
 
 Route::get('/pdf-view', function () {
     $path = storage_path('uploads/pdf2.pdf');
@@ -790,10 +790,10 @@ Route::get('reset-staff-password', function (Request $req) {
     } else {
         return redirect()->back()->with('success', 'Passwords reset successfully.');
     }
-});
+})->middleware('role');
 
-Route::get('/staff/reset-password-progress', [StaffController::class, 'showResetPasswordProgress'])->name('staff.reset_password_progress');
-Route::get('/staff/reset-password-stream', [StaffController::class, 'resetPasswordStream'])->name('staff.reset_password_stream');
+Route::get('/staff/reset-password-progress', [StaffController::class, 'showResetPasswordProgress'])->name('staff.reset_password_progress')->middleware('role');
+Route::get('/staff/reset-password-stream', [StaffController::class, 'resetPasswordStream'])->name('staff.reset_password_stream')->middleware('role');
 
 Route::get('/hostel-invoice', function (Request $req) {
     if (!session()->has('log')) {
@@ -826,7 +826,7 @@ Route::get('/hostel-invoice', function (Request $req) {
         }
     }
     return redirect()->back()->with('success', 'Done!!!');
-});
+})->middleware('role');
 Route::get('/refresh-student', function (Request $req) {
     if (!session()->has('log')) {
         return redirect('/');
@@ -838,7 +838,7 @@ Route::get('/refresh-student', function (Request $req) {
         DB::table('students')->where('user_id', $row->user_id)->update(['username' => $id_number, 'id_no' => 0]);
     }
     die;
-});
+})->middleware('role');
 Route::get('staff-record/{id}', function ($id) {
     if (!session()->has('log')) {
         return redirect('/');
@@ -852,9 +852,9 @@ Route::get('staff-record/{id}', function ($id) {
     $data['data'] = DB::table('staff')->where('id', $id)->get();
     $data['page'] = 'staff record';
     return view('main', $data);
-});
-Route::get('staff id card/{id}', [StaffController::class, 'downloadIdCard']);
-Route::get('staff-record/download-cv/{id}', [StaffController::class, 'downloadCV']);
+})->middleware('role');
+Route::get('staff id card/{id}', [StaffController::class, 'downloadIdCard'])->middleware('role');
+Route::get('staff-record/download-cv/{id}', [StaffController::class, 'downloadCV'])->middleware('role');
 Route::get('staff-profile', function () {
     if (!session()->has('log')) {
         return redirect('/');
@@ -883,17 +883,17 @@ Route::get('/get-departments/{faculty}', [StaffController::class, 'getDepartment
 Route::get('/get-programs/{department}', [StaffController::class, 'getPrograms'])->middleware('role');
 
 // Reference Data CRUD (Unit, Designation, Grade, Step)
-Route::get('/reference-data/{type}', [ReferenceDataController::class, 'index']);
-Route::get('/reference-data/{type}/create', [ReferenceDataController::class, 'create']);
-Route::post('/reference-data/{type}/store', [ReferenceDataController::class, 'store']);
-Route::get('/reference-data/{type}/{id}/edit', [ReferenceDataController::class, 'edit']);
-Route::post('/reference-data/{type}/{id}/update', [ReferenceDataController::class, 'update']);
-Route::post('/reference-data/{type}/{id}/delete', [ReferenceDataController::class, 'delete']);
-Route::get('/reference-data/{type}/bulk-upload', [ReferenceDataController::class, 'bulkUpload']);
-Route::post('/reference-data/{type}/process-bulk-upload', [ReferenceDataController::class, 'processBulkUpload']);
-Route::get('/reference-data/{type}/download-template', [ReferenceDataController::class, 'downloadTemplate']);
-Route::post('/update-staff', [StaffController::class, 'update']);
-Route::get('/staff/download-template', [StaffController::class, 'downloadStaffTemplate']);
+Route::get('/reference-data/{type}', [ReferenceDataController::class, 'index'])->middleware('role');
+Route::get('/reference-data/{type}/create', [ReferenceDataController::class, 'create'])->middleware('role');
+Route::post('/reference-data/{type}/store', [ReferenceDataController::class, 'store'])->middleware('role');
+Route::get('/reference-data/{type}/{id}/edit', [ReferenceDataController::class, 'edit'])->middleware('role');
+Route::post('/reference-data/{type}/{id}/update', [ReferenceDataController::class, 'update'])->middleware('role');
+Route::post('/reference-data/{type}/{id}/delete', [ReferenceDataController::class, 'delete'])->middleware('role');
+Route::get('/reference-data/{type}/bulk-upload', [ReferenceDataController::class, 'bulkUpload'])->middleware('role');
+Route::post('/reference-data/{type}/process-bulk-upload', [ReferenceDataController::class, 'processBulkUpload'])->middleware('role');
+Route::get('/reference-data/{type}/download-template', [ReferenceDataController::class, 'downloadTemplate'])->middleware('role');
+Route::post('/update-staff', [StaffController::class, 'update'])->middleware('role');
+Route::get('/staff/download-template', [StaffController::class, 'downloadStaffTemplate'])->middleware('role');
 Route::get('staff-record-update/{id}', function ($id) {
     if (!session()->has('log')) {
         return redirect('/');
@@ -913,7 +913,7 @@ Route::get('attendance-page/{id}', function ($id) {
     }
     $data = DB::table('attendance')->where('id', $id)->get();
     return view('main', ['data' => $data, 'page' => 'attendance page']);
-});
+})->middleware('role');
 Route::get('logout', function () {
     session()->pull('log');
     session()->pull('appointment');
@@ -1061,7 +1061,7 @@ Route::get('grades by courses', function () {
     $data['session'] = DB::table('session')->select('title')->orderBy('title', 'ASC')->get();
     $data['page'] = 'grades by courses';
     return view('main', $data);
-});
+})->middleware('role');
 Route::get('/committee-meeting-members/{id}', function ($id) {
     // return session('accType');
     if (!session()->has('log')) {
@@ -1087,7 +1087,7 @@ Route::get('/committee-meeting-members/{id}', function ($id) {
     $data['session'] = DB::table('session')->select('title')->orderBy('title', 'ASC')->get();
     $data['page'] = 'committee meeting members';
     return view('main', $data);
-});
+})->middleware('role');
 Route::post('/auth', [LoginController::class, 'auth']);
 Route::get('/alumni-login', [LoginController::class, 'alumniLoginPage'])->name('alumni.login');
 Route::post('/alumni-auth', [LoginController::class, 'alumniAuth'])->name('alumni.auth');
@@ -1099,14 +1099,14 @@ Route::post('/update pass', [LoginController::class, 'update']);
 Route::post('/update password', [LoginController::class, 'updatePassword']);
 Route::get('/account validation', [LoginController::class, 'accountValidations']);
 Route::post('account-validation', [LoginController::class, 'accountValidation']);
-Route::post('reset-pass', [LoginController::class, 'resetPassword']);
+Route::post('reset-pass', [LoginController::class, 'resetPassword'])->middleware('role');
 
-Route::get('attendance-getDate', [AttendanceController::class, 'getDate']);
+Route::get('attendance-getDate', [AttendanceController::class, 'getDate'])->middleware('role');
 
-Route::get('/pins', [HostelController::class, 'index']);
-Route::post('generate hostel pin', [HostelController::class, 'index']);
-Route::post('print hostel pin', [HostelController::class, 'printPin']);
-Route::post('delete hostel pin', [HostelController::class, 'delete']);
+Route::get('/pins', [HostelController::class, 'index'])->middleware('role');
+Route::post('generate hostel pin', [HostelController::class, 'index'])->middleware('role');
+Route::post('print hostel pin', [HostelController::class, 'printPin'])->middleware('role');
+Route::post('delete hostel pin', [HostelController::class, 'delete'])->middleware('role');
 
 Route::get('/bed space reservations', [HostelController::class, 'applyHostel']);
 Route::post('hall', [HostelController::class, 'hall']);
@@ -1131,27 +1131,27 @@ Route::post('filter category', [HostelController::class, 'filterCategory']);
 Route::get('/manage hostel', [HostelController::class, 'manageHostel'])->middleware('role');
 Route::get('/get pdf', [HostelController::class, 'bedPDF']);
 Route::get('/download-pdf/{fileName}', [HostelController::class, 'downloadPDF']);
-Route::post('change hall', [HostelController::class, 'changeHall']);
-Route::post('change bed', [HostelController::class, 'changeBed']);
-Route::post('assign bed', [HostelController::class, 'assignBed']);
-Route::post('revoke', [HostelController::class, 'revoke']);
-Route::post('hostel-payment', [HostelController::class, 'hostelPayment']);
+Route::post('change hall', [HostelController::class, 'changeHall'])->middleware('role');
+Route::post('change bed', [HostelController::class, 'changeBed'])->middleware('role');
+Route::post('assign bed', [HostelController::class, 'assignBed'])->middleware('role');
+Route::post('revoke', [HostelController::class, 'revoke'])->middleware('role');
+Route::post('hostel-payment', [HostelController::class, 'hostelPayment'])->middleware('role');
 // Legacy ABS form endpoint kept for old bookmarks; the controller still applies
 // the same Admin/Staff and flagged-space checks as the modern page.
 Route::post('ab', [HostelController::class, 'assignBed2'])->middleware('role');
-Route::post('delete bed', [HostelController::class, 'deleteBed']);
-Route::post('create-hostel', [HostelController::class, 'createHostel']);
-Route::get('/print-permit/{id}', [HostelController::class, 'printPermit']);
+Route::post('delete bed', [HostelController::class, 'deleteBed'])->middleware('role');
+Route::post('create-hostel', [HostelController::class, 'createHostel'])->middleware('role');
+Route::get('/print-permit/{id}', [HostelController::class, 'printPermit'])->middleware('role');
 Route::get('/admin/hostel-permit/{id}', [HostelController::class, 'adminPrintPermit'])
     ->middleware('role')
     ->name('admin.hostel.permit');
-Route::post('/upload-pin', [HostelController::class, 'uploadPin']);
+Route::post('/upload-pin', [HostelController::class, 'uploadPin'])->middleware('role');
 
-Route::get('/users', [UsersController::class, 'index']);
-Route::post('/upload-excel', [UsersController::class, 'uploadExcel']);
+Route::get('/users', [UsersController::class, 'index'])->middleware('role');
+Route::post('/upload-excel', [UsersController::class, 'uploadExcel'])->middleware('role');
 
-Route::get('/users2', [UsersController::class, 'index2']);
-Route::post('/assign-upload-excel', [UsersController::class, 'uploadExcel2']);
+Route::get('/users2', [UsersController::class, 'index2'])->middleware('role');
+Route::post('/assign-upload-excel', [UsersController::class, 'uploadExcel2'])->middleware('role');
 
 Route::get('/registration', [RegistrationController::class, 'index'])->middleware('role');
 Route::get('/applicants', [RegistrationController::class, 'applicant'])->middleware('role');
@@ -1275,7 +1275,7 @@ sort($allPages);
         'allPages' => $allPages,
     ];
     return view('main', $data);
-});
+})->middleware('role');
 
 // Delete audit logs in bounded batches. The client repeats the request until
 // the filtered set is empty, so a very large table never holds one long
@@ -1339,7 +1339,7 @@ Route::post('/audit-logs/delete', function (\Illuminate\Http\Request $req) {
         'deleted' => $deleted,
         'cutoff_id' => $cutoffId,
     ]);
-});
+})->middleware('role');
 Route::get('/application', [RegistrationController::class, 'application']);
 Route::post('/submit-application', [RegistrationController::class, 'submitApplication']);
 Route::post('/application/personal-info', [RegistrationController::class, 'savePersonalInfo'])->name('application.savePersonalInfo');
@@ -1355,41 +1355,41 @@ Route::get('/applicant-dashboard', [RegistrationController::class, 'dashboard'])
 Route::get('/change-application-status', [RegistrationController::class, 'changeApplicationStatus'])->name('change.application.status');
 Route::get('/download-admission-letter', [RegistrationController::class, 'downloadAdmissionLetter'])->name('download.admission.letter');
 Route::get('/jamb-admitted', [RegistrationController::class, 'admitted'])->middleware('role');
-Route::post('/create-student', [RegistrationController::class, 'createStudent']);
-Route::post('/update-student', [RegistrationController::class, 'updateStudent']);
+Route::post('/create-student', [RegistrationController::class, 'createStudent'])->middleware('role');
+Route::post('/update-student', [RegistrationController::class, 'updateStudent'])->middleware('role');
 Route::post('/profile/photo/preview', [RegistrationController::class, 'previewProfilePhoto'])->name('profile.photo.preview');
 Route::post('/update-profile', [RegistrationController::class, 'updateProfile']);
 Route::post('/submit-profile', [RegistrationController::class, 'updateProfile'])->name('submit.profile');
-Route::post('/delete-student', [RegistrationController::class, 'deleteStudent']);
-Route::post('/reset-student', [RegistrationController::class, 'resetStudent']);
+Route::post('/delete-student', [RegistrationController::class, 'deleteStudent'])->middleware('role');
+Route::post('/reset-student', [RegistrationController::class, 'resetStudent'])->middleware('role');
 Route::post('/election-student', [RegistrationController::class, 'electionStudent']);
-Route::post('/upload-admitted', [RegistrationController::class, 'uploadAdmitted']);
-Route::post('/upload-student', [RegistrationController::class, 'uploadStudent']);
-Route::post('/upload-applicant', [RegistrationController::class, 'uploadApplicant']);
-Route::post('/admit-student-upload', [RegistrationController::class, 'admitStudentUpload']);
+Route::post('/upload-admitted', [RegistrationController::class, 'uploadAdmitted'])->middleware('role');
+Route::post('/upload-student', [RegistrationController::class, 'uploadStudent'])->middleware('role');
+Route::post('/upload-applicant', [RegistrationController::class, 'uploadApplicant'])->middleware('role');
+Route::post('/admit-student-upload', [RegistrationController::class, 'admitStudentUpload'])->middleware('role');
 
 // Admin Applicant Management Routes
 Route::get('/admin-applicant/{id}/edit', [RegistrationController::class, 'editApplicant'])->middleware('role')->name('admin.edit-applicant');
 Route::post('/admin-applicant/{id}/update', [RegistrationController::class, 'updateApplicant'])->middleware('role')->name('admin.update-applicant');
-Route::get('/admin-applicant/{id}', [RegistrationController::class, 'viewApplicantDetails'])->name('admin.view-applicant');
-Route::get('/admin/applicant/{id}/pdf', [RegistrationController::class, 'downloadApplicantPdf'])->name('admin.applicant.pdf');
-Route::post('/admin/admit-applicant', [RegistrationController::class, 'admitApplicant'])->name('admin.admit-applicant');
-Route::post('/admin/cleared-applicant', [RegistrationController::class, 'clearedApplicant'])->name('admin.cleared-applicant');
-Route::post('/admin/reject-applicant', [RegistrationController::class, 'rejectApplicant'])->name('admin.reject-applicant');
-Route::post('/admin/reject-clearing-applicant', [RegistrationController::class, 'rejectClearingApplicant'])->name('admin.reject-clearing-applicant');
-Route::get('/admin/applicant/{id}/admission-letter', [RegistrationController::class, 'adminDownloadAdmissionLetter'])->name('admin.download-admission-letter');
-Route::post('/update-student-level', [RegistrationController::class, 'updateStudentLevel'])->name('update.student.level');
+Route::get('/admin-applicant/{id}', [RegistrationController::class, 'viewApplicantDetails'])->name('admin.view-applicant')->middleware('role');
+Route::get('/admin/applicant/{id}/pdf', [RegistrationController::class, 'downloadApplicantPdf'])->name('admin.applicant.pdf')->middleware('role');
+Route::post('/admin/admit-applicant', [RegistrationController::class, 'admitApplicant'])->name('admin.admit-applicant')->middleware('role');
+Route::post('/admin/cleared-applicant', [RegistrationController::class, 'clearedApplicant'])->name('admin.cleared-applicant')->middleware('role');
+Route::post('/admin/reject-applicant', [RegistrationController::class, 'rejectApplicant'])->name('admin.reject-applicant')->middleware('role');
+Route::post('/admin/reject-clearing-applicant', [RegistrationController::class, 'rejectClearingApplicant'])->name('admin.reject-clearing-applicant')->middleware('role');
+Route::get('/admin/applicant/{id}/admission-letter', [RegistrationController::class, 'adminDownloadAdmissionLetter'])->name('admin.download-admission-letter')->middleware('role');
+Route::post('/update-student-level', [RegistrationController::class, 'updateStudentLevel'])->name('update.student.level')->middleware('role');
 
-Route::post('/upload-payment', [InvoicesController::class, 'uploadPayment']);
-Route::get('/export-users', [RegistrationController::class, 'exportUsers']);
-Route::get('/export-courses', [RegistrationController::class, 'exportCourses']);
+Route::post('/upload-payment', [InvoicesController::class, 'uploadPayment'])->middleware('role');
+Route::get('/export-users', [RegistrationController::class, 'exportUsers'])->middleware('role');
+Route::get('/export-courses', [RegistrationController::class, 'exportCourses'])->middleware('role');
 Route::get('/payment', [RegistrationController::class, 'payment']);
 Route::get('/make-payment', [RegistrationController::class, 'makePayment']);
 Route::get('/invoices/optional-service', [InvoicesController::class, 'initializeOptionalService'])->name('student.optional-service');
 Route::get('/school-fees', [RegistrationController::class, 'schoolFees']);
 Route::get('/applicant-fees', [RegistrationController::class, 'applicantFees']);
 Route::post('/cancel-student-payment/{id}', [InvoicesController::class, 'cancelStudentPayment'])->name('student.payment.cancel');
-Route::get('/assign-courses', [RegistrationController::class, 'assignCourses']);
+Route::get('/assign-courses', [RegistrationController::class, 'assignCourses'])->middleware('role');
 Route::post('/add-student-course', [RegistrationController::class, 'add']);
 Route::post('/drop-student-course', [RegistrationController::class, 'drop']);
 
@@ -1405,7 +1405,7 @@ Route::post('department ajax', [ProgramController::class, 'departmentAjax']);
 Route::post('department ajax public', [ProgramController::class, 'departmentAjaxPublic']);
 Route::post('program ajax public', [ProgramController::class, 'programAjaxPublic']);
 Route::post('program ajax', [ProgramController::class, 'programAjax']);
-Route::post('course ajax', [ProgramController::class, 'courseAjax']);
+Route::post('course ajax', [ProgramController::class, 'courseAjax'])->middleware('role');
 Route::get('allocation-programs', [ProgramController::class, 'allocationPrograms']);
 Route::post('/program/sync-duration', [ProgramController::class, 'syncDuration'])->middleware('role')->name('program.sync-duration');
 Route::post('description-ajax', [ManageFixedAssetsController::class, 'descriptionAjax']);
@@ -1417,23 +1417,23 @@ Route::post('members-ajax', [CommitteeController::class, 'membersAjax']);
 Route::post('count-records', [App\Http\Controllers\ApproveResultsController::class, 'countRecords']);
 Route::post('delete-result', [App\Http\Controllers\ApproveResultsController::class, 'deleteResult']);
 
-Route::get('/course', [CourseController::class, 'index']);
-Route::post('/create course', [CourseController::class, 'create']);
-Route::post('/update course', [CourseController::class, 'update']);
-Route::post('/delete course', [CourseController::class, 'delete']);
-Route::post('/upload course', [CourseController::class, 'upload']);
+Route::get('/course', [CourseController::class, 'index'])->middleware('role');
+Route::post('/create course', [CourseController::class, 'create'])->middleware('role');
+Route::post('/update course', [CourseController::class, 'update'])->middleware('role');
+Route::post('/delete course', [CourseController::class, 'delete'])->middleware('role');
+Route::post('/upload course', [CourseController::class, 'upload'])->middleware('role');
 
-Route::get('/course structure', [CourseStructureController::class, 'index']);
-Route::post('/create-course-structure', [CourseStructureController::class, 'create']);
-Route::post('/update-course-structure', [CourseStructureController::class, 'update']);
-Route::post('/delete-course-structure', [CourseStructureController::class, 'delete']);
-Route::post('/upload-course-structure', [CourseStructureController::class, 'upload']);
+Route::get('/course structure', [CourseStructureController::class, 'index'])->middleware('role');
+Route::post('/create-course-structure', [CourseStructureController::class, 'create'])->middleware('role');
+Route::post('/update-course-structure', [CourseStructureController::class, 'update'])->middleware('role');
+Route::post('/delete-course-structure', [CourseStructureController::class, 'delete'])->middleware('role');
+Route::post('/upload-course-structure', [CourseStructureController::class, 'upload'])->middleware('role');
 
 // Receipt Generation Route
 Route::get('/print-receipt/{rrr}', [InvoicesController::class, 'printReceipt'])->name('print.receipt');
 
 // Admin Receipts Page
-Route::get('/admin/receipts', [InvoicesController::class, 'adminReceipts'])->name('admin.receipts');
+Route::get('/admin/receipts', [InvoicesController::class, 'adminReceipts'])->name('admin.receipts')->middleware('role');
 Route::get('/admin/remita-split-report', [App\Http\Controllers\RemitaSplitReportController::class, 'index'])
     ->name('admin.remita.split.report')
     ->middleware('role');
@@ -1446,14 +1446,14 @@ Route::get('/admin/remita-finance-live/data', [App\Http\Controllers\FinanceLiveS
 Route::get('/admin/remita-split-report/export', [App\Http\Controllers\RemitaSplitReportController::class, 'export'])
     ->name('admin.remita.split.report.export')
     ->middleware('role');
-Route::get('/admin/receipts/download-all', [InvoicesController::class, 'downloadAllReceipts'])->name('admin.receipts.download_all');
-Route::post('/admin/receipts/export-paid-students', [InvoicesController::class, 'exportPaidStudents'])->name('admin.receipts.export_paid_students');
-Route::post('/admin/receipts/export-unpaid-students', [InvoicesController::class, 'exportUnpaidStudents'])->name('admin.receipts.export_unpaid_students');
+Route::get('/admin/receipts/download-all', [InvoicesController::class, 'downloadAllReceipts'])->name('admin.receipts.download_all')->middleware('role');
+Route::post('/admin/receipts/export-paid-students', [InvoicesController::class, 'exportPaidStudents'])->name('admin.receipts.export_paid_students')->middleware('role');
+Route::post('/admin/receipts/export-unpaid-students', [InvoicesController::class, 'exportUnpaidStudents'])->name('admin.receipts.export_unpaid_students')->middleware('role');
 
-Route::get('/course system allocation', [CourseAllocationController::class, 'courseSystem']);
-Route::get('/course-system-results', [CourseAllocationController::class, 'courseSystemResult']);
-Route::post('create-course-system-allocation', [CourseAllocationController::class, 'courseSystemCreate']);
-Route::post('delete-course-system-allocation', [CourseAllocationController::class, 'courseSystemDelete']);
+Route::get('/course system allocation', [CourseAllocationController::class, 'courseSystem'])->middleware('role');
+Route::get('/course-system-results', [CourseAllocationController::class, 'courseSystemResult'])->middleware('role');
+Route::post('create-course-system-allocation', [CourseAllocationController::class, 'courseSystemCreate'])->middleware('role');
+Route::post('delete-course-system-allocation', [CourseAllocationController::class, 'courseSystemDelete'])->middleware('role');
 // -course-system-allocation
 
 Route::get('/invoices/{page}', [InvoicesController::class, 'initialize']);
@@ -1461,8 +1461,8 @@ Route::get('/invoices-applicant-fees', [InvoicesController::class, 'initializeAp
 Route::get('/print invoice/{rrr}', [InvoicesController::class, 'invoice']);
 Route::get('/verify', [InvoicesController::class, 'verify']);
 Route::get('/verify/{rrr}', [InvoicesController::class, 'verify']);
-Route::get('/admin/bulk-verify-progress', [InvoicesController::class, 'showBulkVerifyProgress'])->name('admin.bulk_verify_progress');
-Route::get('/admin/bulk-verify-stream', [InvoicesController::class, 'bulkVerifyStream'])->name('admin.bulk_verify_stream');
+Route::get('/admin/bulk-verify-progress', [InvoicesController::class, 'showBulkVerifyProgress'])->name('admin.bulk_verify_progress')->middleware('role');
+Route::get('/admin/bulk-verify-stream', [InvoicesController::class, 'bulkVerifyStream'])->name('admin.bulk_verify_stream')->middleware('role');
 Route::get('/response', function () {
     // if(session()->has('log')){return redirect('/dash');}
     return view('response');
@@ -1477,7 +1477,7 @@ Route::get('/election-results/pdf', [ElectionResultsController::class, 'pdf'])->
 Route::get('/election-results/certificates', [ElectionResultsController::class, 'certificates'])->middleware('role')->name('election.results.certificates');
 Route::get('/election-results/certificate/{id}', [ElectionResultsController::class, 'certificate'])->middleware('role')->name('election.results.certificate');
 
-Route::get('/pending-results', [ResultsController::class, 'pendingResults']);
+Route::get('/pending-results', [ResultsController::class, 'pendingResults'])->middleware('role');
 Route::get('/results/upload', [ResultsController::class, 'uploadPage'])
     ->middleware('role')
     ->name('results.upload.page');
@@ -1487,23 +1487,25 @@ Route::get('/results/export', [ResultsController::class, 'exportExcel'])
 Route::post('/results/upload', [ResultsController::class, 'upload'])
     ->middleware('role')
     ->name('results.upload');
-Route::post('/update-med', [ResultsController::class, 'updateMed']);
+Route::post('/update-med', [ResultsController::class, 'updateMed'])->middleware('role');
 // delete result
-Route::post('/delete-results', [ResultsController::class, 'deleteResults']);
-Route::post('/comment-pending-result', [ResultsController::class, 'pending']);
-Route::get('/my-lecture-timetable', [LectureTimetableController::class, 'myTable']);
-Route::post('initiate corrigenda', [ResultsController::class, 'initiateCorrigenda']);
-Route::post('update corrigenda', [ResultsController::class, 'updateCorrigenda']);
-Route::get('/corrigenda', [ResultsController::class, 'corrigenda']);
-Route::post('/delete-result', [ApproveResultsController::class, 'deleteResult']);
-Route::post('/update-result-status', [ApproveResultsController::class, 'updateResultStatus']);
-Route::post('process-batch', [ResultsController::class, 'processBatch']);
-Route::post('/update-mark', [ApproveResultsController::class, 'updateMark']);
+Route::post('/delete-results', [ResultsController::class, 'deleteResults'])->middleware('role');
+Route::post('/comment-pending-result', [ResultsController::class, 'pending'])->middleware('role');
+Route::get('/my-lecture-timetable', [LectureTimetableController::class, 'myTable'])->middleware('role');
+Route::post('initiate corrigenda', [ResultsController::class, 'initiateCorrigenda'])->middleware('role');
+Route::post('update corrigenda', [ResultsController::class, 'updateCorrigenda'])->middleware('role');
+Route::get('/corrigenda', [ResultsController::class, 'corrigenda'])->middleware('role');
+Route::post('/delete-result', [ApproveResultsController::class, 'deleteResult'])->middleware('role');
+Route::post('/update-result-status', [ApproveResultsController::class, 'updateResultStatus'])->middleware('role');
+Route::post('process-batch', [ResultsController::class, 'processBatch'])->middleware('role');
+Route::post('/update-mark', [ApproveResultsController::class, 'updateMark'])->middleware('role');
 Route::post('/approve-department-results', [ApproveResultsController::class, 'approveDeptResults'])
-    ->name('approve-department-results');
+    ->name('approve-department-results')
+    ->middleware('role');
 Route::get('/process-next-batch/{dept}/{status}', [ApproveResultsController::class, 'processNextBatch'])
-    ->name('process-next-batch');
-Route::get('/generate-status', [ApproveResultsController::class, 'generateStatus']);
+    ->name('process-next-batch')
+    ->middleware('role');
+Route::get('/generate-status', [ApproveResultsController::class, 'generateStatus'])->middleware('role');
 Route::get('/re-register', [StudentCourseRegistrationController::class, 'reRegister']);
 
 // Change of Course Routes
@@ -1532,24 +1534,24 @@ Route::get('/admin/siwes/export', [RegistrationController::class, 'adminSiwesExp
 Route::get('/admin/siwes/view/{id}', [RegistrationController::class, 'adminSiwesView'])->name('admin.siwes.view')->middleware('role');
 
 // Admin routes
-Route::get('/change-of-course/admin', [ChangeOfCourseController::class, 'adminIndex'])->name('change-of-course.admin');
-Route::get('/change-of-course/show/{id}', [ChangeOfCourseController::class, 'show'])->name('change-of-course.show');
-Route::get('/change-of-course/bulk-edit/{id}', [ChangeOfCourseController::class, 'bulkEdit'])->name('change-of-course.bulk-edit');
-Route::post('/change-of-course/bulk-update/{id}', [ChangeOfCourseController::class, 'bulkUpdate'])->name('change-of-course.bulk-update');
-Route::post('/change-of-course/new-hod-action/{id}', [ChangeOfCourseController::class, 'newHodAction'])->name('change-of-course.new-hod-action');
-Route::post('/change-of-course/new-dean-action/{id}', [ChangeOfCourseController::class, 'newDeanAction'])->name('change-of-course.new-dean-action');
-Route::post('/change-of-course/provost-action/{id}', [ChangeOfCourseController::class, 'provostAction'])->name('change-of-course.provost-action');
-Route::post('/change-of-course/current-hod-action/{id}', [ChangeOfCourseController::class, 'currentHodAction'])->name('change-of-course.current-hod-action');
-Route::post('/change-of-course/current-dean-action/{id}', [ChangeOfCourseController::class, 'currentDeanAction'])->name('change-of-course.current-dean-action');
-Route::post('/change-of-course/registrar-action/{id}', [ChangeOfCourseController::class, 'registrarAction'])->name('change-of-course.registrar-action');
-Route::post('/change-of-course/vc-action/{id}', [ChangeOfCourseController::class, 'vcAction'])->name('change-of-course.vc-action');
-Route::get('/change-of-course/admission-letter/{id}', [ChangeOfCourseController::class, 'generateAdmissionLetter'])->name('change-of-course.admission-letter');
-Route::get('/change-of-course/downloads', [ChangeOfCourseController::class, 'downloadManagement'])->name('change-of-course.downloads');
-Route::post('/change-of-course/resubmit/{id}', [ChangeOfCourseController::class, 'resubmitApplication'])->name('change-of-course.resubmit');
-Route::post('/change-of-course/bulk-download', [ChangeOfCourseController::class, 'bulkDownload'])->name('change-of-course.bulk-download');
-Route::post('/change-of-course/get-selected-applications', [ChangeOfCourseController::class, 'getSelectedApplications'])->name('change-of-course.get-selected-applications');
-Route::post('/change-of-course/track-download', [ChangeOfCourseController::class, 'trackSingleDownload'])->name('change-of-course.track-download');
-Route::get('/change-of-course/export', [ChangeOfCourseController::class, 'exportSelectedApplications'])->name('change-of-course.export');
+Route::get('/change-of-course/admin', [ChangeOfCourseController::class, 'adminIndex'])->name('change-of-course.admin')->middleware('role');
+Route::get('/change-of-course/show/{id}', [ChangeOfCourseController::class, 'show'])->name('change-of-course.show')->middleware('role');
+Route::get('/change-of-course/bulk-edit/{id}', [ChangeOfCourseController::class, 'bulkEdit'])->name('change-of-course.bulk-edit')->middleware('role');
+Route::post('/change-of-course/bulk-update/{id}', [ChangeOfCourseController::class, 'bulkUpdate'])->name('change-of-course.bulk-update')->middleware('role');
+Route::post('/change-of-course/new-hod-action/{id}', [ChangeOfCourseController::class, 'newHodAction'])->name('change-of-course.new-hod-action')->middleware('role');
+Route::post('/change-of-course/new-dean-action/{id}', [ChangeOfCourseController::class, 'newDeanAction'])->name('change-of-course.new-dean-action')->middleware('role');
+Route::post('/change-of-course/provost-action/{id}', [ChangeOfCourseController::class, 'provostAction'])->name('change-of-course.provost-action')->middleware('role');
+Route::post('/change-of-course/current-hod-action/{id}', [ChangeOfCourseController::class, 'currentHodAction'])->name('change-of-course.current-hod-action')->middleware('role');
+Route::post('/change-of-course/current-dean-action/{id}', [ChangeOfCourseController::class, 'currentDeanAction'])->name('change-of-course.current-dean-action')->middleware('role');
+Route::post('/change-of-course/registrar-action/{id}', [ChangeOfCourseController::class, 'registrarAction'])->name('change-of-course.registrar-action')->middleware('role');
+Route::post('/change-of-course/vc-action/{id}', [ChangeOfCourseController::class, 'vcAction'])->name('change-of-course.vc-action')->middleware('role');
+Route::get('/change-of-course/admission-letter/{id}', [ChangeOfCourseController::class, 'generateAdmissionLetter'])->name('change-of-course.admission-letter')->middleware('role');
+Route::get('/change-of-course/downloads', [ChangeOfCourseController::class, 'downloadManagement'])->name('change-of-course.downloads')->middleware('role');
+Route::post('/change-of-course/resubmit/{id}', [ChangeOfCourseController::class, 'resubmitApplication'])->name('change-of-course.resubmit')->middleware('role');
+Route::post('/change-of-course/bulk-download', [ChangeOfCourseController::class, 'bulkDownload'])->name('change-of-course.bulk-download')->middleware('role');
+Route::post('/change-of-course/get-selected-applications', [ChangeOfCourseController::class, 'getSelectedApplications'])->name('change-of-course.get-selected-applications')->middleware('role');
+Route::post('/change-of-course/track-download', [ChangeOfCourseController::class, 'trackSingleDownload'])->name('change-of-course.track-download')->middleware('role');
+Route::get('/change-of-course/export', [ChangeOfCourseController::class, 'exportSelectedApplications'])->name('change-of-course.export')->middleware('role');
 
 // Inter-University Transfer Routes
 use App\Http\Controllers\InterUniversityTransferController;
@@ -1573,28 +1575,28 @@ Route::post('/inter-university-transfer/get-programs', [InterUniversityTransferC
 // Admin/Staff routes
 Route::get('/inter-university-transfer/admin', [InterUniversityTransferController::class, 'adminIndex'])->name('inter-transfer.admin')->middleware('role');
 Route::get('/inter-university-transfer/show/{id}', [InterUniversityTransferController::class, 'show'])->name('inter-transfer.show')->middleware('role');
-Route::get('/inter-university-transfer/bulk-edit/{id}', [InterUniversityTransferController::class, 'bulkEdit'])->name('inter-transfer.bulk-edit');
-Route::post('/inter-university-transfer/bulk-update/{id}', [InterUniversityTransferController::class, 'bulkUpdate'])->name('inter-transfer.bulk-update');
-Route::post('/inter-university-transfer/hod-action/{id}', [InterUniversityTransferController::class, 'hodAction'])->name('inter-transfer.hod-action');
-Route::post('/inter-university-transfer/dean-action/{id}', [InterUniversityTransferController::class, 'deanAction'])->name('inter-transfer.dean-action');
-Route::post('/inter-university-transfer/provost-action/{id}', [InterUniversityTransferController::class, 'provostAction'])->name('inter-transfer.provost-action');
-Route::post('/inter-university-transfer/registrar-action/{id}', [InterUniversityTransferController::class, 'registrarAction'])->name('inter-transfer.registrar-action');
-Route::post('/inter-university-transfer/vc-action/{id}', [InterUniversityTransferController::class, 'vcAction'])->name('inter-transfer.vc-action');
-Route::get('/inter-university-transfer/admission-letter/{id}', [InterUniversityTransferController::class, 'generateAdmissionLetter'])->name('inter-transfer.admission-letter');
+Route::get('/inter-university-transfer/bulk-edit/{id}', [InterUniversityTransferController::class, 'bulkEdit'])->name('inter-transfer.bulk-edit')->middleware('role');
+Route::post('/inter-university-transfer/bulk-update/{id}', [InterUniversityTransferController::class, 'bulkUpdate'])->name('inter-transfer.bulk-update')->middleware('role');
+Route::post('/inter-university-transfer/hod-action/{id}', [InterUniversityTransferController::class, 'hodAction'])->name('inter-transfer.hod-action')->middleware('role');
+Route::post('/inter-university-transfer/dean-action/{id}', [InterUniversityTransferController::class, 'deanAction'])->name('inter-transfer.dean-action')->middleware('role');
+Route::post('/inter-university-transfer/provost-action/{id}', [InterUniversityTransferController::class, 'provostAction'])->name('inter-transfer.provost-action')->middleware('role');
+Route::post('/inter-university-transfer/registrar-action/{id}', [InterUniversityTransferController::class, 'registrarAction'])->name('inter-transfer.registrar-action')->middleware('role');
+Route::post('/inter-university-transfer/vc-action/{id}', [InterUniversityTransferController::class, 'vcAction'])->name('inter-transfer.vc-action')->middleware('role');
+Route::get('/inter-university-transfer/admission-letter/{id}', [InterUniversityTransferController::class, 'generateAdmissionLetter'])->name('inter-transfer.admission-letter')->middleware('role');
 
 // System Settings Routes
-Route::get('/settings/general', [App\Http\Controllers\SystemSettingsController::class, 'index'])->name('settings.general');
-Route::post('/settings/update', [App\Http\Controllers\SystemSettingsController::class, 'update'])->name('settings.update');
-Route::post('/settings/update-single', [App\Http\Controllers\SystemSettingsController::class, 'updateSingle'])->name('settings.update-single');
-Route::post('/settings/security/request-nin-update', [App\Http\Controllers\SystemSettingsController::class, 'requestStudentNinUpdate'])->name('settings.request-nin-update');
-Route::post('/settings/security/student-nin-verification', [App\Http\Controllers\SystemSettingsController::class, 'setStudentNinVerification'])->name('settings.student-nin-verification');
-Route::post('/settings/security/student-profile-update', [App\Http\Controllers\SystemSettingsController::class, 'setStudentProfileUpdate'])->name('settings.student-profile-update');
-Route::post('/settings/reset', [App\Http\Controllers\SystemSettingsController::class, 'resetDefaults'])->name('settings.reset');
-Route::get('/settings/export', [App\Http\Controllers\SystemSettingsController::class, 'export'])->name('settings.export');
+Route::get('/settings/general', [App\Http\Controllers\SystemSettingsController::class, 'index'])->name('settings.general')->middleware('role');
+Route::post('/settings/update', [App\Http\Controllers\SystemSettingsController::class, 'update'])->name('settings.update')->middleware('role');
+Route::post('/settings/update-single', [App\Http\Controllers\SystemSettingsController::class, 'updateSingle'])->name('settings.update-single')->middleware('role');
+Route::post('/settings/security/request-nin-update', [App\Http\Controllers\SystemSettingsController::class, 'requestStudentNinUpdate'])->name('settings.request-nin-update')->middleware('role');
+Route::post('/settings/security/student-nin-verification', [App\Http\Controllers\SystemSettingsController::class, 'setStudentNinVerification'])->name('settings.student-nin-verification')->middleware('role');
+Route::post('/settings/security/student-profile-update', [App\Http\Controllers\SystemSettingsController::class, 'setStudentProfileUpdate'])->name('settings.student-profile-update')->middleware('role');
+Route::post('/settings/reset', [App\Http\Controllers\SystemSettingsController::class, 'resetDefaults'])->name('settings.reset')->middleware('role');
+Route::get('/settings/export', [App\Http\Controllers\SystemSettingsController::class, 'export'])->name('settings.export')->middleware('role');
 
 // Offline Payment Confirmation Routes
-Route::get('/offline-payments/search', [App\Http\Controllers\FeesDueController::class, 'searchApplicants'])->name('offline-payments.search');
-Route::post('/offline-payments/confirm', [App\Http\Controllers\FeesDueController::class, 'confirmPayment'])->name('offline-payments.confirm');
+Route::get('/offline-payments/search', [App\Http\Controllers\FeesDueController::class, 'searchApplicants'])->name('offline-payments.search')->middleware('role');
+Route::post('/offline-payments/confirm', [App\Http\Controllers\FeesDueController::class, 'confirmPayment'])->name('offline-payments.confirm')->middleware('role');
 Route::get('/fees-due/school-summary', [App\Http\Controllers\FeesDueController::class, 'schoolSummary'])
     ->name('fees-due.school-summary')
     ->middleware('role');
@@ -1626,6 +1628,7 @@ Route::match(['get', 'post'], '/generate-session-history', [App\Http\Controllers
 
 Route::post('/sync pages', [App\Http\Controllers\PagesController::class, 'syncGroups'])->middleware('role');
 Route::post('/create page-action', [App\Http\Controllers\PagesController::class, 'createAction'])->middleware('role');
+Route::post('/sync page-actions', [App\Http\Controllers\PagesController::class, 'syncActions'])->middleware('role');
 
 // Curriculum preview uses the same filters as the programme course registration page.
 Route::get('/program-course-registration/preview', [ProgramCourseRegistrationController::class, 'previewPdf'])
@@ -1722,7 +1725,7 @@ Route::get('/recruitment/data', [RecruitmentController::class, 'data'])->name('r
 Route::get('/recruitment/management', [RecruitmentManagementController::class, 'index'])->name('recruitment.management')->middleware('role');
 Route::get('/recruitment/download-cv/{id}', [RecruitmentController::class, 'downloadCV'])->name('recruitment.download.cv')->middleware('role');
 Route::post('/recruitment/export/pdf', [RecruitmentController::class, 'exportPdf'])->name('recruitment.export.pdf')->middleware('role');
-Route::post('/recruitment/export/excel', [RecruitmentController::class, 'exportExcel'])->name('recruitment.export.excel');
+Route::post('/recruitment/export/excel', [RecruitmentController::class, 'exportExcel'])->name('recruitment.export.excel')->middleware('role');
 
 Route::prefix('recruitment/access')->name('recruitment.access.')->middleware('role')->group(function () {
     Route::get('/', [RecruitmentAccessController::class, 'index']);
@@ -1734,4 +1737,4 @@ Route::prefix('recruitment/access')->name('recruitment.access.')->middleware('ro
     Route::get('/posts', [RecruitmentAccessController::class, 'posts'])->name('posts');
 });
 
-Route::get('/recruitment/{id}', [RecruitmentController::class, 'show'])->name('recruitment.show');
+Route::get('/recruitment/{id}', [RecruitmentController::class, 'show'])->name('recruitment.show')->middleware('role');

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\PortalPermission;
 use Closure;
 use Illuminate\Http\Request;
 
@@ -64,7 +65,15 @@ class CheckRoleAccess
             return redirect('/')->with('error', 'You do not have access to this page.');
         }
 
-        // Skip check for non-Staff users (Students, Applicants, etc.)
+        // Student/applicant accounts can use their self-service pages, but
+        // must never be able to call an administrative action directly.
+        if (!in_array(session('accType'), ['Staff', 'Admin'], true)
+            && $this->isManagementEndpoint($page)) {
+            abort(403, 'This action is available to authorised staff only.');
+        }
+
+        // Skip staff-roll checks for non-Staff users (Students, Applicants,
+        // etc.) after the explicit management guard above.
         if (session('accType') != 'Staff') {
             return $next($request);
         }
@@ -97,6 +106,22 @@ class CheckRoleAccess
             if ($hasCourseAllocation) {
                 return $next($request);
             }
+        }
+
+        // Resolve every catalogue-backed endpoint to one page and one action.
+        // This covers nested routes, AJAX endpoints and downloads without
+        // duplicating permission queries in individual controllers.
+        $permission = PortalPermission::resolve($request);
+        if ($permission && PortalPermission::pageExists($permission['link'])) {
+            if (!PortalPermission::hasPageAccess($permission['link'])) {
+                return redirect('/')->with('error', 'You do not have access to this page.');
+            }
+
+            if (!PortalPermission::allows($permission['link'], $permission['action'])) {
+                abort(403, 'You do not have permission to perform this action.');
+            }
+
+            return $next($request);
         }
 
         // Check if page exists in rolls table
@@ -156,5 +181,123 @@ class CheckRoleAccess
         }
 
         return $next($request);
+    }
+
+    private function isManagementEndpoint(string $page): bool
+    {
+        if (str_starts_with($page, 'admin/')
+            || str_starts_with($page, 'admin-')
+            || str_starts_with($page, 'create ')
+            || str_starts_with($page, 'update ')
+            || str_starts_with($page, 'delete ')
+            || str_starts_with($page, 'upload ')
+            || str_starts_with($page, 'sync ')) {
+            return true;
+        }
+
+        return in_array($page, [
+            'alumni',
+            'import-alumni',
+            'upload-student-to-alumni',
+            'upload-student-ids-to-alumni',
+            'sms',
+            'sms/create',
+            'sms/send',
+            'sms/sent',
+            'sms/non-academic-staff',
+            'sms/reset-progress',
+            'sms/reset-and-notify-stream',
+            'sms/resend-all-progress',
+            'sms/resend-all-stream',
+            'sms/resend',
+            'course',
+            'course ajax',
+            'course structure',
+            'course system allocation',
+            'course-system-results',
+            'faculty',
+            'department',
+            'program',
+            'semester',
+            'session',
+            'halls',
+            'hall allocation',
+            'lecture timetable',
+            'exam timetable',
+            'ca timetable',
+            'fees due',
+            'fees type',
+            'fees master list',
+            'students list',
+            'student id card',
+            'course allocation',
+            'course material',
+            'status',
+            'results',
+            'approve results',
+            'program course registration',
+            'summary of graduation',
+            'press release',
+            'computation record',
+            'transcript',
+            'school fees',
+            'hostel fees',
+            'election settings',
+            'election positions',
+            'election candidates',
+            'election votes',
+            'election results',
+            'election-results',
+            'grading system',
+            'staff',
+            'staff-record',
+            'staff-record-update',
+            'staff id card',
+            'staff-record/download-cv',
+            'staff/download-template',
+            'staff-password',
+            'reset-staff-password',
+            'reset-pass',
+            'reference-data',
+            'audit-logs',
+            'pages',
+            'rolls',
+            'settings',
+            'pins',
+            'assign bed',
+            'delete bed',
+            'create-hostel',
+            'print-permit',
+            'change hall',
+            'change bed',
+            'revoke',
+            'hostel-payment',
+            'hostel-invoice',
+            'refresh-student',
+            'upload-payment',
+            'export-users',
+            'export-courses',
+            'assign-courses',
+            'update-student-level',
+            'pending-results',
+            'update-med',
+            'delete-results',
+            'comment-pending-result',
+            'initiate corrigenda',
+            'update corrigenda',
+            'corrigenda',
+            'delete-result',
+            'update-result-status',
+            'process-batch',
+            'update-mark',
+            'approve-department-results',
+            'process-next-batch',
+            'generate-status',
+            'recruitment',
+            'certificate',
+            'affiliated-schools',
+            'pg-admission',
+            'election live',
+        ], true);
     }
 }
