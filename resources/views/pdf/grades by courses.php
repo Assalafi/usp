@@ -57,7 +57,17 @@ function firstUpper($input)
             $word = strtolower($word);
         }
     }
-    return implode(' ', $words);
+    $formatted = implode(' ', $words);
+
+    // ucwords() turns "II" into "Ii". Restore standalone Roman numerals to
+    // their conventional uppercase presentation after title-casing.
+    $romanWords = [
+        'i' => 'I', 'ii' => 'II', 'iii' => 'III', 'iv' => 'IV', 'v' => 'V',
+        'vi' => 'VI', 'vii' => 'VII', 'viii' => 'VIII', 'ix' => 'IX', 'x' => 'X',
+    ];
+    return preg_replace_callback('/\b(i|ii|iii|iv|v|vi|vii|viii|ix|x)\b/i', function ($match) use ($romanWords) {
+        return $romanWords[strtolower($match[0])] ?? $match[0];
+    }, $formatted);
 }
 
 class PDFWithWatermark extends exFPDF
