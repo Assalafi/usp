@@ -22,6 +22,18 @@
 .pp-ui [id^="ppEdit"] .modal-footer{position:sticky;bottom:0;padding:14px 22px;background:rgba(255,255,255,.97);border-top:1px solid var(--line);z-index:2}
 @media(max-width:700px){.pp-ui [id^="ppEdit"] .modal-dialog{margin:.5rem}.pp-ui [id^="ppEdit"] .modal-header{padding:17px}.pp-ui [id^="ppEdit"] .modal-body{padding:12px;max-height:calc(100vh - 170px)}.pp-ui [id^="ppEdit"] .modal-body>.pp-page{padding:14px}.pp-ui [id^="ppEdit"] .modal-footer{padding:12px;flex-wrap:wrap}.pp-ui [id^="ppEdit"] .modal-footer .btn{width:100%}}
 </style>
+<style>
+.pp-editor-layout{display:grid;grid-template-columns:270px minmax(0,1fr);gap:14px;min-height:420px}
+.pp-editor-nav{align-self:start;position:sticky;top:0;padding:12px;border:1px solid var(--line);border-radius:16px;background:#fff}
+.pp-editor-nav-title{padding:3px 8px 10px;color:var(--ink);font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.pp-editor-nav-list{display:flex;flex-direction:column;gap:6px;max-height:470px;overflow:auto}
+.pp-editor-nav-btn{display:flex;width:100%;align-items:center;gap:9px;text-align:left;border:1px solid transparent;border-radius:12px;background:#f6f9fb;color:#486176;padding:10px 11px;font-size:.78rem;font-weight:700;transition:.15s ease}
+.pp-editor-nav-btn:hover{border-color:#b9d8e9;background:#eef7fb;color:#155c87}.pp-editor-nav-btn.is-active{border-color:#217caf;background:#e8f3fa;color:#124f77;box-shadow:0 3px 10px rgba(20,86,123,.12)}
+.pp-editor-nav-btn i{color:#4c91b7}.pp-editor-nav-btn span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pp-editor-nav-count{margin-left:auto;flex:none;border-radius:999px;padding:3px 7px;background:#d8eaf3;color:#1c6a98;font-size:.66rem}
+.pp-editor-pages{min-width:0}.pp-editor-intro{display:flex;align-items:center;gap:11px;padding:13px 15px;margin-bottom:11px;border:1px solid #d9eaf3;border-radius:14px;background:linear-gradient(135deg,#f2fbff,#fff);color:#31596d}.pp-editor-intro-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#dff3fb;color:#1385b6;flex:0 0 34px}.pp-editor-intro strong{display:block;font-size:.88rem;color:#184d68}.pp-editor-intro span{display:block;margin-top:2px;font-size:.74rem;color:#6c8492;line-height:1.35}.pp-editor-page{height:100%;margin:0!important;padding:18px!important;background:#fff;border:1px solid #dce8f0!important;border-radius:16px!important;box-shadow:0 8px 24px rgba(34,64,85,.06)}.pp-editor-page[hidden]{display:none!important}.pp-editor-page .row{row-gap:14px}.pp-editor-page .pp-action-details{margin-top:3px}.pp-action-search{margin:10px 0 8px}.pp-action-search .input-group-text{border-color:#d6e3eb;background:#f7fafc;color:#6b8799}.pp-action-search input{border-color:#d6e3eb;font-size:.8rem}.pp-editor-page .pp-actions{max-height:250px;overflow:auto;padding:2px}.pp-editor-page .pp-actions label{font-size:.7rem}
+[id^="ppEdit"].pp-ui .modal-dialog{max-width:1180px}[id^="ppEdit"].pp-ui .modal-content{background:#f5f8fb}[id^="ppEdit"].pp-ui .modal-header{border:0;padding:18px 22px;background:linear-gradient(135deg,#0d6f9f,#149fd0);color:#fff}[id^="ppEdit"].pp-ui .modal-header .btn-close{filter:brightness(0) invert(1);opacity:.9}[id^="ppEdit"].pp-ui .modal-title{font-weight:800;letter-spacing:-.01em}[id^="ppEdit"].pp-ui .modal-body{padding:18px 22px;max-height:min(72vh,760px);overflow:auto}[id^="ppEdit"].pp-ui .modal-footer{border-top:1px solid #dce8f0;background:#fff;padding:13px 22px}
+@media(max-width:800px){.pp-editor-layout{grid-template-columns:1fr;min-height:0}.pp-editor-nav{position:static;padding:9px}.pp-editor-nav-list{flex-direction:row;overflow-x:auto;max-height:none;padding-bottom:2px}.pp-editor-nav-btn{min-width:190px}.pp-editor-pages{min-height:360px}.pp-editor-page .pp-actions{max-height:220px}}
+</style>
 <div class="pp-ui">
     <div class="pp-hero mb-3"><div class="d-flex flex-wrap justify-content-between align-items-center gap-3"><div><div class="small text-uppercase fw-bold opacity-75 mb-2"><i class="fas fa-sitemap me-1"></i> Navigation & permissions</div><h1>Portal page catalogue</h1><p>Manage navigation groups, pages, and the actions available to staff.</p></div><div class="d-flex flex-wrap gap-2"><form method="POST" action="{{ url('/sync pages') }}">@csrf<button class="btn btn-outline-light"><i class="fas fa-rotate me-1"></i>Sync groups</button></form><form method="POST" action="{{ url('/sync page-actions') }}">@csrf<button class="btn btn-outline-light"><i class="fas fa-arrows-rotate me-1"></i>Sync actions</button></form><button class="btn btn-light" data-bs-toggle="modal" data-bs-target="#ppActionModal"><i class="fas fa-bolt me-1"></i>Manage actions</button><button class="btn btn-light" data-bs-toggle="modal" data-bs-target="#ppCreateModal"><i class="fas fa-plus me-1"></i>New page</button></div></div></div>
     <div class="row g-3 mb-3"><div class="col-6 col-xl-4"><div class="pp-card p-3"><small class="text-muted fw-bold">Groups</small><strong class="d-block fs-4 text-primary">{{ number_format($pageStats['groups']) }}</strong></div></div><div class="col-6 col-xl-4"><div class="pp-card p-3"><small class="text-muted fw-bold">Pages</small><strong class="d-block fs-4 text-primary">{{ number_format($pageStats['pages']) }}</strong></div></div><div class="col-12 col-xl-4"><div class="pp-card p-3"><small class="text-muted fw-bold">Available actions</small><strong class="d-block fs-4 text-primary">{{ $availableActions->count() }}</strong></div></div></div>
@@ -33,4 +45,41 @@
 </div>
 <script>
 document.addEventListener('DOMContentLoaded',function(){document.querySelectorAll('.pp-ui form').forEach(function(form){form.addEventListener('submit',function(){const fields={};form.querySelectorAll('.pp-action-check').forEach(function(check){const id=check.dataset.field;(fields[id]||(fields[id]=[]));if(check.checked)fields[id].push(check.value);});Object.keys(fields).forEach(function(id){const field=document.getElementById(id);if(field)field.value=fields[id].join(',');});});});});
+</script>
+<script data-pp-editor-workspace>
+document.addEventListener('DOMContentLoaded',function(){
+    document.querySelectorAll('[id^="ppEdit"].pp-ui, .pp-ui [id^="ppEdit"]').forEach(function(modal){
+        const body=modal.querySelector('.modal-body');
+        if(!body||body.dataset.editorReady)return;
+        const pages=Array.from(body.children).filter(function(node){return node.classList.contains('pp-page');});
+        if(!pages.length)return;
+        body.dataset.editorReady='1';
+        const layout=document.createElement('div');layout.className='pp-editor-layout';
+        const nav=document.createElement('aside');nav.className='pp-editor-nav';nav.innerHTML='<div class="pp-editor-nav-title"><i class="fas fa-layer-group me-1"></i>Pages in this group</div>';
+        const navList=document.createElement('div');navList.className='pp-editor-nav-list';nav.appendChild(navList);
+        const pagePanel=document.createElement('div');pagePanel.className='pp-editor-pages';
+        const intro=document.createElement('div');intro.className='pp-editor-intro';intro.innerHTML='<div class="pp-editor-intro-icon"><i class="fas fa-sliders-h"></i></div><div><strong>Configure this group</strong><span>Choose a page on the left, then select the actions users should be allowed to perform.</span></div>';
+        pagePanel.appendChild(intro);
+        function setActive(index){navList.querySelectorAll('.pp-editor-nav-btn').forEach(function(button,i){button.classList.toggle('is-active',i===index);});pages.forEach(function(page,i){page.hidden=i!==index;});}
+        pages.forEach(function(page,index){
+            page.classList.add('pp-editor-page');
+            const pageInput=page.querySelector('input[name="page[]"]');
+            const actionInput=page.querySelector('input[type="hidden"][name="action[]"]');
+            const title=(pageInput&&pageInput.value)||('Page '+(index+1));
+            const count=(actionInput&&actionInput.value? actionInput.value.split(',').filter(Boolean).length:0);
+            const button=document.createElement('button');button.type='button';button.className='pp-editor-nav-btn';button.innerHTML='<i class="fas fa-file-alt"></i><span></span><b class="pp-editor-nav-count">'+count+'</b>';button.querySelector('span').textContent=title;
+            button.addEventListener('click',function(){setActive(index);});navList.appendChild(button);
+            const actions=page.querySelector('.pp-actions');
+            if(actions&&!page.querySelector('.pp-action-search')){
+                const search=document.createElement('div');search.className='pp-action-search input-group input-group-sm';search.innerHTML='<span class="input-group-text"><i class="fas fa-search"></i></span><input type="search" class="form-control" placeholder="Find an action, e.g. export or approve">';
+                search.querySelector('input').addEventListener('input',function(){const query=this.value.toLowerCase().trim();actions.querySelectorAll('label').forEach(function(label){label.style.display=!query||label.textContent.toLowerCase().includes(query)?'inline-flex':'none';});});
+                actions.parentNode.insertBefore(search,actions);
+            }
+            page.querySelectorAll('.pp-action-check').forEach(function(check){check.addEventListener('change',function(){const selected=page.querySelectorAll('.pp-action-check:checked').length;button.querySelector('.pp-editor-nav-count').textContent=selected;});});
+            pagePanel.appendChild(page);
+        });
+        layout.appendChild(nav);layout.appendChild(pagePanel);
+        body.appendChild(layout);setActive(0);
+    });
+});
 </script>
