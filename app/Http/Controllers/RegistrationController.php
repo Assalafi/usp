@@ -2593,18 +2593,26 @@ class RegistrationController extends Controller
 
         if ($request->hasFile('file')) {
             $file = $request->file('file');
-            $faculty = $request->faculty;
-            $department = $request->department;
-            $program = $request->program;
-            $session = \App\Http\Controllers\SystemSettingsController::getPostUtmeSession();
-            // dd($upload_type);
-
-            // Load the uploaded file using Maatwebsite/Excel
-            $import = new AdmitStudentUploadImport($faculty, $department, $program, $session);
+            // The published list is matched by JAMB number only. Academic
+            // entity fields are preserved per applicant, so mixed-programme
+            // admission lists are safe to process in one upload.
+            $import = new AdmitStudentUploadImport();
             Excel::import($import, $file);
 
-            // Now, $data contains all the rows from the Excel file with non-empty emails
-            return redirect()->back()->with('success', 'Admitted successfully.');
+            $summary = $import->summary();
+            $message = sprintf(
+                'Admission list processed. %d checked, %d admitted, %d already admitted, %d not found, %d skipped, %d invalid.',
+                $summary['checked'],
+                $summary['admitted'],
+                $summary['already_admitted'],
+                $summary['not_found'],
+                $summary['skipped'],
+                $summary['invalid']
+            );
+
+            return redirect()->back()
+                ->with('success', $message)
+                ->with('admission_upload_summary', $summary);
         }
 
         return redirect()->back()->with('error', 'File not found or other error occurred.');

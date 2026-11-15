@@ -60,6 +60,22 @@
                             </div>
                         </div>
                     </div>
+                    @if (session()->has('admission_upload_summary'))
+                        @php($admissionSummary = session('admission_upload_summary'))
+                        <div class="card-body pt-0">
+                            <div class="alert alert-info mb-0">
+                                <strong>Admission upload summary</strong>
+                                <div class="mt-2 d-flex flex-wrap gap-3">
+                                    <span><strong>{{ $admissionSummary['checked'] ?? 0 }}</strong> checked</span>
+                                    <span><strong>{{ $admissionSummary['admitted'] ?? 0 }}</strong> admitted</span>
+                                    <span><strong>{{ $admissionSummary['already_admitted'] ?? 0 }}</strong> already admitted</span>
+                                    <span><strong>{{ $admissionSummary['not_found'] ?? 0 }}</strong> not found</span>
+                                    <span><strong>{{ $admissionSummary['skipped'] ?? 0 }}</strong> skipped</span>
+                                    <span><strong>{{ $admissionSummary['invalid'] ?? 0 }}</strong> invalid rows</span>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                     <div class="card-header">
                         <h5>Applicants List</h5>
                     </div>
@@ -652,31 +668,14 @@
                     <div class="card-body">
                         <!-- Details View Start -->
                         @csrf
-                        <div class="form-group">
-                            <label for="facultya">Faculty</label>
-                            <select class="form-control faculty" id="facultya" name="faculty" lang="a"
-                                required>
-                                <option value="">Select Option</option>
-                                @foreach ($faculty as $row)
-                                    <option value="{{ $row->code }}">{{ $row->title }}</option>
-                                @endforeach
-                            </select>
+                        <div class="alert alert-info mb-3">
+                            <strong>JAMB-number matching</strong><br>
+                            Upload the published admission list. Each row is matched to the applicant by JAMB number only;
+                            the applicant's existing faculty, department and programme are preserved.
+                            Pending, submitted and previously rejected applicants on the list will be admitted.
                         </div>
                         <div class="form-group">
-                            <label for="departmenta">Department</label>
-                            <select class="form-control department" id="departmenta" name="department"
-                                lang="a" required>
-                                <option value="">Select Faculty First</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="programa">Program</label>
-                            <select class="form-control" id="programa" name="program" lang="a" required>
-                                <option value="">Select Department First</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="file"></label>
+                            <label for="file">Admission list (.xlsx or .xls)</label>
                             <input type="file" name="file" id="file" accept=".xlsx, .xls"
                                 class="form-control" required>
                         </div>
