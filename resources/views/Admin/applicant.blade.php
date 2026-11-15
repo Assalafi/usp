@@ -61,7 +61,9 @@
                         </div>
                     </div>
                     @if (session()->has('admission_upload_summary'))
-                        @php($admissionSummary = session('admission_upload_summary'))
+                        @php
+                            $admissionSummary = session('admission_upload_summary');
+                        @endphp
                         <div class="card-body pt-0">
                             <div class="alert alert-info mb-0">
                                 <strong>Admission upload summary</strong>
