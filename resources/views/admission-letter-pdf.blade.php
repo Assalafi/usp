@@ -233,7 +233,7 @@
                 style="width: 100%; padding-top: 6pt; padding-left: 5pt; padding-right: 5pt; border-collapse: collapse;">
                 <tr>
                     <td style="text-align: left; vertical-align: middle; padding: 0; margin: 0; width: 70%;">
-                        <img src="{{ public_path('uploads/admission-signature-20261115.png') }}" alt="Admission signature" style="width: 100px; height: auto;">
+                        <img src="{{ public_path('uploads/admission-signature-20261115-v6.png') }}" alt="Admission signature" style="width: 100px; height: auto;">
                         <p class="s6" style="margin: 0; padding-bottom: 2pt;">Mohammed Abdullahi Gadaka</p>
                         <p class="s6" style="margin: 0; padding-bottom: 2pt;">Deputy Registrar (Admissions)</p>
                         <p class="s6" style="margin: 0;">For: Registrar</p>
