@@ -160,7 +160,15 @@ class PagesController extends Controller
 
     private function navigationGroups()
     {
-        $pageGroups = DB::table('pages')->distinct()->orderBy('main_order')->pluck('main');
+        // MySQL strict mode does not allow ordering a DISTINCT query by a
+        // column that is not part of the selected projection. Group by the
+        // navigation name and keep its earliest configured order instead.
+        $pageGroups = DB::table('pages')
+            ->select('main', DB::raw('MIN(main_order) as sort_order'))
+            ->whereNotNull('main')
+            ->groupBy('main')
+            ->orderBy('sort_order')
+            ->pluck('main');
         if (!Schema::hasTable('navigation_groups')) {
             return $pageGroups->filter()->unique()->values();
         }
