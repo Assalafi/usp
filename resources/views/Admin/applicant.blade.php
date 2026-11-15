@@ -63,18 +63,45 @@
                     @if (session()->has('admission_upload_summary'))
                         @php
                             $admissionSummary = session('admission_upload_summary');
+                            $matchedRows = (int) ($admissionSummary['matched'] ?? (($admissionSummary['admitted'] ?? 0) + ($admissionSummary['already_admitted'] ?? 0)));
+                            $notAffectedRows = (int) ($admissionSummary['not_affected'] ?? (($admissionSummary['not_found'] ?? 0) + ($admissionSummary['skipped'] ?? 0) + ($admissionSummary['invalid'] ?? 0)));
+                            $accountedRows = (int) ($admissionSummary['accounted_for'] ?? (($admissionSummary['checked'] ?? 0) + ($admissionSummary['invalid'] ?? 0)));
                         @endphp
                         <div class="card-body pt-0">
                             <div class="alert alert-info mb-0">
                                 <strong>Admission upload summary</strong>
                                 <div class="mt-2 d-flex flex-wrap gap-3">
-                                    <span><strong>{{ $admissionSummary['checked'] ?? 0 }}</strong> checked</span>
+                                    <span><strong>{{ $accountedRows }}</strong> source rows accounted for</span>
+                                    <span><strong>{{ $matchedRows }}</strong> matched</span>
                                     <span><strong>{{ $admissionSummary['admitted'] ?? 0 }}</strong> admitted</span>
                                     <span><strong>{{ $admissionSummary['already_admitted'] ?? 0 }}</strong> already admitted</span>
-                                    <span><strong>{{ $admissionSummary['not_found'] ?? 0 }}</strong> not found</span>
-                                    <span><strong>{{ $admissionSummary['skipped'] ?? 0 }}</strong> skipped</span>
-                                    <span><strong>{{ $admissionSummary['invalid'] ?? 0 }}</strong> invalid rows</span>
+                                    <span><strong>{{ $notAffectedRows }}</strong> not affected</span>
                                 </div>
+                                @if (!empty($admissionSummary['details']))
+                                    <details class="mt-3">
+                                        <summary class="fw-semibold" style="cursor:pointer;">Review not affected rows ({{ $notAffectedRows }})</summary>
+                                        <div class="table-responsive mt-2" style="max-height: 420px; overflow:auto;">
+                                            <table class="table table-sm table-bordered align-middle mb-0 bg-white">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Workbook row</th>
+                                                        <th>JAMB number</th>
+                                                        <th>Reason</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach ($admissionSummary['details'] as $detail)
+                                                        <tr>
+                                                            <td>{{ $detail['row'] ?? '—' }}</td>
+                                                            <td>{{ $detail['jamb'] ?? '—' }}</td>
+                                                            <td>{{ $detail['reason'] ?? 'No change was made.' }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </details>
+                                @endif
                             </div>
                         </div>
                     @endif

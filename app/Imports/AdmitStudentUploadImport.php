@@ -82,7 +82,12 @@ class AdmitStudentUploadImport implements ToCollection
 
     public function summary(): array
     {
-        return $this->stats;
+        $summary = $this->stats;
+        $summary['matched'] = $summary['admitted'] + $summary['already_admitted'];
+        $summary['not_affected'] = $summary['not_found'] + $summary['skipped'] + $summary['invalid'];
+        $summary['accounted_for'] = $summary['checked'] + $summary['invalid'];
+
+        return $summary;
     }
 
     private function extractJambNumber($row): string
@@ -104,7 +109,10 @@ class AdmitStudentUploadImport implements ToCollection
 
     private function addDetail(int $row, string $jamb, string $reason): void
     {
-        if (count($this->stats['details']) < 100) {
+        // Keep every unaffected row available to the administrator. This is
+        // intentionally bounded well above normal admission-list sizes so a
+        // malformed workbook cannot exhaust the session payload.
+        if (count($this->stats['details']) < 10000) {
             $this->stats['details'][] = compact('row', 'jamb', 'reason');
         }
     }
