@@ -30,6 +30,16 @@
     .hostel-bulk-progress-track { height:14px; border-radius:20px; background:#e8eef3; overflow:hidden; }
     .hostel-bulk-progress-bar { height:100%; width:0; background:linear-gradient(90deg,#0b7f73,#17b6a4); transition:width .25s ease; }
     .hostel-bulk-status { margin-top:14px; font-size:.92rem; color:#557080; min-height:20px; }
+    .hostel-bulk-list { margin-top:18px; border:1px solid #dcebe6; border-radius:12px; overflow:hidden; background:#fff; }
+    .hostel-bulk-list-header { padding:12px 14px; background:#f6fbf9; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+    .hostel-bulk-list-header strong { color:#185b4d; }
+    .hostel-bulk-list .table { margin:0; }
+    .hostel-bulk-list .table th { white-space:nowrap; font-size:.72rem; text-transform:uppercase; color:#5c716f; background:#f8fbfa; }
+    .hostel-bulk-list .table td { white-space:nowrap; color:#294459; vertical-align:middle; }
+    .hostel-bulk-list-scroll { max-height:380px; overflow:auto; }
+    .hostel-bulk-list-nav { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:10px 12px; border-top:1px solid #e5efeb; }
+    .hostel-bulk-list-nav button { border:1px solid #cfe1db; background:#fff; color:#176a5a; border-radius:7px; padding:5px 10px; font-size:.8rem; }
+    .hostel-bulk-list-nav button:disabled { opacity:.45; cursor:not-allowed; }
     @media (max-width: 850px) { .hostel-bulk-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     @media (max-width: 560px) { .hostel-bulk-page { padding:12px 9px 35px; } .hostel-bulk-hero { padding:20px 18px; border-radius:17px; } .hostel-bulk-card-body { padding:15px; } .hostel-bulk-grid,.hostel-bulk-summary { grid-template-columns:1fr; } .hostel-bulk-actions .hostel-bulk-btn { width:100%; } }
 </style>
@@ -94,6 +104,11 @@
                 <strong>Revocation completed</strong>
                 <div id="bulkCompletionText" style="margin-top:5px;"></div>
                 <button type="button" class="hostel-bulk-btn hostel-bulk-btn-primary" id="bulkExportBtn" style="margin-top:13px;"><i class="fas fa-file-csv"></i> Export revocation summary</button>
+                <div id="bulkRevokedSection" class="hostel-bulk-list" style="display:none; text-align:left;">
+                    <div class="hostel-bulk-list-header"><strong><i class="fas fa-list-check me-1"></i> Students and spaces released</strong><span id="bulkRevokedCount" class="small text-muted"></span></div>
+                    <div class="hostel-bulk-list-scroll"><table class="table table-sm"><thead><tr><th>Student ID</th><th>Hall</th><th>Block</th><th>Room</th><th>Bed</th><th>Previous payment</th></tr></thead><tbody id="bulkRevokedBody"></tbody></table></div>
+                    <div class="hostel-bulk-list-nav"><button type="button" id="bulkListPrev">Previous</button><span id="bulkListPage" class="small text-muted"></span><button type="button" id="bulkListNext">Next</button></div>
+                </div>
             </div>
         </div>
     </section>
@@ -113,8 +128,15 @@
     const completion = document.getElementById('bulkCompletion');
     const completionText = document.getElementById('bulkCompletionText');
     const exportBtn = document.getElementById('bulkExportBtn');
+    const revokedSection = document.getElementById('bulkRevokedSection');
+    const revokedCount = document.getElementById('bulkRevokedCount');
+    const revokedBody = document.getElementById('bulkRevokedBody');
+    const listPrev = document.getElementById('bulkListPrev');
+    const listNext = document.getElementById('bulkListNext');
+    const listPage = document.getElementById('bulkListPage');
     let preview = null;
     let revokedRecords = [];
+    let revokedPage = 1;
 
     function csrf() { return form.querySelector('input[name="_token"]').value; }
     function payload(lastId) {
@@ -145,7 +167,26 @@
         } catch (error) { alert(error.message); }
         finally { setBusy(previewBtn, false); }
     });
-    resetBtn.addEventListener('click', function () { form.reset(); resultCard.style.display='none'; preview=null; revokedRecords=[]; completion.style.display='none'; });
+    function renderRevokedPage() {
+        const pageSize = 100;
+        const totalPages = Math.max(1, Math.ceil(revokedRecords.length / pageSize));
+        revokedPage = Math.max(1, Math.min(revokedPage, totalPages));
+        const start = (revokedPage - 1) * pageSize;
+        revokedBody.innerHTML = '';
+        revokedRecords.slice(start, start + pageSize).forEach(function (row) {
+            const tr = document.createElement('tr');
+            [row.occupant, row.hall, row.block, row.room, row.bed, row.previous_payment].forEach(function (value) {
+                const td = document.createElement('td'); td.textContent = value || '—'; tr.appendChild(td);
+            });
+            revokedBody.appendChild(tr);
+        });
+        revokedCount.textContent = revokedRecords.length.toLocaleString() + ' record(s)';
+        listPage.textContent = 'Page ' + revokedPage + ' of ' + totalPages;
+        listPrev.disabled = revokedPage <= 1; listNext.disabled = revokedPage >= totalPages;
+    }
+    listPrev.addEventListener('click', function () { if (revokedPage > 1) { revokedPage--; renderRevokedPage(); } });
+    listNext.addEventListener('click', function () { const pages = Math.ceil(revokedRecords.length / 100); if (revokedPage < pages) { revokedPage++; renderRevokedPage(); } });
+    resetBtn.addEventListener('click', function () { form.reset(); resultCard.style.display='none'; preview=null; revokedRecords=[]; revokedPage=1; completion.style.display='none'; revokedSection.style.display='none'; });
     startBtn.addEventListener('click', async function () {
         if (!preview || !preview.total) return;
         if (!window.confirm('Revoke ' + preview.total.toLocaleString() + ' allocation(s)? Their active payment flag will be cleared and the beds will return to Reserved (bed type 1). Existing invoices will remain for audit.')) return;
@@ -172,6 +213,9 @@
             const locations = new Set(revokedRecords.map(row => row.hall).filter(Boolean)).size;
             completionText.textContent = processed.toLocaleString() + ' allocation(s) were released; ' + paid.toLocaleString() + ' previously paid and ' + unpaid.toLocaleString() + ' previously pending. ' + locations.toLocaleString() + ' hall(s) were affected. Payment methods and invoice history were preserved.';
             completion.style.display = '';
+            revokedPage = 1;
+            renderRevokedPage();
+            revokedSection.style.display = revokedRecords.length ? '' : 'none';
             startBtn.disabled = true;
         } catch (error) { status.textContent = error.message; status.style.color = '#b4233c'; }
         finally { setBusy(startBtn, false); previewBtn.disabled = false; resetBtn.disabled = false; }
