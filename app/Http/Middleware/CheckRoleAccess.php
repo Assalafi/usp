@@ -172,7 +172,7 @@ class CheckRoleAccess
             'fixed assets disposal', 'grading system', 'committee',
             'committee role', 'committee membership', 'committee meetings',
             'sub committee', 'session history',
-            'available bed space', 'online bed space', 'hostel recipients', 'abs', 'obs',
+            'available bed space', 'online bed space', 'hostel recipients', 'hostel bulk revoke', 'abs', 'obs',
             'manage hostel', 'pins', 'bed space reservations', 'developer-tasks', 'developer tasks',
         ];
 

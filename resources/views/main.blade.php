@@ -493,6 +493,8 @@
                         @include('Admin.department-modern')
                     @elseif ($page == 'grading system' && session('accType') == 'Admin')
                         @include('Admin.grading-system-modern')
+                    @elseif ($page == 'hostel bulk revoke' && in_array(session('accType'), ['Admin', 'Staff'], true))
+                        @include('Admin.hostel-bulk-revoke')
                     @elseif ($page == 'pages' && session('accType') == 'Admin')
                         @include('Admin.pages-permissions-modern')
                     @elseif ($page == 'rolls' && session('accType') == 'Admin')

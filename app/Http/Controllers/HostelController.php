@@ -1342,14 +1342,155 @@ class HostelController extends Controller
 
     public function revoke(Request $request)
     {
-        if (!session()->has('log')) {
+        if (!$this->canManageAbs()) {
+            return redirect('/')->with('error', 'You are not authorised to manage hostel allocations.');
+        }
+
+        $id = (int) $request->input('id');
+        if ($id < 1) {
+            return redirect()->back()->with('error', 'The selected allocation is invalid.');
+        }
+
+        $changed = DB::transaction(function () use ($id) {
+            $allocation = DB::table('hostel')->where('id', $id)->lockForUpdate()->first();
+            if (!$allocation || trim((string) ($allocation->occupant ?? '')) === '') {
+                return 0;
+            }
+
+            return DB::table('hostel')->where('id', $id)->update([
+                'occupant' => '',
+                'status' => 0,
+                'hostel_payment' => 0,
+                'payment_method' => null,
+                'bed_type' => 1,
+            ]);
+        });
+
+        if ($changed !== 1) {
+            return redirect()->back()->with('error', 'This allocation is no longer active or could not be revoked.');
+        }
+
+        return redirect()->back()->with('success', 'Allocation revoked. The payment flag was cleared and the bed returned to reserved inventory.');
+    }
+
+    public function bulkRevokePage(Request $request)
+    {
+        if (!$this->canManageAbs()) {
             return redirect('/');
         }
-        DB::table('hostel')->where(['id' => $request->id])->update([
-            'occupant' => '',
-            'status' => 0
+
+        $base = DB::table('hostel')
+            ->where('status', 1)
+            ->whereNotNull('occupant')
+            ->where('occupant', '<>', '');
+
+        $data['halls'] = (clone $base)->whereNotNull('hall')->where('hall', '<>', '')
+            ->distinct()->orderBy('hall')->pluck('hall');
+        $data['blocks'] = (clone $base)->whereNotNull('block')->where('block', '<>', '')
+            ->distinct()->orderBy('block')->pluck('block');
+        $data['rooms'] = (clone $base)->whereNotNull('room')->where('room', '<>', '')
+            ->distinct()->orderBy('room')->pluck('room');
+        $data['beds'] = (clone $base)->whereNotNull('bed')->where('bed', '<>', '')
+            ->distinct()->orderBy('bed')->pluck('bed');
+        $data['page'] = 'hostel bulk revoke';
+
+        return view('main', $data);
+    }
+
+    protected function bulkRevokeQuery(array $filters)
+    {
+        $query = DB::table('hostel')
+            ->where('status', 1)
+            ->whereNotNull('occupant')
+            ->where('occupant', '<>', '');
+
+        foreach (['hall', 'block', 'room', 'bed'] as $field) {
+            $value = trim((string) ($filters[$field] ?? ''));
+            if ($value !== '' && $value !== 'all') {
+                $query->where($field, $value);
+            }
+        }
+
+        if (($filters['payment_scope'] ?? 'unpaid') === 'unpaid') {
+            $query->where(function ($q) {
+                $q->whereNull('hostel_payment')->orWhere('hostel_payment', '<>', 1);
+            });
+        }
+
+        return $query;
+    }
+
+    public function bulkRevokePreview(Request $request)
+    {
+        if (!$this->canManageAbs()) {
+            return response()->json(['message' => 'You are not authorised to manage hostel allocations.'], 403);
+        }
+
+        $filters = $request->validate([
+            'hall' => 'nullable|string|max:120',
+            'block' => 'nullable|string|max:120',
+            'room' => 'nullable|string|max:120',
+            'bed' => 'nullable|string|max:120',
+            'payment_scope' => 'required|in:unpaid,all',
         ]);
-        return redirect()->back()->with('success', 'Successfully Revoke');
+
+        $query = $this->bulkRevokeQuery($filters);
+        $total = (clone $query)->count();
+        $paid = (clone $query)->where('hostel_payment', 1)->count();
+
+        return response()->json([
+            'total' => $total,
+            'paid' => $paid,
+            'unpaid' => max(0, $total - $paid),
+            'filters' => $filters,
+        ]);
+    }
+
+    public function bulkRevokeProcess(Request $request)
+    {
+        if (!$this->canManageAbs()) {
+            return response()->json(['message' => 'You are not authorised to manage hostel allocations.'], 403);
+        }
+
+        $filters = $request->validate([
+            'hall' => 'nullable|string|max:120',
+            'block' => 'nullable|string|max:120',
+            'room' => 'nullable|string|max:120',
+            'bed' => 'nullable|string|max:120',
+            'payment_scope' => 'required|in:unpaid,all',
+            'last_id' => 'nullable|integer|min:0',
+            'batch_size' => 'nullable|integer|min:25|max:200',
+        ]);
+
+        $lastId = (int) ($filters['last_id'] ?? 0);
+        $batchSize = (int) ($filters['batch_size'] ?? 100);
+        $rows = $this->bulkRevokeQuery($filters)->where('id', '>', $lastId)
+            ->orderBy('id')->limit($batchSize)->get(['id']);
+
+        if ($rows->isEmpty()) {
+            return response()->json(['processed' => 0, 'last_id' => $lastId, 'done' => true]);
+        }
+
+        $ids = $rows->pluck('id')->all();
+        $processed = DB::transaction(function () use ($ids) {
+            return DB::table('hostel')->whereIn('id', $ids)
+                ->where('status', 1)
+                ->whereNotNull('occupant')
+                ->where('occupant', '<>', '')
+                ->update([
+                    'occupant' => '',
+                    'status' => 0,
+                    'hostel_payment' => 0,
+                    'payment_method' => null,
+                    'bed_type' => 1,
+                ]);
+        });
+
+        return response()->json([
+            'processed' => (int) $processed,
+            'last_id' => (int) $rows->last()->id,
+            'done' => $rows->count() < $batchSize,
+        ]);
     }
 
     public function hostelPayment(Request $request)

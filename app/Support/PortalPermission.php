@@ -80,6 +80,9 @@ final class PortalPermission
         'change bed' => '/hostel recipients',
         'revoke' => '/hostel recipients',
         'hostel-payment' => '/hostel recipients',
+        'hostel bulk revoke' => '/hostel recipients',
+        'hostel bulk revoke/preview' => '/hostel recipients',
+        'hostel bulk revoke/process' => '/hostel recipients',
         'admin/applicant' => '/admin-applicant',
         'admin/admit-applicant' => '/admin-applicant',
         'admin/cleared-applicant' => '/admin-applicant',
@@ -373,7 +376,7 @@ final class PortalPermission
             return '/' . trim($match[2]);
         }
 
-        foreach (['abs', 'obs', 'available bed space', 'online bed space', 'hostel recipients', 'manage hostel'] as $prefix) {
+        foreach (['abs', 'obs', 'available bed space', 'online bed space', 'hostel recipients', 'hostel bulk revoke', 'manage hostel'] as $prefix) {
             if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
                 return '/' . $prefix;
             }
