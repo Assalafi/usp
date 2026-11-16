@@ -110,7 +110,26 @@
                 <div class="admit-report-head"><div><h2><i class="fas fa-chart-column me-2"></i>Admission processing report</h2><p>The workbook has finished processing. Review the totals and any rows that were not changed.</p></div><span class="badge rounded-pill">Completed</span></div>
                 @if (!empty($admissionSummary['academic']))<div class="admit-path"><span><i class="fas fa-building-columns me-1"></i>{{ $admissionSummary['academic']['faculty'] }}</span><span><i class="fas fa-sitemap me-1"></i>{{ $admissionSummary['academic']['department'] }}</span><span><i class="fas fa-graduation-cap me-1"></i>{{ $admissionSummary['academic']['program'] }}</span></div>@endif
                 <div class="admit-stats"><div class="admit-stat info"><strong>{{ number_format((int) ($admissionSummary['checked'] ?? 0)) }}</strong><small>Rows checked</small></div><div class="admit-stat success"><strong>{{ number_format((int) ($admissionSummary['admitted'] ?? 0)) }}</strong><small>Newly admitted</small></div><div class="admit-stat info"><strong>{{ number_format((int) ($admissionSummary['already_admitted'] ?? 0)) }}</strong><small>Already admitted</small></div><div class="admit-stat warn"><strong>{{ number_format((int) ($admissionSummary['not_found'] ?? 0)) }}</strong><small>JAMB not found</small></div><div class="admit-stat danger"><strong>{{ number_format((int) (($admissionSummary['skipped'] ?? 0) + ($admissionSummary['invalid'] ?? 0))) }}</strong><small>Not changed</small></div></div>
-                <div class="admit-details"><h3>Rows requiring attention</h3>@if ($summaryDetails->isEmpty())<div class="admit-empty">Every checked row was matched and processed successfully.</div>@else<div class="admit-table-wrap"><table class="admit-table"><thead><tr><th>Workbook row</th><th>JAMB number</th><th>What happened</th></tr></thead><tbody>@foreach ($summaryDetails as $detail)<tr><td>{{ $detail['row'] ?? '—' }}</td><td>{{ $detail['jamb'] ?? '—' }}</td><td>{{ $detail['reason'] ?? 'No change was made.' }}</td></tr>@endforeach</tbody></table></div>@if(count($admissionSummary['details'] ?? []) > 250)<p class="admit-help mt-2">Showing the first 250 attention rows out of {{ count($admissionSummary['details']) }}.</p>@endif@endif</div>
+                <div class="admit-details">
+                    <h3>Rows requiring attention</h3>
+                    @if ($summaryDetails->isEmpty())
+                        <div class="admit-empty">Every checked row was matched and processed successfully.</div>
+                    @else
+                        <div class="admit-table-wrap">
+                            <table class="admit-table">
+                                <thead><tr><th>Workbook row</th><th>JAMB number</th><th>What happened</th></tr></thead>
+                                <tbody>
+                                    @foreach ($summaryDetails as $detail)
+                                        <tr><td>{{ $detail['row'] ?? '—' }}</td><td>{{ $detail['jamb'] ?? '—' }}</td><td>{{ $detail['reason'] ?? 'No change was made.' }}</td></tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        @if (count($admissionSummary['details'] ?? []) > 250)
+                            <p class="admit-help mt-2">Showing the first 250 attention rows out of {{ count($admissionSummary['details']) }}.</p>
+                        @endif
+                    @endif
+                </div>
             </section>
         @endif
     </div>
