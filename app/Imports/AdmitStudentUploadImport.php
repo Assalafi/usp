@@ -45,7 +45,13 @@ class AdmitStudentUploadImport implements ToCollection
         foreach ($rows as $rowNumber => $row) {
             if ($this->firstRow) {
                 $this->firstRow = false;
-                continue;
+                // Some published lists have column headings, while others
+                // (like the Zoology workbook) begin immediately with data.
+                // Skip only a genuine heading row so the first applicant is
+                // never lost.
+                if ($this->isHeaderRow($row)) {
+                    continue;
+                }
             }
 
             $jamb = $this->extractJambNumber($row);
@@ -119,6 +125,16 @@ class AdmitStudentUploadImport implements ToCollection
         }
 
         return '';
+    }
+
+    private function isHeaderRow($row): bool
+    {
+        if ($this->extractJambNumber($row) !== '') {
+            return false;
+        }
+
+        $text = strtoupper(collect($row)->map(fn ($value) => trim((string) $value))->filter()->implode(' '));
+        return $text !== '' && preg_match('/\b(S\/?NO|SERIAL|JAMB|REGISTRATION|MATRIC|NAME|FULLNAME|PROGRAMME|PROGRAM|COURSE)\b/', $text) === 1;
     }
 
     private function academicAttributes(): array
