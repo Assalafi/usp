@@ -431,7 +431,6 @@
                     <li class=""><a href="/available bed space" class="">Reserve Bed Space</a></li>
                     <li class=""><a href="/online bed space" class="">Online Bed Space</a></li>
                     <li class=""><a href="/hostel recipients" class="">Hostel Recipients</a></li>
-                    <li class=""><a href="/hostel bulk revoke" class="">Bulk Revoke Allocations</a></li>
                     <li class=""><a href="/manage hostel" class="">Manage Hostel</a></li>
                 </ul>
             </li>

@@ -1,8 +1,8 @@
 <style>
     .hostel-bulk-page { max-width: 1180px; margin: 0 auto; padding: 20px 14px 48px; color: #1f2937; }
     .hostel-bulk-hero { border-radius: 22px; padding: 24px 26px; color: #fff; background: linear-gradient(135deg,#173f5f,#126e82 58%,#0b9b8a); box-shadow: 0 14px 35px rgba(20,63,95,.18); }
-    .hostel-bulk-hero h1 { margin: 0 0 7px; font-size: clamp(1.35rem,2.3vw,2rem); font-weight: 700; }
-    .hostel-bulk-hero p { margin: 0; max-width: 760px; opacity: .9; line-height: 1.55; }
+    .hostel-bulk-hero h1 { margin: 0 0 7px; color: #fff !important; font-size: clamp(1.35rem,2.3vw,2rem); font-weight: 700; }
+    .hostel-bulk-hero p { margin: 0; max-width: 760px; color: rgba(255,255,255,.9) !important; line-height: 1.55; }
     .hostel-bulk-card { background: #fff; border: 1px solid #e7edf3; border-radius: 18px; margin-top: 18px; box-shadow: 0 10px 28px rgba(15,42,67,.06); overflow: hidden; }
     .hostel-bulk-card-header { padding: 17px 20px; border-bottom: 1px solid #edf1f5; display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
     .hostel-bulk-card-header h2 { margin:0; font-size:1.08rem; font-weight:700; }
