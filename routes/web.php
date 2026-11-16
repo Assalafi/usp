@@ -1370,6 +1370,9 @@ Route::post('/election-student', [RegistrationController::class, 'electionStuden
 Route::post('/upload-admitted', [RegistrationController::class, 'uploadAdmitted'])->middleware('role');
 Route::post('/upload-student', [RegistrationController::class, 'uploadStudent'])->middleware('role');
 Route::post('/upload-applicant', [RegistrationController::class, 'uploadApplicant'])->middleware('role');
+Route::get('/admit-student-upload', [RegistrationController::class, 'admitStudentUploadPage'])
+    ->name('admin.admit-student-upload')
+    ->middleware('role');
 Route::post('/admit-student-upload', [RegistrationController::class, 'admitStudentUpload'])->middleware('role');
 
 // Admin Applicant Management Routes

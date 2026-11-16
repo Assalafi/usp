@@ -2582,10 +2582,35 @@ class RegistrationController extends Controller
         return redirect()->back()->with('error', 'File not found or other error occurred.');
     }
 
+    public function admitStudentUploadPage(Request $request)
+    {
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+
+        if (session('accType') !== 'Admin') {
+            abort(403, 'Only administrators can upload an admission list.');
+        }
+
+        return view('main', [
+            'page' => 'admit student upload',
+            'title' => 'Admit applicants',
+            'faculty' => DB::table('faculty')
+                ->where('status', '1')
+                ->select('code', 'title')
+                ->orderBy('title')
+                ->get(),
+        ]);
+    }
+
     public function admitStudentUpload(Request $request)
     {
         if (!session()->has('log')) {
             return redirect('/');
+        }
+
+        if (session('accType') !== 'Admin') {
+            abort(403, 'Only administrators can upload an admission list.');
         }
         $validator = Validator::make($request->all(), [
             'file' => 'required|file|mimes:xlsx,xls',
@@ -2599,7 +2624,9 @@ class RegistrationController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->withInput();
+            return redirect()->route('admin.admit-student-upload')
+                ->withErrors($validator)
+                ->withInput();
         }
 
         $faculty = trim((string) $request->input('faculty'));
@@ -2623,7 +2650,7 @@ class RegistrationController extends Controller
                 ->exists();
 
         if (!$validAcademicPath) {
-            return redirect()->back()
+            return redirect()->route('admin.admit-student-upload')
                 ->withInput()
                 ->with('error', 'The selected faculty, department and programme do not form a valid academic path. Please select them again.');
         }
@@ -2636,6 +2663,11 @@ class RegistrationController extends Controller
             Excel::import($import, $file);
 
             $summary = $import->summary();
+            $summary['academic'] = [
+                'faculty' => DB::table('faculty')->where('code', $faculty)->value('title') ?: $faculty,
+                'department' => DB::table('department')->where('code', $department)->value('title') ?: $department,
+                'program' => DB::table('program')->where('code', $program)->value('title') ?: $program,
+            ];
             $message = sprintf(
                 'Admission list processed. %d checked, %d admitted, %d already admitted, %d not found, %d skipped, %d invalid.',
                 $summary['checked'],
@@ -2646,12 +2678,12 @@ class RegistrationController extends Controller
                 $summary['invalid']
             );
 
-            return redirect()->back()
+            return redirect()->route('admin.admit-student-upload')
                 ->with('success', $message)
                 ->with('admission_upload_summary', $summary);
         }
 
-        return redirect()->back()->with('error', 'File not found or other error occurred.');
+        return redirect()->route('admin.admit-student-upload')->with('error', 'File not found or other error occurred.');
     }
 
     public function exportUsers(Request $request)

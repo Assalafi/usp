@@ -115,8 +115,9 @@
                             <button href="#" class="btn btn-dark uploadAction" data-bs-toggle="modal"
                                 data-bs-target="#importStudent"><i class="fas fa-upload"></i>
                                 {{ 'Upload' }}</button>
-                            <button href="#" class="btn btn-dark uploadAction" data-bs-toggle="modal"
-                                data-bs-target="#admitStudent"><i class="fas fa-file"></i> {{ 'Admit' }}</button>
+                            <a href="{{ route('admin.admit-student-upload') }}" class="btn btn-dark uploadAction">
+                                <i class="fas fa-file-import me-1"></i> Admit from list
+                            </a>
 
                         </div>
                     @endif
@@ -674,64 +675,6 @@
                         <!-- Details View End -->
                         <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
                         <button type="submit" class="btn btn-success">Upload Applicants</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div id="admitStudent" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
-    aria-hidden="true">
-    <div class="modal-dialog modal-md" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="myModalLabel">Admit Students</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"><span
-                        aria-hidden="true">&times;</span></button>
-            </div>
-            <div class="card">
-
-                <form class="form-group" action="/admit-student-upload" method="POST"
-                    enctype="multipart/form-data">
-                    <div class="card-body">
-                        <!-- Details View Start -->
-                        @csrf
-                        <div class="alert alert-info mb-3">
-                            <strong>JAMB-number matching</strong><br>
-                            Upload the published admission list. Each row is matched to the applicant by JAMB number only;
-                            all matched applicants in this upload will be assigned the faculty, department and programme selected below.
-                            Pending, submitted and previously rejected applicants on the list will be admitted.
-                        </div>
-                        <div class="form-group">
-                            <label for="facultyadmit">Faculty / College</label>
-                            <select class="form-control faculty" id="facultyadmit" name="faculty" lang="admit" required>
-                                <option value="">Select faculty / college</option>
-                                @foreach ($faculty as $row)
-                                    <option value="{{ $row->code }}">{{ $row->title }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="departmentadmit">Department</label>
-                            <select class="form-control department" id="departmentadmit" name="department" lang="admit" required>
-                                <option value="">Select faculty first</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="programadmit">Programme</label>
-                            <select class="form-control" id="programadmit" name="program" lang="admit" required>
-                                <option value="">Select department first</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="file">Admission list (.xlsx or .xls)</label>
-                            <input type="file" name="file" id="file" accept=".xlsx, .xls"
-                                class="form-control" required>
-                        </div>
-                        <!-- Details View End -->
-                        <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-success">Admit Students</button>
                     </div>
                 </form>
             </div>
