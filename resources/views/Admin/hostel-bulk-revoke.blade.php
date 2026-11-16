@@ -38,8 +38,11 @@
      data-preview-url="{{ url('hostel bulk revoke/preview') }}"
      data-process-url="{{ url('hostel bulk revoke/process') }}">
     <section class="hostel-bulk-hero">
-        <h1>Bulk revoke hostel allocations</h1>
-        <p>Safely release a group of occupied beds using location and payment filters. Each batch is processed in a transaction so the page stays responsive even with many records.</p>
+        <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+            <div><h1>Bulk revoke hostel allocations</h1>
+            <p>Safely release a group of occupied beds using location and payment filters. Each batch is processed in a transaction so the page stays responsive even with many records.</p></div>
+            <a href="{{ url('hostel recipients') }}" class="btn btn-light btn-sm"><i class="fas fa-arrow-left me-1"></i>Back to recipients</a>
+        </div>
     </section>
 
     <section class="hostel-bulk-card">
