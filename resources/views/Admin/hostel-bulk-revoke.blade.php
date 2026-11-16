@@ -46,7 +46,8 @@
 
 <div class="hostel-bulk-page" id="hostelBulkRevokePage"
      data-preview-url="{{ url('hostel bulk revoke/preview') }}"
-     data-process-url="{{ url('hostel bulk revoke/process') }}">
+     data-process-url="{{ url('hostel bulk revoke/process') }}"
+     data-options-url="{{ url('hostel bulk revoke/options') }}">
     <section class="hostel-bulk-hero">
         <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
             <div><h1>Bulk revoke hostel allocations</h1>
@@ -64,7 +65,7 @@
                     @foreach ([['hall','Hall',$halls],['block','Block',$blocks],['room','Room',$rooms],['bed','Bed',$beds]] as $filter)
                         <div class="hostel-bulk-field">
                             <label for="bulk-{{ $filter[0] }}">{{ $filter[1] }}</label>
-                            <select id="bulk-{{ $filter[0] }}" name="{{ $filter[0] }}">
+                            <select id="bulk-{{ $filter[0] }}" name="{{ $filter[0] }}" data-cascade-index="{{ $loop->index }}" @if ($loop->index > 0) disabled @endif>
                                 <option value="all">All {{ strtolower($filter[1]) }}s</option>
                                 @foreach ($filter[2] as $value)<option value="{{ $value }}">{{ $value }}</option>@endforeach
                             </select>
@@ -119,6 +120,7 @@
     const root = document.getElementById('hostelBulkRevokePage');
     if (!root) return;
     const form = document.getElementById('hostelBulkRevokeForm');
+    const cascadeFields = ['hall', 'block', 'room', 'bed'];
     const previewBtn = document.getElementById('bulkPreviewBtn');
     const resetBtn = document.getElementById('bulkResetBtn');
     const resultCard = document.getElementById('bulkResultCard');
@@ -139,6 +141,33 @@
     let revokedPage = 1;
 
     function csrf() { return form.querySelector('input[name="_token"]').value; }
+    function cascadeQuery() {
+        const query = new URLSearchParams();
+        cascadeFields.slice(0, 3).forEach(function (field) {
+            const value = form.elements[field] && form.elements[field].value;
+            if (value && value !== 'all') query.set(field, value);
+        });
+        return query.toString();
+    }
+    function setCascadeOptions(field, values, label) {
+        const select = form.elements[field];
+        const current = select ? select.value : 'all';
+        if (!select) return;
+        select.innerHTML = '';
+        const all = document.createElement('option'); all.value = 'all'; all.textContent = 'All ' + label.toLowerCase() + 's'; select.appendChild(all);
+        (values || []).forEach(function (value) { const option = document.createElement('option'); option.value = value; option.textContent = value; select.appendChild(option); });
+        if (current && Array.from(select.options).some(function (option) { return option.value === current; })) select.value = current;
+    }
+    async function refreshCascade() {
+        const response = await fetch(root.dataset.optionsUrl + (cascadeQuery() ? '?' + cascadeQuery() : ''), {headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}});
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || 'Location options could not be loaded.');
+        const labels = {block:'Block', room:'Room', bed:'Bed'};
+        ['block','room','bed'].forEach(function (field) { setCascadeOptions(field, data[field + 's'], labels[field]); });
+        form.elements.block.disabled = form.elements.hall.value === 'all';
+        form.elements.room.disabled = form.elements.block.value === 'all';
+        form.elements.bed.disabled = form.elements.room.value === 'all';
+    }
     function payload(lastId) {
         const data = new FormData(form);
         if (lastId !== undefined) data.set('last_id', String(lastId));
@@ -152,6 +181,14 @@
         if (!response.ok) throw new Error(data.message || 'The request could not be completed.');
         return data;
     }
+    cascadeFields.forEach(function (field, index) {
+        form.elements[field].addEventListener('change', async function () {
+            if (index < cascadeFields.length - 1) {
+                cascadeFields.slice(index + 1).forEach(function (child) { form.elements[child].value = 'all'; });
+                try { await refreshCascade(); } catch (error) { alert(error.message); }
+            }
+        });
+    });
     form.addEventListener('submit', async function (event) {
         event.preventDefault();
         setBusy(previewBtn, true, 'Checking records…');
@@ -186,7 +223,7 @@
     }
     listPrev.addEventListener('click', function () { if (revokedPage > 1) { revokedPage--; renderRevokedPage(); } });
     listNext.addEventListener('click', function () { const pages = Math.ceil(revokedRecords.length / 100); if (revokedPage < pages) { revokedPage++; renderRevokedPage(); } });
-    resetBtn.addEventListener('click', function () { form.reset(); resultCard.style.display='none'; preview=null; revokedRecords=[]; revokedPage=1; completion.style.display='none'; revokedSection.style.display='none'; });
+    resetBtn.addEventListener('click', function () { form.reset(); form.elements.block.disabled=true; form.elements.room.disabled=true; form.elements.bed.disabled=true; resultCard.style.display='none'; preview=null; revokedRecords=[]; revokedPage=1; completion.style.display='none'; revokedSection.style.display='none'; });
     startBtn.addEventListener('click', async function () {
         if (!preview || !preview.total) return;
         if (!window.confirm('Revoke ' + preview.total.toLocaleString() + ' allocation(s)? Their active payment flag will be cleared and the beds will return to Reserved (bed type 1). Existing invoices will remain for audit.')) return;

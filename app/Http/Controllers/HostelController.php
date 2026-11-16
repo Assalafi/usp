@@ -1396,6 +1396,40 @@ class HostelController extends Controller
         return view('main', $data);
     }
 
+    public function bulkRevokeOptions(Request $request)
+    {
+        if (!$this->canManageAbs()) {
+            return response()->json(['message' => 'You are not authorised to manage hostel allocations.'], 403);
+        }
+
+        $filters = $request->validate([
+            'hall' => 'nullable|string|max:120',
+            'block' => 'nullable|string|max:120',
+            'room' => 'nullable|string|max:120',
+        ]);
+        $base = DB::table('hostel')->where('status', 1)->whereNotNull('occupant')->where('occupant', '<>', '');
+        $scoped = function ($query, string $field) use ($filters) {
+            foreach (['hall', 'block', 'room'] as $parent) {
+                if ($parent === $field) break;
+                $value = trim((string) ($filters[$parent] ?? ''));
+                if ($value !== '' && $value !== 'all') $query->where($parent, $value);
+            }
+            return $query;
+        };
+
+        $values = function ($query, string $field) {
+            return $query->whereNotNull($field)->where($field, '<>', '')
+                ->distinct()->orderBy($field)->pluck($field)->values();
+        };
+
+        return response()->json([
+            'halls' => $values($scoped(clone $base, 'hall'), 'hall'),
+            'blocks' => $values($scoped(clone $base, 'block'), 'block'),
+            'rooms' => $values($scoped(clone $base, 'room'), 'room'),
+            'beds' => $values($scoped(clone $base, 'bed'), 'bed'),
+        ]);
+    }
+
     protected function bulkRevokeQuery(array $filters)
     {
         $query = DB::table('hostel')

@@ -1119,6 +1119,7 @@ Route::get('/available bed space', [HostelController::class, 'bedSpace'])->middl
 Route::get('/online bed space', [HostelController::class, 'online'])->middleware('role');
 Route::get('/hostel recipients', [HostelController::class, 'recipients'])->middleware('role');
 Route::get('/hostel bulk revoke', [HostelController::class, 'bulkRevokePage'])->middleware('role');
+Route::get('/hostel bulk revoke/options', [HostelController::class, 'bulkRevokeOptions'])->middleware('role');
 Route::post('/hostel bulk revoke/preview', [HostelController::class, 'bulkRevokePreview'])->middleware('role');
 Route::post('/hostel bulk revoke/process', [HostelController::class, 'bulkRevokeProcess'])->middleware('role');
 Route::get('/abs', [HostelController::class, 'bedSpace2'])->middleware('role');
