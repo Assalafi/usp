@@ -62,7 +62,7 @@
                     <label><input type="radio" name="payment_scope" value="unpaid" checked> Unpaid allocations only</label>
                     <label><input type="radio" name="payment_scope" value="all"> All allocations, including paid</label>
                 </div>
-                <div class="hostel-bulk-note"><strong>What this does:</strong> the active occupant is removed, the payment flag is cleared, the bed is set to Reserved (bed type 1), and existing invoices remain available for audit. Paid records are never silently deleted.</div>
+                <div class="hostel-bulk-note"><strong>What this does:</strong> the active occupant is removed, the payment status is cleared, the existing payment method is retained, the bed is set to Reserved (bed type 1), and invoices remain available for audit. Paid records are never silently deleted.</div>
                 <div class="hostel-bulk-actions">
                     <button type="submit" class="hostel-bulk-btn hostel-bulk-btn-primary" id="bulkPreviewBtn"><i class="fas fa-search"></i> Preview matching allocations</button>
                     <button type="button" class="hostel-bulk-btn hostel-bulk-btn-light" id="bulkResetBtn">Reset filters</button>

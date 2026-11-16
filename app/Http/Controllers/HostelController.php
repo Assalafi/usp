@@ -1361,7 +1361,6 @@ class HostelController extends Controller
                 'occupant' => '',
                 'status' => 0,
                 'hostel_payment' => 0,
-                'payment_method' => null,
                 'bed_type' => 1,
             ]);
         });
@@ -1481,7 +1480,6 @@ class HostelController extends Controller
                     'occupant' => '',
                     'status' => 0,
                     'hostel_payment' => 0,
-                    'payment_method' => null,
                     'bed_type' => 1,
                 ]);
         });
