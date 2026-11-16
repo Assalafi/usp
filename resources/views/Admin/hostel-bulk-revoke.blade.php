@@ -32,9 +32,10 @@
     .hostel-bulk-status { margin-top:14px; font-size:.92rem; color:#557080; min-height:20px; }
     .hostel-bulk-list { margin-top:18px; border:1px solid #dcebe6; border-radius:12px; overflow:hidden; background:#fff; }
     .hostel-bulk-list-header { padding:12px 14px; background:#f6fbf9; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
-    .hostel-bulk-list-header strong { color:#185b4d; }
+    .hostel-bulk-list-header strong { color:#185b4d !important; font-weight:700; }
+    .hostel-bulk-list-header span { color:#5c716f !important; }
     .hostel-bulk-list .table { margin:0; }
-    .hostel-bulk-list .table th { white-space:nowrap; font-size:.72rem; text-transform:uppercase; color:#5c716f; background:#f8fbfa; }
+    .hostel-bulk-list .table th { white-space:nowrap; font-size:.72rem; text-transform:uppercase; color:#405b57 !important; background:#f8fbfa !important; font-weight:700; }
     .hostel-bulk-list .table td { white-space:nowrap; color:#294459; vertical-align:middle; }
     .hostel-bulk-list-scroll { max-height:380px; overflow:auto; }
     .hostel-bulk-list-nav { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:10px 12px; border-top:1px solid #e5efeb; }
