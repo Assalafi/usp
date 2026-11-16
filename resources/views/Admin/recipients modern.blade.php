@@ -48,7 +48,7 @@
 </style>
 
 <div class="main-body ug-recipient-admin"><div class="page-wrapper"><div class="row g-3">
-    <div class="col-12"><section class="ug-hero p-4"><div class="d-flex align-items-center justify-content-between gap-3"><div><h3><i class="fas fa-users me-2"></i>Hostel recipients</h3><p>Review assigned students, confirm hostel payment, and download permits from one place.</p></div><div class="ug-hero-icon d-none d-sm-grid"><i class="fas fa-clipboard-check"></i></div></div></section></div>
+    <div class="col-12"><section class="ug-hero p-4"><div class="d-flex align-items-center justify-content-between gap-3 flex-wrap"><div><h3><i class="fas fa-users me-2"></i>Hostel recipients</h3><p>Review assigned students, confirm hostel payment, and download permits from one place.</p></div><div class="d-flex align-items-center gap-2"><a href="{{ url('hostel bulk revoke') }}" class="btn btn-light btn-sm"><i class="fas fa-user-minus me-1"></i>Bulk revoke</a><div class="ug-hero-icon d-none d-sm-grid"><i class="fas fa-clipboard-check"></i></div></div></div></section></div>
     <div class="col-12 col-sm-4"><div class="ug-stat"><span class="ug-stat-icon blue"><i class="fas fa-users"></i></span><strong>{{ number_format($stats['total']) }}</strong><small>Recipients in this view</small></div></div>
     <div class="col-12 col-sm-4"><div class="ug-stat"><span class="ug-stat-icon green"><i class="fas fa-circle-check"></i></span><strong>{{ number_format($stats['paid']) }}</strong><small>Payment confirmed</small></div></div>
     <div class="col-12 col-sm-4"><div class="ug-stat"><span class="ug-stat-icon amber"><i class="fas fa-clock"></i></span><strong>{{ number_format($stats['unpaid']) }}</strong><small>Payment pending</small></div></div>
