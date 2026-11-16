@@ -94,23 +94,25 @@ class CheckRoleAccess
             return $next($request);
         }
 
-        // The approve-results page links lecturers to a course-specific
-        // pending-results review.  It is not a standalone catalogue page:
-        // access must be granted only when the logged-in lecturer is assigned
-        // to the requested course.  Handle this before PortalPermission so a
-        // lecturer is not incorrectly sent back to the dashboard for lacking
-        // a separate `/pending-results` roll.
-        if ($page === 'pending-results' && $request->query('approve') === 'system') {
-            $courseCode = trim((string) $request->query('code', ''));
-            $assignedToCourse = $courseCode !== '' &&
-                \Illuminate\Support\Facades\DB::table('course_allocation')
-                    ->where('username', session('username'))
-                    ->where('type', 'MAIN')
-                    ->where('course', $courseCode)
-                    ->exists();
+        // The approve-results page links staff to a course-specific
+        // pending-results review. It is not a standalone catalogue page:
+        // approval-stage users inherit access from Approve Results instead of
+        // needing a duplicate `/pending-results` roll.
+        if ($page === 'pending-results') {
+            $approvalStage = strtolower(trim((string) $request->query('approve', '')));
+            if ($approvalStage !== '') {
+                $courseCode = trim((string) $request->query('code', ''));
+                $assignedToCourse = $approvalStage === 'system'
+                    && $courseCode !== ''
+                    && \Illuminate\Support\Facades\DB::table('course_allocation')
+                        ->where('username', session('username'))
+                        ->where('type', 'MAIN')
+                        ->where('course', $courseCode)
+                        ->exists();
 
-            if ($assignedToCourse) {
-                return $next($request);
+                if ($assignedToCourse || PortalPermission::hasPageAccess('/approve results')) {
+                    return $next($request);
+                }
             }
         }
 
