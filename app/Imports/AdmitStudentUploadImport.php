@@ -9,11 +9,23 @@ use Maatwebsite\Excel\Concerns\ToCollection;
 /**
  * Bulk admission import for the Applicants page.
  *
- * The published admission list is authoritative by JAMB number only.
- * Existing faculty, department and programme values are intentionally kept.
+ * The published admission list is authoritative by JAMB number only. The
+ * selected academic entity is applied to every matched applicant that the
+ * upload admits (including applicants already marked as admitted).
  */
 class AdmitStudentUploadImport implements ToCollection
 {
+    private string $faculty;
+    private string $department;
+    private string $program;
+
+    public function __construct(string $faculty, string $department, string $program)
+    {
+        $this->faculty = $faculty;
+        $this->department = $department;
+        $this->program = $program;
+    }
+
     private bool $firstRow = true;
 
     private array $stats = [
@@ -56,6 +68,7 @@ class AdmitStudentUploadImport implements ToCollection
 
             $status = trim((string) $applicant->status);
             if (strcasecmp($status, 'Admitted') === 0) {
+                $applicant->update($this->academicAttributes());
                 $this->stats['already_admitted']++;
                 continue;
             }
@@ -70,6 +83,7 @@ class AdmitStudentUploadImport implements ToCollection
             }
 
             $applicant->update([
+                ...$this->academicAttributes(),
                 'status' => 'Admitted',
                 'admitted' => 1,
                 'admission_date' => now(),
@@ -105,6 +119,15 @@ class AdmitStudentUploadImport implements ToCollection
         }
 
         return '';
+    }
+
+    private function academicAttributes(): array
+    {
+        return [
+            'faculty' => $this->faculty,
+            'department' => $this->department,
+            'program' => $this->program,
+        ];
     }
 
     private function addDetail(int $row, string $jamb, string $reason): void

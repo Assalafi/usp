@@ -2587,16 +2587,52 @@ class RegistrationController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'file' => 'required|file|mimes:xlsx,xls',
+            'faculty' => 'required|string|max:50',
+            'department' => 'required|string|max:50',
+            'program' => 'required|string|max:50',
+        ], [
+            'faculty.required' => 'Select the faculty / college for this admission list.',
+            'department.required' => 'Select the department for this admission list.',
+            'program.required' => 'Select the programme for this admission list.',
         ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $faculty = trim((string) $request->input('faculty'));
+        $department = trim((string) $request->input('department'));
+        $program = trim((string) $request->input('program'));
+
+        $validAcademicPath = DB::table('faculty')
+            ->where('code', $faculty)
+            ->where('status', '1')
+            ->exists()
+            && DB::table('department')
+                ->where('code', $department)
+                ->where('faculty', $faculty)
+                ->where('status', '1')
+                ->exists()
+            && DB::table('program')
+                ->where('code', $program)
+                ->where('faculty', $faculty)
+                ->where('department', $department)
+                ->where('status', '1')
+                ->exists();
+
+        if (!$validAcademicPath) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'The selected faculty, department and programme do not form a valid academic path. Please select them again.');
+        }
 
         if ($request->hasFile('file')) {
             $file = $request->file('file');
-            // The published list is matched by JAMB number only. Academic
-            // entity fields are preserved per applicant, so mixed-programme
-            // admission lists are safe to process in one upload.
-            $import = new AdmitStudentUploadImport();
+            // The published list is matched by JAMB number only. The selected
+            // academic path is applied consistently to every matched row.
+            $import = new AdmitStudentUploadImport($faculty, $department, $program);
             Excel::import($import, $file);
 
             $summary = $import->summary();

@@ -700,8 +700,29 @@
                         <div class="alert alert-info mb-3">
                             <strong>JAMB-number matching</strong><br>
                             Upload the published admission list. Each row is matched to the applicant by JAMB number only;
-                            the applicant's existing faculty, department and programme are preserved.
+                            all matched applicants in this upload will be assigned the faculty, department and programme selected below.
                             Pending, submitted and previously rejected applicants on the list will be admitted.
+                        </div>
+                        <div class="form-group">
+                            <label for="facultyadmit">Faculty / College</label>
+                            <select class="form-control faculty" id="facultyadmit" name="faculty" lang="admit" required>
+                                <option value="">Select faculty / college</option>
+                                @foreach ($faculty as $row)
+                                    <option value="{{ $row->code }}">{{ $row->title }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="departmentadmit">Department</label>
+                            <select class="form-control department" id="departmentadmit" name="department" lang="admit" required>
+                                <option value="">Select faculty first</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="programadmit">Programme</label>
+                            <select class="form-control" id="programadmit" name="program" lang="admit" required>
+                                <option value="">Select department first</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label for="file">Admission list (.xlsx or .xls)</label>
