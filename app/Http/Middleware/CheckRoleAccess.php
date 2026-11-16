@@ -94,6 +94,26 @@ class CheckRoleAccess
             return $next($request);
         }
 
+        // The approve-results page links lecturers to a course-specific
+        // pending-results review.  It is not a standalone catalogue page:
+        // access must be granted only when the logged-in lecturer is assigned
+        // to the requested course.  Handle this before PortalPermission so a
+        // lecturer is not incorrectly sent back to the dashboard for lacking
+        // a separate `/pending-results` roll.
+        if ($page === 'pending-results' && $request->query('approve') === 'system') {
+            $courseCode = trim((string) $request->query('code', ''));
+            $assignedToCourse = $courseCode !== '' &&
+                \Illuminate\Support\Facades\DB::table('course_allocation')
+                    ->where('username', session('username'))
+                    ->where('type', 'MAIN')
+                    ->where('course', $courseCode)
+                    ->exists();
+
+            if ($assignedToCourse) {
+                return $next($request);
+            }
+        }
+
         // Check course allocation
         $encodedPage = str_replace(' ', '%20', $page);
         if (in_array($page, $this->courseAllocationPages) || in_array($encodedPage, $this->courseAllocationPages)) {

@@ -200,6 +200,25 @@ class ResultsController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
+
+        // Keep the course-specific review link from approve-results scoped to
+        // the lecturer who actually owns the course allocation.  The
+        // middleware performs the same check, but this controller guard also
+        // protects the endpoint if it is called through another route or
+        // middleware configuration.
+        if (session('accType') === 'Staff' && $req->query('approve') === 'system') {
+            $courseCode = trim((string) $req->query('code', ''));
+            $assignedToCourse = $courseCode !== '' && DB::table('course_allocation')
+                ->where('username', session('username'))
+                ->where('type', 'MAIN')
+                ->where('course', $courseCode)
+                ->exists();
+
+            if (!$assignedToCourse) {
+                return redirect('/')->with('error', 'You are not assigned to this course.');
+            }
+        }
+
         $session = \App\Http\Controllers\SystemSettingsController::getResultsSession();
         if ($req->has('_token')) {
             $data = $req->all();
