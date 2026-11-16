@@ -1464,7 +1464,10 @@ class HostelController extends Controller
         $lastId = (int) ($filters['last_id'] ?? 0);
         $batchSize = (int) ($filters['batch_size'] ?? 100);
         $rows = $this->bulkRevokeQuery($filters)->where('id', '>', $lastId)
-            ->orderBy('id')->limit($batchSize)->get(['id']);
+            ->orderBy('id')->limit($batchSize)->get([
+                'id', 'hall', 'block', 'room', 'bed', 'occupant',
+                'hostel_payment', 'payment_method',
+            ]);
 
         if ($rows->isEmpty()) {
             return response()->json(['processed' => 0, 'last_id' => $lastId, 'done' => true]);
@@ -1488,6 +1491,19 @@ class HostelController extends Controller
             'processed' => (int) $processed,
             'last_id' => (int) $rows->last()->id,
             'done' => $rows->count() < $batchSize,
+            'items' => $rows->map(function ($row) {
+                return [
+                    'id' => (int) $row->id,
+                    'occupant' => (string) ($row->occupant ?? ''),
+                    'hall' => (string) ($row->hall ?? ''),
+                    'block' => (string) ($row->block ?? ''),
+                    'room' => (string) ($row->room ?? ''),
+                    'bed' => (string) ($row->bed ?? ''),
+                    'previous_payment' => (int) $row->hostel_payment === 1 ? 'Confirmed' : 'Pending',
+                    'payment_method' => (string) ($row->payment_method ?? ''),
+                    'result' => 'Revoked',
+                ];
+            })->values(),
         ]);
     }
 

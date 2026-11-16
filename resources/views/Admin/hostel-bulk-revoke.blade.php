@@ -90,6 +90,11 @@
                 <div class="hostel-bulk-progress-track"><div class="hostel-bulk-progress-bar" id="bulkProgressBar"></div></div>
                 <div class="hostel-bulk-status" id="bulkStatus"></div>
             </div>
+            <div id="bulkCompletion" class="hostel-bulk-note" style="display:none; margin-top:18px; background:#eefaf5; color:#185b4d;">
+                <strong>Revocation completed</strong>
+                <div id="bulkCompletionText" style="margin-top:5px;"></div>
+                <button type="button" class="hostel-bulk-btn hostel-bulk-btn-primary" id="bulkExportBtn" style="margin-top:13px;"><i class="fas fa-file-csv"></i> Export revocation summary</button>
+            </div>
         </div>
     </section>
 </div>
@@ -105,7 +110,11 @@
     const startBtn = document.getElementById('bulkStartBtn');
     const progress = document.getElementById('bulkProgress');
     const status = document.getElementById('bulkStatus');
+    const completion = document.getElementById('bulkCompletion');
+    const completionText = document.getElementById('bulkCompletionText');
+    const exportBtn = document.getElementById('bulkExportBtn');
     let preview = null;
+    let revokedRecords = [];
 
     function csrf() { return form.querySelector('input[name="_token"]').value; }
     function payload(lastId) {
@@ -136,17 +145,19 @@
         } catch (error) { alert(error.message); }
         finally { setBusy(previewBtn, false); }
     });
-    resetBtn.addEventListener('click', function () { form.reset(); resultCard.style.display='none'; preview=null; });
+    resetBtn.addEventListener('click', function () { form.reset(); resultCard.style.display='none'; preview=null; revokedRecords=[]; completion.style.display='none'; });
     startBtn.addEventListener('click', async function () {
         if (!preview || !preview.total) return;
         if (!window.confirm('Revoke ' + preview.total.toLocaleString() + ' allocation(s)? Their active payment flag will be cleared and the beds will return to Reserved (bed type 1). Existing invoices will remain for audit.')) return;
         setBusy(startBtn, true, 'Revoking…');
         previewBtn.disabled = true; resetBtn.disabled = true; progress.classList.add('is-active');
         let lastId = 0, processed = 0;
+        revokedRecords = [];
         try {
             while (true) {
                 const result = await jsonRequest(root.dataset.processUrl, payload(lastId));
                 processed += Number(result.processed || 0);
+                revokedRecords = revokedRecords.concat(Array.isArray(result.items) ? result.items : []);
                 lastId = Number(result.last_id || lastId);
                 const percent = preview.total ? Math.min(100, Math.round((processed / preview.total) * 100)) : 100;
                 document.getElementById('bulkProgressBar').style.width = percent + '%';
@@ -156,9 +167,25 @@
             }
             status.textContent = 'Completed successfully. ' + processed.toLocaleString() + ' allocation(s) were revoked. You can return to Hostel Recipients to confirm the updated list.';
             status.style.color = '#16705e';
+            const paid = revokedRecords.filter(row => row.previous_payment === 'Confirmed').length;
+            const unpaid = revokedRecords.length - paid;
+            const locations = new Set(revokedRecords.map(row => row.hall).filter(Boolean)).size;
+            completionText.textContent = processed.toLocaleString() + ' allocation(s) were released; ' + paid.toLocaleString() + ' previously paid and ' + unpaid.toLocaleString() + ' previously pending. ' + locations.toLocaleString() + ' hall(s) were affected. Payment methods and invoice history were preserved.';
+            completion.style.display = '';
             startBtn.disabled = true;
         } catch (error) { status.textContent = error.message; status.style.color = '#b4233c'; }
         finally { setBusy(startBtn, false); previewBtn.disabled = false; resetBtn.disabled = false; }
+    });
+    function csvCell(value) { return '"' + String(value ?? '').replace(/"/g, '""') + '"'; }
+    exportBtn.addEventListener('click', function () {
+        if (!revokedRecords.length) return;
+        const headers = ['Allocation ID','Student ID','Hall','Block','Room','Bed','Previous payment status','Payment method','Result'];
+        const lines = [headers.map(csvCell).join(',')].concat(revokedRecords.map(row => [row.id,row.occupant,row.hall,row.block,row.room,row.bed,row.previous_payment,row.payment_method,row.result].map(csvCell).join(',')));
+        const blob = new Blob(['\ufeff' + lines.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'hostel-revocation-summary-' + new Date().toISOString().slice(0,10) + '.csv';
+        document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(link.href);
     });
 })();
 </script>
