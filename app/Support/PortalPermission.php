@@ -74,7 +74,10 @@ final class PortalPermission
         'admin/remita-finance-live' => '/admin/remita-finance-live',
         'admin/make-payment' => '/admin/make-payment',
         'admin/receipts' => '/admin/receipts',
-        'admin/student-results' => '/admin/student-results',
+        // Student academic records are opened from the Student List. Reuse
+        // that page permission for the detail, AJAX and PDF routes so staff
+        // do not need a duplicate permission just to view a student's results.
+        'admin/student-results' => '/students list',
         'admin/hostel-permit' => '/admin/hostel-permit',
         'change hall' => '/hostel recipients',
         'change bed' => '/hostel recipients',
