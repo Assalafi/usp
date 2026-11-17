@@ -963,6 +963,18 @@ class InvoicesController extends Controller
     public function verify(Request $req)
     {
         $rrr = trim((string) $req->rrr);
+
+        // A paid invoice has already been confirmed by Remita/webhook/admin
+        // processing. Do not send it back to an endpoint that may temporarily
+        // return 404 for an otherwise settled reference.
+        $existingInvoice = DB::table('invoices')->where('rrr', $rrr)->first();
+        if ($existingInvoice
+            && in_array((string) $existingInvoice->rrr_status, ['00', '01'], true)
+            && (string) $existingInvoice->status === 'Paid'
+            && ((string) $existingInvoice->username === (string) session('id') || session('accType') === 'Admin')) {
+            return redirect()->back()->with('success', 'Payment already verified.');
+        }
+
         $merchantId = $this->merchantId;
         $apiKey = $this->apiKey;
 
