@@ -178,6 +178,12 @@
                         <span class="pcoded-mtext">Programme Courses</span>
                     </a>
                 </li>
+                <li class="nav-item @if ($page == 'hod staff roles') active @endif">
+                    <a href="/hod staff roles" class="nav-link">
+                        <span class="pcoded-micon"><i class="fas fa-user-check"></i></span>
+                        <span class="pcoded-mtext">Staff</span>
+                    </a>
+                </li>
             @endif
 
             <li class="nav-item">

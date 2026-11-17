@@ -501,6 +501,8 @@
                         @include('Admin.rolls-permissions-modern')
                     @elseif ($page == 'program course registration')
                         @include('Admin.program-course-registration-modern')
+                    @elseif ($page == 'hod staff roles')
+                        @include('Admin.hod-staff-roles')
                     @elseif (session('accType') == 'Admin' && $page == 'election results')
                         @include('Admin.election-results-modern')
                     @elseif(in_array(session('accType'), ['Admin', 'Staff'], true) && $page == 'election live')

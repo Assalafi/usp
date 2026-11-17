@@ -25,6 +25,7 @@ use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\ResultsController;
 use App\Http\Controllers\SmsController;
 use App\Http\Controllers\StaffController;
+use App\Http\Controllers\HodStaffRoleController;
 use App\Http\Controllers\AlumniController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\StudentController;
@@ -893,6 +894,9 @@ Route::get('/reference-data/{type}/bulk-upload', [ReferenceDataController::class
 Route::post('/reference-data/{type}/process-bulk-upload', [ReferenceDataController::class, 'processBulkUpload'])->middleware('role');
 Route::get('/reference-data/{type}/download-template', [ReferenceDataController::class, 'downloadTemplate'])->middleware('role');
 Route::post('/update-staff', [StaffController::class, 'update'])->middleware('role');
+Route::get('/hod staff roles', [HodStaffRoleController::class, 'index'])->name('hod.staff.roles')->middleware('role');
+Route::post('/hod staff roles/assign', [HodStaffRoleController::class, 'assign'])->name('hod.staff.roles.assign')->middleware('role');
+Route::post('/hod staff roles/remove', [HodStaffRoleController::class, 'remove'])->name('hod.staff.roles.remove')->middleware('role');
 Route::get('/staff/download-template', [StaffController::class, 'downloadStaffTemplate'])->middleware('role');
 Route::get('staff-record-update/{id}', function ($id) {
     if (!session()->has('log')) {
