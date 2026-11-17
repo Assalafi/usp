@@ -31,7 +31,9 @@ class CheckRoleAccess
 
     public function handle(Request $request, Closure $next)
     {
-        if (session('accType') == 'Admin') {
+        $accountType = strtolower(trim((string) session('accType')));
+
+        if ($accountType === 'admin') {
             return $next($request);
         }
 
@@ -65,16 +67,23 @@ class CheckRoleAccess
             return redirect('/')->with('error', 'You do not have access to this page.');
         }
 
+        // The applicant dashboard uses the historical admin-applicant PDF
+        // URL. The controller verifies record ownership before rendering it.
+        if ($accountType === 'applicant'
+            && preg_match('#^admin/applicant/[^/]+/pdf$#', $page)) {
+            return $next($request);
+        }
+
         // Student/applicant accounts can use their self-service pages, but
         // must never be able to call an administrative action directly.
-        if (!in_array(session('accType'), ['Staff', 'Admin'], true)
+        if (!in_array($accountType, ['staff', 'admin'], true)
             && $this->isManagementEndpoint($page)) {
             abort(403, 'This action is available to authorised staff only.');
         }
 
         // Skip staff-roll checks for non-Staff users (Students, Applicants,
         // etc.) after the explicit management guard above.
-        if (session('accType') != 'Staff') {
+        if ($accountType !== 'staff') {
             return $next($request);
         }
 
@@ -88,7 +97,7 @@ class CheckRoleAccess
 
         // Developers use the same portal login as staff. Their task board and
         // task actions are explicitly scoped by the task controller.
-        if (session('accType') === 'Staff'
+        if ($accountType === 'staff'
             && in_array(strtoupper(trim((string) session('appointment'))), ['DEVELOPER', 'DEVELOPMENT', 'IT', 'ICT'], true)
             && (strpos($page, 'developer-tasks') === 0 || strpos($page, 'developer tasks') === 0)) {
             return $next($request);

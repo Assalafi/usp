@@ -3478,9 +3478,27 @@ class RegistrationController extends Controller
             return redirect('/');
         }
 
+        $accountType = strtolower(trim((string) session('accType')));
+        $applicant = null;
+
+        // This endpoint is also linked from the applicant dashboard. An
+        // applicant may download only their own record; staff/admin access is
+        // still controlled by the route permission middleware.
+        if ($accountType === 'applicant') {
+            $applicant = Applicant::where('id', $id)
+                ->where('user_id', session('id'))
+                ->first();
+
+            if (!$applicant) {
+                abort(403, 'You can only download your own application record.');
+            }
+        } elseif (!in_array($accountType, ['staff', 'admin'], true)) {
+            abort(403, 'This action is available to authorised staff only.');
+        }
+
         try {
             // Find the applicant and related data
-            $applicant = Applicant::findOrFail($id);
+            $applicant = $applicant ?: Applicant::findOrFail($id);
 
             // Get JAMB information if UTME applicant
             $jambData = [];
