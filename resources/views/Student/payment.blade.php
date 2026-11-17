@@ -328,6 +328,40 @@
 <script>
     (function () {
         const verifyUrl = @json(url('/verify'));
+        let verificationStarted = false;
+        function startVerification(control) {
+            if (verificationStarted) return false;
+            verificationStarted = true;
+            control.dataset.originalVerificationLabel = control.innerHTML;
+            control.setAttribute('aria-disabled', 'true');
+            control.setAttribute('aria-busy', 'true');
+            control.classList.add('disabled');
+            control.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Checking...';
+            if (control.tagName === 'BUTTON') control.disabled = true;
+            return true;
+        }
+        document.addEventListener('click', function (event) {
+            const link = event.target.closest('a[href]');
+            if (link && link.href.startsWith(verifyUrl + '/')) {
+                if (!startVerification(link)) event.preventDefault();
+            }
+        });
+        document.querySelector('#verifyInvoiceModal form')?.addEventListener('submit', function (event) {
+            const button = this.querySelector('button[type="submit"]');
+            if (!startVerification(button)) event.preventDefault();
+        });
+        // Restore controls when returning through the browser's back/forward cache.
+        window.addEventListener('pageshow', function () {
+            verificationStarted = false;
+            document.querySelectorAll('[data-original-verification-label]').forEach(function (control) {
+                control.innerHTML = control.dataset.originalVerificationLabel;
+                control.classList.remove('disabled');
+                control.removeAttribute('aria-disabled');
+                control.removeAttribute('aria-busy');
+                control.disabled = false;
+                delete control.dataset.originalVerificationLabel;
+            });
+        });
         const publicKey = @json(config('services.remita.public_key'));
         const remitaScript = document.getElementById('remita-widget-script');
         let remitaLoadError = null;

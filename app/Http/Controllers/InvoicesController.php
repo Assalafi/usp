@@ -962,128 +962,135 @@ class InvoicesController extends Controller
 
     public function verify(Request $req)
     {
-        $rrr = trim((string) $req->rrr);
-
-        // A paid invoice has already been confirmed by Remita/webhook/admin
-        // processing. Do not send it back to an endpoint that may temporarily
-        // return 404 for an otherwise settled reference.
-        $existingInvoice = DB::table('invoices')->where('rrr', $rrr)->first();
-        if ($existingInvoice
-            && in_array((string) $existingInvoice->rrr_status, ['00', '01'], true)
-            && (string) $existingInvoice->status === 'Paid'
-            && ((string) $existingInvoice->username === (string) session('id') || session('accType') === 'Admin')) {
-            return redirect()->back()->with('success', 'Payment already verified.');
+        if (!session()->has('log')) {
+            return redirect('/');
+        }
+        $rrr = trim((string) ($req->route('rrr') ?? $req->input('rrr', '')));
+        if (!preg_match('/^[0-9]{12}$/', $rrr)) {
+            return $this->verificationNotice($req, 'error', 'Enter the 12-digit Remita reference printed on your invoice.');
         }
 
-        $merchantId = $this->merchantId;
-        $apiKey = $this->apiKey;
+        $query = DB::table('invoices')->where('rrr', $rrr);
+        if (session('accType') !== 'Admin') {
+            $query->where('username', session('id'));
+        }
+        $existingInvoice = $query->first();
+        if (!$existingInvoice) {
+            return $this->verificationNotice($req, 'error', 'This payment reference was not found on your account. Check the RRR or contact the accounts office.');
+        }
+        if ($this->invoiceIsConfirmed($existingInvoice)) {
+            return $this->verificationNotice($req, 'success', 'Payment already verified. Your receipt is available.');
+        }
 
-        // Keep the configured base URL safe when it contains a trailing slash.
-        $baseUrl = rtrim((string) \App\Http\Controllers\SystemSettingsController::getRemitaBaseUrl(), '/');
-        $requestRemitaStatus = function ($value, $endpoint) use ($baseUrl, $merchantId, $apiKey) {
-            $hash = hash('sha512', $value . '' . $apiKey . '' . $merchantId);
-            $url = $baseUrl . '/remita/exapp/api/v1/send/api/echannelsvc/'
-                . $merchantId . '/' . $value . '/' . $hash . '/' . $endpoint;
+        // File locks are shared by PHP workers, including installations whose
+        // default cache is not configured to support distributed locks.
+        $lock = \Illuminate\Support\Facades\Cache::store('file')->lock('remita-verify-' . $existingInvoice->id, 45);
+        if (!$lock->get()) {
+            return $this->verificationNotice($req, 'info', 'This payment is already being checked. Please wait a moment before checking again.');
+        }
 
-            $curl = curl_init();
-            curl_setopt_array($curl, array(
-                CURLOPT_URL => $url,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_ENCODING => '',
-                CURLOPT_MAXREDIRS => 10,
-                CURLOPT_TIMEOUT => 15,
-                CURLOPT_CONNECTTIMEOUT => 10,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                CURLOPT_CUSTOMREQUEST => 'GET',
-                CURLOPT_HTTPHEADER => array(
-                    'Content-Type: application/json',
-                    'Authorization: remitaConsumerKey=' . $merchantId . ',remitaConsumerToken=' . $hash,
-                ),
-            ));
-
-            $result = [
-                'response' => curl_exec($curl),
-                'curl_error' => curl_error($curl),
-                'http_code' => curl_getinfo($curl, CURLINFO_HTTP_CODE),
-            ];
-            curl_close($curl);
-
-            return $result;
-        };
-
-        $result = $requestRemitaStatus($rrr, 'status.reg');
-        $response = $result['response'];
-        $curl_error = $result['curl_error'];
-        $http_code = $result['http_code'];
-
-        // Some paid/split invoices are not resolvable through Remita's RRR
-        // endpoint, although the same transaction is available by order ID.
-        // Use the stored order ID as a safe, transaction-specific fallback.
-        if ($http_code === 404 && $response !== false) {
-            $orderId = DB::table('invoices')
-                ->where('rrr', $rrr)
-                ->whereNotNull('orderId')
-                ->where('orderId', '!=', '')
-                ->value('orderId');
-
-            if ($orderId) {
-                $fallback = $requestRemitaStatus($orderId, 'orderstatus.reg');
-                $fallbackData = json_decode((string) $fallback['response'], true);
-                $fallbackRrr = is_array($fallbackData)
-                    ? (string) ($fallbackData['rrr'] ?? $fallbackData['RRR'] ?? '')
-                    : '';
-
-                // Never accept an order-status response for a different RRR.
-                if ($fallback['http_code'] === 200 && $fallbackRrr === $rrr) {
-                    $response = $fallback['response'];
-                    $curl_error = $fallback['curl_error'];
-                    $http_code = $fallback['http_code'];
-                }
+        try {
+            $existingInvoice = DB::table('invoices')->where('id', $existingInvoice->id)->first();
+            if (!$existingInvoice) {
+                return $this->verificationNotice($req, 'error', 'This invoice is no longer available. Please contact the accounts office.');
             }
-        }
-
-        // Check for cURL errors (including timeouts)
-        if ($response === false || !empty($curl_error)) {
-            $error_msg = 'Payment verification failed. ';
-            if (strpos($curl_error, 'timeout') !== false || strpos($curl_error, 'Operation timed out') !== false) {
-                $error_msg = 'Payment verification timed out. Please try again in a moment.';
-            } elseif (!empty($curl_error)) {
-                $error_msg .= 'Connection error occurred.';
-            } else {
-                $error_msg .= 'Unable to connect to payment gateway.';
+            if ($this->invoiceIsConfirmed($existingInvoice)) {
+                return $this->verificationNotice($req, 'success', 'Payment already verified. Your receipt is available.');
             }
-            return redirect()->back()->with('error', $error_msg);
-        }
 
-        // Check HTTP response code
-        if ($http_code !== 200) {
-            return redirect()->back()->with('error', 'Payment verification service unavailable (HTTP ' . $http_code . '). Please try again later.');
-        }
+            $baseUrl = (string) SystemSettingsController::getRemitaBaseUrl();
+            $cacheKey = 'remita-check-v2-' . hash('sha256', implode('|', [
+                $existingInvoice->id, $existingInvoice->rrr, $existingInvoice->orderId,
+                $existingInvoice->amount, $existingInvoice->serviceTypeId,
+                $existingInvoice->status, $baseUrl, (string) $this->merchantId,
+            ]));
+            $cache = \Illuminate\Support\Facades\Cache::store('file');
+            $result = $cache->get($cacheKey);
+            if (!is_array($result)) {
+                $result = app(\App\Services\RemitaVerificationService::class)->verify(
+                    $existingInvoice, $baseUrl, (string) $this->merchantId, (string) $this->apiKey
+                );
+                // Briefly share the result across repeat clicks. Never cache
+                // pending long enough to hide a newly settled payment.
+                $cache->put($cacheKey, $result, 10);
+                Log::info('Remita payment verification', [
+                    'invoice_id' => $existingInvoice->id,
+                    'state' => $result['state'],
+                    'reason' => $result['reason'] ?? null,
+                    'attempts' => $result['attempts'],
+                ]);
+            }
 
-        $obj = json_decode($response, true);
-        if (!is_array($obj) || !isset($obj['status'])) {
-            return redirect()->back()->with('error', 'Invalid response from payment gateway. Please try again.');
+            if ($result['state'] === 'paid') {
+                return $this->settleVerifiedInvoice($req, $existingInvoice, $result['status']);
+            }
+            // A webhook or administrator may have confirmed it while we were
+            // waiting for the gateway. A failed check must not override that.
+            if ($this->invoiceIsConfirmed(DB::table('invoices')->where('id', $existingInvoice->id)->first())) {
+                return $this->verificationNotice($req, 'success', 'Payment already verified. Your receipt is available.');
+            }
+            if ($result['state'] === 'pending') {
+                return $this->verificationNotice($req, 'info', 'Remita has not confirmed this payment yet. If you have been debited, please wait and check again; do not pay again while confirmation is pending.');
+            }
+            if ($result['state'] === 'review') {
+                return $this->verificationNotice($req, 'error', 'Remita returned payment details that do not match this invoice. Please contact the accounts office with your RRR. Do not pay again.');
+            }
+            return $this->verificationNotice($req, 'info', 'We could not obtain confirmation from Remita after retrying. Your recorded payment status has not changed. Please check again shortly. If you have been debited, do not pay again.');
+        } catch (\Throwable $e) {
+            // Do not log exception messages: HTTP exceptions may contain a
+            // signed URL or a gateway response containing personal details.
+            Log::error('Payment verification could not complete', [
+                'invoice_id' => $existingInvoice->id ?? null,
+                'exception_type' => get_class($e),
+            ]);
+            return $this->verificationNotice($req, 'error', 'We could not complete the payment check. Please try again shortly or contact the accounts office with your RRR.');
+        } finally {
+            $lock->release();
         }
+    }
 
-        $status = $obj['status'];
-        // dd($obj);
-        $datas['rrr_status'] = $status;
-        if ($status == '021') {
-            // echo '<div class="alert alert-warning">Transaction Pending</div>';
-            return redirect()->back()->with('error', 'Transaction Pending');
-        } elseif ($status == '023') {
-            // echo '<div class="alert alert-danger">Invalid RRR</div>';
-            return redirect()->back()->with('error', 'Invalid RRR');
-        } elseif (in_array($status, ['00', '01'])) {
-            // Update invoice status to Paid
-            $datas['status'] = 'Paid';
-            $datas['rrr_status'] = $status;
-            $datas['updated_at'] = now();
+    private function invoiceIsConfirmed($invoice): bool
+    {
+        return $invoice && (string) $invoice->status === 'Paid';
+    }
+
+    private function verificationNotice(Request $request, string $type, string $message)
+    {
+        // Clear the previous check's flash message to avoid simultaneous,
+        // contradictory notices. A direct verification link returns to payments.
+        $request->session()->forget(['error', 'info', 'success', 'warning']);
+        $back = url()->previous();
+        if (!$request->headers->get('referer') || strpos((string) parse_url($back, PHP_URL_PATH), '/verify') === 0) {
+            $back = url('/payment');
+        }
+        return redirect($back)->with($type, $message);
+    }
+
+    private function settleVerifiedInvoice(Request $req, $existingInvoice, string $status)
+    {
+        return DB::transaction(function () use ($req, $existingInvoice, $status) {
+            $lockedInvoice = DB::table('invoices')->where('id', $existingInvoice->id)->lockForUpdate()->first();
+            if (!$lockedInvoice) {
+                throw new \RuntimeException('Invoice removed during verification.');
+            }
+            if ($this->invoiceIsConfirmed($lockedInvoice)) {
+                return $this->verificationNotice($req, 'success', 'Payment already verified. Your receipt is available.');
+            }
+            if ((string) $lockedInvoice->rrr !== (string) $existingInvoice->rrr
+                || (string) $lockedInvoice->orderId !== (string) $existingInvoice->orderId
+                || (string) $lockedInvoice->username !== (string) $existingInvoice->username
+                || (string) $lockedInvoice->serviceTypeId !== (string) $existingInvoice->serviceTypeId
+                || (string) $lockedInvoice->status !== (string) $existingInvoice->status
+                || (int) round((float) $lockedInvoice->amount * 100) !== (int) round((float) $existingInvoice->amount * 100)) {
+                return $this->verificationNotice($req, 'info', 'This invoice changed while it was being checked. Please verify it again.');
+            }
+            DB::table('invoices')->where('id', $existingInvoice->id)->update([
+                'status' => 'Paid', 'rrr_status' => $status, 'updated_at' => now(),
+            ]);
 
             // Get invoice descriptions for this payment
             $invoices = DB::table('invoices')
-                ->where(['rrr' => $rrr, 'username' => session('id')])
+                ->where('id', $existingInvoice->id)
                 ->select('description', 'username', 'hostel_id')
                 ->get();
 
@@ -1094,6 +1101,10 @@ class InvoicesController extends Controller
                     $username = DB::table('students')
                         ->where('user_id', $invoice->username)
                         ->value('username');
+
+                    if (!$username) {
+                        continue;
+                    }
 
                     $hostelQuery = DB::table('hostel')->where('occupant', $username);
                     if (!empty($invoice->hostel_id)) {
@@ -1112,15 +1123,14 @@ class InvoicesController extends Controller
                             ->where('id', $hostelToSettle->id)
                             ->update(['hostel_payment' => '1']);
                     }
-                    // dd($invoice, $username);
                 } elseif ($invoice->description == 'UNIVERSITY OF MAIDUGURI-1000127 FEES') {
                     // Handle ID number assignment
                     $session = DB::table('session')->where('status', '1')->value('title');
 
                     $student = Student::where([
-                        'user_id' => session('id'),
+                        'user_id' => $existingInvoice->username,
                         'session_of_entry' => $session,
-                    ])->first();
+                    ])->lockForUpdate()->first();
 
                     // Skip if student not found
                     if (!$student) {
@@ -1129,7 +1139,7 @@ class InvoicesController extends Controller
 
                     // Only assign ID if student doesn't have one
                     if ($student->id_no == 0) {
-                        $data = Student::where(['user_id' => session('id')])
+                        $data = Student::where(['user_id' => $existingInvoice->username])
                             ->select('id_format', 'department', 'session_of_entry')
                             ->first();
 
@@ -1161,19 +1171,19 @@ class InvoicesController extends Controller
 
                         // Verify ID is unique
                         if (!Student::where('username', $id_number)->exists()) {
-                            Student::where(['user_id' => session('id')])
+                            Student::where(['user_id' => $existingInvoice->username])
                                 ->where('id_no', 0)
                                 ->update([
                                     'username' => $id_number,
                                     'id_no' => $id_no
                                 ]);
 
-                            $req->session()->put('id_number', $id_number);
+                            if ((string) $existingInvoice->username === (string) session('id')) {
+                                $req->session()->put('id_number', $id_number);
+                            }
                             $req->session()->put('log', '1');
 
-                            return redirect()
-                                ->back()
-                                ->with('success', $id_number . ' assigned as your ID Number');
+                            return $this->verificationNotice($req, 'success', $id_number . ' assigned as your ID Number');
                         }
                     }
                 } elseif ($invoice->description == 'POST UTME') {
@@ -1181,18 +1191,13 @@ class InvoicesController extends Controller
                 }
             }
 
-            // Update invoice status
-            DB::table('invoices')->where('rrr', $rrr)->update($datas);
             if ($hasPostUtme) {
-                // return to application route
+                $req->session()->forget(['error', 'info', 'success', 'warning']);
                 $req->session()->put('log', '1');
                 return redirect('/application')->with('success', 'Successfully Paid');
             }
-            return redirect()->back()->with('success', 'Successfully Paid');
-        } else {
-            // echo $response;
-            return redirect()->back()->with('error', 'Error from Remita site. Status code: ' . $status);
-        }
+            return $this->verificationNotice($req, 'success', 'Payment verified successfully.');
+        }, 3);
     }
 
     public function uploadPayment(Request $request)
