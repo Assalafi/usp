@@ -1747,11 +1747,16 @@ class RegistrationController extends Controller
             return redirect('/');
         }
 
-        if (session('accType') === 'Student') {
+        $isSubmit = $request->input('profile_action') === 'submit' || $request->boolean('submit_profile');
+
+        // Keep ordinary profile editing closed for students, but allow the
+        // mandatory profile workflow (?required=1) to submit through this
+        // endpoint. Previously this redirect ran before $isSubmit was
+        // evaluated, so required submissions silently returned to /profile.
+        if (session('accType') === 'Student' && !$isSubmit) {
             return redirect('/profile')->with('info', 'Profile editing is temporarily closed. You can still view your profile.');
         }
 
-        $isSubmit = $request->input('profile_action') === 'submit' || $request->boolean('submit_profile');
         $required = $isSubmit ? 'required' : 'nullable';
         $modeInput = strtoupper(trim((string) $request->input('mode_of_entry', '')));
         if ($modeInput === 'DIRECT ENTRY') {
