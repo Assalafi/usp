@@ -121,7 +121,7 @@
                                 </a>
                             @endif
                             
-                            @if(session('accType') == 'Admin')
+                            @if($canEdit ?? false)
                                 <a href="{{ route('change-of-course.bulk-edit', $app->id) }}" class="btn btn-sm btn-warning" title="Bulk Edit">
                                     <i class="fas fa-edit"></i>
                                 </a>

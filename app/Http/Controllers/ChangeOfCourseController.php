@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Services\RemitaPaymentService;
+use App\Support\PortalPermission;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -17,6 +18,39 @@ class ChangeOfCourseController extends Controller
     {
         $this->merchantId = config('services.remita.merchant_id');
         $this->apiKey = config('services.remita.api_key');
+    }
+
+    /**
+     * Administrative Change of Course access is permission based. The old
+     * implementation additionally required a hard-coded appointment, so a
+     * staff member with the page permission could not open records or edit.
+     * Approval authority is still checked separately by the workflow helpers.
+     */
+    private function canUseAdminPage(string $action = 'view'): bool
+    {
+        if (!session()->has('log')) {
+            return false;
+        }
+
+        if (session('accType') === 'Admin') {
+            return true;
+        }
+
+        if (session('accType') !== 'Staff') {
+            return false;
+        }
+
+        return PortalPermission::hasPageAccess('/change-of-course/admin')
+            && PortalPermission::allows('/change-of-course/admin', $action);
+    }
+
+    private function rejectAdminPageAccess(bool $json = false, string $message = 'You do not have permission to use this Change of Course action.')
+    {
+        if ($json) {
+            return response()->json(['error' => $message], 403);
+        }
+
+        return redirect('/')->with('error', $message);
     }
 
     /**
@@ -746,22 +780,19 @@ class ChangeOfCourseController extends Controller
      */
     public function adminIndex(Request $request)
     {
-        if (!session()->has('log')) {
-            return redirect('/')->with('error', 'Unauthorized access');
+        if (!$this->canUseAdminPage('view')) {
+            return $this->rejectAdminPageAccess(false, 'You do not have access to the Change of Course page.');
         }
 
         // Check if Admin or Staff with appropriate appointment
         $isAdmin = session('accType') == 'Admin';
-        $isHOD = session('accType') == 'Staff' && session('appointment') == 'HOD';
-        $isDean = session('accType') == 'Staff' && session('appointment') == 'DEAN';
-        $isProvost = session('accType') == 'Staff' && session('appointment') == 'PROVOST';
-        $isRegistrar = session('accType') == 'Staff' && session('appointment') == 'REGISTRAR';
-        $isVC = session('accType') == 'Staff' && session('appointment') == 'VC';
-        $isCOC = session('accType') == 'Staff' && session('appointment') == 'COC';
-
-        if (!$isAdmin && !$isHOD && !$isDean && !$isProvost && !$isRegistrar && !$isVC && !$isCOC) {
-            return redirect('/')->with('error', 'Unauthorized access');
-        }
+        $appointment = strtoupper(trim((string) session('appointment')));
+        $isHOD = session('accType') == 'Staff' && $appointment == 'HOD';
+        $isDean = session('accType') == 'Staff' && $appointment == 'DEAN';
+        $isProvost = session('accType') == 'Staff' && $appointment == 'PROVOST';
+        $isRegistrar = session('accType') == 'Staff' && $appointment == 'REGISTRAR';
+        $isVC = session('accType') == 'Staff' && $appointment == 'VC';
+        $isCOC = session('accType') == 'Staff' && $appointment == 'COC';
 
         $query = DB::table('change_of_course');
 
@@ -812,7 +843,9 @@ class ChangeOfCourseController extends Controller
         $data = [
             'page' => 'change of course admin',
             'applications' => $applications,
-            'userRole' => $isAdmin ? 'Admin' : ($isCOC ? 'COC' : ($isHOD ? 'HOD' : ($isDean ? 'Dean' : ($isRegistrar ? 'Registrar' : 'VC')))),
+            'userRole' => $isAdmin ? 'Admin' : ($isCOC ? 'COC' : ($isHOD ? 'HOD' : ($isDean ? 'Dean' : ($isProvost ? 'Provost' : ($isRegistrar ? 'Registrar' : ($isVC ? 'VC' : 'Staff')))))),
+            'canEdit' => $this->canUseAdminPage('update'),
+            'canExport' => $this->canUseAdminPage('export'),
         ];
 
         return view('main', $data);
@@ -823,22 +856,19 @@ class ChangeOfCourseController extends Controller
      */
     public function show($id)
     {
-        if (!session()->has('log')) {
-            return redirect('/')->with('error', 'Unauthorized access');
+        if (!$this->canUseAdminPage('view')) {
+            return $this->rejectAdminPageAccess(false, 'You do not have access to view Change of Course records.');
         }
 
         // Check if Admin or Staff with appropriate appointment
         $isAdmin = session('accType') == 'Admin';
-        $isHOD = session('accType') == 'Staff' && session('appointment') == 'HOD';
-        $isDean = session('accType') == 'Staff' && session('appointment') == 'DEAN';
-        $isProvost = session('accType') == 'Staff' && session('appointment') == 'PROVOST';
-        $isRegistrar = session('accType') == 'Staff' && session('appointment') == 'REGISTRAR';
-        $isVC = session('accType') == 'Staff' && session('appointment') == 'VC';
-        $isCOC = session('accType') == 'Staff' && session('appointment') == 'COC';
-
-        if (!$isAdmin && !$isHOD && !$isDean && !$isProvost && !$isRegistrar && !$isVC && !$isCOC) {
-            return redirect('/')->with('error', 'Unauthorized access');
-        }
+        $appointment = strtoupper(trim((string) session('appointment')));
+        $isHOD = session('accType') == 'Staff' && $appointment == 'HOD';
+        $isDean = session('accType') == 'Staff' && $appointment == 'DEAN';
+        $isProvost = session('accType') == 'Staff' && $appointment == 'PROVOST';
+        $isRegistrar = session('accType') == 'Staff' && $appointment == 'REGISTRAR';
+        $isVC = session('accType') == 'Staff' && $appointment == 'VC';
+        $isCOC = session('accType') == 'Staff' && $appointment == 'COC';
 
         $application = DB::table('change_of_course')->where('id', $id)->first();
 
@@ -905,6 +935,8 @@ class ChangeOfCourseController extends Controller
             'canApproveCurrentHOD' => $canApproveCurrentHOD,
             'canApproveCurrentDean' => $canApproveCurrentDean,
             'canApproveRegistrar' => $canApproveRegistrar,
+            'canEdit' => $this->canUseAdminPage('update'),
+            'canExport' => $this->canUseAdminPage('export'),
         ];
 
         return view('main', $data);
@@ -935,7 +967,8 @@ class ChangeOfCourseController extends Controller
     private function canApproveAsHOD($department)
     {
         if (session('accType') == 'Admin') return true;
-        if (session('accType') == 'Staff' && session('appointment') == 'HOD' && session('department') == $department) return true;
+        if (!PortalPermission::allows('/change-of-course/admin', 'approve')) return false;
+        if (session('accType') == 'Staff' && strtoupper(trim((string) session('appointment'))) == 'HOD' && session('department') == $department) return true;
         return false;
     }
 
@@ -945,7 +978,8 @@ class ChangeOfCourseController extends Controller
     private function canApproveAsDean($faculty)
     {
         if (session('accType') == 'Admin') return true;
-        if (session('accType') == 'Staff' && session('appointment') == 'DEAN' && session('faculty') == $faculty) return true;
+        if (!PortalPermission::allows('/change-of-course/admin', 'approve')) return false;
+        if (session('accType') == 'Staff' && strtoupper(trim((string) session('appointment'))) == 'DEAN' && session('faculty') == $faculty) return true;
         return false;
     }
 
@@ -955,7 +989,8 @@ class ChangeOfCourseController extends Controller
     private function canApproveAsProvost()
     {
         if (session('accType') == 'Admin') return true;
-        if (session('accType') == 'Staff' && session('appointment') == 'PROVOST') return true;
+        if (!PortalPermission::allows('/change-of-course/admin', 'approve')) return false;
+        if (session('accType') == 'Staff' && strtoupper(trim((string) session('appointment'))) == 'PROVOST') return true;
         return false;
     }
 
@@ -965,14 +1000,16 @@ class ChangeOfCourseController extends Controller
     private function canApproveAsRegistrar()
     {
         if (session('accType') == 'Admin') return true;
-        if (session('accType') == 'Staff' && session('appointment') == 'REGISTRAR') return true;
+        if (!PortalPermission::allows('/change-of-course/admin', 'approve')) return false;
+        if (session('accType') == 'Staff' && strtoupper(trim((string) session('appointment'))) == 'REGISTRAR') return true;
         return false;
     }
 
     private function canApproveAsVC()
     {
         if (session('accType') == 'Admin') return true;
-        if (session('accType') == 'Staff' && session('appointment') == 'VC') return true;
+        if (!PortalPermission::allows('/change-of-course/admin', 'approve')) return false;
+        if (session('accType') == 'Staff' && strtoupper(trim((string) session('appointment'))) == 'VC') return true;
         return false;
     }
 
@@ -1420,8 +1457,8 @@ class ChangeOfCourseController extends Controller
      */
     public function bulkEdit($id)
     {
-        if (!session()->has('log') || session('accType') != 'Admin') {
-            return redirect('/')->with('error', 'Unauthorized access');
+        if (!$this->canUseAdminPage('update')) {
+            return $this->rejectAdminPageAccess(false, 'You do not have permission to edit Change of Course records.');
         }
 
         $application = DB::table('change_of_course')->where('id', $id)->first();
@@ -1464,8 +1501,8 @@ class ChangeOfCourseController extends Controller
      */
     public function bulkUpdate(Request $request, $id)
     {
-        if (!session()->has('log') || session('accType') != 'Admin') {
-            return response()->json(['error' => 'Unauthorized'], 401);
+        if (!$this->canUseAdminPage('update')) {
+            return $this->rejectAdminPageAccess(true, 'You do not have permission to edit Change of Course records.');
         }
 
         $application = DB::table('change_of_course')->where('id', $id)->first();
@@ -1577,9 +1614,9 @@ class ChangeOfCourseController extends Controller
         // Log 1: Method entry
         \Log::info('RESUBMIT: Method started', ['id' => $id, 'user' => session('username')]);
         
-        if (!session()->has('log') || session('accType') != 'Admin') {
+        if (!$this->canUseAdminPage('update')) {
             \Log::error('RESUBMIT: Unauthorized access attempt', ['session' => session()->all()]);
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return $this->rejectAdminPageAccess(true, 'You do not have permission to reset this Change of Course application.');
         }
         
         \Log::info('RESUBMIT: Authorization passed');
@@ -1662,14 +1699,8 @@ class ChangeOfCourseController extends Controller
      */
     public function generateAdmissionLetter($id)
     {
-        if (!session()->has('log')) {
-            return redirect('/')->with('error', 'Unauthorized access');
-        }
-
-        $isAdmin = session('accType') == 'Admin';
-        $isStaff = session('accType') == 'Staff';
-        if (!$isAdmin && !$isStaff) {
-            return redirect('/')->with('error', 'Unauthorized access');
+        if (!$this->canUseAdminPage('export')) {
+            return $this->rejectAdminPageAccess(false, 'You do not have permission to download Change of Course letters.');
         }
 
         $application = DB::table('change_of_course')->where('id', $id)->first();
@@ -1716,8 +1747,8 @@ class ChangeOfCourseController extends Controller
      */
     public function downloadManagement(Request $request)
     {
-        if (!session()->has('log') || session('accType') != 'Admin') {
-            return redirect('/')->with('error', 'Unauthorized access');
+        if (!$this->canUseAdminPage('export')) {
+            return $this->rejectAdminPageAccess(false, 'You do not have permission to manage Change of Course downloads.');
         }
 
         // Get base query - ONLY approved applications for download management
@@ -1786,7 +1817,9 @@ class ChangeOfCourseController extends Controller
             'applications' => $applications, 
             'statusCounts' => $statusCounts, 
             'downloadStats' => $downloadStats, 
-            'downloadStatusCounts' => $downloadStatusCounts
+            'downloadStatusCounts' => $downloadStatusCounts,
+            'canEdit' => $this->canUseAdminPage('update'),
+            'canExport' => $this->canUseAdminPage('export'),
         ];
         
         return view('main', $data);
@@ -1797,14 +1830,8 @@ class ChangeOfCourseController extends Controller
      */
     public function bulkDownload(Request $request)
     {
-        if (!session()->has('log')) {
-            return response()->json(['error' => 'Unauthorized'], 401);
-        }
-
-        $isAdmin = session('accType') == 'Admin';
-        $isStaff = session('accType') == 'Staff';
-        if (!$isAdmin && !$isStaff) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+        if (!$this->canUseAdminPage('export')) {
+            return $this->rejectAdminPageAccess(true, 'You do not have permission to download Change of Course letters.');
         }
 
         $downloadOption = $request->input('download_option', 'separate');
@@ -1829,10 +1856,10 @@ class ChangeOfCourseController extends Controller
         try {
             if ($downloadOption === 'combined') {
                 // Create combined PDF
-                return $this->createCombinedPDF($approvedApplications, $namingOption, $markAsDownloaded);
+                return $this->createCombinedPDF($approvedApplications, $namingOption, $markAsDownloaded, $isRedownload);
             } else {
                 // Create separate PDFs
-                return $this->createSeparatePDFs($approvedApplications, $namingOption, $markAsDownloaded);
+                return $this->createSeparatePDFs($approvedApplications, $namingOption, $markAsDownloaded, $isRedownload);
             }
         } catch (\Exception $e) {
             \Log::error('Bulk download error: ' . $e->getMessage());
@@ -1843,7 +1870,7 @@ class ChangeOfCourseController extends Controller
     /**
      * Create separate PDF files for bulk download
      */
-    private function createSeparatePDFs($applications, $namingOption, $markAsDownloaded)
+    private function createSeparatePDFs($applications, $namingOption, $markAsDownloaded, $isRedownload = false)
     {
         $files = [];
         $tempDir = storage_path('app/temp_downloads');
@@ -1885,7 +1912,7 @@ class ChangeOfCourseController extends Controller
     /**
      * Create combined PDF file for bulk download
      */
-    private function createCombinedPDF($applications, $namingOption, $markAsDownloaded)
+    private function createCombinedPDF($applications, $namingOption, $markAsDownloaded, $isRedownload = false)
     {
         $options = new Options();
         $options->set('defaultFont', 'Times');
@@ -2016,8 +2043,8 @@ class ChangeOfCourseController extends Controller
      */
     public function getSelectedApplications(Request $request)
     {
-        if (!session()->has('log')) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+        if (!$this->canUseAdminPage('view')) {
+            return $this->rejectAdminPageAccess(true, 'You do not have permission to view selected applications.');
         }
 
         $applicationIds = $request->input('application_ids', []);
@@ -2065,8 +2092,8 @@ class ChangeOfCourseController extends Controller
      */
     public function trackSingleDownload(Request $request)
     {
-        if (!session()->has('log')) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+        if (!$this->canUseAdminPage('export')) {
+            return $this->rejectAdminPageAccess(true, 'You do not have permission to track downloads.');
         }
 
         $applicationId = $request->input('application_id');
@@ -2086,8 +2113,8 @@ class ChangeOfCourseController extends Controller
      */
     public function exportSelectedApplications(Request $request)
     {
-        if (!session()->has('log')) {
-            return redirect('/')->with('error', 'Unauthorized access');
+        if (!$this->canUseAdminPage('export')) {
+            return $this->rejectAdminPageAccess(false, 'You do not have permission to export Change of Course records.');
         }
 
         $applicationIds = $request->input('ids', []);

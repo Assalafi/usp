@@ -391,6 +391,45 @@ final class PortalPermission
 
     private static function actionForPath(string $path, string $name, string $uri, string $method): string
     {
+        // Change of Course has distinct record permissions. Opening a record
+        // is a view operation, the edit/reset screens are updates, approval
+        // submissions require approval access, and downloads require export.
+        // Handle these before the generic path heuristics below.
+        if (str_starts_with($path, 'change-of-course/')) {
+            if (str_contains($path, 'admission-letter')
+                || str_contains($path, 'bulk-download')
+                || str_contains($path, 'track-download')
+                || str_contains($path, '/export')) {
+                return 'export';
+            }
+
+            if (str_contains($path, 'new-hod-action')
+                || str_contains($path, 'new-dean-action')
+                || str_contains($path, 'provost-action')
+                || str_contains($path, 'current-hod-action')
+                || str_contains($path, 'current-dean-action')
+                || str_contains($path, 'registrar-action')
+                || str_contains($path, 'vc-action')) {
+                return 'approve';
+            }
+
+            if (str_contains($path, 'bulk-edit')
+                || str_contains($path, 'bulk-update')
+                || str_contains($path, 'resubmit')) {
+                return 'update';
+            }
+
+            if (str_contains($path, 'downloads')) {
+                return 'export';
+            }
+
+            if (str_contains($path, 'get-selected-applications')) {
+                return 'view';
+            }
+
+            return 'view';
+        }
+
         if (preg_match('/^(create|update|delete|upload)\s+/', $path, $match)) {
             return strtolower($match[1]);
         }

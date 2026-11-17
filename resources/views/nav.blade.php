@@ -187,6 +187,15 @@
                 </a>
             </li>
 
+            @if (\App\Support\PortalPermission::hasPageAccess('/change-of-course/admin'))
+                <li class="nav-item @if ($page == 'change of course admin') active @endif">
+                    <a href="/change-of-course/admin" class="nav-link">
+                        <span class="pcoded-micon"><i class="fas fa-exchange-alt"></i></span>
+                        <span class="pcoded-mtext">Change of Course</span>
+                    </a>
+                </li>
+            @endif
+
 
         @endif
 

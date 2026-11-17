@@ -683,10 +683,15 @@
                         <a href="{{ route('change-of-course.admin') }}" class="btn btn-secondary w-100 mb-2">
                             <i class="fas fa-arrow-left me-2"></i>Back to List
                         </a>
+                        @if($canEdit ?? false)
+                        <a href="{{ route('change-of-course.bulk-edit', $application->id) }}" class="btn btn-warning w-100 mb-2">
+                            <i class="fas fa-edit me-2"></i>Edit Application
+                        </a>
+                        @endif
                         <button onclick="window.print()" class="btn btn-info w-100 mb-2">
                             <i class="fas fa-print me-2"></i>Print Application
                         </button>
-                        @if($application->status == 'Approved')
+                        @if($application->status == 'Approved' && ($canExport ?? false))
                         <a href="{{ route('change-of-course.admission-letter', $application->id) }}" target="_blank" class="btn btn-success w-100">
                             <i class="fas fa-file-pdf me-2"></i>Download Admission Letter
                         </a>
