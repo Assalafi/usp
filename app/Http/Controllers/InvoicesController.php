@@ -962,34 +962,74 @@ class InvoicesController extends Controller
 
     public function verify(Request $req)
     {
-        $rrr = $req->rrr;
+        $rrr = trim((string) $req->rrr);
         $merchantId = $this->merchantId;
         $apiKey = $this->apiKey;
-        $apiHash = hash('sha512', $rrr . '' . $apiKey . '' . $merchantId);
 
-        $curl = curl_init();
+        // Keep the configured base URL safe when it contains a trailing slash.
+        $baseUrl = rtrim((string) \App\Http\Controllers\SystemSettingsController::getRemitaBaseUrl(), '/');
+        $requestRemitaStatus = function ($value, $endpoint) use ($baseUrl, $merchantId, $apiKey) {
+            $hash = hash('sha512', $value . '' . $apiKey . '' . $merchantId);
+            $url = $baseUrl . '/remita/exapp/api/v1/send/api/echannelsvc/'
+                . $merchantId . '/' . $value . '/' . $hash . '/' . $endpoint;
 
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => \App\Http\Controllers\SystemSettingsController::getRemitaBaseUrl() . '/remita/exapp/api/v1/send/api/echannelsvc/' . $merchantId . '/' . $rrr . '/' . $apiHash . '/status.reg',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 15,  // Set 15-second timeout
-            CURLOPT_CONNECTTIMEOUT => 10,  // Set 10-second connection timeout
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'GET',
-            CURLOPT_HTTPHEADER => array(
-                'Content-Type: application/json',
-                'Authorization: remitaConsumerKey=' . $merchantId . ',remitaConsumerToken=' . $apiHash . ''
-            ),
-        ));
+            $curl = curl_init();
+            curl_setopt_array($curl, array(
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 15,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'GET',
+                CURLOPT_HTTPHEADER => array(
+                    'Content-Type: application/json',
+                    'Authorization: remitaConsumerKey=' . $merchantId . ',remitaConsumerToken=' . $hash,
+                ),
+            ));
 
-        $response = curl_exec($curl);
-        $curl_error = curl_error($curl);
-        $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $result = [
+                'response' => curl_exec($curl),
+                'curl_error' => curl_error($curl),
+                'http_code' => curl_getinfo($curl, CURLINFO_HTTP_CODE),
+            ];
+            curl_close($curl);
 
-        curl_close($curl);
+            return $result;
+        };
+
+        $result = $requestRemitaStatus($rrr, 'status.reg');
+        $response = $result['response'];
+        $curl_error = $result['curl_error'];
+        $http_code = $result['http_code'];
+
+        // Some paid/split invoices are not resolvable through Remita's RRR
+        // endpoint, although the same transaction is available by order ID.
+        // Use the stored order ID as a safe, transaction-specific fallback.
+        if ($http_code === 404 && $response !== false) {
+            $orderId = DB::table('invoices')
+                ->where('rrr', $rrr)
+                ->whereNotNull('orderId')
+                ->where('orderId', '!=', '')
+                ->value('orderId');
+
+            if ($orderId) {
+                $fallback = $requestRemitaStatus($orderId, 'orderstatus.reg');
+                $fallbackData = json_decode((string) $fallback['response'], true);
+                $fallbackRrr = is_array($fallbackData)
+                    ? (string) ($fallbackData['rrr'] ?? $fallbackData['RRR'] ?? '')
+                    : '';
+
+                // Never accept an order-status response for a different RRR.
+                if ($fallback['http_code'] === 200 && $fallbackRrr === $rrr) {
+                    $response = $fallback['response'];
+                    $curl_error = $fallback['curl_error'];
+                    $http_code = $fallback['http_code'];
+                }
+            }
+        }
 
         // Check for cURL errors (including timeouts)
         if ($response === false || !empty($curl_error)) {
