@@ -348,7 +348,7 @@
                     <form method="POST" action="{{ url('/hod staff roles/remove') }}" class="js-hs-form">
                         @csrf
                         <input type="hidden" name="staff_id" value="{{ $dso->id }}">
-                        <button class="btn btn-outline-danger hs-btn" type="submit" data-confirm="Remove this responsibility from this staff member?">
+                        <button class="btn btn-outline-danger hs-btn" type="submit" data-confirm-action="Remove" data-confirm="Remove this responsibility from this staff member?">
                             <i class="fas fa-user-minus me-1"></i> Remove responsibility
                         </button>
                     </form>
@@ -408,7 +408,7 @@
                                             <form method="POST" action="{{ url('/hod staff roles/assign') }}" class="d-inline js-hs-form">
                                                 @csrf
                                                 <input type="hidden" name="staff_id" value="{{ $staff->id }}">
-                                                <button class="btn btn-primary btn-sm hs-btn" type="submit" data-confirm="Assign this staff member as your department support officer?">
+                                                <button class="btn btn-primary btn-sm hs-btn" type="submit" data-confirm-action="Assign" data-confirm="Assign this staff member as your department support officer?">
                                                     <i class="fas fa-user-check me-1"></i> Assign
                                                 </button>
                                             </form>
@@ -456,13 +456,53 @@
             form.addEventListener('submit', function (event) {
                 const button = form.querySelector('button[type="submit"]');
                 const message = button && button.dataset.confirm;
-                if (message && !window.confirm(message)) {
+                const actionLabel = (button && button.dataset.confirmAction) || 'Continue';
+                const continueSubmit = function () {
+                    if (button) {
+                        button.disabled = true;
+                        button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Saving...';
+                    }
+                    form.submit();
+                };
+
+                if (!message) {
+                    continueSubmit();
                     event.preventDefault();
                     return;
                 }
-                if (button) {
-                    button.disabled = true;
-                    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Saving...';
+
+                event.preventDefault();
+
+                if (typeof swal === 'function') {
+                    swal({
+                        title: actionLabel === 'Remove' ? 'Remove responsibility?' : 'Confirm assignment',
+                        text: message,
+                        icon: 'warning',
+                        buttons: {
+                            cancel: {
+                                text: 'Keep it',
+                                value: null,
+                                visible: true,
+                                closeModal: true
+                            },
+                            confirm: {
+                                text: actionLabel,
+                                value: true,
+                                visible: true,
+                                className: 'swal-button--danger',
+                                closeModal: true
+                            }
+                        },
+                        dangerMode: true
+                    }).then(function (confirmed) {
+                        if (confirmed) continueSubmit();
+                    });
+                    return;
+                }
+
+                // Safe fallback if the shared alert script is unavailable.
+                if (window.confirm(message)) {
+                    continueSubmit();
                 }
             });
         });
