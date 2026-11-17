@@ -430,6 +430,18 @@ final class PortalPermission
             return 'view';
         }
 
+        // Result approval is a workflow, not a normal CRUD resource. The
+        // legacy roles for HOD/Dean/VC were created with page access only
+        // (their action column is null), while the submit/reject forms post
+        // to the generated "create/update approve results" endpoints. Let
+        // those requests reach the approval controller, which enforces the
+        // current stage, appointment and academic ownership server-side.
+        // Treating them as a view here preserves compatibility without
+        // granting a blanket create/update permission to every page user.
+        if (in_array(strtolower($path), ['create approve results', 'update approve results'], true)) {
+            return 'view';
+        }
+
         if (preg_match('/^(create|update|delete|upload)\s+/', $path, $match)) {
             return strtolower($match[1]);
         }

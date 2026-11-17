@@ -155,10 +155,25 @@ class ApproveResultsController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
+
+        $validated = $req->validate([
+            'code' => ['required', 'string', 'max:50'],
+            'session' => ['required', 'string', 'max:15'],
+            'semester' => ['required', 'string', 'max:25'],
+            'approve' => ['required', 'in:system,lecturer,hod,dean,cs'],
+        ]);
+
+        // The submit button is displayed by the view only for the reviewer
+        // responsible for the current stage. Enforce that rule again here so
+        // a forged/replayed POST cannot move another department's result.
+        if (!$this->canSubmitApprovalStage($validated)) {
+            abort(403, 'You do not have permission to submit this result at the current approval stage.');
+        }
+
         $datas = $req->all();
-        $code = $datas['code'];
-        $session = $datas['session'];
-        $semester = $datas['semester'];
+        $code = trim($validated['code']);
+        $session = trim($validated['session']);
+        $semester = trim($validated['semester']);
         $check = 0;
         $data = DB::table('results')->where(['code' => $code, 'session' => $session, 'semester' => $semester, 'approve' => $req->approve])->select('approve')->limit(1)->get();
         // dd($req -> approve);
@@ -242,6 +257,83 @@ class ApproveResultsController extends Controller
         $records['updated_at'] = NOW();
         DB::table('results')->where(['code' => $code, 'session' => $session, 'semester' => $semester, 'approve' => $req->approve])->update($records);
         return redirect()->back()->with('success', 'Results ' . $status);
+    }
+
+    /**
+     * Match the reviewer rules used by pending-results.blade.php and apply
+     * them on the server for every approval submission.
+     */
+    private function canSubmitApprovalStage(array $validated): bool
+    {
+        if (strtoupper(trim((string) session('accType'))) === 'ADMIN') {
+            return true;
+        }
+
+        if (strtoupper(trim((string) session('accType'))) !== 'STAFF') {
+            return false;
+        }
+
+        $stage = strtolower(trim((string) ($validated['approve'] ?? '')));
+        $code = trim((string) ($validated['code'] ?? ''));
+        $sessionName = trim((string) ($validated['session'] ?? ''));
+        $semester = trim((string) ($validated['semester'] ?? ''));
+        $username = strtoupper(trim((string) session('username')));
+        $appointment = strtoupper(trim((string) session('appointment')));
+
+        if ($stage === '' || $code === '' || $sessionName === '' || $semester === '' || $username === '') {
+            return false;
+        }
+
+        $sample = DB::table('results')
+            ->where('code', $code)
+            ->where('session', $sessionName)
+            ->where('semester', $semester)
+            ->where('approve', $stage)
+            ->select('department', 'lecturer')
+            ->first();
+
+        if (!$sample) {
+            return false;
+        }
+
+        // Lecturer submits to the Department. This deliberately follows the
+        // same lecturer ownership check as the submit button in the view.
+        if ($stage === 'system') {
+            return strtoupper(trim((string) ($sample->lecturer ?? ''))) === $username;
+        }
+
+        $course = DB::table('course')
+            ->whereRaw('UPPER(TRIM(code)) = ?', [strtoupper($code)])
+            ->select('department', 'faculty')
+            ->first();
+
+        $department = trim((string) ($course->department ?? $sample->department ?? ''));
+        $faculty = trim((string) ($course->faculty ?? ''));
+        if ($faculty === '' && $department !== '') {
+            $faculty = trim((string) DB::table('department')->where('code', $department)->value('faculty'));
+        }
+
+        if ($stage === 'lecturer') {
+            return $appointment === 'HOD'
+                && $department !== ''
+                && strtoupper($department) === strtoupper(trim((string) session('department')));
+        }
+
+        if ($stage === 'hod') {
+            return $appointment === 'DEAN'
+                && $faculty !== ''
+                && strtoupper($faculty) === strtoupper(trim((string) session('faculty')));
+        }
+
+        if ($stage === 'dean') {
+            return $appointment === 'COURSE SYSTEM';
+        }
+
+        if ($stage === 'cs') {
+            return $appointment === 'VC';
+        }
+
+        return false;
     }
 
     public function update(Request $req)
