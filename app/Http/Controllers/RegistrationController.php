@@ -2210,8 +2210,59 @@ class RegistrationController extends Controller
             'indigine',
         ];
         $disk = Storage::disk('public');
+        $directory = 'student-documents/' . session('id');
+
+        // The public disk is backed by the attached storage volume in
+        // production. Create the student's directory explicitly before the
+        // first write so a missing mount subdirectory cannot be mistaken for
+        // a successful save.
+        try {
+            $disk->makeDirectory($directory);
+            $directoryPath = method_exists($disk, 'path') ? $disk->path($directory) : null;
+            if (!$disk->exists($directory) || ($directoryPath && !is_writable($directoryPath))) {
+                throw new \RuntimeException('The student document directory is not writable.');
+            }
+        } catch (\Throwable $exception) {
+            Log::error('Student document directory unavailable', [
+                'student_id' => $student->id,
+                'user_id' => session('id'),
+                'directory' => $directory,
+                'exception' => $exception,
+            ]);
+
+            throw ValidationException::withMessages([
+                'documents' => 'The document storage is temporarily unavailable. No file was saved. Please try again shortly or contact ICT support.',
+            ]);
+        }
 
         foreach ($documentFields as $docType) {
+            // Symfony keeps an UploadedFile with an upload error in the
+            // request file bag, but Laravel's hasFile() returns false for it.
+            // Check the bag first so oversized, interrupted, or otherwise
+            // rejected uploads never fall through as a silent success.
+            if ($request->files->has($docType)) {
+                $uploaded = $request->files->get($docType);
+                // Empty file inputs are represented as null and are normal;
+                // only an actual uploaded file with an error is actionable.
+                if (is_object($uploaded) && method_exists($uploaded, 'isValid') && !$uploaded->isValid()) {
+                    $errorCode = method_exists($uploaded, 'getError')
+                        ? (int) $uploaded->getError()
+                        : UPLOAD_ERR_NO_FILE;
+                    $reason = match ($errorCode) {
+                        UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'the file is larger than the allowed limit',
+                        UPLOAD_ERR_PARTIAL => 'the upload was interrupted before it finished',
+                        UPLOAD_ERR_NO_TMP_DIR => 'the server temporary upload directory is unavailable',
+                        UPLOAD_ERR_CANT_WRITE => 'the server could not write the uploaded file',
+                        UPLOAD_ERR_EXTENSION => 'a server extension stopped the upload',
+                        default => 'the file could not be read',
+                    };
+
+                    throw ValidationException::withMessages([
+                        $docType => 'The ' . ucwords(str_replace('_', ' ', $docType)) . ' was not uploaded because ' . $reason . '. Please choose a PDF, JPG, JPEG, or PNG file of 400 KB or less and try again.',
+                    ]);
+                }
+            }
+
             if (!$request->hasFile($docType)) {
                 continue;
             }
@@ -2219,7 +2270,21 @@ class RegistrationController extends Controller
             $file = $request->file($docType);
             $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension());
             $fileName = $docType . '_' . Str::uuid() . ($extension ? '.' . $extension : '');
-            $filePath = $file->storeAs('student-documents/' . session('id'), $fileName, 'public');
+            try {
+                $filePath = $file->storeAs($directory, $fileName, 'public');
+            } catch (\Throwable $exception) {
+                Log::error('Student document upload failed', [
+                    'student_id' => $student->id,
+                    'user_id' => session('id'),
+                    'document_type' => $docType,
+                    'directory' => $directory,
+                    'exception' => $exception,
+                ]);
+
+                throw ValidationException::withMessages([
+                    $docType => 'The ' . ucwords(str_replace('_', ' ', $docType)) . ' could not be saved to the document storage. No changes were made for this file. Please try again.',
+                ]);
+            }
 
             if (!$filePath) {
                 throw ValidationException::withMessages([
