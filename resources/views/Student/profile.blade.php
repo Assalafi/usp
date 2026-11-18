@@ -363,6 +363,7 @@
                 <input type="hidden" name="id" value="{{ $row->id }}">
                 <input type="hidden" name="processed_photo_token" id="processed_photo_token" value="">
                 <input type="hidden" name="profile_action" id="profile_action" value="save">
+                <input type="hidden" name="document_upload_attempt" id="document_upload_attempt" value="0">
                 <section class="sp-completion-card" aria-labelledby="profile-completion-title">
                     <div class="sp-completion-head">
                         <div>
@@ -397,6 +398,12 @@
                         <div class="sp-completion-complete"><i class="fas fa-circle-check" aria-hidden="true"></i> All required profile items are complete.</div>
                     @endif
                 </section>
+                @if (session('error'))
+                    <div class="alert alert-danger border-0 shadow-sm" role="alert">
+                        <i class="fas fa-circle-exclamation me-1"></i>
+                        <strong>{{ session('error') }}</strong>
+                    </div>
+                @endif
                 @if ($errors->any())
                     <div class="alert alert-danger border-0 shadow-sm" role="alert">
                         <strong>Please review the highlighted fields.</strong>
@@ -2188,8 +2195,10 @@
             currentButton?.addEventListener('click', () => { setPhotoBusy(true, 'current'); processPhoto(true).finally(() => setPhotoBusy(false)); });
             pictureInput?.addEventListener('change', () => setPhotoStatus('Photo selected. Click the prepare button to see the result before saving.'));
 
-            document.querySelectorAll('.sp-document-input').forEach(function (input) {
+            const documentUploadAttempt = document.getElementById('document_upload_attempt');
+            document.querySelectorAll('.sp-document-input, #signiture').forEach(function (input) {
                 input.addEventListener('change', function () {
+                    if (documentUploadAttempt) documentUploadAttempt.value = '1';
                     const file = this.files && this.files[0];
                     const note = document.getElementById('student_doc_note_' + this.id.replace('student_doc_', ''));
                     const label = this.getAttribute('data-document-label') || 'Document';

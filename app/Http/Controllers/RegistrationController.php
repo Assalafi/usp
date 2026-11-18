@@ -1822,6 +1822,16 @@ class RegistrationController extends Controller
             'sort_code' => 'nullable|string|max:40',
         ]);
 
+        // If the browser reported that a document was selected but PHP
+        // received no usable file at all, the request was commonly rejected
+        // by an upload-size/server limit. Do not continue with a misleading
+        // success redirect; return a visible explanation instead.
+        if ($request->boolean('document_upload_attempt') && count($request->allFiles()) === 0) {
+            throw ValidationException::withMessages([
+                'documents' => 'The selected document did not reach the server. It may be larger than the upload limit or the upload was interrupted. Choose a PDF, JPG, JPEG, or PNG file of 400 KB or less and try again.',
+            ]);
+        }
+
         $student = Student::where('id', $request->id)
             ->where('user_id', session('id'))
             ->firstOrFail();
