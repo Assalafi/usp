@@ -1827,9 +1827,7 @@ class RegistrationController extends Controller
         // by an upload-size/server limit. Do not continue with a misleading
         // success redirect; return a visible explanation instead.
         if ($request->boolean('document_upload_attempt') && count($request->allFiles()) === 0) {
-            throw ValidationException::withMessages([
-                'documents' => 'The selected document did not reach the server. It may be larger than the upload limit or the upload was interrupted. Choose a PDF, JPG, JPEG, or PNG file of 400 KB or less and try again.',
-            ]);
+            return redirect()->back()->withInput()->with('error', 'The selected document did not reach the server. It may be larger than the upload limit or the upload was interrupted. Choose a PDF, JPG, JPEG, or PNG file of 400 KB or less and try again.');
         }
 
         $student = Student::where('id', $request->id)
@@ -1995,7 +1993,19 @@ class RegistrationController extends Controller
             ]
         );
 
-        $this->saveStudentDocuments($request, $student);
+        try {
+            $this->saveStudentDocuments($request, $student);
+        } catch (ValidationException $exception) {
+            $message = 'The selected document could not be saved. Please choose a valid file and try again.';
+            foreach ($exception->errors() as $messages) {
+                if (is_array($messages) && count($messages)) {
+                    $message = (string) reset($messages);
+                    break;
+                }
+            }
+
+            return redirect()->back()->withInput()->with('error', $message);
+        }
 
         // Mark the workflow only after document storage succeeds, so a failed
         // upload can never unlock a student accidentally.
