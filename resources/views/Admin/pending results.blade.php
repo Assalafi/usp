@@ -1,6 +1,11 @@
 @php
     use Illuminate\Support\Facades\DB;
 @endphp
+@if (session('success')) <div class="alert alert-success" role="status">{{ session('success') }}</div> @endif
+@if (session('error')) <div class="alert alert-danger" role="alert">{{ session('error') }}</div> @endif
+@if ($errors->any())
+    <div class="alert alert-danger" role="alert"><strong>Please check your submission.</strong><ul>@foreach ($errors->all() as $message)<li>{{ $message }}</li>@endforeach</ul></div>
+@endif
 <!-- Start Content-->
 <div class="main-body">
     <div class="page-wrapper">
@@ -45,11 +50,10 @@
                                         $t = 0;
                                         $sn = 1;
                                         $action = 0;
-                                        $approve = '';
+                                        $approve = $approvalStage;
                                     @endphp
                                     @foreach ($results as $row)
                                         @php
-                                            $approve = $row->approve;
                                             $t++;
                                             if ($row->grade == 'A') {
                                                 $a++;
@@ -98,11 +102,13 @@
                     </div>
                     <div class="card-block">
                         <!-- [ Data table ] start -->
-                    <a href="#" class="btn btn-icon btn-primary btn-sm"
+                    @if ($canCommentOmissions && count($pendingIds))
+                    <a href="#" class="btn btn-icon btn-primary btn-sm" title="Comment on all missing results"
                     data-bs-toggle="modal"
                     data-bs-target="#commentAll">
                     <i class="fa fa-comment" aria-hidden="true"></i>
                 </a>
+                    @endif
                         <div class="table-responsive">
                             <table class="display table nowrap table-striped table-hover dtt" style="width:100%">
                                 <thead>
@@ -121,7 +127,7 @@
                                     @endphp
                                     @foreach ($data as $row)
                                         @php
-                                            if ($row->comment == 'No Comment') {
+                                            if (trim((string) $row->comment) === '' || $row->comment == 'No Comment') {
                                                 $comment++;
                                                 //$comment = 0;
                                             }
@@ -131,7 +137,7 @@
                                             <td>{{ $row->username }}</td>
                                             <td>{{ $row->comment }}</td>
                                             <td>
-                                                @if ($approve == 'system')
+                                                @if ($canCommentOmissions)
                                                     <a href="#" class="btn btn-icon btn-primary btn-sm"
                                                         data-bs-toggle="modal"
                                                         data-bs-target="#updateStudent{{ $sn }}">
@@ -142,7 +148,7 @@
                                         </tr>
 
                                         <!-- Show modal content -->
-                                        @if (strtoupper($lecturer) == strtoupper(session('username')))
+                                        @if ($canCommentOmissions)
                                             <div id="updateStudent{{ $sn }}" class="modal fade"
                                                 tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
                                                 aria-hidden="true">
@@ -189,21 +195,6 @@
                 </div>
             </div>
 
-            @php
-                if ($approve == 'system' && strtoupper($lecturer) == strtoupper(session('username'))) {
-                    $action = 1;
-                } elseif ($approve == 'lecturer' && session('appointment') == 'HOD') {
-                    $action = 1;
-                } elseif ($approve == 'hod' && session('appointment') == 'DEAN') {
-                    $action = 1;
-                } elseif ($approve == 'dean' && session('appointment') == 'COURSE SYSTEM') {
-                    $action = 1;
-                } elseif ($approve == 'cs' && session('appointment') == 'VC') {
-                    $action = 1;
-                } else {
-                    $action = 0;
-                }
-            @endphp
             <div class="col-sm-12">
                 <div class="card">
                     <div class="card-header">
@@ -211,7 +202,7 @@
                     </div>
                     <div class="card-body">
 
-                        @if ($action == 1)
+                        @if ($canSubmitReview)
                             <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal"
                                 data-bs-target="#delete">
                                 @if (DB::table('results')->where(['code' => $code, 'session' => $sessions])->value('approve') == 'cs')
@@ -220,7 +211,7 @@
                                     Submit
                                 @endif
                             </button>
-                            @if ($approve != 'system')
+                            @if ($approve != 'system' && $canRejectReview)
                                 <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal"
                                     data-bs-target="#reject">
                                     Reject
@@ -313,7 +304,7 @@ aria-hidden="true">
                             <!-- Details View End -->
                             <button type="button" class="btn btn-info" data-bs-dismiss="modal">No</button>
                             {{-- <button type="submit" class="btn btn-success">Yes</button> --}}
-                            <button type="submit" id="submitt" onclick="submittt()"
+                            <button type="submit" id="submitt"
                                 class="btn btn-primary">Yes</button>
                             <button id="loadingg" style="display: none" class="btn btn-primary" type="button"
                                 disabled>
@@ -353,7 +344,7 @@ aria-hidden="true">
                             <!-- Details View Start -->
                             @csrf
                             <input type="hidden" name="code" value="{{ $code }}">
-                            <input type="hidden" name="session" value="{{ $sessions }}">
+                            <input type="hidden" name="session" value="{{ $session }}">
                             <input type="hidden" name="semester" value="{{ $semester }}">
                             <input type="hidden" name="approve" value="{{ $approve }}">
                             <div class="form-group">
@@ -379,13 +370,16 @@ aria-hidden="true">
 </div>
 
 <script>
-    function submittt() {
-        var name = document.getElementById('sub_committee').value;
-        //alert(name);
-        if (name != '') {
-            document.getElementById('submitt').style.display = 'none';
-            document.getElementById('loadingg').style.display = 'inline';
-        }
-
-    }
+    document.addEventListener('submit', function (event) {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement)) return;
+        const action = decodeURIComponent(new URL(form.action, window.location.href).pathname);
+        if (!['/comment-pending-result', '/create approve results', '/update approve results'].includes(action)) return;
+        if (form.dataset.saving === '1') { event.preventDefault(); return; }
+        form.dataset.saving = '1';
+        form.querySelectorAll('button[type="submit"]').forEach(button => {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Saving...';
+        });
+    });
 </script>

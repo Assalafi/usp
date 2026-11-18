@@ -200,6 +200,8 @@ class ResultsController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
+        abort_unless(\App\Support\PendingResultAccess::canView((string) $req->code, (string) $req->session), 403,
+            'You do not have access to review this course for the selected session.');
 
         // Keep the course-specific review link from approve-results scoped to
         // the lecturer who actually owns the course allocation.  The
@@ -209,30 +211,21 @@ class ResultsController extends Controller
         if (session('accType') === 'Staff' && $req->query('approve') === 'system') {
             $courseCode = trim((string) $req->query('code', ''));
             $assignedToCourse = $courseCode !== '' && DB::table('course_allocation')
-                ->where('username', session('username'))
-                ->where('type', 'MAIN')
-                ->where('course', $courseCode)
+                ->whereRaw('UPPER(TRIM(username)) = ?', [strtoupper(trim((string) session('username')))])
+                ->whereRaw('UPPER(TRIM(type)) = ?', ['MAIN'])
+                ->whereRaw('UPPER(TRIM(course)) = ?', [strtoupper($courseCode)])
+                ->where(function ($query) use ($req) {
+                    $query->whereNull('session')->orWhere('session', '')->orWhere('session', $req->query('session'));
+                })
                 ->exists();
 
             if (!$assignedToCourse) {
-                return redirect('/')->with('error', 'You are not assigned to this course.');
+                abort(403, 'You are not the main lecturer assigned to this course for the selected session.');
             }
         }
 
-        $session = \App\Http\Controllers\SystemSettingsController::getResultsSession();
-        if ($req->has('_token')) {
-            $data = $req->all();
-            unset($data['_token']);
-            unset($data['faculty']);
-            unset($data['department']);
-            unset($data['program']);
-            $filteredData = array_filter($data);
-            $query = DB::table('student_course_registration');
-            foreach ($filteredData as $key => $value) {
-                $query->where($key, $value);
-            }
-            $data['data'] = $query->get();
-        } else {
+        $req->validate(['code' => 'required|string|max:50', 'session' => 'required|string|max:15', 'semester' => 'required|string|max:25', 'approve' => 'nullable|in:system,lecturer,hod,dean,cs,vc']);
+        $session = $req->session;
             $rs = DB::table('results')
                 ->select(
                     'username',
@@ -260,8 +253,7 @@ class ResultsController extends Controller
                 ->where(['session' => $req->session, 'semester' => $req->semester, 'code' => $req->code])
                 ->whereNotIn('username', $result)
                 ->pluck('id');
-            // dd($data['pendingIds']);
-        }
+            // The course review always uses the selected batch, including when a CSRF token is in the URL.
         $data['faculty'] = DB::table('faculty')
             ->where(['status' => '1'])
             ->select('code', 'title')
@@ -286,6 +278,13 @@ class ResultsController extends Controller
         $data['code'] = $req->code;
         $data['page'] = 'pending results';
         $data['title'] = 'Pending Results';
+        $data['sessions'] = $req->session;
+        $data['approvalStage'] = (string) $req->query('approve', optional($data['results']->first())->approve);
+        $context = ['code' => $req->code, 'session' => $req->session, 'semester' => $req->semester, 'approve' => $data['approvalStage']];
+        $reviewer = app(ApproveResultsController::class);
+        $data['canSubmitReview'] = $reviewer->canSubmitApprovalStage($context);
+        $data['canRejectReview'] = $reviewer->canSubmitApprovalStage($context, 'update');
+        $data['canCommentOmissions'] = \App\Support\PendingResultAccess::canComment((string) $req->code, (string) $req->session, (string) $req->semester);
         return view('main', $data);
     }
 
@@ -421,46 +420,39 @@ class ResultsController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
-        if ($req->has('ids')) {
-            // Process multiple
-            $idsString = trim($req->input('ids'), '[]');  // Remove square brackets
-            $ids = array_map('intval', explode(',', $idsString));
-
-            // Ensure IDs are valid integers
-            if (empty($ids)) {
-                return response()->json(['error' => 'Invalid or empty IDs provided'], 400);
-            }
-
-            // Update records for multiple IDs
-            DB::table('student_course_registration')
-                ->whereIn('id', $ids)
-                ->update([
-                    'comment' => $req->input('comment'),
-                    'grade' => 'F',
-                    'status' => 'FAILED'
-                ]);
-        } else {
-            // Process single ID
-            $id = $req->input('id');
-
-            // Ensure ID is valid
-            if (!$id) {
-                return response()->json(['error' => 'ID is required when no IDs are provided'], 400);
-            }
-
-            // Update record for a single ID
-            DB::table('student_course_registration')
-                ->where('id', $id)
-                ->update([
-                    'comment' => $req->input('comment'),
-                    'grade' => 'F',
-                    'status' => 'FAILED'
-                ]);
+        // Older forms send the selected IDs as a JSON string; accept both formats.
+        if ($req->has('ids') && is_string($req->input('ids'))) {
+            $req->merge(['ids' => json_decode($req->input('ids'), true)]);
         }
+        $validated = $req->validate([
+            'id' => 'required_without:ids|nullable|integer|min:1',
+            'ids' => 'required_without:id|nullable|array|min:1|max:5000',
+            'ids.*' => 'required|integer|min:1|distinct',
+            'comment' => 'required|string|max:2000',
+        ], ['comment.required' => 'Please explain why the result is missing.']);
+        $ids = $validated['ids'] ?? [$validated['id']];
+        $context = DB::transaction(function () use ($ids, $validated) {
+            $records = DB::table('student_course_registration')->whereIn('id', $ids)->lockForUpdate()->get();
+            abort_unless($records->count() === count($ids), 422, 'Some selected registrations no longer exist. Refresh the course review and try again.');
+            $groups = $records->groupBy(fn ($row) => $row->code . '|' . $row->session . '|' . $row->semester);
+            abort_unless($groups->count() === 1, 422, 'Select students from one course, session and semester at a time.');
+            $first = $records->first();
+            $batch = DB::table('results')->where(['code' => $first->code, 'session' => $first->session, 'semester' => $first->semester]);
+            $results = (clone $batch)->lockForUpdate()->get(['username', 'approve']);
+            abort_unless(\App\Support\PendingResultAccess::canComment($first->code, $first->session, $first->semester), 403,
+                'Only the main lecturer assigned to this course can comment on missing results before submission.');
+            abort_if($results->contains(fn ($row) => $row->approve !== 'system'), 409,
+                'This course has already moved to approval. Omission comments can no longer be changed.');
+            abort_if($results->pluck('username')->intersect($records->pluck('username'))->isNotEmpty(), 409,
+                'A result has now been uploaded for a selected student. Refresh the course review before commenting.');
+            DB::table('student_course_registration')->whereIn('id', $ids)->update([
+                'comment' => trim($validated['comment']), 'grade' => 'F', 'status' => 'FAILED',
+            ]);
+            return ['code' => $first->code, 'session' => $first->session, 'semester' => $first->semester, 'approve' => 'system'];
+        });
 
-        return redirect()
-            ->back()
-            ->with('success', 'Record Updated!!!');
+        return redirect('/pending-results?' . http_build_query($context))
+            ->with('success', count($ids) . ' omission comment(s) saved.');
     }
 
     public function delete(Request $req)

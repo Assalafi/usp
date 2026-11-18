@@ -103,26 +103,29 @@ class CheckRoleAccess
             return $next($request);
         }
 
-        // The approve-results page links staff to a course-specific
-        // pending-results review. It is not a standalone catalogue page:
-        // approval-stage users inherit access from Approve Results instead of
-        // needing a duplicate `/pending-results` roll.
-        if ($page === 'pending-results') {
-            $approvalStage = strtolower(trim((string) $request->query('approve', '')));
-            if ($approvalStage !== '') {
-                $courseCode = trim((string) $request->query('code', ''));
-                $assignedToCourse = $approvalStage === 'system'
-                    && $courseCode !== ''
-                    && \Illuminate\Support\Facades\DB::table('course_allocation')
-                        ->where('username', session('username'))
-                        ->where('type', 'MAIN')
-                        ->where('course', $courseCode)
-                        ->exists();
+        // Omission comments are authorised against their stored course/session
+        // and MAIN allocation inside ResultsController::pending. Checking the
+        // unrelated Results catalogue permission here used to redirect the
+        // very lecturer permitted to review and submit this draft course.
+        if ($page === 'comment-pending-result') {
+            return $next($request);
+        }
 
-                if ($assignedToCourse || PortalPermission::hasPageAccess('/approve results')) {
-                    return $next($request);
-                }
-            }
+        // The same MAIN lecturer who can review and comment on this draft
+        // course can submit it. The controller rechecks ownership and stage.
+        if ($page === 'create approve results' && $request->input('approve') === 'system'
+            && \App\Support\PendingResultAccess::canComment(
+                (string) $request->input('code'), (string) $request->input('session'), (string) $request->input('semester'))) {
+            return $next($request);
+        }
+
+        // Course reviews and their downloads use the same read-only scope.
+        // Action ownership is checked separately by the submission handlers.
+        if ($page === 'pending-results') {
+            abort_unless(\App\Support\PendingResultAccess::canView(
+                (string) $request->query('code'), (string) $request->query('session')), 403,
+                'You do not have access to review this course for the selected session.');
+            return $next($request);
         }
 
         // Check course allocation
@@ -145,6 +148,10 @@ class CheckRoleAccess
         $permission = PortalPermission::resolve($request);
         if ($permission && PortalPermission::pageExists($permission['link'])) {
             if (!PortalPermission::hasPageAccess($permission['link'])) {
+                if (in_array($page, ['pending-results', 'create approve results', 'update approve results', 'update-mark', 'delete-result', 'update-result-status', 'approve-department-results', 'generate-status'], true)
+                    || str_starts_with($page, 'process-next-batch/')) {
+                    abort(403, 'You do not have access to this result approval action. Please contact the portal administrator.');
+                }
                 return redirect('/')->with('error', 'You do not have access to this page.');
             }
 

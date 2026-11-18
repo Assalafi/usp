@@ -34,7 +34,7 @@ class ApproveResultsController extends Controller
             return redirect('/');
         }
         $session = DB::table('session')->where('status', '1')->value('title');
-        if ($req->has('_token')) {
+        if ($req->has('_token') || $req->filled('session')) {
             $data = $req->all();
             $ses = $data['session'];
             $session = $ses;
@@ -152,124 +152,73 @@ class ApproveResultsController extends Controller
 
     public function create(Request $req)
     {
-        if (!session()->has('log')) {
-            return redirect('/');
-        }
-
+        if (!session()->has('log')) return redirect('/');
         $validated = $req->validate([
             'code' => ['required', 'string', 'max:50'],
             'session' => ['required', 'string', 'max:15'],
             'semester' => ['required', 'string', 'max:25'],
             'approve' => ['required', 'in:system,lecturer,hod,dean,cs'],
         ]);
-
-        // The submit button is displayed by the view only for the reviewer
-        // responsible for the current stage. Enforce that rule again here so
-        // a forged/replayed POST cannot move another department's result.
-        if (!$this->canSubmitApprovalStage($validated)) {
-            abort(403, 'You do not have permission to submit this result at the current approval stage.');
-        }
-
-        $datas = $req->all();
-        $code = trim($validated['code']);
-        $session = trim($validated['session']);
-        $semester = trim($validated['semester']);
-        $check = 0;
-        $data = DB::table('results')->where(['code' => $code, 'session' => $session, 'semester' => $semester, 'approve' => $req->approve])->select('approve')->limit(1)->get();
-        // dd($req -> approve);
-        foreach ($data as $row) {
-            $check = 1;
-            if ($req->approve == 'system') {
-                $status = 'Submitted to Department';
-                $records['approve'] = 'lecturer';
-                $records['lecturer'] = session('username');
-                // dd('Hi');
-            } else if ($req->approve == 'lecturer') {
-                $status = 'Submitted to Faculty';
-                $records['approve'] = 'hod';
-                $records['hod'] = session('username');
-            } else if ($req->approve == 'hod') {
-                $status = 'Submitted to Course System';
-                $records['approve'] = 'dean';
-                $records['dean'] = session('username');
-            } else if ($req->approve == 'dean') {
-                $status = 'Submitted to Senate';
-                $records['approve'] = 'cs';
-                $records['cs'] = session('username');
-            } else if ($req->approve == 'cs') {
-                $status = 'Approved!!!';
-                $records['approve'] = 'vc';
-                $records['vc'] = session('username');
-                $data = DB::table('results')->where(['code' => $code, 'session' => $session, 'semester' => $semester])->select('username', 'unit', 'point', 'ugp', 'total', 'grade', 'session', 'semester', 'level', 'remark')->get();
-                foreach ($data as $row) {
-                    $record['total'] = $row->total;
-                    $record['grade'] = $row->grade;
-                    $record['status'] = $row->remark;
-                    $record['unit'] = $row->unit;
-                    $record['point'] = $row->point;
-                    $record['ugp'] = $row->ugp;
-
-                    // $current = $row -> current_level;
-                    // $final = $row -> final_level;
-
-                    $current = 2;
-                    $final = 1;
-                    // echo $row -> username;
-                    // die;
-                    DB::table('student_course_registration')->where(['code' => $code, 'session' => $row->session, 'username' => $row->username])->update($record);
-                    $id = DB::table('student_course_registration')->where(['username' => $row->username, 'status' => 'awaiting'])->select('id')->value('id');
-                    if ($id > 0) {
-                    } else {
-                        if ($current == $final) {
-                        } else {
-                            $unit = 0;
-                            $ugp = 0;
-                            $cgpa = 0;
-                            $carry = '';
-                            $statuss = '';
-                            $class = '';
-                            $f = 0;
-                            $flag = 0;
-                            $p = 0;
-                            $reg = DB::table('student_course_registration')->where(['username' => $id])->orderBy('username', 'ASC')->get();
-                            foreach ($reg as $result) {
-                                $unit = $unit + $result->unit;
-                                $ugp = $ugp + $result->ugp;
-                                if ($result->grade == 'F') {
-                                    $carry = $carry . ' ' . $result->code;
-                                    $f++;
-                                }
-                            }
-                            $cgpa = $ugp / $unit;
-                            if ($f > 6 || $cgpa < 1.0) {
-                            }
-                        }
-                    }
+        $validated = array_map('trim', $validated);
+        DB::transaction(function () use ($validated) {
+            $batch = DB::table('results')->where([
+                'code' => $validated['code'], 'session' => $validated['session'],
+                'semester' => $validated['semester'], 'approve' => $validated['approve'],
+            ]);
+            $rows = (clone $batch)->lockForUpdate()->get();
+            abort_if($rows->isEmpty(), 409, 'This result has already moved to another approval stage. Refresh the course review.');
+            abort_unless($this->canSubmitApprovalStage($validated), 403,
+                'You do not have permission to submit this course at its current approval stage.');
+            if ($validated['approve'] === 'system') {
+                $missingComments = DB::table('student_course_registration')
+                    ->where(['code' => $validated['code'], 'session' => $validated['session'], 'semester' => $validated['semester']])
+                    ->whereNotIn('username', $rows->pluck('username'))
+                    ->where(function ($query) {
+                        $query->whereNull('comment')->orWhereRaw("TRIM(comment) = ''")->orWhere('comment', 'No Comment');
+                    })->exists();
+                if ($missingComments) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'comment' => 'Please explain each missing result before submitting this course.',
+                    ]);
                 }
-            } else {
-                return redirect()->back()->with('error', 'Something Went Wrong');
             }
-        }
-        if ($check == 0) {
-            return redirect()->back()->with('error', 'Something Went Wrong with ' . $code . ' of ' . $session . ' ' . $semester);
-        }
-
-        $records['updated_at'] = NOW();
-        DB::table('results')->where(['code' => $code, 'session' => $session, 'semester' => $semester, 'approve' => $req->approve])->update($records);
-        return redirect()->back()->with('success', 'Results ' . $status);
+            $stages = [
+                'system' => ['lecturer', 'lecturer'], 'lecturer' => ['hod', 'hod'],
+                'hod' => ['dean', 'dean'], 'dean' => ['cs', 'cs'], 'cs' => ['vc', 'vc'],
+            ];
+            [$next, $actor] = $stages[$validated['approve']];
+            if ($next === 'vc') {
+                foreach ($rows as $row) {
+                    DB::table('student_course_registration')->where([
+                        'code' => $validated['code'], 'session' => $validated['session'],
+                        'semester' => $validated['semester'], 'username' => $row->username,
+                    ])->update([
+                        'total' => $row->total, 'grade' => $row->grade, 'status' => $row->remark,
+                        'unit' => $row->unit, 'point' => $row->point, 'ugp' => $row->ugp,
+                    ]);
+                }
+            }
+            $batch->update(['approve' => $next, $actor => session('username'), 'updated_at' => now()]);
+        }, 3);
+        return redirect('/approve results?' . http_build_query(['session' => $validated['session']]))
+            ->with('success', 'The course results have been submitted successfully.');
     }
 
     /**
      * Match the reviewer rules used by pending-results.blade.php and apply
      * them on the server for every approval submission.
      */
-    private function canSubmitApprovalStage(array $validated): bool
+    public function canSubmitApprovalStage(array $validated, string $action = 'create'): bool
     {
-        if (strtoupper(trim((string) session('accType'))) === 'ADMIN') {
-            return true;
+        $isAdmin = strtoupper(trim((string) session('accType'))) === 'ADMIN';
+        if (!$isAdmin && strtoupper(trim((string) session('accType'))) !== 'STAFF') {
+            return false;
         }
 
-        if (strtoupper(trim((string) session('accType'))) !== 'STAFF') {
+        // Empty legacy action lists defer to the appointment and academic
+        // ownership checks below. Explicit view-only grants do not authorise writes.
+        $actions = \App\Support\PortalPermission::actionsForLink('/approve results');
+        if ($actions && !array_intersect($actions, ['*', 'approve', $action])) {
             return false;
         }
 
@@ -280,7 +229,7 @@ class ApproveResultsController extends Controller
         $username = strtoupper(trim((string) session('username')));
         $appointment = strtoupper(trim((string) session('appointment')));
 
-        if ($stage === '' || $code === '' || $sessionName === '' || $semester === '' || $username === '') {
+        if (!in_array($stage, ['system', 'lecturer', 'hod', 'dean', 'cs'], true) || $code === '' || $sessionName === '' || $semester === '' || $username === '') {
             return false;
         }
 
@@ -295,11 +244,13 @@ class ApproveResultsController extends Controller
         if (!$sample) {
             return false;
         }
+        if ($isAdmin) return true;
 
         // Lecturer submits to the Department. This deliberately follows the
         // same lecturer ownership check as the submit button in the view.
         if ($stage === 'system') {
-            return strtoupper(trim((string) ($sample->lecturer ?? ''))) === $username;
+            return strtoupper(trim((string) ($sample->lecturer ?? ''))) === $username
+                && \App\Support\PendingResultAccess::canComment($code, $sessionName, $semester);
         }
 
         $course = DB::table('course')
@@ -356,6 +307,8 @@ class ApproveResultsController extends Controller
         $session = trim($validated['session']);
         $semester = trim($validated['semester']);
         $currentStage = strtolower(trim($validated['approve']));
+        abort_unless($this->canSubmitApprovalStage($validated, 'update'), 403,
+            'You cannot reject this course at its current approval stage. Check your assigned responsibility and department.');
         $reason = trim($validated['comment']);
         $username = (string) session('username');
         $appointment = strtoupper(trim((string) session('appointment')));
@@ -524,6 +477,8 @@ class ApproveResultsController extends Controller
 
     public function approveDeptResults(Request $req)
     {
+        abort_unless(session('accType') === 'Admin' || (session('accType') === 'Staff' && session('appointment') === 'VC'), 403,
+            'Only the final approving office can approve or reject a department batch.');
         if (!session()->has('log')) {
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
@@ -560,6 +515,8 @@ class ApproveResultsController extends Controller
 
     public function processNextBatch(Request $req)
     {
+        abort_unless(session('accType') === 'Admin' || (session('accType') === 'Staff' && session('appointment') === 'VC'), 403,
+            'Only the final approving office can process department approval batches.');
         $dept = $req->dept;
         $status = $req->status;
         $session = '2023/2024';
@@ -1307,6 +1264,8 @@ class ApproveResultsController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
+        abort_unless(\App\Support\PendingResultAccess::canComment((string) $req->code, (string) $req->session, (string) $req->semester), 403,
+            'Marks can only be adjusted by the assigned main lecturer while the course is awaiting submission.');
         $datas = $req->all();
         $code = $datas['code'];
         $session = $datas['session'];
@@ -1410,6 +1369,7 @@ class ApproveResultsController extends Controller
      */
     public function countRecords(Request $req)
     {
+        abort_unless(\App\Support\PendingResultAccess::canView((string) $req->code, (string) $req->session), 403, 'You do not have access to this course result.');
         try {
             if (!session()->has('log')) {
                 return response()->json([

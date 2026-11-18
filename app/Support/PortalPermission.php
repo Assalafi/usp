@@ -121,7 +121,7 @@ final class PortalPermission
         'update-course-structure' => '/course structure',
         'delete-course-structure' => '/course structure',
         'upload-course-structure' => '/course structure',
-        'pending-results' => '/pending-results',
+        'pending-results' => '/approve results',
         'upload-payment' => '/fees due',
         'export-users' => '/registration',
         'export-courses' => '/course',
@@ -130,7 +130,9 @@ final class PortalPermission
         'update-student-level' => '/students list',
         'update-med' => '/results',
         'delete-results' => '/results',
-        'comment-pending-result' => '/results',
+        // This action is additionally restricted to the stored draft batch
+        // and MAIN lecturer allocation by ResultsController::pending.
+        'comment-pending-result' => '/approve results',
         'initiate corrigenda' => '/corrigenda',
         'update corrigenda' => '/corrigenda',
         'corrigenda' => '/corrigenda',
@@ -391,6 +393,8 @@ final class PortalPermission
 
     private static function actionForPath(string $path, string $name, string $uri, string $method): string
     {
+        // Deleting an approval batch must never be authorised by Update alone.
+        if ($path === 'delete-result') return 'delete';
         // Change of Course has distinct record permissions. Opening a record
         // is a view operation, the edit/reset screens are updates, approval
         // submissions require approval access, and downloads require export.

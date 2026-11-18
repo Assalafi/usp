@@ -627,12 +627,14 @@ Route::get('print-result-pdf/{code}/{ses1}/{ses2}', function ($code, $ses1, $ses
     if (!session()->has('log')) {
         return redirect('/');
     }
+    abort_unless(\App\Support\PendingResultAccess::canView($code, $ses1 . '/' . $ses2), 403, 'You do not have access to download this course result.');
     return view('pdf/result', ['code' => $code, 'session' => $ses1 . '/' . $ses2]);
 });
 Route::get('print-result-pdf2/{code}/{ses1}/{ses2}/{type}/{semester}', function ($code, $ses1, $ses2, $type, $semester) {
     if (!session()->has('log')) {
         return redirect('/');
     }
+    abort_unless(\App\Support\PendingResultAccess::canView($code, $ses1 . '/' . $ses2), 403, 'You do not have access to download this course result.');
     return view('pdf/result2', ['code' => $code, 'session' => $ses1 . '/' . $ses2, 'type' => $type, 'semester' => $semester]);
 });
 Route::get('grades-by-courses/{code}/{ses1}/{ses2}/{semester}', function ($code, $ses1, $ses2, $semester) {

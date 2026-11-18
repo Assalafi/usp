@@ -5,7 +5,7 @@
         $sessions = $_GET['session'];
     } else {
         $program = null;
-        $sessions = DB::table('session')->where('status', '1')->value('title');
+        $sessions = request('session', $sessions ?? DB::table('session')->where('status', '1')->value('title'));
     }
 @endphp
 
@@ -204,22 +204,10 @@
                                             $comment = DB::table('results')
                                                 ->where(['code' => $row->code, 'session' => $sessions])
                                                 ->value('comment');
-                                            if (
-                                                $approve == 'system' &&
-                                                strtoupper(trim((string) $row->lecturer)) == strtoupper(trim((string) session('username')))
-                                            ) {
-                                                $action = 1;
-                                            } elseif ($approve == 'lecturer' && session('appointment') == 'HOD') {
-                                                $action = 1;
-                                            } elseif ($approve == 'hod' && session('appointment') == 'DEAN') {
-                                                $action = 1;
-                                            } elseif ($approve == 'dean' && session('appointment') == 'COURSE SYSTEM') {
-                                                $action = 1;
-                                            } elseif ($approve == 'cs' && session('appointment') == 'VC') {
-                                                $action = 1;
-                                            } else {
-                                                $action = 0;
-                                            }
+                                            $action = app(\App\Http\Controllers\ApproveResultsController::class)->canSubmitApprovalStage([
+                                                'code' => $row->code, 'session' => $row->session,
+                                                'semester' => $row->semester, 'approve' => $approve,
+                                            ]) ? 1 : 0;
                                         @endphp
                                         <tr>
                                             <td>{{ $sn++ }}</td>
@@ -248,7 +236,7 @@
                                                             type="submit" class="btn btn-info btn-sm"><i
                                                                 class="fas fa-eye"></i> Approved</a>
                                                     @else
-                                                        @if (strtoupper(trim((string) $row->lecturer)) == strtoupper(trim((string) session('username'))))
+                                                        @if (strtoupper(trim((string) $row->lecturer)) == strtoupper(trim((string) session('username'))) && \App\Support\PortalPermission::allows('/approve results', 'update'))
                                                             <a href="#" class="btn btn-icon btn-primary btn-sm"
                                                                 data-bs-toggle="modal"
                                                                 data-bs-target="#updateStudent{{ $sn }}">
