@@ -73,8 +73,7 @@
     $profilePhotoUpdatedForCurrentSubmission = !empty($row->profile_photo_updated_at)
         && (empty($row->profile_submitted_at) || \Carbon\Carbon::parse($row->profile_photo_updated_at)->greaterThan(\Carbon\Carbon::parse($row->profile_submitted_at)));
     $profileIsSubmitted = $profileStatus === 'submitted'
-        && !empty($row->profile_submitted_at)
-        && (string) ($row->profile_submission_session ?? '') === (string) ($currentSession ?? '');
+        && !empty($row->profile_submitted_at);
     $profileRequiredGroups = [
         'Bio-data' => [
             'JAMB number' => $row->jamb_no,

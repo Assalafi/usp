@@ -138,6 +138,25 @@ class StudentProfileSaveTest extends TestCase
         $this->get('/profile?mode=edit&required=1')->assertRedirect('/profile-update-expired');
     }
 
+    public function test_a_profile_submitted_in_a_previous_session_remains_valid()
+    {
+        DB::table('students')->where('id', 1)->update([
+            'profile_status' => 'submitted',
+            'profile_submitted_at' => '2025-10-01 12:00:00',
+            'profile_submission_session' => '2025/2026',
+            'profile_level_session' => '2025/2026',
+        ]);
+        DB::table('session')->update(['title' => '2026/2027']);
+        Cache::put('system_settings', ['student_profile_update_enabled' => '2', 'student_nin_verification_enabled' => '0']);
+
+        $access = (new \App\Http\Middleware\EnsureStudentProfileSubmitted())->handle(
+            \Illuminate\Http\Request::create('/dash'),
+            fn () => response('allowed')
+        );
+
+        $this->assertSame('allowed', $access->getContent());
+    }
+
     public function test_native_form_errors_return_directly_to_required_editor()
     {
         $this->post('/update-profile', ['id' => '1', 'profile_action' => 'save', 'home_email' => 'invalid'])

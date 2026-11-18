@@ -555,25 +555,22 @@ Route::get('/profile', function () {
 
     $userId = session('id');
     $student = Student::where('user_id', $userId)->first();
-    $currentSession = DB::table('session')->where('status', '1')->value('title');
-    $profileIsSubmittedForCurrentSession = $student
+    $profileIsSubmitted = $student
         && $student->profile_status === 'submitted'
-        && !empty($student->profile_submitted_at)
-        && (string) ($student->profile_submission_session ?? '') === (string) ($currentSession ?? '')
-        && (string) ($student->profile_level_session ?? '') === (string) ($currentSession ?? '');
+        && !empty($student->profile_submitted_at);
     // Normal profile editing is currently closed, but students who have not
-    // completed the mandatory current-session update must still be allowed to
+    // completed the mandatory profile update must still be allowed to
     // open the required editor. Without this exception, /profile redirects
     // to the required editor and the editor redirects straight back here.
     $requiredProfileEdit = request('mode') === 'edit' && request('required') === '1';
-    if (session('accType') === 'Student' && !$profileIsSubmittedForCurrentSession
+    if (session('accType') === 'Student' && !$profileIsSubmitted
         && (int) \App\Http\Controllers\SystemSettingsController::get('student_profile_update_enabled', '1') === 2) {
         return redirect('/profile-update-expired');
     }
-    if (session('accType') === 'Student' && request('mode') === 'edit' && (!$requiredProfileEdit || $profileIsSubmittedForCurrentSession)) {
+    if (session('accType') === 'Student' && request('mode') === 'edit' && (!$requiredProfileEdit || $profileIsSubmitted)) {
         return redirect('/profile')->with('info', 'Profile editing is temporarily closed. You can still view your profile.');
     }
-    if (session('accType') === 'Student' && !$profileIsSubmittedForCurrentSession && request('mode') !== 'edit') {
+    if (session('accType') === 'Student' && !$profileIsSubmitted && request('mode') !== 'edit') {
         return redirect('/profile?mode=edit&required=1');
     }
     $studentDocuments = $student

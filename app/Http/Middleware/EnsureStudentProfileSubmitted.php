@@ -11,7 +11,7 @@ class EnsureStudentProfileSubmitted
 {
     /**
      * The student-record update deadline has expired. Students who have not
-     * submitted the current session's update are restricted to the notice page
+     * submitted profile are restricted to the notice page
      * and logout. This middleware is intentionally central so every existing
      * and future web route receives the same protection.
      */
@@ -33,13 +33,13 @@ class EnsureStudentProfileSubmitted
             'nin',
             'nin_update_version',
         ]);
-        $currentSession = DB::table('session')->where('status', '1')->value('title');
-        $isSubmittedForCurrentSession = $student
+        // A submitted profile remains valid when the academic session changes.
+        // The profile update is a completion check, not a yearly re-submission
+        // requirement. NIN verification has its own independent cycle below.
+        $isSubmitted = $student
             && $student->profile_status === 'submitted'
-            && !empty($student->profile_submitted_at)
-            && (string) $student->profile_submission_session === (string) $currentSession
-            && (string) $student->profile_level_session === (string) $currentSession;
-        if ($isSubmittedForCurrentSession) {
+            && !empty($student->profile_submitted_at);
+        if ($isSubmitted) {
             $ninEnabledValue = \App\Http\Controllers\SystemSettingsController::get('student_nin_verification_enabled', '1');
             $ninEnabled = $ninEnabledValue === null || (string) $ninEnabledValue !== '0';
             if (!$ninEnabled) {
@@ -74,7 +74,7 @@ class EnsureStudentProfileSubmitted
 
         if ($profileMode === 1) {
             $redirect = url('/profile?mode=edit&required=1');
-            $message = 'Please complete and submit your current student profile update before using portal services.';
+            $message = 'Please complete and submit your student profile before using portal services.';
         } else {
             $redirect = url('/profile-update-expired');
             $message = 'Your student portal access is restricted because the student record update deadline has expired.';

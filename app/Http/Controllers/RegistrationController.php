@@ -1797,9 +1797,7 @@ class RegistrationController extends Controller
         }
         if (session('accType') === 'Student') {
             $submitted = $student->profile_status === 'submitted'
-                && !empty($student->profile_submitted_at)
-                && (string) $student->profile_submission_session === (string) $profileSession
-                && (string) $student->profile_level_session === (string) $profileSession;
+                && !empty($student->profile_submitted_at);
             abort_if($submitted, 403, 'Your profile has already been submitted. Profile editing is currently closed.');
             abort_if((int) SystemSettingsController::get('student_profile_update_enabled', '1') === 2, 403,
                 'The student record update deadline has expired. Please contact Student Affairs.');
