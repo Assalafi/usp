@@ -140,4 +140,30 @@ class LoginQueryPerformanceTest extends TestCase
         $this->assertStringContainsString('role="alert">Wrong ID Or Password</div>', $html);
         $this->assertStringContainsString('id="portal-login-submit"', $html);
     }
+
+    private function returningStudentLogin(): void
+    {
+        DB::table('students')->insert(['user_id' => '5068', 'username' => 'TEST/ACCOUNT', 'id_no' => '0', 'session_of_entry' => '2021/2022']);
+        $this->login();
+    }
+
+    public function test_dashboard_uses_same_academic_session_as_login_not_payment_settings(): void
+    {
+        Cache::put('system_settings', ['system_session' => '2026/2027']);
+        $this->returningStudentLogin();
+        $route = app('router')->getRoutes()->match(Request::create('/dash'));
+        $response = $route->run();
+        $this->assertInstanceOf(\Illuminate\View\View::class, $response);
+        $this->assertSame('dashboard', $response->getData()['page']);
+    }
+
+    public function test_dashboard_requires_a_new_login_after_active_academic_session_changes(): void
+    {
+        $this->returningStudentLogin();
+        DB::table('session')->update(['title' => '2026/2027']);
+        $route = app('router')->getRoutes()->match(Request::create('/dash'));
+        $response = $route->run();
+        $this->assertSame(url('/logout'), $response->getTargetUrl());
+        $this->assertStringContainsString('academic session has changed', session('error'));
+    }
 }

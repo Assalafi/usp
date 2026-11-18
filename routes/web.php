@@ -925,6 +925,8 @@ Route::get('attendance-page/{id}', function ($id) {
     return view('main', ['data' => $data, 'page' => 'attendance page']);
 })->middleware('role');
 Route::get('logout', function () {
+    // Preserve a sign-in failure reason across this intermediate redirect.
+    session()->keep(['error']);
     session()->pull('log');
     session()->pull('appointment');
     session()->pull('unit');
@@ -972,13 +974,14 @@ Route::get('dash', function () {
             return redirect('/logout')->with('error', 'Error');
         }
 
-        $sess = \App\Http\Controllers\SystemSettingsController::getCurrentSession();
+        // Login and the student-profile gate use the active academic session.
+        // Payment/admission settings can legitimately already point to next year.
+        $sess = DB::table('session')->where('status', '1')->value('title');
         if (session('system_session') != $sess) {
-            return redirect('/logout')->with('error', 'Session Error');
+            return redirect('/logout')->with('error', 'The academic session has changed. Please sign in again.');
         }
 
         //dd('Hii3');
-        $session = DB::table('session')->where('status', '1')->value('title');
         $noo = Student::where(['user_id' => session('id'), 'session_of_entry' => session('system_session')])->select('id_no')->value('id_no');
         // dd($noo);
         if ($noo > 0) {
