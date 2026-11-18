@@ -591,6 +591,11 @@ Route::get('/profile', function () {
         ->get()
         ->keyBy('doc_type');
 
+    // The profile view still displays the active session for context. This
+    // value is presentation-only; profile completion remains independent of
+    // academic session.
+    $currentSession = DB::table('session')->where('status', '1')->value('title');
+
     return view('main', compact('studentDocuments', 'applicantDocuments', 'siwesBankDetails', 'currentSession') + ['page' => 'profile']);
 });
 Route::get('id card/{id}', [StudentIdCardController::class, 'download']);
