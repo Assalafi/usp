@@ -398,6 +398,10 @@
                         <div class="sp-completion-complete"><i class="fas fa-circle-check" aria-hidden="true"></i> All required profile items are complete.</div>
                     @endif
                 </section>
+                <div id="profile-save-feedback" class="alert d-none" role="alert" tabindex="-1" aria-live="assertive"></div>
+                @if (session('success'))
+                    <div class="alert alert-success" role="status">{{ session('success') }}</div>
+                @endif
                 @if (session('error'))
                     <div class="alert alert-danger border-0 shadow-sm" role="alert">
                         <i class="fas fa-circle-exclamation me-1"></i>
@@ -1203,14 +1207,12 @@
                                                 ],
                                             ];
 
-                                            if (in_array(strtoupper((string) $row->mode_of_entry), ['DE', 'DIRECT ENTRY'], true)) {
                                                 $profileDocumentTypes[] = [
                                                     'id' => 'direct_entry_cert',
                                                     'label' => 'Direct Entry Certificate',
-                                                    'required' => true,
+                                                    'required' => $modeOfEntryValue === 'DE',
                                                     'description' => 'Upload your Direct Entry qualification certificate.',
                                                 ];
-                                            }
                                         @endphp
                                         <section class="sp-documents-panel">
                                             <div class="sp-documents-heading">
@@ -1223,9 +1225,9 @@
                                             <div class="sp-document-list">
                                                 @foreach ($profileDocumentTypes as $documentType)
                                                     @php
-                                                        $documentRecord = $documentRecords->get($documentType['id']);
+                                                        $documentRecord = $validDocumentRecords->get($documentType['id']);
                                                     @endphp
-                                                    <div class="sp-document-card">
+                                                    <div class="sp-document-card" @if ($documentType['id'] === 'direct_entry_cert') id="direct-entry-document" @if ($modeOfEntryValue !== 'DE') hidden @endif @endif>
                                                         <div class="sp-document-card-head">
                                                             <div>
                                                                 <label for="student_doc_{{ $documentType['id'] }}" class="sp-document-label">
@@ -1320,6 +1322,21 @@
             console.log('Form found:', profileForm !== null);
             console.log('Submit button found:', submitButton !== null);
             if (!profileForm || !submitButton || !saveButton) return;
+            const entryMode = document.getElementById('mode_of_entry');
+            const directEntryCard = document.getElementById('direct-entry-document');
+            const directEntryFile = document.getElementById('student_doc_direct_entry_cert');
+            const directEntryAlreadySaved = directEntryFile && !!directEntryCard.querySelector('a[href]');
+            const updateEntryDocument = () => {
+                if (!entryMode || !directEntryCard || !directEntryFile) return;
+                const needed = entryMode.value === 'DE';
+                directEntryCard.hidden = !needed;
+                directEntryCard.style.display = needed ? '' : 'none';
+                directEntryFile.disabled = !needed;
+                directEntryFile.required = needed && !directEntryAlreadySaved;
+            };
+            entryMode?.addEventListener('change', updateEntryDocument);
+            if (window.jQuery) window.jQuery(entryMode).on('change', updateEntryDocument);
+            updateEntryDocument();
 
             // Add click event handler directly to the submit button
             submitButton.addEventListener('click', function(event) {
@@ -1346,7 +1363,11 @@
             /**
              * Validates the form and submits it if valid
              */
-            function validateAndSubmitForm(form, shouldSubmit) {
+            async function validateAndSubmitForm(form, shouldSubmit) {
+                if (form.dataset.saving === '1') return false;
+                const signature = document.getElementById('signiture');
+                if (signature && signature.pendingImage) await signature.pendingImage;
+                if (form.dataset.saving === '1') return false;
                 console.log('Running form validation');
 
                 // Array to store names of unfilled or invalid fields
@@ -1387,9 +1408,59 @@
                     const actionInput = form.querySelector('#profile_action');
                     if (actionInput) actionInput.value = shouldSubmit ? 'submit' : 'save';
                     const activeButton = shouldSubmit ? submitButton : saveButton;
-                    if (activeButton) { activeButton.disabled = true; activeButton.classList.add('disabled'); activeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; }
-                    form.submit();
-                    return true;
+                    const buttonLabel = activeButton.innerHTML;
+                    const feedback = document.getElementById('profile-save-feedback');
+                    let saved = false;
+                    form.dataset.saving = '1';
+                    saveButton.disabled = submitButton.disabled = true;
+                    activeButton.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Saving...';
+                    feedback.className = 'alert alert-info';
+                    feedback.textContent = 'Saving your information and files. Please keep this page open.';
+                    try {
+                        const response = await fetch(form.action, {
+                            method: 'POST', body: new FormData(form), credentials: 'same-origin',
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+                        const isJson = (response.headers.get('content-type') || '').includes('application/json');
+                        const data = isJson ? await response.json() : null;
+                        if (!response.ok || !data || response.redirected) {
+                            const messages = data && data.errors ? Object.values(data.errors).flat() : [];
+                            const fallback = response.status === 413 ? 'The upload is too large. Keep each document below 400 KB and try uploading fewer files at once.'
+                                : response.status === 419 || response.redirected ? 'Your sign-in has expired. Open the portal in another tab, sign in, then return here and try again.'
+                                : 'Your profile could not be saved. Please try again or contact ICT support.';
+                            feedback.className = 'alert alert-danger';
+                            feedback.textContent = messages.length ? 'Please correct the following:' : ((data && data.message) || fallback);
+                            if (messages.length) {
+                                const list = document.createElement('ul');
+                                messages.forEach(message => { const item = document.createElement('li'); item.textContent = message; list.appendChild(item); });
+                                feedback.appendChild(list);
+                                Object.keys(data.errors).forEach(name => {
+                                    const field = form.elements.namedItem(name);
+                                    if (field && field.classList) markFieldAsInvalid(field, data.errors[name][0]);
+                                });
+                            }
+                            feedback.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            feedback.focus({ preventScroll: true });
+                            return false;
+                        }
+                        feedback.className = 'alert alert-success';
+                        feedback.textContent = data.message;
+                        saved = true;
+                        window.location.assign(data.redirect);
+                        return true;
+                    } catch (error) {
+                        feedback.className = 'alert alert-danger';
+                        feedback.textContent = 'We could not confirm that your profile was saved. Check your internet connection and try again. Your selected files are still on this form.';
+                        feedback.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        feedback.focus({ preventScroll: true });
+                        return false;
+                    } finally {
+                        if (!saved) {
+                            form.dataset.saving = '0';
+                            saveButton.disabled = submitButton.disabled = false;
+                            activeButton.innerHTML = buttonLabel;
+                        }
+                    }
                 }
             }
 
@@ -2198,8 +2269,8 @@
             const documentUploadAttempt = document.getElementById('document_upload_attempt');
             document.querySelectorAll('.sp-document-input, #signiture').forEach(function (input) {
                 input.addEventListener('change', function () {
-                    if (documentUploadAttempt) documentUploadAttempt.value = '1';
                     const file = this.files && this.files[0];
+                    if (documentUploadAttempt) documentUploadAttempt.value = Array.from(document.querySelectorAll('.sp-document-input, #signiture')).some(field => field.files && field.files.length) ? '1' : '0';
                     const note = document.getElementById('student_doc_note_' + this.id.replace('student_doc_', ''));
                     const label = this.getAttribute('data-document-label') || 'Document';
                     if (!file || !note) return;
@@ -2224,7 +2295,18 @@
                 const point = (event) => { const rect = canvas.getBoundingClientRect(); const source = event.touches?.[0] || event; return { x:(source.clientX-rect.left)*(canvas.width/rect.width), y:(source.clientY-rect.top)*(canvas.height/rect.height) }; };
                 const start = (event) => { event.preventDefault(); drawing=true; const p=point(event); context.beginPath(); context.moveTo(p.x,p.y); };
                 const move = (event) => { if(!drawing) return; event.preventDefault(); const p=point(event); context.lineTo(p.x,p.y); context.stroke(); hasInk=true; };
-                const finish = () => { if(!drawing) return; drawing=false; if(hasInk) canvas.toBlob(blob => { const transfer = new DataTransfer(); transfer.items.add(new File([blob], 'signature.png', {type:'image/png'})); signatureInput.files=transfer.files; }, 'image/png'); };
+                const finish = () => {
+                    if (!drawing) return;
+                    drawing = false;
+                    if (hasInk) signatureInput.pendingImage = new Promise(resolve => canvas.toBlob(blob => {
+                        if (blob) {
+                            const transfer = new DataTransfer();
+                            transfer.items.add(new File([blob], 'signature.png', {type:'image/png'}));
+                            signatureInput.files = transfer.files;
+                        }
+                        resolve();
+                    }, 'image/png'));
+                };
                 canvas.addEventListener('pointerdown',start); canvas.addEventListener('pointermove',move); canvas.addEventListener('pointerup',finish); canvas.addEventListener('pointerleave',finish);
                 clearSignature?.addEventListener('click', () => { context.clearRect(0,0,canvas.width,canvas.height); hasInk=false; signatureInput.value=''; });
                 signatureInput.addEventListener('change', () => { if(signatureInput.files.length) { const image = new Image(); image.onload=()=>{ context.clearRect(0,0,canvas.width,canvas.height); const scale=Math.min(canvas.width/image.width,canvas.height/image.height); const w=image.width*scale,h=image.height*scale; context.drawImage(image,(canvas.width-w)/2,(canvas.height-h)/2,w,h); hasInk=true; }; image.src=URL.createObjectURL(signatureInput.files[0]); } });

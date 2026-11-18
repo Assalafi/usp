@@ -1743,18 +1743,66 @@ class RegistrationController extends Controller
     }
     public function updateProfile(Request $request)
     {
+        $createdFiles = [];
+        $replacedFiles = [];
+        try {
+            $response = DB::transaction(function () use ($request, &$createdFiles, &$replacedFiles) {
+                return $this->persistStudentProfile($request, $createdFiles, $replacedFiles);
+            });
+        } catch (\Throwable $exception) {
+            foreach ($createdFiles as $path) {
+                try { Storage::disk('public')->delete($path); } catch (\Throwable $ignored) {}
+            }
+            if ($exception instanceof ValidationException) {
+                if ($request->expectsJson()) {
+                    return response()->json(['message' => 'Please check the items below.', 'errors' => $exception->errors()], 422);
+                }
+                return redirect('/profile?mode=edit&required=1')->withInput()->withErrors($exception->errors());
+            }
+            if ($exception instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface || $exception instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
+                throw $exception;
+            }
+            Log::error('Student profile save failed', ['user_id' => session('id'), 'exception' => $exception]);
+            $message = 'Your profile could not be saved. No changes were saved. Please try again. If this continues, contact ICT support.';
+            return $request->expectsJson()
+                ? response()->json(['message' => $message], 500)
+                : redirect('/profile?mode=edit&required=1')->withInput()->with('error', $message);
+        }
+        // Keep old documents and the reusable photo preview until every database write succeeds.
+        foreach ($replacedFiles as $path) {
+            try { Storage::disk('public')->delete($path); } catch (\Throwable $exception) {
+                Log::warning('Old profile file cleanup failed', ['user_id' => session('id')]);
+            }
+        }
+        if ($replacedFiles && $request->filled('processed_photo_token')) {
+            Cache::forget('student.photo-preview.' . $request->processed_photo_token);
+        }
+        return $response;
+    }
+
+    private function persistStudentProfile(Request $request, array &$createdFiles, array &$replacedFiles)
+    {
         if (!session()->has('log')) {
             return redirect('/');
         }
 
         $isSubmit = $request->input('profile_action') === 'submit' || $request->boolean('submit_profile');
 
-        // Keep ordinary profile editing closed for students, but allow the
-        // mandatory profile workflow (?required=1) to submit through this
-        // endpoint. Previously this redirect ran before $isSubmit was
-        // evaluated, so required submissions silently returned to /profile.
-        if (session('accType') === 'Student' && !$isSubmit) {
-            return redirect('/profile')->with('info', 'Profile editing is temporarily closed. You can still view your profile.');
+        $student = Student::where('user_id', session('id'))->lockForUpdate()->firstOrFail();
+        // Match student login, access middleware and the admin completion filter.
+        // The general settings session can already be ahead for new admissions.
+        $profileSession = DB::table('session')->where('status', '1')->value('title');
+        if (!$profileSession) {
+            throw ValidationException::withMessages(['profile' => 'The current student session has not been set. Please contact ICT support before submitting your profile.']);
+        }
+        if (session('accType') === 'Student') {
+            $submitted = $student->profile_status === 'submitted'
+                && !empty($student->profile_submitted_at)
+                && (string) $student->profile_submission_session === (string) $profileSession
+                && (string) $student->profile_level_session === (string) $profileSession;
+            abort_if($submitted, 403, 'Your profile has already been submitted. Profile editing is currently closed.');
+            abort_if((int) SystemSettingsController::get('student_profile_update_enabled', '1') === 2, 403,
+                'The student record update deadline has expired. Please contact Student Affairs.');
         }
 
         $required = $isSubmit ? 'required' : 'nullable';
@@ -1827,7 +1875,7 @@ class RegistrationController extends Controller
         // by an upload-size/server limit. Do not continue with a misleading
         // success redirect; return a visible explanation instead.
         if ($request->boolean('document_upload_attempt') && count($request->allFiles()) === 0) {
-            return redirect()->back()->withInput()->with('error', 'The selected document did not reach the server. It may be larger than the upload limit or the upload was interrupted. Choose a PDF, JPG, JPEG, or PNG file of 400 KB or less and try again.');
+            throw ValidationException::withMessages(['documents' => 'The selected document did not reach the server. Choose the file again and retry. Documents must be PDF, JPG, JPEG or PNG and no larger than 400 KB.']);
         }
 
         $student = Student::where('id', $request->id)
@@ -1852,7 +1900,6 @@ class RegistrationController extends Controller
             $this->ensureRequiredStudentDocuments($request, $student);
         }
 
-        $profileSession = session('system_session') ?: DB::table('session')->where('status', '1')->value('title');
         $selectedMode = $request->filled('mode_of_entry') ? strtoupper(trim((string) $request->input('mode_of_entry'))) : strtoupper(trim((string) $student->mode_of_entry));
         $isNigerian = in_array(strtoupper(trim((string) $request->input('country'))), ['NIGERIA', 'NIGERIAN'], true);
         $ninValue = trim((string) $request->input('nin', ''));
@@ -1900,7 +1947,7 @@ class RegistrationController extends Controller
         $pictureValue = null;
         $pictureWasNewUpload = false;
         if ($request->filled('processed_photo_token')) {
-            $preview = Cache::pull('student.photo-preview.' . $request->processed_photo_token);
+            $preview = Cache::get('student.photo-preview.' . $request->processed_photo_token);
             $disk = Storage::disk('public');
             if (!$preview || $preview['student_id'] !== $student->id || $preview['user_id'] !== session('id') || !$disk->exists($preview['path'])) {
                 throw ValidationException::withMessages(['picture' => 'Your photo preview has expired. Process the photo again before saving.']);
@@ -1911,19 +1958,26 @@ class RegistrationController extends Controller
             $pictureWasNewUpload = ($preview['source'] ?? null) === 'upload';
             $storedPath = 'picture/processed/' . Str::uuid() . '.jpg';
             $disk->makeDirectory('picture/processed');
-            $disk->copy($preview['path'], $storedPath);
+            $createdFiles[] = $storedPath;
+            if (!$disk->copy($preview['path'], $storedPath)) {
+                throw ValidationException::withMessages(['picture' => 'Your photograph could not be saved. Please try again or contact ICT support.']);
+            }
             $pictureValue = 'processed/' . basename($storedPath);
-            $disk->delete($preview['path']);
+            $replacedFiles[] = $preview['path'];
         } elseif ($request->hasFile('picture')) {
             throw ValidationException::withMessages(['picture' => 'Process the selected photo and review the preview before saving.']);
         }
 
         if ($request->file('signiture')) {
             $dot = $request->file('signiture')->getClientOriginalExtension();
-            $request->file('signiture')->storeAs('signature', session('id') . '.' . $dot, 'public');
+            $signatureName = session('id') . '_' . Str::uuid() . '.' . $dot;
+            $createdFiles[] = 'signature/' . $signatureName;
+            if (!$request->file('signiture')->storeAs('signature', $signatureName, 'public')) {
+                throw ValidationException::withMessages(['signiture' => 'Your signature could not be saved. Please try again or contact ICT support.']);
+            }
 
             Student::where(['id' => $student->id])->update([
-                'signiture' => session('id') . '.' . $dot
+                'signiture' => $signatureName
             ]);
         }
 
@@ -1938,74 +1992,63 @@ class RegistrationController extends Controller
         Student::where('id', $student->id)->update(
             [
                 'user_id' => session('id'),
-                'last_name' => strtoupper($request->surname),
-                'first_name' => strtoupper($request->first_name),
-                'other_name' => strtoupper($request->other_name),
+                'last_name' => strtoupper((string) $request->surname),
+                'first_name' => strtoupper((string) $request->first_name),
+                'other_name' => strtoupper((string) $request->other_name),
                 'fullname' => strtoupper($request->first_name . ' ' . $request->surname . ' ' . $request->other_name),
                 'mode_of_entry' => $selectedMode,
+                'gender' => strtoupper((string) $request->gender),
                 'jamb_no' => $request->jamb_no,
-                'date_of_birth' => strtoupper($request->date_of_birth),
-                'place_of_birth' => strtoupper($request->place_of_birth),
-                'country' => strtoupper($request->country),
-                'state_origin' => strtoupper($request->state_origin),
+                'date_of_birth' => strtoupper((string) $request->date_of_birth),
+                'place_of_birth' => strtoupper((string) $request->place_of_birth),
+                'country' => strtoupper((string) $request->country),
+                'state_origin' => strtoupper((string) $request->state_origin),
                 'lga_origin' => $request->lga_origin,
-                'marital_status' => strtoupper($request->marital_status),
-                'maiden_name' => strtoupper($request->maiden_name),
-                'religion' => strtoupper($request->religion),
+                'marital_status' => strtoupper((string) $request->marital_status),
+                'maiden_name' => strtoupper((string) $request->maiden_name),
+                'religion' => strtoupper((string) $request->religion),
                 'nin' => $ninValueToStore,
-                'health_status' => strtoupper($request->health_status),
-                'physical_challenge' => strtoupper($request->physical_challenge),
-                'hobbies' => strtoupper($request->hobbies),
-                'blood_group' => strtoupper($request->blood_group),
-                'room' => strtoupper($request->room),
-                'hall' => strtoupper($request->hall),
-                'games' => strtoupper($request->games),
-                'genotype' => strtoupper($request->genotype),
-                'highest_qualification' => strtoupper($request->highest_qualification),
-                'home_address' => strtoupper($request->home_address),
-                'home_phone' => strtoupper($request->home_phone),
-                'home_email' => strtolower($request->home_email),
-                'contact_address' => strtoupper($request->contact_address),
-                'contact_phone' => strtoupper($request->contact_phone),
-                'contact_email' => strtolower($request->contact_email),
+                'health_status' => strtoupper((string) $request->health_status),
+                'physical_challenge' => strtoupper((string) $request->physical_challenge),
+                'hobbies' => strtoupper((string) $request->hobbies),
+                'blood_group' => strtoupper((string) $request->blood_group),
+                'room' => strtoupper((string) $request->room),
+                'hall' => strtoupper((string) $request->hall),
+                'games' => strtoupper((string) $request->games),
+                'genotype' => strtoupper((string) $request->genotype),
+                'highest_qualification' => strtoupper((string) $request->highest_qualification),
+                'home_address' => strtoupper((string) $request->home_address),
+                'home_phone' => strtoupper((string) $request->home_phone),
+                'home_email' => strtolower((string) $request->home_email),
+                'contact_address' => strtoupper((string) $request->contact_address),
+                'contact_phone' => strtoupper((string) $request->contact_phone),
+                'contact_email' => strtolower((string) $request->contact_email),
                 'bank_name' => $request->filled('bank_name') ? strtoupper(trim($request->bank_name)) : null,
                 'bank_code' => $request->filled('bank_code') ? trim($request->bank_code) : null,
                 'account_number' => $request->filled('account_number') ? trim($request->account_number) : null,
                 'sort_code' => $request->filled('sort_code') ? trim($request->sort_code) : null,
-                'kin_name' => strtoupper($request->kin_name),
-                'kin_address' => strtoupper($request->kin_address),
-                'kin_phone' => strtoupper($request->kin_phone),
-                'kin_email' => strtolower($request->kin_email),
-                'sponsor_type' => strtoupper($request->sponsor_type),
-                'sponsor_name' => strtoupper($request->sponsor_name),
-                'sponsor_address' => strtoupper($request->sponsor_address),
-                'sponsor_phone' => strtoupper($request->sponsor_phone),
-                'sponsor_email' => strtolower($request->sponsor_email),
-                'mother_name' => strtoupper($request->mother_name),
-                'mother_address' => strtoupper($request->mother_address),
-                'mother_phone' => strtoupper($request->mother_phone),
-                'mother_email' => strtolower($request->mother_email),
-                'father_name' => strtoupper($request->father_name),
-                'father_address' => strtoupper($request->father_address),
-                'father_phone' => strtoupper($request->father_phone),
-                'father_email' => strtolower($request->father_email),
+                'kin_name' => strtoupper((string) $request->kin_name),
+                'kin_address' => strtoupper((string) $request->kin_address),
+                'kin_phone' => strtoupper((string) $request->kin_phone),
+                'kin_email' => strtolower((string) $request->kin_email),
+                'sponsor_type' => strtoupper((string) $request->sponsor_type),
+                'sponsor_name' => strtoupper((string) $request->sponsor_name),
+                'sponsor_address' => strtoupper((string) $request->sponsor_address),
+                'sponsor_phone' => strtoupper((string) $request->sponsor_phone),
+                'sponsor_email' => strtolower((string) $request->sponsor_email),
+                'mother_name' => strtoupper((string) $request->mother_name),
+                'mother_address' => strtoupper((string) $request->mother_address),
+                'mother_phone' => strtoupper((string) $request->mother_phone),
+                'mother_email' => strtolower((string) $request->mother_email),
+                'father_name' => strtoupper((string) $request->father_name),
+                'father_address' => strtoupper((string) $request->father_address),
+                'father_phone' => strtoupper((string) $request->father_phone),
+                'father_email' => strtolower((string) $request->father_email),
                 'update_profile' => 1
             ]
         );
 
-        try {
-            $this->saveStudentDocuments($request, $student);
-        } catch (ValidationException $exception) {
-            $message = 'The selected document could not be saved. Please choose a valid file and try again.';
-            foreach ($exception->errors() as $messages) {
-                if (is_array($messages) && count($messages)) {
-                    $message = (string) reset($messages);
-                    break;
-                }
-            }
-
-            return redirect()->back()->withInput()->with('error', $message);
-        }
+        $this->saveStudentDocuments($request, $student, $createdFiles, $replacedFiles);
 
         // Mark the workflow only after document storage succeeds, so a failed
         // upload can never unlock a student accidentally.
@@ -2034,7 +2077,7 @@ class RegistrationController extends Controller
 
         $request->session()->put('update_profile', 1);
         $request->session()->put('lga', $request->lga_origin);
-        $request->session()->put('state', strtoupper($request->state_origin));
+        $request->session()->put('state', strtoupper((string) $request->state_origin));
         if (!empty($request->father_phone)) {
             $activeProfile = 1;
         } else {
@@ -2043,7 +2086,12 @@ class RegistrationController extends Controller
         $request->session()->put('activeProfile', $activeProfile);
 
         // return redirect('student-details-pdf');
-        return redirect($isSubmit ? '/profile' : '/profile?mode=edit')->with('success', $isSubmit ? 'Profile submitted successfully. You can now use the student portal.' : 'Profile changes saved. Submit the profile when every required item is complete.');
+        $destination = $isSubmit ? '/profile' : '/profile?mode=edit&required=1';
+        $message = $isSubmit ? 'Profile submitted successfully.' : 'Your progress and uploaded files have been saved. Complete the remaining items, then submit your profile.';
+        $request->session()->flash('success', $message);
+        return $request->expectsJson()
+            ? response()->json(['message' => $message, 'redirect' => url($destination)])
+            : redirect($destination);
     }
 
     public function updateNin(Request $request)
@@ -2216,7 +2264,7 @@ class RegistrationController extends Controller
         }
     }
 
-    private function saveStudentDocuments(Request $request, Student $student): void
+    private function saveStudentDocuments(Request $request, Student $student, array &$createdFiles, array &$replacedFiles): void
     {
         $documentFields = [
             'jamb_result',
@@ -2290,6 +2338,7 @@ class RegistrationController extends Controller
             $file = $request->file($docType);
             $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension());
             $fileName = $docType . '_' . Str::uuid() . ($extension ? '.' . $extension : '');
+            $createdFiles[] = $directory . '/' . $fileName;
             try {
                 $filePath = $file->storeAs($directory, $fileName, 'public');
             } catch (\Throwable $exception) {
@@ -2332,7 +2381,7 @@ class RegistrationController extends Controller
             );
 
             if ($existing && $existing->file_path !== $filePath) {
-                $disk->delete($existing->file_path);
+                $replacedFiles[] = $existing->file_path;
             }
         }
     }

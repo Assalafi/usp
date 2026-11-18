@@ -555,7 +555,7 @@ Route::get('/profile', function () {
 
     $userId = session('id');
     $student = Student::where('user_id', $userId)->first();
-    $currentSession = \App\Http\Controllers\SystemSettingsController::getCurrentSession();
+    $currentSession = DB::table('session')->where('status', '1')->value('title');
     $profileIsSubmittedForCurrentSession = $student
         && $student->profile_status === 'submitted'
         && !empty($student->profile_submitted_at)
@@ -566,7 +566,11 @@ Route::get('/profile', function () {
     // open the required editor. Without this exception, /profile redirects
     // to the required editor and the editor redirects straight back here.
     $requiredProfileEdit = request('mode') === 'edit' && request('required') === '1';
-    if (session('accType') === 'Student' && request('mode') === 'edit' && !$requiredProfileEdit) {
+    if (session('accType') === 'Student' && !$profileIsSubmittedForCurrentSession
+        && (int) \App\Http\Controllers\SystemSettingsController::get('student_profile_update_enabled', '1') === 2) {
+        return redirect('/profile-update-expired');
+    }
+    if (session('accType') === 'Student' && request('mode') === 'edit' && (!$requiredProfileEdit || $profileIsSubmittedForCurrentSession)) {
         return redirect('/profile')->with('info', 'Profile editing is temporarily closed. You can still view your profile.');
     }
     if (session('accType') === 'Student' && !$profileIsSubmittedForCurrentSession && request('mode') !== 'edit') {
