@@ -31,11 +31,14 @@ class LoginController extends Controller
             // dd($user_id);
         }
 
-        $check = Hash::check($req->password, User::where(['id' => $user_id])->value('password'));
-        if (User::where(['id' => $user_id])->exists() && $check == 1) {
+        $user = User::select('accType', 'id', 'gender', 'level', 'program', 'faculty', 'status', 'password')->find($user_id);
+        if ($user && Hash::check((string) $req->password, $user->password)) {
             $req->session()->put('username', $req->email);
-            $data = User::select('accType', 'id', 'gender', 'level', 'program', 'faculty', 'status')->where(['id' => $user_id])->get();
+            $data = collect([$user]);
             foreach ($data as $row) {
+                // These foreign IDs are VARCHAR columns. Numeric bindings force
+                // MySQL to scan students/invoices instead of using their indexes.
+                $linkedUserId = (string) $row->id;
                 $req->session()->put('accType', $row->accType);
                 $req->session()->put('id', (string) $row->id);
                 $req->session()->put('gender', $row->gender);
@@ -52,7 +55,7 @@ class LoginController extends Controller
                     $id_no = 0;
                     $flag = 0;
 
-                    $stds = Student::where('user_id', $row->id)->select('session_of_entry', 'level_of_entry', 'username', 'id_no', 'program', 'faculty', 'level', 'state_origin', 'lga_origin', 'update_profile', 'duration', 'father_phone', 'level_flag')->get();
+                    $stds = Student::where('user_id', $linkedUserId)->select('session_of_entry', 'level_of_entry', 'username', 'id_no', 'program', 'faculty', 'level', 'state_origin', 'lga_origin', 'update_profile', 'duration', 'father_phone', 'level_flag')->get();
                     foreach ($stds as $std) {
                         $flag = 1;
                         $entry_session = $std->session_of_entry;
@@ -93,13 +96,13 @@ class LoginController extends Controller
                         return redirect('/account validation');
                     }
                     $req->session()->put('student_session', $entry_session);
-                    $profileIsSubmittedForCurrentSession = Student::where('user_id', $row->id)
+                    $profileIsSubmittedForCurrentSession = Student::where('user_id', $linkedUserId)
                         ->where('profile_status', 'submitted')
                         ->where('profile_submission_session', $system_session)
                         ->where('profile_level_session', $system_session)
                         ->exists();
                     if (($system_session == $entry_session) && $row->accType == 'Student' && $profileIsSubmittedForCurrentSession) {
-                        $payment = DB::table('invoices')->where(['username' => $row->id, 'serviceTypeId' => '365039916', 'session' => $system_session, 'status' => 'Paid'])->select('id')->value('id');
+                        $payment = DB::table('invoices')->where(['username' => $linkedUserId, 'serviceTypeId' => '365039916', 'session' => $system_session, 'status' => 'Paid'])->select('id')->value('id');
                         // echo $payment;
                         // die;
                         if ($payment > 0) {
@@ -121,10 +124,10 @@ class LoginController extends Controller
                         $req->session()->flash('info', 'Update Your Password');
                         return redirect('/account validation');
                     }
-                    $applicant = Applicant::where('user_id', $row->id)->first();
+                    $applicant = Applicant::where('user_id', $linkedUserId)->first();
                     $putme_session = \App\Http\Controllers\SystemSettingsController::getPostUtmeSession();
                     if ($applicant) {
-                        $paymentStatus = Invoice::where(['description' => 'POST UTME', 'session' => $putme_session, 'status' => 'Paid', 'username' => $row->id])->select('id')->value('id');
+                        $paymentStatus = Invoice::where(['description' => 'POST UTME', 'session' => $putme_session, 'status' => 'Paid', 'username' => $linkedUserId])->select('id')->value('id');
                         if ($paymentStatus > 0) {
                             $req->session()->put('log', '1');
                             $req->session()->flash('success', 'Successfully Login');

@@ -99,8 +99,15 @@
                     </div>
                     <h3 class="mb-4">Login</h3>
 
+                    @if (session('error'))
+                        <div class="alert alert-danger text-left" role="alert">{{ session('error') }}</div>
+                    @endif
+                    @if ($errors->any())
+                        <div class="alert alert-danger text-left" role="alert">{{ $errors->first() }}</div>
+                    @endif
+
                     <!-- Form Start -->
-                    <form method="POST" action="auth">
+                    <form id="portal-login-form" method="POST" action="{{ url('/auth') }}">
                         @csrf
                         <div class="input-group mb-3">
                             <input id="email" type="text" class="form-control" name="email"
@@ -111,7 +118,11 @@
                             <input id="password" type="password" class="form-control" name="password" required
                                 autocomplete="current-password" placeholder="Password">
                         </div>
-                        <input type="submit" class="btn btn-primary shadow-2 mb-4" name="submit" value="Login">
+                        <button id="portal-login-submit" type="submit" class="btn btn-primary shadow-2 mb-4">
+                            <span id="portal-login-spinner" class="spinner-border spinner-border-sm mr-2" style="display:none" aria-hidden="true"></span>
+                            <span id="portal-login-label">Login</span>
+                        </button>
+                        <p id="portal-login-progress" class="text-muted" role="status" hidden>Signing you in. Please wait.</p>
                     </form>
                     <!-- Form End -->
 
@@ -149,6 +160,36 @@
 
         </div>
     </div>
+    <script>
+        (function () {
+            var form = document.getElementById('portal-login-form');
+            var button = document.getElementById('portal-login-submit');
+            var spinner = document.getElementById('portal-login-spinner');
+            var label = document.getElementById('portal-login-label');
+            var progress = document.getElementById('portal-login-progress');
+            var submitting = false;
+            form.addEventListener('submit', function (event) {
+                if (submitting) {
+                    event.preventDefault();
+                    return;
+                }
+                submitting = true;
+                button.disabled = true;
+                spinner.style.display = 'inline-block';
+                label.textContent = 'Signing in…';
+                progress.hidden = false;
+                form.setAttribute('aria-busy', 'true');
+            });
+            window.addEventListener('pageshow', function () {
+                submitting = false;
+                button.disabled = false;
+                spinner.style.display = 'none';
+                label.textContent = 'Login';
+                progress.hidden = true;
+                form.removeAttribute('aria-busy');
+            });
+        }());
+    </script>
     <!-- Required Js -->
     <script src="{{ asset('dashboard/plugins/jquery/js/jquery.min.js') }}"></script>
     <script src="{{ asset('dashboard/plugins/popper/js/popper.min.js') }}"></script>
@@ -187,11 +228,6 @@
     @if (session('success'))
         <script>
             swal("", "{{ session('success') }}", "success");
-        </script>
-    @endif
-    @if (session('error'))
-        <script>
-            swal("Oops!!!", "{{ session('error') }}", "error");
         </script>
     @endif
     @if (session('info'))
