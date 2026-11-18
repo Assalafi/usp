@@ -33,7 +33,9 @@ class ApproveResultsController extends Controller
         if (!session()->has('log')) {
             return redirect('/');
         }
-        $session = DB::table('session')->where('status', '1')->value('title');
+        // Result approval follows the dedicated Results Session setting. An
+        // explicit ?session=... filter still takes precedence below.
+        $session = \App\Http\Controllers\SystemSettingsController::getResultsSession();
         if ($req->has('_token') || $req->filled('session')) {
             $data = $req->all();
             $ses = $data['session'];
