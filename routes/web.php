@@ -956,7 +956,7 @@ Route::get('/student-fee-clearance', function () {
     }
 
     $student = Student::where('user_id', session('id'))
-        ->select('fullname', 'username')
+        ->select('fullname', 'username', 'program', 'session_of_entry')
         ->first();
     if (!$student) {
         return redirect('/logout');
@@ -965,6 +965,67 @@ Route::get('/student-fee-clearance', function () {
     $balance = \App\Support\ReturningStudentFeeBalance::forUser(session('id'));
     if (!$balance['is_returning'] || (float) $balance['balance'] <= 0) {
         return redirect('/dash');
+    }
+
+    // Keep the clearance page transparent: show what was assessed for every
+    // affected session, what has already been paid, and what remains. The
+    // active payment panel stays separate from this reference information.
+    $recoverySessions = collect($balance['sessions'] ?? [])->filter()->values();
+    $sessionBreakdown = collect();
+    $paymentHistory = collect();
+    if ($recoverySessions->isNotEmpty()) {
+        $sessionHistory = DB::table('session_history')
+            ->where('username', (string) $student->username)
+            ->whereIn('session', $recoverySessions->all())
+            ->get(['session', 'level', 'program']);
+        $paymentHistory = DB::table('invoices')
+            ->where('username', session('id'))
+            ->where('description', 'UNIVERSITY OF MAIDUGURI-1000127 FEES')
+            ->whereIn('status', ['Paid', 'Successful', 'Success'])
+            ->where(function ($query) use ($recoverySessions) {
+                $query->whereIn('session', $recoverySessions->all())
+                    ->orWhere('fee_clearance', 1);
+            })
+            ->select('id', 'session', 'rrr', 'amount', 'base_amount', 'status', 'fee_clearance', 'created_at')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $paidBySession = $paymentHistory
+            ->filter(fn ($invoice) => (int) ($invoice->fee_clearance ?? 0) !== 1)
+            ->groupBy(fn ($invoice) => trim((string) $invoice->session))
+            ->map(fn ($rows) => (float) $rows->sum(fn ($invoice) => (float) ($invoice->base_amount ?: $invoice->amount)));
+        $clearancePaid = (float) $paymentHistory
+            ->filter(fn ($invoice) => (int) ($invoice->fee_clearance ?? 0) === 1)
+            ->sum(fn ($invoice) => (float) ($invoice->base_amount ?: $invoice->amount));
+        $sessionStart = static function ($session): int {
+            return preg_match('/^(\d{4})\s*\//', trim((string) $session), $matches)
+                ? (int) $matches[1]
+                : PHP_INT_MAX;
+        };
+
+        $sessionHistory->groupBy(fn ($row) => trim((string) $row->session))
+            ->sortBy(fn ($rows, $session) => $sessionStart($session))
+            ->each(function ($rows, $session) use (&$sessionBreakdown, &$clearancePaid, $student, $paidBySession) {
+                $assessed = 0.0;
+                foreach ($rows as $row) {
+                    $program = trim((string) ($row->program ?? '')) ?: trim((string) $student->program);
+                    $type = $session === trim((string) $student->session_of_entry) ? 'NEW' : 'RETURNING';
+                    $assessed += max(0.0, (float) (DB::table('school_fees')
+                        ->where(['program' => $program, 'level' => $row->level, 'type' => $type])
+                        ->value('amount') ?? 0));
+                }
+                $directPaid = (float) ($paidBySession[$session] ?? 0);
+                $available = max(0.0, $assessed - $directPaid);
+                $allocatedClearance = min($available, $clearancePaid);
+                $clearancePaid -= $allocatedClearance;
+                $paid = $directPaid + $allocatedClearance;
+                $sessionBreakdown->push((object) [
+                    'session' => $session,
+                    'assessed' => $assessed,
+                    'paid' => $paid,
+                    'remaining' => max(0.0, $assessed - $paid),
+                ]);
+            });
     }
 
     $pendingInvoice = DB::table('invoices')
@@ -977,6 +1038,8 @@ Route::get('/student-fee-clearance', function () {
     return view('Student.student-fee-clearance', [
         'student' => $student,
         'balance' => $balance,
+        'sessionBreakdown' => $sessionBreakdown,
+        'paymentHistory' => $paymentHistory,
         'pendingInvoice' => $pendingInvoice,
     ]);
 })->name('student.fee.clearance');
