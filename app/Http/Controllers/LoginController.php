@@ -8,6 +8,7 @@ use App\Models\HostelPin;
 use App\Models\Invoice;
 use App\Models\Student;
 use App\Models\User;
+use App\Support\ReturningStudentFeeBalance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -96,6 +97,23 @@ class LoginController extends Controller
                         return redirect('/account validation');
                     }
                     $req->session()->put('student_session', $entry_session);
+                    // Put returning students with an outstanding programme-fee
+                    // balance straight into the protected clearance flow at
+                    // login. The global middleware remains the second line of
+                    // defence for already-authenticated sessions.
+                    $profileSubmittedForFeeGate = Student::where('user_id', $linkedUserId)
+                        ->where('profile_status', 'submitted')
+                        ->whereNotNull('profile_submitted_at')
+                        ->exists();
+                    if ($profileSubmittedForFeeGate) {
+                        $feeBalance = ReturningStudentFeeBalance::forUser($linkedUserId);
+                        if ($feeBalance['is_returning'] && (float) $feeBalance['balance'] > 0) {
+                            $req->session()->put('log', '1');
+                            return redirect('/student-fee-clearance')->with('error',
+                                'Please pay your full outstanding programme-fee balance for '
+                                . $feeBalance['session'] . ' before using the portal for the new academic session.');
+                        }
+                    }
                     $profileIsSubmitted = Student::where('user_id', $linkedUserId)
                         ->where('profile_status', 'submitted')
                         ->whereNotNull('profile_submitted_at')
