@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use App\Services\RemitaPaymentService;
+use App\Support\PortalPermission;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -649,7 +650,7 @@ class InterUniversityTransferController extends Controller
     private function canApproveAsVC()
     {
         if (session('accType') == 'Admin') return true;
-        if (session('accType') == 'Staff' && session('appointment') == 'VC') return true;
+        if (session('accType') == 'Staff' && PortalPermission::hasRole('VC')) return true;
         return false;
     }
 
@@ -667,7 +668,7 @@ class InterUniversityTransferController extends Controller
         $isDean = session('accType') == 'Staff' && session('appointment') == 'DEAN';
         $isProvost = session('accType') == 'Staff' && session('appointment') == 'PROVOST';
         $isRegistrar = session('accType') == 'Staff' && session('appointment') == 'REGISTRAR';
-        $isVC = session('accType') == 'Staff' && session('appointment') == 'VC';
+        $isVC = session('accType') == 'Staff' && PortalPermission::hasRole('VC');
         $isCOC = session('accType') == 'Staff' && session('appointment') == 'COC';
 
         if (!$isAdmin && !$isHOD && !$isDean && !$isProvost && !$isRegistrar && !$isVC && !$isCOC) {
@@ -723,7 +724,7 @@ class InterUniversityTransferController extends Controller
         $isDean = session('accType') == 'Staff' && session('appointment') == 'DEAN';
         $isProvost = session('accType') == 'Staff' && session('appointment') == 'PROVOST';
         $isRegistrar = session('accType') == 'Staff' && session('appointment') == 'REGISTRAR';
-        $isVC = session('accType') == 'Staff' && session('appointment') == 'VC';
+        $isVC = session('accType') == 'Staff' && PortalPermission::hasRole('VC');
         $isCOC = session('accType') == 'Staff' && session('appointment') == 'COC';
 
         if (!$isAdmin && !$isHOD && !$isDean && !$isProvost && !$isRegistrar && !$isVC && !$isCOC) {
