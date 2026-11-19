@@ -950,6 +950,25 @@ Route::get('/profile-update-expired', function () {
 
     return view('Student.profile-update-expired');
 });
+Route::get('/student-fee-clearance', function () {
+    if (!session()->has('log')) {
+        return redirect('/');
+    }
+
+    $student = Student::where('user_id', session('id'))
+        ->select('fullname', 'username')
+        ->first();
+    if (!$student) {
+        return redirect('/logout');
+    }
+
+    $balance = \App\Support\ReturningStudentFeeBalance::forUser(session('id'));
+    if (!$balance['is_returning'] || (float) $balance['balance'] <= 0) {
+        return redirect('/dash');
+    }
+
+    return view('Student.student-fee-clearance', compact('student', 'balance'));
+})->name('student.fee.clearance');
 Route::get('/nin-update', function () {
     if (session('accType') !== 'Student' || !session()->has('log')) {
         return redirect('/');

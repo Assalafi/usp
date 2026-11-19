@@ -18,7 +18,17 @@ class EnsureStudentProfileSubmitted
      */
     public function handle(Request $request, Closure $next)
     {
-        if (session('accType') !== 'Student' || !session()->has('log')) {
+        $isStudentAccount = strcasecmp(trim((string) session('accType')), 'student') === 0;
+        // A few legacy login records have an empty/non-standard account type,
+        // but still carry a valid student session.  Resolve that identity from
+        // the student table so the fee lock cannot be bypassed by a stale role
+        // value in the session.
+        if (!$isStudentAccount && session()->has('id') && session()->has('id_number')) {
+            $isStudentAccount = Student::where('user_id', (string) session('id'))
+                ->where('username', (string) session('id_number'))
+                ->exists();
+        }
+        if (!$isStudentAccount || !session()->has('log')) {
             return $next($request);
         }
 
@@ -78,11 +88,11 @@ class EnsureStudentProfileSubmitted
                 if ($request->expectsJson() || $request->ajax()) {
                     return response()->json([
                         'message' => $message,
-                        'redirect' => url('/payment'),
+                        'redirect' => url('/student-fee-clearance'),
                     ], 423);
                 }
 
-                return redirect('/payment')->with('error', $message);
+                return redirect('/student-fee-clearance')->with('error', $message);
             }
 
             return $next($request);
@@ -135,7 +145,8 @@ class EnsureStudentProfileSubmitted
     {
         $path = trim($request->path(), '/');
 
-        return $path === 'payment'
+        return $path === 'student-fee-clearance'
+            || $path === 'payment'
             || $path === 'school-fees'
             || $path === 'hostel-invoice'
             || $path === 'response'
