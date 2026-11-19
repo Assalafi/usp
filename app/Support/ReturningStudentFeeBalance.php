@@ -92,7 +92,9 @@ final class ReturningStudentFeeBalance
             ->where('description', 'UNIVERSITY OF MAIDUGURI-1000127 FEES')
             ->where('status', 'Paid')
             ->whereIn('session', $sessions)
-            ->sum(DB::raw('COALESCE(base_amount, amount)'));
+            // Older invoices may store a zero base_amount.  Treat zero like
+            // an unset value so those genuine payments still reduce debt.
+            ->sum(DB::raw('COALESCE(NULLIF(base_amount, 0), amount)'));
 
         return [
             'is_returning' => true,
