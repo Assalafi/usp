@@ -966,6 +966,13 @@ Route::get('/student-fee-clearance', function () {
     if (!$balance['is_returning'] || (float) $balance['balance'] <= 0) {
         return redirect('/dash');
     }
+    $schoolFeesService = collect(\App\Http\Controllers\SystemSettingsController::getRemitaServiceCatalog())
+        ->firstWhere('key', 'school_fees');
+    $splitSettings = \App\Http\Controllers\SystemSettingsController::getRemitaSplitSettings();
+    $paymentSurcharge = !empty($splitSettings['enabled']) && !empty($schoolFeesService['split_enabled'])
+        ? max(0.0, (float) ($schoolFeesService['surcharge'] ?? 0))
+        : 0.0;
+    $paymentTotal = (float) $balance['balance'] + $paymentSurcharge;
 
     // Keep the clearance page transparent: show what was assessed for every
     // affected session, what has already been paid, and what remains. The
@@ -1038,6 +1045,8 @@ Route::get('/student-fee-clearance', function () {
     return view('Student.student-fee-clearance', [
         'student' => $student,
         'balance' => $balance,
+        'paymentSurcharge' => $paymentSurcharge,
+        'paymentTotal' => $paymentTotal,
         'sessionBreakdown' => $sessionBreakdown,
         'paymentHistory' => $paymentHistory,
         'pendingInvoice' => $pendingInvoice,
