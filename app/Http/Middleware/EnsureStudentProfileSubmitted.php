@@ -54,23 +54,24 @@ class EnsureStudentProfileSubmitted
         if ($isSubmitted) {
             $ninEnabledValue = \App\Http\Controllers\SystemSettingsController::get('student_nin_verification_enabled', '1');
             $ninEnabled = $ninEnabledValue === null || (string) $ninEnabledValue !== '0';
-            if (!$ninEnabled) {
-                return $next($request);
-            }
+            // NIN verification and fee clearance are independent gates. A
+            // setting that pauses NIN checks must never disable the balance
+            // restriction for returning students.
+            if ($ninEnabled) {
+                $ninCycle = max(1, (int) \App\Http\Controllers\SystemSettingsController::get('student_nin_update_version', 1));
+                $ninIsConfirmed = preg_match('/^\d{11}$/', trim((string) $student->nin))
+                    && (int) ($student->nin_update_version ?? 0) >= $ninCycle;
 
-            $ninCycle = max(1, (int) \App\Http\Controllers\SystemSettingsController::get('student_nin_update_version', 1));
-            $ninIsConfirmed = preg_match('/^\d{11}$/', trim((string) $student->nin))
-                && (int) ($student->nin_update_version ?? 0) >= $ninCycle;
+                if (!$ninIsConfirmed) {
+                    if ($request->expectsJson() || $request->ajax()) {
+                        return response()->json([
+                            'message' => 'Please confirm your National Identification Number before using the student portal.',
+                            'redirect' => url('/nin-update'),
+                        ], 423);
+                    }
 
-            if (!$ninIsConfirmed) {
-                if ($request->expectsJson() || $request->ajax()) {
-                    return response()->json([
-                        'message' => 'Please confirm your National Identification Number before using the student portal.',
-                        'redirect' => url('/nin-update'),
-                    ], 423);
+                    return redirect('/nin-update');
                 }
-
-                return redirect('/nin-update');
             }
 
             $entrySession = trim((string) ($student->session_of_entry ?? ''));
