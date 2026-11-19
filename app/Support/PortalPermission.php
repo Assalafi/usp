@@ -529,6 +529,14 @@ final class PortalPermission
 
     private static function actionForPath(string $path, string $name, string $uri, string $method): string
     {
+        // The approval catalogue page itself is a read operation.  Only its
+        // nested POST/GET workflow endpoints perform approval actions; the
+        // generic `approve` keyword rule must not turn the page load into an
+        // update permission check.
+        if ($path === 'approve results') {
+            return 'view';
+        }
+
         // Deleting an approval batch must never be authorised by Update alone.
         if ($path === 'delete-result') return 'delete';
         // Change of Course has distinct record permissions. Opening a record
