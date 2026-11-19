@@ -90,7 +90,7 @@ final class ReturningStudentFeeBalance
         $paid = $sessions === [] ? 0.0 : (float) DB::table('invoices')
             ->where('username', $userId)
             ->where('description', 'UNIVERSITY OF MAIDUGURI-1000127 FEES')
-            ->where('status', 'Paid')
+            ->whereIn('status', ['Paid', 'Successful', 'Success'])
             ->whereIn('session', $sessions)
             // Older invoices may store a zero base_amount.  Treat zero like
             // an unset value so those genuine payments still reduce debt.
