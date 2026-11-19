@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Clear outstanding fees | UNIMAID Portal</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
         :root{--brand:#257fba;--brand2:#48a9e7;--ink:#17324d;--muted:#607589;--line:#dce8f0;--danger:#9c2f37;--danger-bg:#fff3f3;--gold:#a66a00;--gold-bg:#fff8e8;--green:#167447;--green-bg:#effbf4}
         *{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:16px;background:linear-gradient(145deg,#eef8fe,#f9fbfd 58%,#eaf1f6);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink)}
