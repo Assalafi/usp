@@ -969,20 +969,30 @@ Route::get('/student-fee-clearance', function () {
     // Keep the clearance page transparent: show what was assessed for every
     // affected session, what has already been paid, and what remains. The
     // active payment panel stays separate from this reference information.
-    $recoverySessions = collect($balance['sessions'] ?? [])->filter()->values();
     $sessionBreakdown = collect();
     $paymentHistory = collect();
-    if ($recoverySessions->isNotEmpty()) {
-        $sessionHistory = DB::table('session_history')
-            ->where('username', (string) $student->username)
-            ->whereIn('session', $recoverySessions->all())
-            ->get(['session', 'level', 'program']);
+    $sessionStart = static function ($session): int {
+        return preg_match('/^(\d{4})\s*\//', trim((string) $session), $matches)
+            ? (int) $matches[1]
+            : PHP_INT_MAX;
+    };
+    $activeStart = $sessionStart(\App\Http\Controllers\SystemSettingsController::getSystemSession());
+    $sessionHistory = DB::table('session_history')
+        ->where('username', (string) $student->username)
+        ->get(['session', 'level', 'program'])
+        ->filter(function ($row) use ($sessionStart, $activeStart) {
+            $start = $sessionStart($row->session ?? '');
+            return $activeStart === PHP_INT_MAX || $start < $activeStart;
+        })
+        ->values();
+    $allSessions = $sessionHistory->pluck('session')->map(fn ($session) => trim((string) $session))->filter()->unique()->values();
+    if ($allSessions->isNotEmpty()) {
         $paymentHistory = DB::table('invoices')
             ->where('username', session('id'))
             ->where('description', 'UNIVERSITY OF MAIDUGURI-1000127 FEES')
             ->whereIn('status', ['Paid', 'Successful', 'Success'])
-            ->where(function ($query) use ($recoverySessions) {
-                $query->whereIn('session', $recoverySessions->all())
+            ->where(function ($query) use ($allSessions) {
+                $query->whereIn('session', $allSessions->all())
                     ->orWhere('fee_clearance', 1);
             })
             ->select('id', 'session', 'rrr', 'amount', 'base_amount', 'status', 'fee_clearance', 'created_at')
@@ -996,12 +1006,6 @@ Route::get('/student-fee-clearance', function () {
         $clearancePaid = (float) $paymentHistory
             ->filter(fn ($invoice) => (int) ($invoice->fee_clearance ?? 0) === 1)
             ->sum(fn ($invoice) => (float) ($invoice->base_amount ?: $invoice->amount));
-        $sessionStart = static function ($session): int {
-            return preg_match('/^(\d{4})\s*\//', trim((string) $session), $matches)
-                ? (int) $matches[1]
-                : PHP_INT_MAX;
-        };
-
         $sessionHistory->groupBy(fn ($row) => trim((string) $row->session))
             ->sortBy(fn ($rows, $session) => $sessionStart($session))
             ->each(function ($rows, $session) use (&$sessionBreakdown, &$clearancePaid, $student, $paidBySession) {
