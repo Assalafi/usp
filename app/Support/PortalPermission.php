@@ -421,7 +421,12 @@ final class PortalPermission
                 ->orderBy('main_order')
                 ->orderBy('sub_order')
                 ->orderBy('id')
-                ->get();
+                ->get()
+                // A page may be granted once directly and once through a
+                // role. Navigation needs one link, while rowsForLink keeps
+                // every grant for action resolution.
+                ->unique(fn ($row) => self::normalizeLink($row->link))
+                ->values();
         });
     }
 

@@ -37,17 +37,6 @@
                     <span class="pcoded-mtext">Profile</span>
                 </a>
             </li>
-            @if (\App\Support\PortalPermission::hasPageAccess('/pg-admission'))
-                <li class="nav-item pcoded-hasmenu @if ($page == 'pg-admission') pcoded-trigger active @endif">
-                    <a href="#!" class="nav-link">
-                        <span class="pcoded-micon"><i class="fas fa-graduation-cap"></i></span>
-                        <span class="pcoded-mtext">PG Admission</span>
-                    </a>
-                    <ul class="pcoded-submenu">
-                        <li class="@if ($page == 'pg-admission') active @endif"><a href="/pg-admission" class="">PG School Admission</a></li>
-                    </ul>
-                </li>
-            @endif
             @if ($nav_allo == 1)
                 <li class="nav-item">
                     <a href="/my-lecture-timetable" class="nav-link">
@@ -153,36 +142,35 @@
             @endif
 
             @if (\App\Support\PortalPermission::hasRole('HOD'))
-                <li class="nav-item @if ($page == 'program course registration') active @endif">
-                    <a href="/program course registration" class="nav-link">
-                        <span class="pcoded-micon"><i class="fas fa-book-open"></i></span>
-                        <span class="pcoded-mtext">Programme Courses</span>
-                    </a>
-                </li>
-                <li class="nav-item @if ($page == 'hod staff roles') active @endif">
-                    <a href="/hod staff roles" class="nav-link">
-                        <span class="pcoded-micon"><i class="fas fa-user-check"></i></span>
-                        <span class="pcoded-mtext">Staff</span>
+                @if (!in_array('/program course registration', $skiplinks, true))
+                    @php $skiplinks[] = '/program course registration'; @endphp
+                    <li class="nav-item @if ($page == 'program course registration') active @endif">
+                        <a href="/program course registration" class="nav-link">
+                            <span class="pcoded-micon"><i class="fas fa-book-open"></i></span>
+                            <span class="pcoded-mtext">Programme Courses</span>
+                        </a>
+                    </li>
+                @endif
+                @if (!in_array('/hod staff roles', $skiplinks, true))
+                    @php $skiplinks[] = '/hod staff roles'; @endphp
+                    <li class="nav-item @if ($page == 'hod staff roles') active @endif">
+                        <a href="/hod staff roles" class="nav-link">
+                            <span class="pcoded-micon"><i class="fas fa-user-check"></i></span>
+                            <span class="pcoded-mtext">Staff</span>
+                        </a>
+                    </li>
+                @endif
+            @endif
+
+            @if (!in_array('/election general', $skiplinks, true))
+                @php $skiplinks[] = '/election general'; @endphp
+                <li class="nav-item">
+                    <a href="/election general" class="nav-link">
+                        <span class="pcoded-micon"><i class="fas fa-thumbs-up"></i></span>
+                        <span class="pcoded-mtext">General Election</span>
                     </a>
                 </li>
             @endif
-
-            <li class="nav-item">
-                <a href="/election general" class="nav-link">
-                    <span class="pcoded-micon"><i class="fas fa-thumbs-up"></i></span>
-                    <span class="pcoded-mtext">General Election</span>
-                </a>
-            </li>
-
-            @if (\App\Support\PortalPermission::hasPageAccess('/change-of-course/admin'))
-                <li class="nav-item @if ($page == 'change of course admin') active @endif">
-                    <a href="/change-of-course/admin" class="nav-link">
-                        <span class="pcoded-micon"><i class="fas fa-exchange-alt"></i></span>
-                        <span class="pcoded-mtext">Change of Course</span>
-                    </a>
-                </li>
-            @endif
-
 
         @endif
 
