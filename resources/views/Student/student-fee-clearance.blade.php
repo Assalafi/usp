@@ -39,7 +39,7 @@
                 @else
                     <form action="{{ url('/invoices/school-fees') }}" method="GET" id="clearanceGenerateForm">
                         <input type="hidden" name="page" value="school-fees"><input type="hidden" name="try" value="second"><input type="hidden" name="amount" value="{{ (float) $balance['balance'] }}"><input type="hidden" name="clearance" value="1">
-                        <div class="amount"><span>Total payable</span><strong>&#8358;{{ number_format((float) ($paymentTotal ?? $balance['balance']), 2) }}</strong></div>
+                        <div class="amount"><span>Amount required</span><strong>&#8358;{{ number_format((float) $balance['balance'], 2) }}</strong></div>
                         <div class="fields"><div class="field"><label for="clearanceEmail">Email address</label><input id="clearanceEmail" type="email" name="email" value="{{ old('email', session('email')) }}" placeholder="you@example.com" required></div><div class="field"><label for="clearancePhone">Phone number</label><input id="clearancePhone" type="tel" name="phone" value="{{ old('phone', session('phone')) }}" placeholder="080..." required></div></div>
                         <button type="submit" class="btn primary" style="margin-top:15px"><i class="fas fa-file-invoice-dollar"></i>&nbsp; Generate Remita reference</button>
                     </form>
