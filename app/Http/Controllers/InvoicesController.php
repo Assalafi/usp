@@ -653,6 +653,7 @@ class InvoicesController extends Controller
                 $datas['hostel_id'] = $hostelId;
             }
             $datas['description'] = $description;
+            $datas['fee_clearance'] = ($req->page === 'school-fees' && !empty($isReturning)) ? 1 : 0;
             $datas['amount'] = $amount;
             $datas['orderId'] = $orderId;
             $datas['serviceTypeId'] = $serviceTypeId;
