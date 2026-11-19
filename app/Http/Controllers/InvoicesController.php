@@ -953,7 +953,8 @@ class InvoicesController extends Controller
                 'updated_at' => now(),
             ]);
 
-        return redirect('/payment')->with('success', 'Pending payment cancelled successfully. You can generate a new invoice when ready.');
+        $back = $request->boolean('clearance') ? '/student-fee-clearance' : '/payment';
+        return redirect($back)->with('success', 'Pending payment cancelled successfully. You can generate a new invoice when ready.');
     }
 
     public function invoice($rrr)
@@ -1076,7 +1077,9 @@ class InvoicesController extends Controller
         // contradictory notices. A direct verification link returns to payments.
         $request->session()->forget(['error', 'info', 'success', 'warning']);
         $back = url()->previous();
-        if (!$request->headers->get('referer') || strpos((string) parse_url($back, PHP_URL_PATH), '/verify') === 0) {
+        if ($request->boolean('clearance')) {
+            $back = url('/student-fee-clearance');
+        } elseif (!$request->headers->get('referer') || strpos((string) parse_url($back, PHP_URL_PATH), '/verify') === 0) {
             $back = url('/payment');
         }
         return redirect($back)->with($type, $message);

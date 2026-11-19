@@ -967,7 +967,18 @@ Route::get('/student-fee-clearance', function () {
         return redirect('/dash');
     }
 
-    return view('Student.student-fee-clearance', compact('student', 'balance'));
+    $pendingInvoice = DB::table('invoices')
+        ->where('username', session('id'))
+        ->where('description', 'UNIVERSITY OF MAIDUGURI-1000127 FEES')
+        ->whereIn('status', ['Pending', 'Processing'])
+        ->orderByDesc('id')
+        ->first();
+
+    return view('Student.student-fee-clearance', [
+        'student' => $student,
+        'balance' => $balance,
+        'pendingInvoice' => $pendingInvoice,
+    ]);
 })->name('student.fee.clearance');
 Route::get('/nin-update', function () {
     if (session('accType') !== 'Student' || !session()->has('log')) {

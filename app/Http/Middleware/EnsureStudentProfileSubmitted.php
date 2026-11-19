@@ -146,12 +146,7 @@ class EnsureStudentProfileSubmitted
         $path = trim($request->path(), '/');
 
         return $path === 'student-fee-clearance'
-            || $path === 'payment'
-            || $path === 'school-fees'
-            || $path === 'hostel-invoice'
-            || $path === 'response'
             || $path === 'verify'
-            || $path === 'invoices-applicant-fees'
             || $request->is('invoices/*')
             || $request->is('verify/*')
             || $request->is('print-receipt/*')

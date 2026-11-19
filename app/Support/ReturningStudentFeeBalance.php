@@ -87,11 +87,16 @@ final class ReturningStudentFeeBalance
         }
 
         $sessions = array_values(array_unique($sessions));
-        $paid = $sessions === [] ? 0.0 : (float) DB::table('invoices')
+        // New recovery invoices are deliberately labelled 2025/2026 even
+        // when the underlying debt comes from an older session. Include that
+        // recovery label so a newly settled invoice immediately clears the
+        // gate instead of leaving the student locked forever.
+        $paymentSessions = array_values(array_unique(array_merge($sessions, [$recoverySession])));
+        $paid = $paymentSessions === [] ? 0.0 : (float) DB::table('invoices')
             ->where('username', $userId)
             ->where('description', 'UNIVERSITY OF MAIDUGURI-1000127 FEES')
             ->whereIn('status', ['Paid', 'Successful', 'Success'])
-            ->whereIn('session', $sessions)
+            ->whereIn('session', $paymentSessions)
             // Older invoices may store a zero base_amount.  Treat zero like
             // an unset value so those genuine payments still reduce debt.
             ->sum(DB::raw('COALESCE(NULLIF(base_amount, 0), amount)'));
