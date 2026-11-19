@@ -48,10 +48,24 @@
     $totalDue = 0;
     $totalPaid = 0;
     $schoolStatus = true;
-    $currentSession = session('system_session');
+    // Do not rely on a stale login-session value when determining whether a
+    // student is returning.  The settings value is the source of truth.
+    $currentSession = \App\Http\Controllers\SystemSettingsController::getSystemSession();
     $entrySession = $student?->session_of_entry;
     $programCode = $student?->program;
     $entryLevel = $student?->level_of_entry;
+    $recoveryBalance = !$isAlumni && $student
+        ? \App\Support\ReturningStudentFeeBalance::forUser(session('id'))
+        : [
+            'is_returning' => false,
+            'session' => '2025/2026',
+            'assessed' => 0.0,
+            'paid' => 0.0,
+            'balance' => 0.0,
+        ];
+    $forceFullProgrammePayment = !$isAlumni
+        && !empty($recoveryBalance['is_returning'])
+        && (float) ($recoveryBalance['balance'] ?? 0) > 0;
 
     if (!$isAlumni && $student) {
         if ($currentSession === session('student_session')) {
@@ -65,32 +79,47 @@
             $totalPaid = $paid;
             $paymentData[] = ['session' => $currentSession, 'amount' => $due, 'paid' => $paid];
         } else {
-            $history = DB::table('session_history')->where('username', session('id_number'))->orderBy('session')->get();
-            $hasEligibleSession = false;
+            // Returning students clear the complete recovery balance before
+            // entering the active session. Keep the displayed session fixed
+            // to the recovery session (2025/2026 by default), even when the
+            // balance contains older unpaid session rows.
+            if (!empty($recoveryBalance['is_returning'])) {
+                $totalDue = (float) ($recoveryBalance['assessed'] ?? 0);
+                $totalPaid = (float) ($recoveryBalance['paid'] ?? 0);
+                $paymentData[] = [
+                    'session' => $recoveryBalance['session'],
+                    'amount' => $totalDue,
+                    'paid' => $totalPaid,
+                ];
+                $schoolStatus = true;
+            } else {
+                $history = DB::table('session_history')->where('username', session('id_number'))->orderBy('session')->get();
+                $hasEligibleSession = false;
 
-            foreach ($history as $record) {
-                $status = strtoupper((string) ($record->status ?? ''));
-                if (in_array($status, ['PROCEED', 'REPEAT', 'PENDING'], true)) {
-                    $hasEligibleSession = true;
+                foreach ($history as $record) {
+                    $status = strtoupper((string) ($record->status ?? ''));
+                    if (in_array($status, ['PROCEED', 'REPEAT', 'PENDING'], true)) {
+                        $hasEligibleSession = true;
+                    }
+
+                    $feeType = $record->session === $entrySession ? 'NEW' : 'RETURNING';
+                    $due = (float) (DB::table('school_fees')
+                        ->where(['program' => $programCode, 'level' => $record->level, 'type' => $feeType])
+                        ->value('amount') ?? 0);
+                    $paid = (float) $paidInvoices
+                        ->filter(fn ($invoice) =>
+                            ($invoice->description ?? '') === 'UNIVERSITY OF MAIDUGURI-1000127 FEES' &&
+                            ($invoice->session ?? '') === $record->session
+                        )
+                        ->sum(fn ($invoice) => (float) ($invoice->base_amount ?? $invoice->amount ?? 0));
+
+                    $totalDue += $due;
+                    $totalPaid += $paid;
+                    $paymentData[] = ['session' => $record->session, 'amount' => $due, 'paid' => $paid];
                 }
 
-                $feeType = $record->session === $entrySession ? 'NEW' : 'RETURNING';
-                $due = (float) (DB::table('school_fees')
-                    ->where(['program' => $programCode, 'level' => $record->level, 'type' => $feeType])
-                    ->value('amount') ?? 0);
-                $paid = (float) $paidInvoices
-                    ->filter(fn ($invoice) =>
-                        ($invoice->description ?? '') === 'UNIVERSITY OF MAIDUGURI-1000127 FEES' &&
-                        ($invoice->session ?? '') === $record->session
-                    )
-                    ->sum(fn ($invoice) => (float) ($invoice->base_amount ?? $invoice->amount ?? 0));
-
-                $totalDue += $due;
-                $totalPaid += $paid;
-                $paymentData[] = ['session' => $record->session, 'amount' => $due, 'paid' => $paid];
+                $schoolStatus = $hasEligibleSession;
             }
-
-            $schoolStatus = $hasEligibleSession;
         }
     }
 
@@ -234,6 +263,9 @@
                 @if ($paymentData)
                     <div class="session-fee-list">@foreach ($paymentData as $fee)<div class="session-fee-row"><span><strong>{{ $fee['session'] }}</strong><small>Amount paid: ₦{{ number_format($fee['paid'], 2) }}</small></span><strong>₦{{ number_format($fee['amount'], 2) }}</strong></div>@endforeach</div>
                 @endif
+                @if ($forceFullProgrammePayment)
+                    <div class="pending-notice mb-3"><i class="fas fa-lock"></i><div><strong>Full outstanding balance required</strong><span>Your outstanding programme fees must be paid in full for {{ $recoveryBalance['session'] }} before you can use the new academic session.</span></div></div>
+                @endif
                 @if ($pendingProgramme->isNotEmpty())
                     <div class="pending-notice"><i class="fas fa-clock"></i><div><strong>Pending invoice available</strong><span>Complete it with the PayNow button in your payment history.</span></div></div>
                 @elseif (!$programmeConfigured)
@@ -244,7 +276,11 @@
                         <label for="programmeAmount">Amount to pay</label>
                         <select id="programmeAmount" name="amount" class="form-control" required>
                             <option value="">Select an amount</option>
+                            @if ($forceFullProgrammePayment)
+                                <option value="{{ $remaining }}">Full outstanding balance</option>
+                            @else
                             @if ($programmePaid)<option value="{{ $remaining }}">Full balance — ₦{{ number_format($remaining, 2) }}</option>@else<option value="{{ $remaining }}">Full payment — ₦{{ number_format($remaining, 2) }}</option><option value="{{ $remaining * 0.5 }}">Half payment — ₦{{ number_format($remaining * 0.5, 2) }}</option>@endif
+                            @endif
                         </select>
                         <label for="programmeEmail">Active email address</label><input id="programmeEmail" type="email" name="email" class="form-control" placeholder="you@example.com" required>
                         <button type="submit" class="btn btn-primary btn-lg w-100"><i class="fas fa-file-invoice-dollar"></i> Generate Remita invoice</button>

@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\RemitaPaymentService;
+use App\Support\ReturningStudentFeeBalance;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Database\QueryException;
@@ -448,7 +449,7 @@ class InvoicesController extends Controller
         }
 
         $x = 0;
-        $data = DB::table('students')->select('fullname', 'contact_phone', 'contact_email', 'faculty', 'department', 'program', 'level', 'level_of_entry')->where('user_id', session('id'))->get();
+        $data = DB::table('students')->select('fullname', 'contact_phone', 'contact_email', 'faculty', 'department', 'program', 'level', 'level_of_entry', 'session_of_entry')->where('user_id', session('id'))->get();
         foreach ($data as $row) {
             $name = $datas['name'] = $row->fullname;
             $phone = $datas['phone'] = $row->contact_phone;
@@ -519,7 +520,9 @@ class InvoicesController extends Controller
             $amount = $req->amount;
             $half = $amounts * 0.5;
             $full = $amounts;
-            if (($amount == $half || $amount == $full) && $req->try == '1') {
+            $systemSession = \App\Http\Controllers\SystemSettingsController::getSystemSession();
+            $isReturning = trim((string) ($row->session_of_entry ?? '')) !== trim((string) $systemSession);
+            if (($amount == $half || $amount == $full) && $req->try == '1' && !$isReturning) {
                 $description = 'UNIVERSITY OF MAIDUGURI-1000127 FEES';
                 $serviceTypeId = \App\Http\Controllers\SystemSettingsController::getRemitaServiceType('school_fees', config('services.remita.school_fees_key'));
                 $name = $datas['name'] = $name . ' (' . session('username') . ')';
@@ -532,7 +535,17 @@ class InvoicesController extends Controller
                 $amountPaid = 0;
 
                 $schoolFeesSession = \App\Http\Controllers\SystemSettingsController::getSchoolFeesSession();
-                if ($schoolFeesSession == session('student_session')) {
+                $systemSession = \App\Http\Controllers\SystemSettingsController::getSystemSession();
+                $isReturning = trim((string) ($row->session_of_entry ?? '')) !== trim((string) $systemSession);
+                if ($isReturning) {
+                    $recovery = ReturningStudentFeeBalance::forUser(session('id'));
+                    $amountPay = (float) ($recovery['assessed'] ?? 0);
+                    $amountPaid = (float) ($recovery['paid'] ?? 0);
+                    $datas['session'] = $recovery['session'];
+                    if ($amountPay <= 0 || (float) ($recovery['balance'] ?? 0) <= 0) {
+                        return redirect()->back()->with('error', 'No outstanding programme-fee balance is due for the recovery session.');
+                    }
+                } elseif ($schoolFeesSession == session('student_session')) {
                     $amountPaid = DB::table('invoices')
                         ->where([
                             'username' => session('id'),
@@ -585,8 +598,11 @@ class InvoicesController extends Controller
                 $full = (float) $amount;
                 $rhalf = $remain * 0.5;
                 $rfull = (float) $remain;
-                // dd($amountPay,$amount,$rhalf, $rfull);
-                if ($rhalf == $amount || $rfull == $amount) {
+                if ($isReturning) {
+                    if (abs((float) $amount - $rfull) > 0.01) {
+                        return redirect()->back()->with('error', 'Returning students must pay the full outstanding balance for ' . $datas['session'] . '.');
+                    }
+                } elseif ($rhalf == $amount || $rfull == $amount) {
                 } else {
                     return redirect()->back()->with('error', 'Invalid Amount...');
                 }

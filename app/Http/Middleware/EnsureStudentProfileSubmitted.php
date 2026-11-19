@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Student;
+use App\Support\ReturningStudentFeeBalance;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,7 @@ class EnsureStudentProfileSubmitted
             'profile_submitted_at',
             'profile_submission_session',
             'profile_level_session',
+            'session_of_entry',
             'nin',
             'nin_update_version',
         ]);
@@ -59,6 +61,28 @@ class EnsureStudentProfileSubmitted
                 }
 
                 return redirect('/nin-update');
+            }
+
+            $entrySession = trim((string) ($student->session_of_entry ?? ''));
+            // Always compare against the canonical setting.  The value kept in
+            // the login session can be stale when the administrator opens a
+            // new academic session while students remain signed in.
+            $activeSession = trim((string) \App\Http\Controllers\SystemSettingsController::getSystemSession());
+            $feeBalance = ($entrySession !== '' && $entrySession !== $activeSession)
+                ? ReturningStudentFeeBalance::forUser(session('id'))
+                : null;
+            if ($feeBalance && $feeBalance['is_returning'] && $feeBalance['balance'] > 0
+                && !$this->isAllowedWhilePaymentRestricted($request)) {
+                $message = 'Please pay your full outstanding programme-fee balance for '
+                    . $feeBalance['session'] . ' before using the portal for the new academic session.';
+                if ($request->expectsJson() || $request->ajax()) {
+                    return response()->json([
+                        'message' => $message,
+                        'redirect' => url('/payment'),
+                    ], 423);
+                }
+
+                return redirect('/payment')->with('error', $message);
             }
 
             return $next($request);
@@ -99,6 +123,29 @@ class EnsureStudentProfileSubmitted
             || $path === 'update-profile'
             || $path === 'submit-profile'
             || $path === 'profile/photo/preview'
+            || $path === 'logout';
+    }
+
+    /**
+     * Returning students may still view payment history, create/complete or
+     * verify an invoice, download a receipt, and sign out while fee recovery
+     * is active. Everything else is redirected to the payment page.
+     */
+    private function isAllowedWhilePaymentRestricted(Request $request): bool
+    {
+        $path = trim($request->path(), '/');
+
+        return $path === 'payment'
+            || $path === 'school-fees'
+            || $path === 'hostel-invoice'
+            || $path === 'response'
+            || $path === 'verify'
+            || $path === 'invoices-applicant-fees'
+            || $request->is('invoices/*')
+            || $request->is('verify/*')
+            || $request->is('print-receipt/*')
+            || $request->is('print invoice/*')
+            || $request->is('cancel-student-payment/*')
             || $path === 'logout';
     }
 }
