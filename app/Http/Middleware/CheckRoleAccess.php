@@ -90,7 +90,7 @@ class CheckRoleAccess
         // Every Head of Department may review the programme-course register.
         // Editing is authorised separately by the controller and the academic
         // settings, so a HOD is never locked out simply because editing is off.
-        if (strtoupper((string) session('appointment')) === 'HOD'
+        if (PortalPermission::hasRole('HOD')
             && in_array($page, ['program course registration', 'program-course-registration/preview', 'program-course-registration/submit-review'], true)) {
             return $next($request);
         }
@@ -98,7 +98,7 @@ class CheckRoleAccess
         // Developers use the same portal login as staff. Their task board and
         // task actions are explicitly scoped by the task controller.
         if ($accountType === 'staff'
-            && in_array(strtoupper(trim((string) session('appointment'))), ['DEVELOPER', 'DEVELOPMENT', 'IT', 'ICT'], true)
+            && PortalPermission::hasAnyRole(['DEVELOPER', 'DEVELOPMENT', 'IT', 'ICT'])
             && (strpos($page, 'developer-tasks') === 0 || strpos($page, 'developer tasks') === 0)) {
             return $next($request);
         }
@@ -162,7 +162,10 @@ class CheckRoleAccess
             return $next($request);
         }
 
-        // Check if page exists in rolls table
+        // Check if page exists in rolls table.  Use the same normalized
+        // identity resolver as catalogue-backed permissions so a role grant
+        // (for example VC) behaves identically on legacy pages and nested
+        // endpoints.
         $pageExistsInRolls = \Illuminate\Support\Facades\DB::table('rolls')
             ->where(function ($q) use ($page, $encodedPage) {
                 $q->where('link', '/' . $page)
@@ -172,16 +175,8 @@ class CheckRoleAccess
 
         // If page exists in rolls, check if this user has access
         if ($pageExistsInRolls) {
-            $hasAccess = \Illuminate\Support\Facades\DB::table('rolls')
-                ->where(function ($q) {
-                    $q->where('username', session('username'))
-                      ->orWhere('username', session('appointment'));
-                })
-                ->where(function ($q) use ($page, $encodedPage) {
-                    $q->where('link', '/' . $page)
-                      ->orWhere('link', '/' . $encodedPage);
-                })
-                ->exists();
+            $hasAccess = PortalPermission::hasPageAccess('/' . $page)
+                || PortalPermission::hasPageAccess('/' . $encodedPage);
 
             if (!$hasAccess) {
                 return redirect('/')->with('error', 'You do not have access to this page.');

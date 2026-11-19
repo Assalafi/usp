@@ -248,10 +248,96 @@ final class PortalPermission
 
     public static function currentIdentities(): array
     {
-        return collect([
+        $values = [
+            // A direct account grant is always checked first.
             session('username'),
-            session('appointment'),
-        ])->map(fn ($value) => trim((string) $value))->filter()->unique()->values()->all();
+            // Role grants are stored in rolls.username.  The appointment
+            // field is resolved below from the current staff record whenever
+            // possible; role supports newer login/session implementations.
+            session('role'),
+        ];
+
+        // Do not trust a stale session appointment after an administrator
+        // changes a staff record.  Add the current appointment as another
+        // identity when it is available.  This is deliberately best-effort:
+        // permission checks must continue to work in tests and installations
+        // that do not have the staff table yet.
+        $username = trim((string) session('username'));
+        $staffAppointment = null;
+        $staffTableAvailable = false;
+        if ($username !== '') {
+            try {
+                if (DB::getSchemaBuilder()->hasTable('staff')) {
+                    $staffTableAvailable = true;
+                    $staffAppointment = DB::table('staff')
+                        ->where('username', $username)
+                        ->value('appointment');
+                }
+            } catch (\Throwable $exception) {
+                // Keep the session identities when the staff lookup is not
+                // available (for example during migrations or unit tests).
+            }
+        }
+
+        // If the staff table is available, it is authoritative.  This avoids
+        // retaining a revoked appointment from an old login session.  Keep
+        // the session value only as a compatibility fallback for test and
+        // transitional installations where no matching staff record exists.
+        if ($staffTableAvailable && trim((string) $staffAppointment) !== '') {
+            $values[] = $staffAppointment;
+        } else {
+            $values[] = session('appointment');
+        }
+
+        return collect($values)
+            ->map(fn ($value) => trim(preg_replace('/\s+/u', ' ', (string) $value)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Return comparison keys for account and role identities.
+     *
+     * Permission records have historically been entered as VC, vc, Dean,
+     * DEAN, or with trailing spaces.  Matching the normalized key keeps those
+     * existing assignments valid while allowing any future role name to work
+     * without another hard-coded condition.
+     */
+    private static function identityKeys(array $identities = null): array
+    {
+        $identities = $identities ?? self::currentIdentities();
+
+        return collect($identities)
+            ->map(fn ($value) => strtolower(trim(preg_replace('/\s+/u', ' ', (string) $value))))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Check the current user's normalized appointment/role identity.
+     *
+     * Controllers can use this for workflow-specific rules without repeating
+     * fragile case-sensitive session comparisons.  Page access itself remains
+     * data-driven through the rolls table.
+     */
+    public static function hasRole(string $role): bool
+    {
+        $key = strtolower(trim(preg_replace('/\s+/u', ' ', $role)));
+        return $key !== '' && in_array($key, self::identityKeys(), true);
+    }
+
+    public static function hasAnyRole(array $roles): bool
+    {
+        $keys = self::identityKeys();
+        return collect($roles)
+            ->map(fn ($role) => strtolower(trim(preg_replace('/\s+/u', ' ', (string) $role))))
+            ->filter()
+            ->intersect($keys)
+            ->isNotEmpty();
     }
 
     public static function flush(): void
@@ -274,21 +360,66 @@ final class PortalPermission
             return collect();
         }
 
-        $key = 'portal.permissions.rows.v' . self::cacheVersion() . '.' . sha1(implode('|', [session('username'), session('appointment'), self::normalizeLink($link)]));
+        $identities = self::currentIdentities();
+        $identityKeys = self::identityKeys($identities);
+        $key = 'portal.permissions.rows.v' . self::cacheVersion() . '.' . sha1(implode('|', [implode(',', $identityKeys), self::normalizeLink($link)]));
         return Cache::remember($key, self::CACHE_SECONDS, function () use ($link) {
             $identities = self::currentIdentities();
-            if (!$identities) {
+            $identityKeys = self::identityKeys($identities);
+            if (!$identityKeys) {
                 return collect();
             }
 
+            // Use a normalized comparison instead of a case-sensitive exact
+            // match.  This is important for role assignments such as `VC`
+            // being used by a staff record saved as `vc` or `VC `.
             return DB::table('rolls')
-                ->whereIn('username', $identities)
+                ->whereRaw(
+                    'LOWER(TRIM(username)) IN (' . implode(',', array_fill(0, count($identityKeys), '?')) . ')',
+                    $identityKeys
+                )
                 ->where(function ($query) use ($link) {
                     $query->whereIn('link', self::linkCandidates($link));
                 })
                 ->where(function ($query) {
                     $query->whereNull('status')->orWhere('status', '!=', '0');
                 })
+                ->orderBy('id')
+                ->get();
+        });
+    }
+
+    /**
+     * Active navigation rows assigned directly to the account or to any of
+     * its current roles.  Navigation must use the same resolver as middleware;
+     * otherwise a role can be allowed to open a page but the link disappears
+     * from the sidebar because of a case/spacing difference.
+     */
+    public static function navigationRows(): Collection
+    {
+        if (session('accType') === 'Admin' || !session()->has('log')) {
+            return collect();
+        }
+
+        $identities = self::currentIdentities();
+        $identityKeys = self::identityKeys($identities);
+        if (!$identityKeys) {
+            return collect();
+        }
+
+        $key = 'portal.permissions.navigation.v' . self::cacheVersion() . '.' . sha1(implode(',', $identityKeys));
+        return Cache::remember($key, self::CACHE_SECONDS, function () use ($identityKeys) {
+            return DB::table('rolls')
+                ->whereRaw(
+                    'LOWER(TRIM(username)) IN (' . implode(',', array_fill(0, count($identityKeys), '?')) . ')',
+                    $identityKeys
+                )
+                ->where(function ($query) {
+                    $query->whereNull('status')->orWhere('status', '!=', '0');
+                })
+                ->select('page', 'main', 'link', 'main_order', 'sub_order', 'username')
+                ->orderBy('main_order')
+                ->orderBy('sub_order')
                 ->orderBy('id')
                 ->get();
         });

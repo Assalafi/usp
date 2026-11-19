@@ -2,38 +2,19 @@
     use Illuminate\Support\Facades\DB;
     if (session('accType') != 'Student') {
         $course_system_allocation = DB::table('course_system_allocation');
-        $positions = DB::table('staff')
-            ->select('appointment')
-            ->where('username', session('username'))
-            ->value('appointment');
         $nav_allo_ = DB::table('course_allocation')
             ->select('course')
             ->where(['username' => session('username')])
             ->first();
-        $nav_ = [];
         $nav_allo = 0;
         if ($nav_allo_) {
-            $nav_ = ['Approve Results', 'Results'];
             $nav_allo = 1;
         }
-        if ($positions) {
-            $roles = DB::table('rolls')->where('username', $positions)->select('page', 'main', 'link');
-            $pos = $roles->pluck('page');
-            $role = $roles->get();
-        } else {
-            $poss = DB::table('rolls')->where('username', 'nothing')->select('page', 'main', 'link');
-            $pos = $poss->pluck('page');
-            $role = $poss->get();
-        }
-
-        $nav = DB::table('rolls')
-            ->where('username', session('username'))
-            ->whereNotIn('page', $pos)
-            ->whereNotIn('page', $nav_)
-            ->select('page', 'main', 'link')
-            ->orderBy('main_order', 'ASC')
-            ->orderBy('sub_order', 'ASC')
-            ->get();
+        // Use the central resolver for both role and direct assignments.  The
+        // old exact match made entries such as `Dean` disappear for a staff
+        // record stored as `DEAN`, even though middleware allowed the page.
+        $role = \App\Support\PortalPermission::navigationRows();
+        $nav = collect();
     }
 
 @endphp
@@ -56,7 +37,7 @@
                     <span class="pcoded-mtext">Profile</span>
                 </a>
             </li>
-            @if ($positions == 'VC')
+            @if (\App\Support\PortalPermission::hasRole('VC'))
                 <li class="nav-item pcoded-hasmenu @if ($page == 'pg-admission') pcoded-trigger active @endif">
                     <a href="#!" class="nav-link">
                         <span class="pcoded-micon"><i class="fas fa-graduation-cap"></i></span>
@@ -171,7 +152,7 @@
                 </li>
             @endif
 
-            @if (strtoupper((string) session('appointment')) === 'HOD')
+            @if (\App\Support\PortalPermission::hasRole('HOD'))
                 <li class="nav-item @if ($page == 'program course registration') active @endif">
                     <a href="/program course registration" class="nav-link">
                         <span class="pcoded-micon"><i class="fas fa-book-open"></i></span>

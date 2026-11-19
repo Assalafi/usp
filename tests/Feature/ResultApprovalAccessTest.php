@@ -151,6 +151,20 @@ class ResultApprovalAccessTest extends TestCase
         }
     }
 
+    public function test_role_assignments_are_case_and_whitespace_insensitive()
+    {
+        $this->staff('SP200', ' vc ');
+        DB::table('rolls')->insert([
+            'username' => 'VC ',
+            'link' => '/approve results',
+            'action' => null,
+            'status' => '1',
+        ]);
+
+        $this->assertTrue(PortalPermission::hasRole('VC'));
+        $this->assertTrue(PortalPermission::hasPageAccess('/approve results'));
+    }
+
     public function test_delete_permission_is_not_mistaken_for_update()
     {
         $resolved = PortalPermission::resolve(Request::create('/delete-result', 'POST'));
