@@ -1006,6 +1006,16 @@ Route::get('dash', function () {
             return redirect('/logout')->with('error', 'Error');
         }
 
+        // Keep the dashboard itself protected as a final, route-level guard.
+        // This covers stale sessions and direct /dash requests even if a
+        // cached middleware stack is encountered during deployment.
+        $feeBalance = \App\Support\ReturningStudentFeeBalance::forUser(session('id'));
+        if ($feeBalance['is_returning'] && (float) $feeBalance['balance'] > 0) {
+            return redirect('/student-fee-clearance')->with('error',
+                'Please pay your full outstanding programme-fee balance for '
+                . $feeBalance['session'] . ' before using the portal for the new academic session.');
+        }
+
         // Login and the student-profile gate use the active academic session.
         // Payment/admission settings can legitimately already point to next year.
         $sess = DB::table('session')->where('status', '1')->value('title');
