@@ -37,7 +37,7 @@
                     <span class="pcoded-mtext">Profile</span>
                 </a>
             </li>
-            @if (\App\Support\PortalPermission::hasRole('VC'))
+            @if (\App\Support\PortalPermission::hasPageAccess('/pg-admission'))
                 <li class="nav-item pcoded-hasmenu @if ($page == 'pg-admission') pcoded-trigger active @endif">
                     <a href="#!" class="nav-link">
                         <span class="pcoded-micon"><i class="fas fa-graduation-cap"></i></span>

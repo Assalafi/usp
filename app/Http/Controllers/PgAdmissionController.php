@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use App\Support\PortalPermission;
 
 class PgAdmissionController extends Controller
 {
@@ -42,7 +43,7 @@ class PgAdmissionController extends Controller
 
     public function index()
     {
-        if (!session()->has('log') || (session('accType') != 'Admin' && session('appointment') != 'VC')) {
+        if (!session()->has('log') || (session('accType') != 'Admin' && !PortalPermission::hasPageAccess('/pg-admission'))) {
             return redirect('/')->with('error', 'Unauthorized access');
         }
 
@@ -56,7 +57,7 @@ class PgAdmissionController extends Controller
 
     public function overview()
     {
-        if (!session()->has('log') || (session('accType') != 'Admin' && session('appointment') != 'VC')) {
+        if (!session()->has('log') || (session('accType') != 'Admin' && !PortalPermission::hasPageAccess('/pg-admission'))) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
@@ -65,7 +66,7 @@ class PgAdmissionController extends Controller
 
     public function applications(Request $request)
     {
-        if (!session()->has('log') || (session('accType') != 'Admin' && session('appointment') != 'VC')) {
+        if (!session()->has('log') || (session('accType') != 'Admin' && !PortalPermission::hasPageAccess('/pg-admission'))) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
@@ -88,7 +89,7 @@ class PgAdmissionController extends Controller
 
     public function filters()
     {
-        if (!session()->has('log') || (session('accType') != 'Admin' && session('appointment') != 'VC')) {
+        if (!session()->has('log') || (session('accType') != 'Admin' && !PortalPermission::hasPageAccess('/pg-admission'))) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
@@ -97,7 +98,7 @@ class PgAdmissionController extends Controller
 
     public function bulkApprove(Request $request)
     {
-        if (!session()->has('log') || (session('accType') != 'Admin' && session('appointment') != 'VC')) {
+        if (!session()->has('log') || (session('accType') != 'Admin' && !PortalPermission::hasPageAccess('/pg-admission'))) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
@@ -123,7 +124,7 @@ class PgAdmissionController extends Controller
 
     public function bulkRevert(Request $request)
     {
-        if (!session()->has('log') || (session('accType') != 'Admin' && session('appointment') != 'VC')) {
+        if (!session()->has('log') || (session('accType') != 'Admin' && !PortalPermission::hasPageAccess('/pg-admission'))) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
@@ -149,7 +150,7 @@ class PgAdmissionController extends Controller
 
     public function history(Request $request)
     {
-        if (!session()->has('log') || (session('accType') != 'Admin' && session('appointment') != 'VC')) {
+        if (!session()->has('log') || (session('accType') != 'Admin' && !PortalPermission::hasPageAccess('/pg-admission'))) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
