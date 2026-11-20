@@ -326,7 +326,7 @@ class ResultApprovalAccessTest extends TestCase
         DB::table('course')->insert(['code' => 'MLS326', 'title' => 'Laboratory Science', 'department' => 'MLS', 'faculty' => 'AHS']);
         DB::table('results')->insert(['username' => 'TEST2', 'code' => 'MLS326', 'session' => '2025/2026', 'semester' => 'SECOND', 'approve' => 'lecturer']);
         $workspace = new \App\Support\ResultApprovalWorkspace();
-        $data = $workspace->data($workspace->filters(Request::create('/approve results', 'GET', ['session' => 'all'])));
+        $data = $workspace->data($workspace->filters(Request::create('/approve results', 'GET', ['session' => 'all', 'stage' => ''])));
         $this->assertSame(['CSC408'], $data['rows']->pluck('code')->all());
     }
 }

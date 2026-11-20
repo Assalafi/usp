@@ -40,6 +40,14 @@ class ApproveResultsController extends Controller
         // A plain return from a review restores the user's last list, including
         // its page. Explicit filters always take precedence.
         if (!$req->query() && session()->has($key)) {
+            $saved = session($key);
+            if (($saved['stage'] ?? '') === '') {
+                $appointment = strtoupper(trim((string) session('appointment')));
+                $saved['stage'] = \App\Support\ResultApprovalWorkspace::isFinalReviewer()
+                    ? 'cs'
+                    : (['HOD' => 'lecturer', 'DEAN' => 'hod', 'COURSE SYSTEM' => 'dean'][$appointment] ?? 'system');
+                session([$key => $saved]);
+            }
             return redirect(\App\Support\ResultApprovalWorkspace::returnUrl());
         }
         $filters = $workspace->filters($req);

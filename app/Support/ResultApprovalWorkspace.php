@@ -44,8 +44,12 @@ final class ResultApprovalWorkspace
 
     public function filters(Request $request): array
     {
+        $appointment = strtoupper(trim((string) session('appointment')));
+        $defaultStage = self::isFinalReviewer()
+            ? 'cs'
+            : (['HOD' => 'lecturer', 'DEAN' => 'hod', 'COURSE SYSTEM' => 'dean'][$appointment] ?? 'system');
         $defaults = ['session' => self::isFinalReviewer() ? 'all' : SystemSettingsController::getResultsSession(),
-            'faculty' => '', 'department' => '', 'program' => '', 'semester' => '', 'stage' => '', 'search' => '', 'page' => 1];
+            'faculty' => '', 'department' => '', 'program' => '', 'semester' => '', 'stage' => $defaultStage, 'search' => '', 'page' => 1];
         $values = $request->validate([
             'session' => ['nullable', 'string', 'max:20'], 'faculty' => ['nullable', 'string', 'max:50'],
             'department' => ['nullable', 'string', 'max:50'], 'program' => ['nullable', 'string', 'max:50'],
@@ -57,6 +61,9 @@ final class ResultApprovalWorkspace
             $filters[$key] = $key === 'page' ? max(1, (int) $value) : trim((string) $value);
         }
         $filters['session'] = $filters['session'] ?: $defaults['session'];
+        if (!array_key_exists('stage', $values) && $filters['stage'] === '') {
+            $filters['stage'] = $defaultStage;
+        }
         session([self::stateKey() => $filters]);
         return $filters;
     }
@@ -102,8 +109,10 @@ final class ResultApprovalWorkspace
                 });
             });
         }
-        $groups = (clone $query)->select('r.code', 'r.session', 'r.semester', 'r.approve', 'r.lecturer', 'r.program')
-            ->selectRaw('COUNT(*) AS result_count, MAX(r.updated_at) AS updated_at, MAX(r.comment) AS comment')
+        $listingQuery = clone $query;
+        if ($filters['stage'] !== '') $listingQuery->where('r.approve', $filters['stage']);
+        $groups = $listingQuery->select('r.code', 'r.session', 'r.semester', 'r.approve', 'r.lecturer', 'r.program')
+            ->selectRaw('COUNT(*) AS result_count')
             ->groupBy('r.code', 'r.session', 'r.semester', 'r.approve', 'r.lecturer', 'r.program');
 
         // The default VC view used to execute this million-row grouping three
@@ -111,18 +120,17 @@ final class ResultApprovalWorkspace
         // short-lived snapshot and paginate it in memory. A new request after
         // an approval gets fresh data within 15 seconds, while a page render
         // never repeats the expensive aggregation.
-        $canSnapshot = $filters['session'] === 'all' && $filters['faculty'] === ''
+        $canSnapshot = $filters['faculty'] === ''
             && $filters['department'] === '' && $filters['program'] === ''
             && $filters['semester'] === '' && $filters['search'] === '';
         $cacheKey = 'result_approval_batches:' . sha1(json_encode([
-            session('username'), session('appointment'), session('department'), session('faculty'), $final,
+            session('username'), session('appointment'), session('department'), session('faculty'), $final, $filters,
         ]));
         $allBatches = $canSnapshot
             ? Cache::remember($cacheKey, now()->addSeconds(15), fn () => DB::query()->fromSub($groups, 'batches')->get())
             : null;
         if ($allBatches) {
-            $counts = $allBatches->groupBy('approve')->map->count();
-            $visible = $filters['stage'] === '' ? $allBatches : $allBatches->where('approve', $filters['stage'])->values();
+            $visible = $allBatches;
             $visible = $visible->sort(function ($left, $right) use ($reviewStage) {
                 $rank = static fn ($row) => $row->approve === $reviewStage ? 0 : ($row->approve === 'vc' ? 2 : 1);
                 return [$rank($left), -strtotime((string) $left->session), $left->code, $left->semester, $left->approve, $left->lecturer]
@@ -134,14 +142,23 @@ final class ResultApprovalWorkspace
                 'path' => url('/approve results'), 'query' => array_diff_key($filters, ['page' => true]),
             ]);
         } else {
-            $counts = DB::query()->fromSub(clone $groups, 'batches')->select('approve')->selectRaw('COUNT(*) AS total')
-                ->groupBy('approve')->pluck('total', 'approve');
+            $visible = null;
             $listing = DB::query()->fromSub($groups, 'batches');
             if ($filters['stage'] !== '') $listing->where('approve', $filters['stage']);
             $listing->orderByRaw('CASE WHEN approve = ? THEN 0 WHEN approve = ? THEN 2 ELSE 1 END', [$reviewStage, 'vc'])
                 ->orderByDesc('session')->orderBy('code')->orderBy('semester')->orderBy('approve')->orderBy('lecturer');
             $rows = $listing->paginate(25, ['*'], 'page', $filters['page'])->appends(array_diff_key($filters, ['page' => true]));
         }
+        $countKey = 'result_approval_counts:' . sha1(json_encode([
+            session('username'), session('appointment'), session('department'), session('faculty'), $final,
+            $filters['session'], $filters['faculty'], $filters['department'], $filters['program'], $filters['semester'], $filters['search'],
+        ]));
+        $counts = Cache::remember($countKey, now()->addSeconds(15), function () use ($query) {
+            return (clone $query)->select('r.approve')
+                ->selectRaw($this->batchCountExpression('r') . ' AS total')
+                ->groupBy('r.approve')->pluck('total', 'approve');
+        });
+        $this->attachBatchMetadata($rows);
         $titles = DB::table('course')->whereIn('code', $rows->getCollection()->pluck('code'))->pluck('title', 'code');
 
         $departments = Cache::remember('result_approval_departments', now()->addMinutes(10), fn () => DB::table('department')->select('code', 'title', 'faculty')->orderBy('title')->get());
@@ -150,11 +167,23 @@ final class ResultApprovalWorkspace
         if ($final) {
             // Department decisions cover the entire department for the displayed
             // session, regardless of the course list's programme/search filters.
-            $pendingBatches = $allBatches
-                ? $allBatches->where('approve', 'cs')->unique(fn ($batch) => implode('|', [$batch->program, $batch->code, $batch->session, $batch->semester]))
-                : DB::table('results')->where('approve', 'cs')
-                    ->when($filters['session'] !== 'all', fn ($q) => $q->where('session', $filters['session']))
-                    ->select('program', 'code', 'session', 'semester')->groupBy('program', 'code', 'session', 'semester')->get();
+            if ($allBatches && $filters['session'] === 'all' && $filters['faculty'] === '' && $filters['department'] === '') {
+                $pendingBatches = $allBatches->where('approve', 'cs')
+                    ->unique(fn ($batch) => implode('|', [$batch->program, $batch->code, $batch->session, $batch->semester]));
+            } else {
+                $pendingKey = 'result_approval_pending_departments:' . sha1(json_encode([$filters['faculty'], $filters['department']]));
+                $pendingBatches = Cache::remember($pendingKey, now()->addSeconds(15), function () use ($filters) {
+                    return DB::table('results as pending')->where('pending.approve', 'cs')
+                        ->when($filters['faculty'] !== '' || $filters['department'] !== '', function ($pending) use ($filters) {
+                            $pending->whereExists(function ($placement) use ($filters) {
+                                $placement->selectRaw('1')->from('program as pending_program')->whereColumn('pending_program.code', 'pending.program');
+                                if ($filters['faculty'] !== '') $placement->where('pending_program.faculty', $filters['faculty']);
+                                if ($filters['department'] !== '') $placement->where('pending_program.department', $filters['department']);
+                            });
+                        })->select('pending.program', 'pending.code', 'pending.session', 'pending.semester')
+                        ->groupBy('pending.program', 'pending.code', 'pending.session', 'pending.semester')->get();
+                });
+            }
             $totals = $pendingBatches->groupBy('program')->map(fn ($batch, $program) => (object) ['program' => $program, 'total' => $batch->count()])->values();
             $placements = $programs->keyBy('code');
             foreach ($totals as $total) {
@@ -187,5 +216,36 @@ final class ResultApprovalWorkspace
                     $session->whereNull('assigned.session')->orWhere('assigned.session', '')->orWhereColumn('assigned.session', 'r.session');
                 });
         };
+    }
+
+    private function attachBatchMetadata(LengthAwarePaginator $rows): void
+    {
+        $items = $rows->getCollection();
+        if ($items->isEmpty()) return;
+        $metadata = DB::table('results')->where(function ($query) use ($items) {
+            foreach ($items as $item) {
+                $query->orWhere(function ($batch) use ($item) {
+                    $batch->where('code', $item->code)->where('session', $item->session)
+                        ->where('semester', $item->semester)->where('approve', $item->approve)
+                        ->where('lecturer', $item->lecturer);
+                });
+            }
+        })->select('code', 'session', 'semester', 'approve', 'lecturer', 'updated_at', 'comment')
+            ->orderByDesc('updated_at')->get()->groupBy(fn ($item) => implode('|', [$item->code, $item->session, $item->semester, $item->approve, $item->lecturer]));
+        $items->transform(function ($item) use ($metadata) {
+            $key = implode('|', [$item->code, $item->session, $item->semester, $item->approve, $item->lecturer]);
+            $latest = $metadata->get($key, collect())->first();
+            $item->updated_at = $latest->updated_at ?? null;
+            $item->comment = $latest->comment ?? null;
+            return $item;
+        });
+    }
+
+    private function batchCountExpression(string $prefix): string
+    {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return "COUNT(DISTINCT COALESCE({$prefix}.code,'') || '|' || COALESCE({$prefix}.session,'') || '|' || COALESCE({$prefix}.semester,'') || '|' || COALESCE({$prefix}.lecturer,'') || '|' || COALESCE({$prefix}.program,''))";
+        }
+        return "COUNT(DISTINCT CONCAT_WS('|', COALESCE({$prefix}.code,''), COALESCE({$prefix}.session,''), COALESCE({$prefix}.semester,''), COALESCE({$prefix}.lecturer,''), COALESCE({$prefix}.program,'')))";
     }
 }
