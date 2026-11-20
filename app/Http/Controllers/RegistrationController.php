@@ -1902,19 +1902,14 @@ class RegistrationController extends Controller
         $ninValue = trim((string) $request->input('nin', ''));
         $existingNin = trim((string) $student->nin);
         $existingNinCanonical = strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', $existingNin));
-        $submittedNinCanonical = strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', $ninValue));
 
-        // The NIN already saved on the portal is authoritative. A profile
-        // update may confirm it, but must never replace it with another NIN.
-        if ($existingNinCanonical !== '' && $ninValue !== '' && $submittedNinCanonical !== $existingNinCanonical) {
-            throw ValidationException::withMessages([
-                'nin' => 'The NIN entered does not match the NIN already saved on your student record. Use the same NIN or contact Student Affairs for help.',
-            ]);
-        }
-
-        $ninValueToStore = $existingNin !== ''
-            ? ($existingNinCanonical !== '' ? $existingNinCanonical : $existingNin)
-            : ($ninValue !== '' ? ($isNigerian ? preg_replace('/\D+/', '', $ninValue) : strtoupper($ninValue)) : null);
+        // Profile editing is the authorised correction workflow: a student may
+        // replace an incorrectly saved NIN here. The dedicated NIN validation
+        // page remains a confirmation-only workflow and still requires the
+        // value already recorded on the portal.
+        $ninValueToStore = $ninValue !== ''
+            ? ($isNigerian ? preg_replace('/\D+/', '', $ninValue) : strtoupper($ninValue))
+            : ($existingNinCanonical !== '' ? $existingNinCanonical : null);
 
         if ($ninValue !== '') {
             if ($isNigerian && !preg_match('/^\d{11}$/', $ninValue)) {
