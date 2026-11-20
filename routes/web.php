@@ -598,7 +598,7 @@ Route::get('/profile', function () {
 
     return view('main', compact('studentDocuments', 'applicantDocuments', 'siwesBankDetails', 'currentSession') + ['page' => 'profile']);
 });
-Route::get('id card/{id}', [StudentIdCardController::class, 'download']);
+Route::get('id card/{id}', [StudentIdCardController::class, 'download'])->middleware('role');
 Route::get('/student-id-card/data', [StudentIdCardController::class, 'data'])->name('student-id-card.data')->middleware('role');
 Route::get('/student-id-card/options', [StudentIdCardController::class, 'options'])->name('student-id-card.options')->middleware('role');
 Route::get('/student-id-card/preview/{id}', [StudentIdCardController::class, 'preview'])->name('student-id-card.preview')->middleware('role');

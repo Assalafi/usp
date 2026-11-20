@@ -92,6 +92,8 @@ final class PortalPermission
         'admin/reject-applicant' => '/admin-applicant',
         'admin/reject-clearing-applicant' => '/admin-applicant',
         'admin/face-search' => '/students list',
+        'student-id-card' => '/student id card',
+        'id card' => '/student id card',
         'admin/move-to-alumni' => '/alumni',
         'admin/restore-alumni' => '/alumni',
         'admin/update-passwords-progress' => '/staff',
@@ -529,6 +531,22 @@ final class PortalPermission
 
     private static function actionForPath(string $path, string $name, string $uri, string $method): string
     {
+        // The Student ID Card Centre is delegated as a normal page with
+        // independent issue/reset actions. Read-only AJAX and details calls
+        // need only page access; issuing or opening a card requires `idcard`.
+        if (str_starts_with($path, 'student-id-card/')) {
+            if (str_contains($path, '/generate')) {
+                return 'idcard';
+            }
+            if (str_contains($path, '/reset')) {
+                return 'update';
+            }
+            return 'view';
+        }
+        if (str_starts_with($path, 'id card')) {
+            return 'idcard';
+        }
+
         // The approval catalogue page itself is a read operation.  Only its
         // nested POST/GET workflow endpoints perform approval actions; the
         // generic `approve` keyword rule must not turn the page load into an
