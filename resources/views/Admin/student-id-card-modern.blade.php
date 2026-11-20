@@ -200,6 +200,15 @@
                     generate.title = student.issue ? 'Resolve the open ID-card issue first.' : 'Add both a profile photo and signature first.';
                     generate.innerHTML = '<i class="fas fa-lock"></i> ' + (student.issue ? 'Issue recorded' : 'Documents missing');
                 }
+                if (student.issue) {
+                    const statusCell = row.querySelector('td:nth-child(6)');
+                    if (statusCell && !statusCell.querySelector('.idc-issue-description')) {
+                        const note = document.createElement('div');
+                        note.className = 'idc-sub idc-issue-description';
+                        note.textContent = student.issue.description || 'Correction required';
+                        statusCell.appendChild(note);
+                    }
+                }
             } catch (_) { /* The normal table remains usable if one preview request fails. */ }
         }
     };

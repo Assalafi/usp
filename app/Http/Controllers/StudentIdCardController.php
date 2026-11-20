@@ -122,6 +122,7 @@ class StudentIdCardController extends Controller
                     'generated_at' => $row->generation_generated_at ? (string) $row->generation_generated_at : null,
                     'generated' => (bool) $row->generation_generated_at,
                     'has_issue' => (bool) $row->issue_id,
+                    'issue_description' => $row->issue_description ? (string) $row->issue_description : null,
                     'media_ready' => $this->studentMediaReady($row),
                     'missing_media' => $this->missingStudentMedia($row),
                     'preview_url' => url('/student-id-card/preview/' . (int) $row->student_id),
@@ -634,7 +635,8 @@ class StudentIdCardController extends Controller
                 'oi',
                 'oi.student_id', '=', 'eligible.student_id'
             )
-            ->select('eligible.*', 'g.generated_at as generation_generated_at');
+            ->select('eligible.*', 'g.generated_at as generation_generated_at')
+            ->addSelect(DB::raw("(SELECT issue_latest.description FROM student_id_card_issues AS issue_latest WHERE issue_latest.student_id = eligible.student_id AND issue_latest.status = 'open' ORDER BY issue_latest.id DESC LIMIT 1) AS issue_description"));
 
         if ($selectedSession) {
             $records->where('eligible.session', $selectedSession);
