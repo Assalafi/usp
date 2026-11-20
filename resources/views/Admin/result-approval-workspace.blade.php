@@ -69,7 +69,7 @@
                 <a class="{{ $filters['stage'] === 'vc' ? 'is-active' : '' }}" href="{{ $filterLink('vc') }}" @if ($filters['stage'] === 'vc') aria-current="page" @endif>Approved <span>{{ number_format($approvedBatches) }}</span></a>
             </nav>
             <div class="ra-table-wrap"><table class="ra-table">
-                <thead><tr><th scope="col">Course</th><th scope="col">Session / semester</th><th scope="col">Students</th><th scope="col">Approval stage</th><th scope="col" class="ra-action-heading">Actions</th></tr></thead>
+                <thead><tr><th scope="col">Course</th><th scope="col">Session / semester</th><th scope="col">Approval stage</th><th scope="col" class="ra-action-heading">Actions</th></tr></thead>
                 <tbody>
                 @forelse ($rows as $row)
                     @php
@@ -82,7 +82,6 @@
                     <tr>
                         <td class="ra-course-cell"><strong>{{ $row->code }}</strong><span>{{ $titles->get($row->code, 'Course results') }}</span>@if ($row->updated_at)<small>Updated {{ \Carbon\Carbon::parse($row->updated_at)->format('d M Y') }}</small>@endif</td>
                         <td data-label="Session"><strong>{{ $row->session }}</strong><span>{{ ucfirst(strtolower($row->semester)) }} semester</span></td>
-                        <td data-label="Students"><span class="ra-student-count">{{ number_format($row->result_count) }}</span></td>
                         <td data-label="Stage"><span class="ra-stage ra-stage-{{ $row->approve }}"><i class="fas {{ $row->approve === 'vc' ? 'fa-check-circle' : 'fa-circle' }}" aria-hidden="true"></i>{{ $stageLabels[$row->approve] ?? 'Under review' }}</span></td>
                         <td class="ra-row-actions">
                             @if ($canView)
@@ -94,7 +93,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="5"><div class="ra-empty"><span><i class="far fa-folder-open" aria-hidden="true"></i></span><h3>No course results in this view</h3><p>Choose another approval stage or adjust your academic filters.</p><a class="ra-button ra-button-light" href="{{ url('/approve results?reset=1') }}">Reset filters</a></div></td></tr>
+                    <tr><td colspan="4"><div class="ra-empty"><span><i class="far fa-folder-open" aria-hidden="true"></i></span><h3>No course results in this view</h3><p>Choose another approval stage or adjust your academic filters.</p><a class="ra-button ra-button-light" href="{{ url('/approve results?reset=1') }}">Reset filters</a></div></td></tr>
                 @endforelse
                 </tbody>
             </table></div>

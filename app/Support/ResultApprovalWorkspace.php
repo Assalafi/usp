@@ -111,8 +111,11 @@ final class ResultApprovalWorkspace
         }
         $listingQuery = clone $query;
         if ($filters['stage'] !== '') $listingQuery->where('r.approve', $filters['stage']);
+        // Approval is managed per course batch. Do not aggregate result rows
+        // or students here: a student count is both expensive and irrelevant
+        // to the approval decision. The grouped keys below are the complete
+        // batch identity used by the page and its counters.
         $groups = $listingQuery->select('r.code', 'r.session', 'r.semester', 'r.approve', 'r.lecturer', 'r.program')
-            ->selectRaw('COUNT(*) AS result_count')
             ->groupBy('r.code', 'r.session', 'r.semester', 'r.approve', 'r.lecturer', 'r.program');
 
         // The default VC view used to execute this million-row grouping three

@@ -302,11 +302,12 @@ class ResultApprovalAccessTest extends TestCase
         $this->assertSame('all', $filters['session']);
         $data = $workspace->data($filters);
         $this->assertSame(1, $data['rows']->total());
-        $this->assertSame(2, (int) $data['rows']->first()->result_count);
+        $this->assertFalse(property_exists($data['rows']->first(), 'result_count'));
         $this->assertSame(1, $data['pendingDepartments']->first()->total);
         $html = view('Admin.approve results', $data + ['errors' => new \Illuminate\Support\ViewErrorBag()])->render();
         $this->assertStringContainsString('Computer Science', $html);
         $this->assertStringContainsString('Software Engineering', $html);
+        $this->assertStringNotContainsString('>Students<', $html);
         $this->assertStringNotContainsString('@php', $html);
         $this->assertStringNotContainsString('@endif', $html);
     }

@@ -628,7 +628,7 @@
     font-weight:600;
 }
 
-.ra-table td>span:not(.ra-stage):not(.ra-student-count) {
+.ra-table td>span:not(.ra-stage) {
     display:block;
     font-size:11px;
     margin-top:4px;
@@ -645,13 +645,6 @@
     font-size:10px;
     color:#657b8b;
     margin-top:5px;
-}
-
-.ra-student-count {
-    background:#f2f6f9;
-    padding:4px 8px;
-    border-radius:6px;
-    font-variant-numeric:tabular-nums;
 }
 
 .ra-stage {
