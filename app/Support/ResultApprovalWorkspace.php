@@ -153,11 +153,15 @@ final class ResultApprovalWorkspace
             session('username'), session('appointment'), session('department'), session('faculty'), $final,
             $filters['session'], $filters['faculty'], $filters['department'], $filters['program'], $filters['semester'], $filters['search'],
         ]));
-        $counts = Cache::remember($countKey, now()->addSeconds(15), function () use ($query) {
-            return (clone $query)->select('r.approve')
-                ->selectRaw($this->batchCountExpression('r') . ' AS total')
-                ->groupBy('r.approve')->pluck('total', 'approve');
-        });
+        $counts = $allBatches
+            ? $allBatches->groupBy('approve')->map->count()
+            : Cache::remember($countKey, now()->addSeconds(15), function () use ($groups) {
+                // Count already-grouped course batches instead of scanning
+                // the full results table with a concatenated DISTINCT key.
+                return DB::query()->fromSub($groups, 'batches')
+                    ->select('approve')->selectRaw('COUNT(*) AS total')
+                    ->groupBy('approve')->pluck('total', 'approve');
+            });
         $this->attachBatchMetadata($rows);
         $titles = DB::table('course')->whereIn('code', $rows->getCollection()->pluck('code'))->pluck('title', 'code');
 
