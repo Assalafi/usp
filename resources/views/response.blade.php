@@ -116,6 +116,10 @@ if (isset($_GET['RRR']) && isset($_GET['orderID'])) {
 
                     //}
                 }
+            } elseif ($invoice->description == 'POST UTME') {
+                // Applicants should return directly to their application form
+                // after the screening fee is confirmed.
+                $destination = '/application';
             }
 
             DB::table('invoices')->where('rrr', $invoice->rrr)->update($datas);

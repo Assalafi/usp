@@ -980,7 +980,13 @@ class InvoicesController extends Controller
 
     public function verify(Request $req)
     {
-        if (!session()->has('log')) {
+        // Applicants use a temporary payment session until their Post-UTME
+        // invoice is confirmed.  Do not send them back to login when the
+        // Remita widget returns them to this verification endpoint.
+        $applicantPaymentSession = session('accType') === 'Applicant'
+            && session()->has('payment')
+            && !empty(session('id'));
+        if (!session()->has('log') && !$applicantPaymentSession) {
             return redirect('/');
         }
         $rrr = trim((string) ($req->route('rrr') ?? $req->input('rrr', '')));
@@ -1081,7 +1087,11 @@ class InvoicesController extends Controller
         if ($request->boolean('clearance')) {
             $back = url('/student-fee-clearance');
         } elseif (!$request->headers->get('referer') || strpos((string) parse_url($back, PHP_URL_PATH), '/verify') === 0) {
-            $back = url('/payment');
+            // Keep applicants in their application-fee centre.  They do not
+            // have access to the regular student payment page.
+            $back = session('accType') === 'Applicant'
+                ? url('/applicant-fees')
+                : url('/payment');
         }
         return redirect($back)->with($type, $message);
     }
@@ -1214,6 +1224,7 @@ class InvoicesController extends Controller
             if ($hasPostUtme) {
                 $req->session()->forget(['error', 'info', 'success', 'warning']);
                 $req->session()->put('log', '1');
+                $req->session()->forget('payment');
                 return redirect('/application')->with('success', 'Successfully Paid');
             }
             return $this->verificationNotice($req, 'success', 'Payment verified successfully.');
