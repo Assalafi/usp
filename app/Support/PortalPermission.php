@@ -35,6 +35,8 @@ final class PortalPermission
         'flag' => 'Flag',
         'unflag' => 'Unflag',
         'idcard' => 'ID card',
+        'media' => 'Update student photo and signature',
+        'issue' => 'Record an ID-card issue',
         'getpdf' => 'PDF download',
         'status' => 'Change status',
         'password' => 'Password reset',

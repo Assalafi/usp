@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Student;
+use App\Support\PortalPermission;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\Log;
@@ -12,6 +13,7 @@ use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
 
 class StudentIdCardController extends Controller
 {
@@ -74,6 +76,8 @@ class StudentIdCardController extends Controller
                 $records->whereNull('g.generated_at');
             } elseif ($status === 'generated') {
                 $records->whereNotNull('g.generated_at');
+            } elseif ($status === 'issues') {
+                $records->whereNotNull('oi.issue_id');
             }
             $queueVersion = (int) Cache::get('student-id-card:queue-version', 1);
             $filterKey = collect($request->query())->except(['page', 'per_page', 'status'])->merge(['queue_version' => $queueVersion])->sortKeys()->toJson();
@@ -83,6 +87,7 @@ class StudentIdCardController extends Controller
                     ->selectRaw("COUNT(*) as total, SUM(CASE WHEN eligible.source = 'id_card' THEN 1 ELSE 0 END) as paid_count, SUM(CASE WHEN eligible.source = 'school_fee' THEN 1 ELSE 0 END) as covered_count, SUM(CASE WHEN g.generated_at IS NOT NULL THEN 1 ELSE 0 END) as generated_count")
                     ->first();
             });
+            $issueCount = (clone $baseRecords)->whereNotNull('oi.issue_id')->count();
             $total = (int) ($summaryRow->total ?? 0);
             $generated = (int) ($summaryRow->generated_count ?? 0);
             $paid = (int) ($summaryRow->paid_count ?? 0);
@@ -116,6 +121,9 @@ class StudentIdCardController extends Controller
                     'payment_id' => $row->payment_id ? (int) $row->payment_id : null,
                     'generated_at' => $row->generation_generated_at ? (string) $row->generation_generated_at : null,
                     'generated' => (bool) $row->generation_generated_at,
+                    'has_issue' => (bool) $row->issue_id,
+                    'media_ready' => $this->studentMediaReady($row),
+                    'missing_media' => $this->missingStudentMedia($row),
                     'preview_url' => url('/student-id-card/preview/' . (int) $row->student_id),
                     'card_url' => url('/id card/' . (int) $row->student_id),
                 ];
@@ -129,6 +137,7 @@ class StudentIdCardController extends Controller
                     'awaiting' => max(0, $total - $generated),
                     'paid' => $paid,
                     'school_fee_covered' => $covered,
+                    'issues' => $issueCount,
                 ],
                 'pagination' => [
                     'page' => $page,
@@ -171,6 +180,13 @@ class StudentIdCardController extends Controller
             return response()->json(['message' => 'Student record was not found.'], 404);
         }
 
+        $openIssue = DB::table('student_id_card_issues')
+            ->where('student_id', $student->id)
+            ->where('status', 'open')
+            ->latest('id')
+            ->first(['id', 'session', 'description', 'created_at']);
+        $media = $this->studentMedia($student);
+
         return response()->json([
             'student' => [
                 'id' => (int) $student->id,
@@ -194,8 +210,133 @@ class StudentIdCardController extends Controller
                     : ($student->passport_sign
                         ? asset('storage/passport_sign/' . ltrim((string) $student->passport_sign, '/'))
                         : null),
+                'media_ready' => $media['ready'],
+                'missing_media' => $media['missing'],
+                'issue' => $openIssue ? [
+                    'id' => (int) $openIssue->id,
+                    'session' => $openIssue->session,
+                    'description' => $openIssue->description,
+                    'created_at' => (string) $openIssue->created_at,
+                ] : null,
             ],
         ]);
+    }
+
+    /** Update the official photo and/or signature from the details view. */
+    public function updateMedia(Request $request)
+    {
+        if (!session()->has('log')) {
+            return response()->json(['message' => 'Please sign in again.'], 401);
+        }
+        abort_unless($this->allowsAction('media'), 403, 'You do not have permission to update student ID-card documents.');
+
+        $validator = Validator::make($request->all(), [
+            'student_id' => ['required', 'integer'],
+            'picture' => ['nullable', 'file', 'image', 'mimes:jpeg,jpg,png', 'max:5120'],
+            'signiture' => ['nullable', 'file', 'image', 'mimes:png,jpeg,jpg', 'max:2048'],
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['message' => $validator->errors()->first()], 422);
+        }
+        if (!$request->hasFile('picture') && !$request->hasFile('signiture')) {
+            return response()->json(['message' => 'Choose a photo, a signature, or both before saving.'], 422);
+        }
+
+        $student = Student::query()->find((int) $request->student_id);
+        if (!$student) {
+            return response()->json(['message' => 'Student record was not found.'], 404);
+        }
+
+        try {
+            DB::transaction(function () use ($request, $student): void {
+                $updates = [];
+                if ($request->hasFile('picture')) {
+                    $name = 'processed/' . $student->id . '_' . Str::uuid() . '.' . strtolower($request->file('picture')->getClientOriginalExtension());
+                    Storage::disk('public')->makeDirectory('picture/processed');
+                    if (!$request->file('picture')->storeAs('picture', $name, 'public')) {
+                        throw new \RuntimeException('The student photo could not be saved.');
+                    }
+                    $updates['picture'] = $name;
+                    $updates['profile_photo_updated_at'] = now();
+                }
+                if ($request->hasFile('signiture')) {
+                    $name = $student->id . '_' . Str::uuid() . '.' . strtolower($request->file('signiture')->getClientOriginalExtension());
+                    if (!$request->file('signiture')->storeAs('signature', $name, 'public')) {
+                        throw new \RuntimeException('The student signature could not be saved.');
+                    }
+                    $updates['signiture'] = $name;
+                }
+                Student::whereKey($student->id)->update($updates);
+            });
+            $this->bumpQueueVersion();
+            return response()->json(['message' => 'Student document(s) updated successfully.']);
+        } catch (\Throwable $e) {
+            Log::error('Student ID-card media update failed', ['student_id' => $student->id, 'error' => $e->getMessage()]);
+            return response()->json(['message' => 'The document update could not be saved. Please try again.'], 422);
+        }
+    }
+
+    /** Record a review issue against a student ID-card record. */
+    public function markIssue(Request $request)
+    {
+        if (!session()->has('log')) {
+            return response()->json(['message' => 'Please sign in again.'], 401);
+        }
+        abort_unless($this->allowsAction('issue'), 403, 'You do not have permission to record ID-card issues.');
+        $validator = Validator::make($request->all(), [
+            'student_id' => ['required', 'integer'],
+            'session' => ['nullable', 'string', 'max:30'],
+            'description' => ['required', 'string', 'min:5', 'max:2000'],
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['message' => $validator->errors()->first()], 422);
+        }
+        $student = Student::query()->find((int) $request->student_id);
+        if (!$student) {
+            return response()->json(['message' => 'Student record was not found.'], 404);
+        }
+        DB::table('student_id_card_issues')->insert([
+            'student_id' => $student->id,
+            'username' => $student->username,
+            'session' => $request->input('session') ?: DB::table('session')->where('status', '1')->value('title'),
+            'description' => trim((string) $request->input('description')),
+            'status' => 'open',
+            'reported_by' => session('id'),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->bumpQueueVersion();
+        return response()->json(['message' => 'The ID-card issue was recorded.']);
+    }
+
+    /** Return open ID-card issues for the dedicated issues tab. */
+    public function issues(Request $request)
+    {
+        if (!session()->has('log')) {
+            return response()->json(['message' => 'Please sign in again.'], 401);
+        }
+        $query = DB::table('student_id_card_issues as i')
+            ->join('students as s', 's.id', '=', 'i.student_id')
+            ->leftJoin('faculty as f', 'f.code', '=', 's.faculty')
+            ->leftJoin('department as d', 'd.code', '=', 's.department')
+            ->leftJoin('program as p', 'p.code', '=', 's.program')
+            ->where('i.status', 'open')
+            ->when($request->filled('session') && $request->session !== 'all', fn ($q) => $q->where('i.session', $request->session))
+            ->when($request->filled('faculty') && $request->faculty !== 'all', fn ($q) => $q->where('s.faculty', $request->faculty))
+            ->when($request->filled('department') && $request->department !== 'all', fn ($q) => $q->where('s.department', $request->department))
+            ->when($request->filled('program') && $request->program !== 'all', fn ($q) => $q->where('s.program', $request->program))
+            ->when($request->filled('level') && $request->level !== 'all', fn ($q) => $q->where('s.level', $request->level));
+        $search = trim((string) $request->input('search', ''));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $search) . '%';
+                $q->where('s.fullname', 'like', $like)->orWhere('s.username', 'like', $like);
+            });
+        }
+        $perPage = max(10, min(100, (int) $request->input('per_page', 25)));
+        $rows = $query->select('i.id as issue_id', 'i.session', 'i.description', 'i.created_at as issue_created_at', 's.id as student_id', 's.username', 's.fullname', 'f.title as faculty', 'd.title as department', 'p.title as program', 's.level')
+            ->orderByDesc('i.created_at')->paginate($perPage);
+        return response()->json($rows);
     }
 
     public function generate(Request $request)
@@ -217,6 +358,14 @@ class StudentIdCardController extends Controller
                 $student = Student::query()->whereKey((int) $request->student_id)->lockForUpdate()->first();
                 if (!$student) {
                     throw new \RuntimeException('Student record was not found.');
+                }
+
+                $media = $this->studentMedia($student);
+                if (!$media['ready']) {
+                    throw new \RuntimeException('Generation is blocked until the student has both a profile photo and a signature. Missing: ' . implode(' and ', $media['missing']) . '.');
+                }
+                if (DB::table('student_id_card_issues')->where('student_id', $student->id)->where('status', 'open')->exists()) {
+                    throw new \RuntimeException('Generation is blocked because this student has an open ID-card issue. Review and resolve the issue first.');
                 }
 
                 $session = (string) $request->session;
@@ -340,6 +489,58 @@ class StudentIdCardController extends Controller
         Cache::forever('student-id-card:queue-version', (int) Cache::get('student-id-card:queue-version', 1) + 1);
     }
 
+    private function allowsAction(string $action): bool
+    {
+        return strtoupper((string) session('accType')) === 'ADMIN'
+            || PortalPermission::allows('/student id card', $action);
+    }
+
+    private function studentMedia($student): array
+    {
+        $disk = Storage::disk('public');
+        $picture = !empty($student->picture) && ($disk->exists('picture/' . ltrim((string) $student->picture, '/'))
+            || file_exists(public_path('storage/picture/' . ltrim((string) $student->picture, '/'))));
+        $signatureName = $student->signiture ?: $student->passport_sign;
+        $signatureDir = $student->signiture ? 'signature/' : 'passport_sign/';
+        $signature = !empty($signatureName) && ($disk->exists($signatureDir . ltrim((string) $signatureName, '/'))
+            || file_exists(public_path('storage/' . $signatureDir . ltrim((string) $signatureName, '/'))));
+        $missing = [];
+        if (!$picture) {
+            $missing[] = 'profile photo';
+        }
+        if (!$signature) {
+            $missing[] = 'signature';
+        }
+        return ['ready' => $picture && $signature, 'missing' => $missing];
+    }
+
+    private function studentMediaReady($row): bool
+    {
+        $disk = Storage::disk('public');
+        $picture = !empty($row->picture) && $disk->exists('picture/' . ltrim((string) $row->picture, '/'));
+        $signatureName = $row->signiture ?: $row->passport_sign;
+        $signatureDir = $row->signiture ? 'signature/' : 'passport_sign/';
+        $signature = !empty($signatureName) && $disk->exists($signatureDir . ltrim((string) $signatureName, '/'));
+        return $picture && $signature;
+    }
+
+    private function missingStudentMedia($row): array
+    {
+        $missing = [];
+        if (!$this->studentMediaReady($row)) {
+            $disk = Storage::disk('public');
+            if (empty($row->picture) || !$disk->exists('picture/' . ltrim((string) $row->picture, '/'))) {
+                $missing[] = 'profile photo';
+            }
+            $signatureName = $row->signiture ?: $row->passport_sign;
+            $signatureDir = $row->signiture ? 'signature/' : 'passport_sign/';
+            if (empty($signatureName) || !$disk->exists($signatureDir . ltrim((string) $signatureName, '/'))) {
+                $missing[] = 'signature';
+            }
+        }
+        return $missing;
+    }
+
     private function eligibleRecordsQuery(Request $request, bool $applyStatus = true)
     {
         $session = (string) $request->input('session', '');
@@ -374,7 +575,7 @@ class StudentIdCardController extends Controller
                     ->where('newer.status', 'Paid')
                     ->whereColumn('newer.id', '>', 'i.id');
             })
-            ->selectRaw("s.id as student_id, s.username as username, s.fullname as fullname, s.faculty as faculty, s.department as department, s.program as program, s.level as level, s.contact_phone as contact_phone, s.home_phone as home_phone, f.title as faculty_title, d.title as department_title, p.title as program_title, i.session as session, 'id_card' as source, i.id as payment_id, i.updated_at as paid_at");
+            ->selectRaw("s.id as student_id, s.username as username, s.fullname as fullname, s.faculty as faculty, s.department as department, s.program as program, s.level as level, s.contact_phone as contact_phone, s.home_phone as home_phone, s.picture as picture, s.signiture as signiture, s.passport_sign as passport_sign, f.title as faculty_title, d.title as department_title, p.title as program_title, i.session as session, 'id_card' as source, i.id as payment_id, i.updated_at as paid_at");
 
         $coverageQuery = function (string $entrySession, array $paidUsernames = []) {
             $query = DB::table('students as s')
@@ -384,7 +585,7 @@ class StudentIdCardController extends Controller
                 ->where('s.status', 1)
                 ->where('s.school_fee', 1)
                 ->where('s.session_of_entry', $entrySession)
-                ->selectRaw("s.id as student_id, s.username as username, s.fullname as fullname, s.faculty as faculty, s.department as department, s.program as program, s.level as level, s.contact_phone as contact_phone, s.home_phone as home_phone, f.title as faculty_title, d.title as department_title, p.title as program_title, s.session_of_entry as session, 'school_fee' as source, NULL as payment_id, NULL as paid_at");
+                ->selectRaw("s.id as student_id, s.username as username, s.fullname as fullname, s.faculty as faculty, s.department as department, s.program as program, s.level as level, s.contact_phone as contact_phone, s.home_phone as home_phone, s.picture as picture, s.signiture as signiture, s.passport_sign as passport_sign, f.title as faculty_title, d.title as department_title, p.title as program_title, s.session_of_entry as session, 'school_fee' as source, NULL as payment_id, NULL as paid_at");
             if ($paidUsernames) {
                 $query->whereNotIn('s.user_id', $paidUsernames);
             }
@@ -424,6 +625,15 @@ class StudentIdCardController extends Controller
                     DB::raw('eligible.session COLLATE utf8mb4_general_ci')
                 );
             })
+            ->leftJoinSub(
+                DB::table('student_id_card_issues')
+                    ->where('status', 'open')
+                    ->select('student_id')
+                    ->selectRaw('MAX(id) as issue_id')
+                    ->groupBy('student_id'),
+                'oi',
+                'oi.student_id', '=', 'eligible.student_id'
+            )
             ->select('eligible.*', 'g.generated_at as generation_generated_at');
 
         if ($selectedSession) {

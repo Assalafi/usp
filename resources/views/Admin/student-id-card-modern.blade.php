@@ -2,6 +2,7 @@
     .idc-page{--idc-ink:#14213d;--idc-muted:#718096;--idc-line:#e5ebf3;--idc-blue:#1769aa;--idc-deep:#123b67;--idc-green:#159570;--idc-amber:#c78419;background:#f5f8fc;margin:-8px -8px 24px;min-height:calc(100vh - 70px);padding:18px 0 34px;color:var(--idc-ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}.idc-page *{box-sizing:border-box}.idc-shell{max-width:1500px;margin:auto;padding:0 18px}.idc-hero{border-radius:22px;background:linear-gradient(130deg,var(--idc-deep),var(--idc-blue) 64%,#2ba7c6);color:#fff;padding:25px 28px;position:relative;overflow:hidden;box-shadow:0 16px 35px rgba(20,66,108,.18)}.idc-hero:after{content:"";position:absolute;right:-90px;top:-150px;width:340px;height:340px;border-radius:50%;background:rgba(255,255,255,.1)}.idc-hero-main{position:relative;z-index:1;display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.idc-eyebrow{text-transform:uppercase;letter-spacing:.15em;font-size:.68rem;font-weight:800;color:rgba(255,255,255,.73)}.idc-hero h1{font-size:clamp(1.45rem,3vw,2.15rem);line-height:1.1;margin:8px 0 6px;font-weight:850;letter-spacing:-.035em}.idc-hero p{margin:0;max-width:760px;color:rgba(255,255,255,.83);font-size:.84rem;line-height:1.5}.idc-live{display:inline-flex;align-items:center;gap:7px;border-radius:999px;background:rgba(255,255,255,.16);padding:8px 12px;font-size:.7rem;font-weight:800;white-space:nowrap}.idc-live i{width:8px;height:8px;border-radius:50%;background:#90f5d0;box-shadow:0 0 0 5px rgba(144,245,208,.14);animation:idcPulse 1.6s infinite}@keyframes idcPulse{50%{opacity:.35;transform:scale(.75)}}.idc-card{background:#fff;border:1px solid var(--idc-line);border-radius:16px;box-shadow:0 7px 22px rgba(24,49,80,.055)}.idc-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:16px 0}.idc-kpi{padding:15px 17px;min-width:0;border-top:4px solid var(--idc-blue)}.idc-kpi.green{border-top-color:var(--idc-green)}.idc-kpi.amber{border-top-color:var(--idc-amber)}.idc-kpi.purple{border-top-color:#7357cc}.idc-kpi.slate{border-top-color:#65758b}.idc-kpi span{display:block;color:var(--idc-muted);font-size:.7rem;font-weight:750;text-transform:uppercase;letter-spacing:.04em}.idc-kpi strong{display:block;color:var(--idc-ink);font-size:1.45rem;line-height:1.1;margin-top:7px}.idc-kpi small{display:block;color:#93a0b3;font-size:.68rem;margin-top:5px}.idc-filters{padding:16px;margin-bottom:15px}.idc-filter-grid{display:grid;grid-template-columns:1.25fr repeat(5,minmax(0,1fr));gap:10px;align-items:end}.idc-field label{display:block;color:#607089;text-transform:uppercase;letter-spacing:.045em;font-size:.65rem;font-weight:800;margin:0 0 5px}.idc-field input,.idc-field select{width:100%;min-height:42px;border:1px solid #dce5ef;border-radius:10px;background:#fff;padding:8px 10px;color:#253853;font-size:.78rem;outline:none}.idc-field input:focus,.idc-field select:focus{border-color:#5aa4df;box-shadow:0 0 0 3px rgba(23,105,170,.11)}.idc-filter-actions{display:flex;gap:8px;align-items:center;margin-top:11px;flex-wrap:wrap}.idc-btn{border:1px solid #d6e1ed;border-radius:10px;background:#fff;color:#244361;padding:9px 13px;font-size:.74rem;font-weight:800;cursor:pointer;min-height:39px}.idc-btn.primary{border-color:var(--idc-blue);background:var(--idc-blue);color:#fff}.idc-btn.soft{background:#edf6ff;color:#1769aa;border-color:#d4e9fb}.idc-btn.danger{color:#b6424a;background:#fff5f5;border-color:#f2d4d7}.idc-btn:disabled{opacity:.5;cursor:not-allowed}.idc-tabs{display:flex;gap:7px;align-items:center;overflow:auto;padding:5px;background:#eaf1f8;border:1px solid #dbe5ef;border-radius:14px;margin-bottom:14px}.idc-tab{border:0;background:transparent;color:#5c6c82;border-radius:10px;padding:11px 15px;font-size:.76rem;font-weight:800;white-space:nowrap;cursor:pointer;display:flex;gap:8px;align-items:center}.idc-tab.active{background:#fff;color:#1769aa;box-shadow:0 4px 12px rgba(23,105,170,.12)}.idc-tab .badge{border-radius:99px;padding:2px 7px;background:#e5eef8;color:#47627e;font-size:.64rem}.idc-tab.active .badge{background:#e1f0ff;color:#1769aa}.idc-table-card{overflow:hidden}.idc-table-head{padding:15px 17px;display:flex;justify-content:space-between;gap:12px;align-items:center;border-bottom:1px solid var(--idc-line)}.idc-table-head h2{font-size:1rem;margin:0;font-weight:850}.idc-table-head p{font-size:.72rem;color:var(--idc-muted);margin:4px 0 0}.idc-table-wrap{overflow:auto}.idc-table{width:100%;border-collapse:collapse;min-width:990px}.idc-table th{background:#f7f9fc;color:#64758a;text-transform:uppercase;letter-spacing:.045em;font-size:.63rem;font-weight:850;padding:11px 13px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--idc-line)}.idc-table td{padding:12px 13px;border-bottom:1px solid #edf1f6;color:#30435e;font-size:.76rem;vertical-align:middle}.idc-table tbody tr:hover{background:#fbfdff}.idc-name{font-weight:800;color:#1a2e4d}.idc-sub{color:#8a98aa;font-size:.68rem;margin-top:3px}.idc-status{display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:5px 8px;font-size:.64rem;font-weight:800;white-space:nowrap}.idc-status.awaiting{background:#fff6e6;color:#a36c0f}.idc-status.generated{background:#e6f8f0;color:#147a5d}.idc-status.covered{background:#edf5ff;color:#2367a8}.idc-action-group{display:flex;gap:6px;flex-wrap:wrap}.idc-empty{padding:45px 20px;text-align:center;color:#8391a4}.idc-empty i{font-size:1.6rem;color:#a9b6c5;display:block;margin-bottom:8px}.idc-empty strong{display:block;color:#53647d;font-size:.84rem}.idc-empty span{font-size:.72rem;display:block;margin-top:4px}.idc-footer{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--idc-line);flex-wrap:wrap}.idc-footer small{color:#7b8aa0;font-size:.7rem}.idc-pages{display:flex;gap:5px;align-items:center}.idc-pages button{min-width:31px;height:31px;border:1px solid #dce5ef;background:#fff;color:#49617b;border-radius:8px;font-size:.7rem;font-weight:800;cursor:pointer}.idc-pages button.active{background:var(--idc-blue);border-color:var(--idc-blue);color:#fff}.idc-pages button:disabled{opacity:.4;cursor:not-allowed}.idc-overlay{position:fixed;inset:0;background:rgba(10,25,45,.55);z-index:1050;display:none;align-items:center;justify-content:center;padding:18px}.idc-overlay.open{display:flex}.idc-modal{width:min(1120px,100%);max-height:calc(100vh - 36px);overflow:hidden;background:#fff;border-radius:18px;box-shadow:0 22px 60px rgba(0,0,0,.25);display:grid;grid-template-columns:minmax(240px,.75fr) minmax(420px,1.25fr)}.idc-modal-head{padding:17px 18px;border-bottom:1px solid var(--idc-line);display:flex;align-items:center;justify-content:space-between;gap:10px}.idc-modal-head h3{font-size:1rem;margin:0}.idc-close{border:0;background:#f1f5f9;color:#52637a;border-radius:8px;width:33px;height:33px;cursor:pointer}.idc-modal-side{overflow:auto;border-right:1px solid var(--idc-line)}.idc-preview-info{padding:17px 18px}.idc-info-row{display:flex;justify-content:space-between;gap:15px;border-bottom:1px dashed #e8edf3;padding:10px 0;font-size:.75rem}.idc-info-row span{color:#7f8da2}.idc-info-row strong{text-align:right;color:#293c57;max-width:65%;overflow-wrap:anywhere}.idc-frame-wrap{min-height:560px;background:#eff4f9;display:flex;align-items:center;justify-content:center;padding:14px}.idc-frame-wrap iframe{border:0;width:100%;height:calc(100vh - 150px);min-height:530px;background:#fff;border-radius:10px}.idc-toast{position:fixed;right:20px;bottom:20px;z-index:1200;display:none;max-width:360px;padding:12px 15px;border-radius:10px;background:#18324f;color:#fff;font-size:.75rem;box-shadow:0 10px 25px rgba(0,0,0,.16)}.idc-toast.show{display:block}.idc-toast.error{background:#b5424e}.idc-loader{display:inline-flex;align-items:center;gap:7px}.idc-loader:before{content:"";width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:idcSpin .7s linear infinite}@keyframes idcSpin{to{transform:rotate(360deg)}}@media(max-width:1100px){.idc-summary{grid-template-columns:repeat(3,1fr)}.idc-filter-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:680px){.idc-page{margin:-4px -4px 18px;padding-top:9px}.idc-shell{padding:0 10px}.idc-hero{padding:19px 17px;border-radius:17px}.idc-hero-main{display:block}.idc-hero h1{font-size:1.35rem}.idc-live{margin-top:14px}.idc-summary{grid-template-columns:repeat(2,1fr);gap:8px}.idc-kpi{padding:12px}.idc-kpi strong{font-size:1.2rem}.idc-filter-grid{grid-template-columns:1fr 1fr}.idc-filter-grid .wide{grid-column:span 2}.idc-tabs{margin-left:-2px;margin-right:-2px}.idc-table-head{display:block}.idc-table-head .idc-filter-actions{margin-top:10px}.idc-modal{display:block;max-height:calc(100vh - 20px);overflow:auto}.idc-modal-side{border-right:0;border-bottom:1px solid var(--idc-line);max-height:320px}.idc-frame-wrap{min-height:430px;padding:10px}.idc-frame-wrap iframe{height:520px;min-height:420px}.idc-footer{align-items:flex-start;flex-direction:column}.idc-action-group .idc-btn{min-height:35px;padding:7px 9px;font-size:.67rem}}
     /* Keep the hero readable against portal-wide heading and button rules. */
     .idc-hero{color:#fff!important;background:linear-gradient(135deg,#0b365f 0%,#126fa8 58%,#168eae 100%);border:1px solid rgba(255,255,255,.14);isolation:isolate}
+    .idc-editor-panel{margin:0 18px 16px;border:1px solid #dce8f2;border-radius:13px;background:#f8fbfe;padding:13px}.idc-editor-help{margin:7px 0 11px;color:#71869a;font-size:.72rem;line-height:1.45}.idc-editor-panel form{display:grid;gap:9px}.idc-editor-panel label{display:grid;gap:5px;color:#58708a;font-size:.68rem;font-weight:800}.idc-editor-panel input[type=file],.idc-editor-panel textarea{width:100%;border:1px solid #d8e4ee;border-radius:9px;background:#fff;padding:8px;color:#314a65;font-size:.76rem}.idc-editor-panel textarea{resize:vertical;min-height:76px}.idc-editor-panel .idc-btn{justify-self:start}.idc-media-warning{display:flex;align-items:flex-start;gap:7px;margin:0 0 12px;padding:9px 10px;border-radius:9px;background:#fff7e6;color:#9b6814;font-size:.7rem;line-height:1.4}.idc-media-ready{background:#eaf8f1;color:#177856}.idc-issue-note{margin:0 0 12px;padding:10px;border-radius:9px;background:#fff0f0;color:#a03f47;font-size:.7rem;line-height:1.45}.idc-btn.disabled-action{opacity:.56;cursor:not-allowed}.idc-issue-description{max-width:340px;white-space:normal;line-height:1.35}
     .idc-hero h1{color:#fff!important}
     .idc-hero p{color:#e7f6ff!important}
     .idc-eyebrow{color:#d9f2ff!important}
@@ -22,7 +23,7 @@
     $canIssueIdCards = \App\Support\PortalPermission::allows('/student id card', 'idcard');
     $canResetIdCards = \App\Support\PortalPermission::allows('/student id card', 'update');
 @endphp
-<div class="idc-page" id="studentIdCardApp" data-csrf-token="{{ csrf_token() }}" data-can-issue="{{ $canIssueIdCards ? '1' : '0' }}" data-can-reset="{{ $canResetIdCards ? '1' : '0' }}" data-data-url="{{ route('student-id-card.data') }}" data-options-url="{{ route('student-id-card.options') }}" data-preview-url="{{ url('/student-id-card/preview') }}" data-generate-url="{{ route('student-id-card.generate') }}" data-bulk-url="{{ route('student-id-card.generate-bulk') }}" data-reset-url="{{ route('student-id-card.reset') }}">
+<div class="idc-page" id="studentIdCardApp" data-csrf-token="{{ csrf_token() }}" data-can-issue="{{ $canIssueIdCards ? '1' : '0' }}" data-can-reset="{{ $canResetIdCards ? '1' : '0' }}" data-can-media="{{ \App\Support\PortalPermission::allows('/student id card', 'media') ? '1' : '0' }}" data-can-mark-issue="{{ \App\Support\PortalPermission::allows('/student id card', 'issue') ? '1' : '0' }}" data-data-url="{{ route('student-id-card.data') }}" data-options-url="{{ route('student-id-card.options') }}" data-preview-url="{{ url('/student-id-card/preview') }}" data-media-url="{{ route('student-id-card.media') }}" data-issue-url="{{ route('student-id-card.issue') }}" data-issues-url="{{ route('student-id-card.issues') }}" data-generate-url="{{ route('student-id-card.generate') }}" data-bulk-url="{{ route('student-id-card.generate-bulk') }}" data-reset-url="{{ route('student-id-card.reset') }}">
     <div class="idc-shell">
         <section class="idc-hero">
             <div class="idc-hero-main">
@@ -59,6 +60,7 @@
             <button class="idc-tab active" type="button" data-status="awaiting"><i class="fas fa-hourglass-half"></i><span>Awaiting generation</span><b class="badge" id="idcAwaitingTab">—</b></button>
             <button class="idc-tab" type="button" data-status="all"><i class="fas fa-layer-group"></i><span>All eligible</span><b class="badge" id="idcAllTab">—</b></button>
             <button class="idc-tab" type="button" data-status="generated"><i class="fas fa-check-circle"></i><span>Generation history</span><b class="badge" id="idcGeneratedTab">—</b></button>
+            <button class="idc-tab" type="button" data-status="issues"><i class="fas fa-triangle-exclamation"></i><span>Needs attention</span><b class="badge" id="idcIssuesTab">—</b></button>
         </nav>
 
         <section class="idc-card idc-table-card">
@@ -70,7 +72,7 @@
 </div>
 
 <div class="idc-overlay" id="idcOverlay" role="dialog" aria-modal="true" aria-labelledby="idcModalTitle">
-    <div class="idc-modal idc-details-modal"><section class="idc-modal-side"><header class="idc-modal-head"><div><span class="idc-modal-kicker">Student record</span><h3 id="idcModalTitle">Student details</h3></div><button type="button" class="idc-close" id="idcClose" aria-label="Close student details"><i class="fas fa-times"></i></button></header><div class="idc-preview-info" id="idcPreviewInfo"></div><footer class="idc-modal-footer"><button type="button" class="idc-btn primary" data-close-idc><i class="fas fa-check mr-1"></i> Done</button></footer></section></div>
+    <div class="idc-modal idc-details-modal"><section class="idc-modal-side"><header class="idc-modal-head"><div><span class="idc-modal-kicker">Student record</span><h3 id="idcModalTitle">Student details</h3></div><button type="button" class="idc-close" id="idcClose" aria-label="Close student details"><i class="fas fa-times"></i></button></header><div class="idc-preview-info" id="idcPreviewInfo"></div><div class="idc-editor-panel" id="idcMediaPanel" hidden><div class="idc-detail-section-title"><i class="fas fa-pen-to-square"></i><span>Update card documents</span></div><p class="idc-editor-help">Replace the official profile photo or signature used on the ID card.</p><form id="idcMediaForm" enctype="multipart/form-data"><input type="hidden" name="student_id" id="idcMediaStudent"><label>Profile photo<input type="file" name="picture" accept="image/jpeg,image/png" /></label><label>Signature<input type="file" name="signiture" accept="image/jpeg,image/png" /></label><button class="idc-btn primary" type="submit" id="idcMediaSave"><i class="fas fa-save"></i> Save documents</button></form></div><div class="idc-editor-panel" id="idcIssuePanel" hidden><div class="idc-detail-section-title"><i class="fas fa-triangle-exclamation"></i><span>Record an ID-card issue</span></div><p class="idc-editor-help">Describe the correction needed. Generation will remain blocked until the issue is resolved.</p><form id="idcIssueForm"><input type="hidden" name="student_id" id="idcIssueStudent"><input type="hidden" name="session" id="idcIssueSession"><textarea name="description" id="idcIssueDescription" rows="3" maxlength="2000" placeholder="Example: Replace the photo; it is not clear enough for printing." required></textarea><button class="idc-btn danger" type="submit" id="idcIssueSave"><i class="fas fa-flag"></i> Mark as issue</button></form></div><footer class="idc-modal-footer"><button type="button" class="idc-btn primary" data-close-idc><i class="fas fa-check mr-1"></i> Done</button></footer></section></div>
 </div>
 <div class="idc-overlay" id="idcGeneratedOverlay" role="dialog" aria-modal="true" aria-labelledby="idcGeneratedTitle">
     <div class="idc-modal idc-generated-modal">
@@ -92,7 +94,7 @@
     const toast = (message, error=false) => { const el=$('idcToast'); el.textContent=message; el.className='idc-toast show'+(error?' error':''); clearTimeout(toast.timer); toast.timer=setTimeout(()=>el.className='idc-toast',4200); };
     const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || app.dataset.csrfToken || '';
     const setLoading = value => { state.loading=value; $('idcLiveText').textContent=value?'Updating records…':'Updated just now'; $('idcApply').disabled=value; $('idcClear').disabled=value; $('idcPerPage').disabled=value; $('idcBulkGenerate').disabled=value; $('idcSelectAll').disabled=value; $('idcTableBusy').hidden=!value; $('idcTable').setAttribute('aria-busy',value?'true':'false'); if(value)$('idcRange').textContent='Loading the selected records…'; document.querySelector('.idc-tabs')?.classList.toggle('is-loading',value); document.querySelectorAll('.idc-tab').forEach(tab=>{tab.disabled=value;tab.classList.toggle('is-loading',value&&tab.classList.contains('active'));}); document.querySelectorAll('#idcPages button').forEach(button=>button.disabled=value); };
-    const updateSummary = summary => { $('idcTotal').textContent=summary.total ?? 0; $('idcGenerated').textContent=summary.generated ?? 0; $('idcAwaiting').textContent=summary.awaiting ?? 0; $('idcPaid').textContent=summary.paid ?? 0; $('idcCovered').textContent=summary.school_fee_covered ?? 0; $('idcAwaitingTab').textContent=summary.awaiting ?? 0; $('idcAllTab').textContent=summary.total ?? 0; $('idcGeneratedTab').textContent=summary.generated ?? 0; };
+    const updateSummary = summary => { $('idcTotal').textContent=summary.total ?? 0; $('idcGenerated').textContent=summary.generated ?? 0; $('idcAwaiting').textContent=summary.awaiting ?? 0; $('idcPaid').textContent=summary.paid ?? 0; $('idcCovered').textContent=summary.school_fee_covered ?? 0; $('idcAwaitingTab').textContent=summary.awaiting ?? 0; $('idcAllTab').textContent=summary.total ?? 0; $('idcGeneratedTab').textContent=summary.generated ?? 0; $('idcIssuesTab').textContent=summary.issues ?? 0; };
     const renderRows = rows => { state.rows=rows||[]; const body=$('idcRows'); if(!state.rows.length){body.innerHTML='<tr><td colspan="7"><div class="idc-empty"><i class="fas fa-id-card"></i><strong>No matching records</strong><span>Try a different session, filter, or search term.</span></div></td></tr>'; $('idcBulkGenerate').disabled=true; return;} body.innerHTML=state.rows.map((r,i)=>`<tr><td><input type="checkbox" class="idc-row-check" data-student="${r.student_id}" data-session="${esc(r.session)}" ${r.generated?'disabled':''} aria-label="Select ${esc(r.fullname)}"></td><td><div class="idc-name">${esc(r.fullname)}</div><div class="idc-sub">${esc(r.username)} · ${esc(r.phone)}</div></td><td><div>${esc(r.program)}</div><div class="idc-sub">${esc(r.department)} · ${esc(r.faculty)} · Level ${esc(r.level)}</div></td><td>${esc(r.session)}</td><td><span class="idc-status ${r.source_key==='school_fee'?'covered':'generated'}"><i class="fas ${r.source_key==='school_fee'?'fa-graduation-cap':'fa-receipt'}"></i>${esc(r.source)}</span><div class="idc-sub">${r.paid_at?'Paid '+esc(r.paid_at):'Entry-session coverage'}</div></td><td><span class="idc-status ${r.generated?'generated':'awaiting'}"><i class="fas ${r.generated?'fa-check':'fa-hourglass-half'}"></i>${r.generated?'Generated':'Awaiting'}</span>${r.generated_at?`<div class="idc-sub">${esc(r.generated_at)}</div>`:''}</td><td><div class="idc-action-group"><button type="button" class="idc-btn soft idc-preview" data-id="${r.student_id}"><i class="fas fa-eye"></i> View details</button>${!r.generated?`<button type="button" class="idc-btn primary idc-generate" data-id="${r.student_id}" data-session="${esc(r.session)}"><i class="fas fa-print"></i> Generate</button>`:`<a class="idc-btn" href="${esc(r.card_url)}" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i> Open card</a>`}</div></td></tr>`).join(''); if(app.dataset.canIssue!=='1')body.querySelectorAll('.idc-generate,.idc-action-group a').forEach(x=>x.remove()); $('idcBulkGenerate').style.display=app.dataset.canIssue==='1'?'':'none'; $('idcBulkGenerate').disabled=app.dataset.canIssue!=='1'||!state.rows.some(r=>!r.generated); $('idcSelectAll').checked=false; };
     const renderPages = pagination => { state.lastPage=pagination.last_page||1; const pages=$('idcPages'); pages.innerHTML=''; const prev=document.createElement('button'); prev.innerHTML='<i class="fas fa-chevron-left"></i>'; prev.disabled=state.page<=1; prev.onclick=()=>{state.page--;load();}; pages.appendChild(prev); const start=Math.max(1,state.page-2),end=Math.min(state.lastPage,start+4); for(let n=start;n<=end;n++){const b=document.createElement('button');b.textContent=n;b.className=n===state.page?'active':'';b.onclick=()=>{state.page=n;load();};pages.appendChild(b);} const next=document.createElement('button');next.innerHTML='<i class="fas fa-chevron-right"></i>';next.disabled=state.page>=state.lastPage;next.onclick=()=>{state.page++;load();};pages.appendChild(next); const from=pagination.total?((state.page-1)*state.perPage)+1:0; const to=Math.min(pagination.total,state.page*state.perPage); $('idcRange').textContent=`Showing ${from}–${to} of ${pagination.total||0} record(s)`; };
     const load = async () => { if(state.loading)return; setLoading(true); try { const res=await fetch(app.dataset.dataUrl+'?'+params().toString(),{headers:{Accept:'application/json', 'X-Requested-With':'XMLHttpRequest'}}); const json=await res.json(); if(!res.ok)throw new Error(json.message||'Unable to load records.'); updateSummary(json.summary||{}); renderRows(json.rows||[]); renderPages(json.pagination||{}); $('idcTableTitle').textContent=state.status==='awaiting'?'Awaiting generation':state.status==='generated'?'Generation history':'All eligible records'; $('idcTableSubtitle').textContent=state.status==='awaiting'?'Students ready for review and issue.':state.status==='generated'?'Cards already marked as generated.':'Every eligible paid or covered record matching the filters.'; } catch(e){toast(e.message,true);} finally{setLoading(false);} };
@@ -119,5 +121,125 @@
     const addGeneratedResetActions=()=>{if(app.dataset.canReset!=='1')return;state.rows.forEach((row,index)=>{if(!row.generated)return;const tableRow=$('idcRows').children[index];const group=tableRow?.querySelector('.idc-action-group');if(!group||group.querySelector('.idc-reset'))return;const button=document.createElement('button');button.type='button';button.className='idc-btn danger idc-reset';button.dataset.id=row.student_id;button.dataset.session=row.session;button.innerHTML='<i class="fas fa-rotate-left"></i> Return to awaiting';group.appendChild(button);});};
     new MutationObserver(addGeneratedResetActions).observe($('idcRows'),{childList:true});
     populateOptions(); load();
+})();
+</script>
+
+<script>
+(() => {
+    const app = document.getElementById('studentIdCardApp');
+    if (!app) return;
+    const $ = id => document.getElementById(id);
+    const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content || app.dataset.csrfToken || '';
+    const cache = new Map();
+    let currentStudent = null;
+    let currentSession = '';
+    const notice = (message, error = false) => {
+        const el = $('idcToast');
+        el.textContent = message;
+        el.className = 'idc-toast show' + (error ? ' error' : '');
+        clearTimeout(notice.timer);
+        notice.timer = setTimeout(() => el.className = 'idc-toast', 4500);
+    };
+    const loadDetails = async id => {
+        if (!cache.has(id)) {
+            const response = await fetch(app.dataset.previewUrl + '/' + id, {headers: {Accept: 'application/json'}});
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.message || 'Student details unavailable.');
+            cache.set(id, payload.student);
+        }
+        return cache.get(id);
+    };
+    const refreshList = () => document.querySelector('.idc-tab.active')?.click();
+    const showPanels = student => {
+        currentStudent = student.id;
+        currentSession = $('idcSession')?.value || '';
+        $('idcMediaStudent').value = student.id;
+        $('idcIssueStudent').value = student.id;
+        $('idcIssueSession').value = currentSession === 'all' ? '' : currentSession;
+        $('idcMediaPanel').hidden = app.dataset.canMedia !== '1';
+        $('idcIssuePanel').hidden = app.dataset.canMarkIssue !== '1';
+        const missing = Array.isArray(student.missing_media) ? student.missing_media : [];
+        const status = $('idcPreviewInfo').querySelector('.idc-profile-status');
+        if (status) {
+            status.className = 'idc-profile-status ' + (student.media_ready && !student.issue ? '' : 'idc-media-warning');
+            status.innerHTML = student.issue
+                ? '<i class="fas fa-triangle-exclamation"></i> Issue recorded'
+                : (student.media_ready ? '<i class="fas fa-circle-check"></i> Documents ready' : '<i class="fas fa-circle-exclamation"></i> Missing ' + missing.join(' and '));
+        }
+        const issuePanel = $('idcIssuePanel');
+        const existing = issuePanel.querySelector('.idc-issue-note');
+        if (existing) existing.remove();
+        if (student.issue) {
+            const note = document.createElement('div');
+            note.className = 'idc-issue-note';
+            note.innerHTML = '<strong>Open issue:</strong> ' + String(student.issue.description || '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+            issuePanel.insertBefore(note, issuePanel.querySelector('form'));
+        }
+    };
+    document.addEventListener('click', event => {
+        const button = event.target.closest('.idc-preview');
+        if (!button) return;
+        const id = button.dataset.id;
+        setTimeout(async () => {
+            try { showPanels(await loadDetails(id)); }
+            catch (error) { notice(error.message, true); }
+        }, 180);
+    });
+    const syncRows = async () => {
+        const rows = [...document.querySelectorAll('#idcRows tr')];
+        for (const row of rows) {
+            const check = row.querySelector('.idc-row-check');
+            const generate = row.querySelector('.idc-generate');
+            if (!check || !generate) continue;
+            try {
+                const student = await loadDetails(check.dataset.student);
+                if (!student.media_ready || student.issue) {
+                    check.disabled = true;
+                    generate.disabled = true;
+                    generate.classList.add('disabled-action');
+                    generate.title = student.issue ? 'Resolve the open ID-card issue first.' : 'Add both a profile photo and signature first.';
+                    generate.innerHTML = '<i class="fas fa-lock"></i> ' + (student.issue ? 'Issue recorded' : 'Documents missing');
+                }
+            } catch (_) { /* The normal table remains usable if one preview request fails. */ }
+        }
+    };
+    new MutationObserver(() => setTimeout(syncRows, 40)).observe($('idcRows'), {childList: true, subtree: true});
+    $('idcMediaForm')?.addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = $('idcMediaSave');
+        const form = event.currentTarget;
+        if (!form.picture.files.length && !form.signiture.files.length) { notice('Choose a photo or signature before saving.', true); return; }
+        button.disabled = true; button.innerHTML = '<span class="idc-loader">Saving…</span>';
+        try {
+            const response = await fetch(app.dataset.mediaUrl, {method: 'POST', headers: {'Accept': 'application/json', 'X-CSRF-TOKEN': csrf()}, body: new FormData(form)});
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.message || 'The documents could not be saved.');
+            cache.delete(currentStudent); notice(payload.message || 'Documents updated.'); form.reset();
+            const student = await loadDetails(currentStudent); showPanels(student); refreshList();
+        } catch (error) { notice(error.message, true); }
+        finally { button.disabled = false; button.innerHTML = '<i class="fas fa-save"></i> Save documents'; }
+    });
+    $('idcIssueForm')?.addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = $('idcIssueSave');
+        const form = event.currentTarget;
+        button.disabled = true; button.innerHTML = '<span class="idc-loader">Recording…</span>';
+        try {
+            const response = await fetch(app.dataset.issueUrl, {method: 'POST', headers: {'Accept': 'application/json', 'X-CSRF-TOKEN': csrf()}, body: new FormData(form)});
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.message || 'The issue could not be recorded.');
+            cache.delete(currentStudent); notice(payload.message || 'Issue recorded.'); form.reset(); $('idcIssueStudent').value = currentStudent; refreshList();
+            const student = await loadDetails(currentStudent); showPanels(student);
+        } catch (error) { notice(error.message, true); }
+        finally { button.disabled = false; button.innerHTML = '<i class="fas fa-flag"></i> Mark as issue'; }
+    });
+    document.querySelectorAll('.idc-tab').forEach(tab => tab.addEventListener('click', () => {
+        if (tab.dataset.status === 'issues') {
+            setTimeout(() => {
+                $('idcTableTitle').textContent = 'ID cards needing attention';
+                $('idcTableSubtitle').textContent = 'Open corrections recorded by authorised staff. Generation stays blocked until resolved.';
+            }, 40);
+        }
+    }));
 })();
 </script>
