@@ -185,6 +185,15 @@ class StudentIdCardController extends Controller
                 'nationality' => $student->country ?: 'Not recorded',
                 'emergency_contact' => $student->kin_name ?: 'Not recorded',
                 'emergency_phone' => $student->kin_phone ?: 'Not recorded',
+                'picture_url' => $student->picture
+                    ? asset('storage/picture/' . ltrim((string) $student->picture, '/'))
+                    : asset('storage/picture/default.jpg'),
+                'default_picture_url' => asset('storage/picture/default.jpg'),
+                'signature_url' => $student->signiture
+                    ? asset('storage/signature/' . ltrim((string) $student->signiture, '/'))
+                    : ($student->passport_sign
+                        ? asset('storage/passport_sign/' . ltrim((string) $student->passport_sign, '/'))
+                        : null),
             ],
         ]);
     }
