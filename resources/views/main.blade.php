@@ -523,7 +523,11 @@
                         @include('Staff/' . $page)
                     @else
                         @if (session('accType') == 'Staff')
-                            @include('Admin/' . $page)
+                            @if ($page == 'dashboards' && \App\Support\PortalPermission::hasRole('VC'))
+                                @include('Admin.vc-dashboard')
+                            @else
+                                @include('Admin/' . $page)
+                            @endif
                         @else
                             @include(session('accType') . '.' . $page)
                         @endif
