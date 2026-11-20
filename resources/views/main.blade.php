@@ -500,7 +500,7 @@
                     @elseif ($page == 'pages' && session('accType') == 'Admin')
                         @include('Admin.pages-permissions-modern')
                     @elseif ($page == 'rolls' && session('accType') == 'Admin')
-                        @include('Admin.rolls-permissions-modern')
+                        @include('Admin.rolls-permissions-modern-v2')
                     @elseif ($page == 'program course registration')
                         @include('Admin.program-course-registration-modern')
                     @elseif ($page == 'hod staff roles')
