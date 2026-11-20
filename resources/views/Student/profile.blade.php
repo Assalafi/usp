@@ -1111,7 +1111,7 @@
                                             <section class="sp-media-card">
                                                 <div class="sp-media-heading">
                                                     <span class="sp-media-icon"><i class="fas fa-camera"></i></span>
-                                                    <div><h5>Passport photograph <span class="text-danger">*</span></h5><p>Upload a clear, front-facing passport photograph. A new photo is required for this profile update.</p></div>
+                                                    <div><h5>Passport photograph <span class="text-danger">*</span></h5><p>{{ $profileIsSubmitted ? 'Your current photo is already accepted. Replace it only if it needs correction.' : 'Upload a clear, front-facing passport photograph. A new photo is required for your first profile submission.' }}</p></div>
                                                 </div>
                                                 <div class="sp-photo-editor">
                                                     <div class="sp-photo-frame"><img id="profile-photo-preview" src="{{ $profilePhotoUrl }}" alt="Profile photo preview"></div>

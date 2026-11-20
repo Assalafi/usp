@@ -2222,7 +2222,9 @@ class RegistrationController extends Controller
             $required['direct_entry_cert'] = 'Direct Entry Certificate';
         }
 
-        $hasStoredPhotoForCurrentSubmission = $this->profilePhotoUpdatedForCurrentSubmission($student)
+        $profileAlreadySubmitted = $student->profile_status === 'submitted'
+            && !empty($student->profile_submitted_at);
+        $hasStoredPhotoForCurrentSubmission = ($profileAlreadySubmitted || $this->profilePhotoUpdatedForCurrentSubmission($student))
             && !empty($student->picture)
             && $disk->exists('picture/' . $student->picture);
         $hasNewUploadedPhoto = $this->hasNewUploadedPhotoPreview($request, $student)
