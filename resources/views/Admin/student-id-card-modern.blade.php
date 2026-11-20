@@ -23,6 +23,19 @@
     .idc-details-modal{max-height:calc(100vh - 36px);overflow:hidden}
     .idc-details-modal .idc-modal-side{min-height:0;max-height:calc(100vh - 36px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
     @media(max-width:680px){.idc-details-modal{max-height:calc(100vh - 20px);overflow:hidden}.idc-details-modal .idc-modal-side{max-height:calc(100vh - 20px);overflow-y:auto}}
+    /* Modern document upload cards */
+    .idc-upload-panel{background:linear-gradient(145deg,#f8fbff,#f2f7fc);border-color:#d6e5f1;padding:16px}
+    .idc-upload-panel .idc-detail-section-title{background:transparent;border:0;padding:0;color:#183f61;font-size:.74rem;letter-spacing:.035em}
+    .idc-panel-badge{margin-left:auto;border-radius:999px;padding:5px 8px;background:#e6f5ee;color:#167b5d;font-size:.58rem;letter-spacing:.02em;text-transform:none;white-space:nowrap}
+    .idc-upload-panel .idc-editor-help{margin:8px 0 14px;color:#607b93}
+    .idc-upload-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+    .idc-upload-card{min-width:0;padding:11px;border:1px solid #dbe7f0;border-radius:13px;background:#fff;box-shadow:0 4px 13px rgba(28,75,115,.045)}
+    .idc-upload-card-head{display:flex;align-items:center;gap:8px;margin-bottom:9px}.idc-upload-card-head strong{display:block;color:#294863;font-size:.72rem}.idc-upload-card-head small{display:block;color:#8a9aaa;font-size:.61rem;margin-top:2px}
+    .idc-upload-icon{width:29px;height:29px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;background:#e6f3ff;color:#1975b5;font-size:.75rem;flex:0 0 auto}.idc-upload-icon.signature{background:#f0ebff;color:#7156be}
+    .idc-dropzone{width:100%;min-height:134px;padding:11px 8px;border:1.5px dashed #b9d2e5;border-radius:11px;background:#f8fbfe;color:#52708a;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;cursor:pointer;transition:border-color .18s,background .18s,transform .18s;appearance:none}.idc-dropzone:hover,.idc-dropzone:focus-visible,.idc-dropzone.is-dragging{border-color:#2589c7;background:#eef8ff;outline:0;transform:translateY(-1px)}
+    .idc-upload-preview{width:54px;height:54px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#e8f3fa;color:#3986b3;font-size:1.15rem;overflow:hidden;margin-bottom:2px}.idc-upload-preview.signature{background:#f1edfc;color:#806bc1}.idc-upload-preview img{width:100%;height:100%;object-fit:cover}.idc-drop-title{font-size:.7rem;font-weight:850;color:#2c5a78}.idc-drop-hint{font-size:.62rem;color:#8a9baa}.idc-file-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6f8598;font-size:.59rem;margin-top:3px}
+    .idc-upload-note{display:flex;align-items:flex-start;gap:7px;margin:11px 0 12px;padding:9px 10px;border:1px solid #dbe8f2;border-radius:9px;background:#edf7fd;color:#5c7890;font-size:.64rem;line-height:1.4}.idc-upload-note i{color:#3988b4;margin-top:1px}.idc-upload-save{display:inline-flex;align-items:center;gap:7px}
+    @media(max-width:680px){.idc-upload-grid{grid-template-columns:1fr}.idc-panel-badge{font-size:.55rem}.idc-upload-card{padding:10px}.idc-dropzone{min-height:116px}}
 </style>
 
 @php
@@ -78,7 +91,7 @@
 </div>
 
 <div class="idc-overlay" id="idcOverlay" role="dialog" aria-modal="true" aria-labelledby="idcModalTitle">
-    <div class="idc-modal idc-details-modal"><section class="idc-modal-side"><header class="idc-modal-head"><div><span class="idc-modal-kicker">Student record</span><h3 id="idcModalTitle">Student details</h3></div><button type="button" class="idc-close" id="idcClose" aria-label="Close student details"><i class="fas fa-times"></i></button></header><div class="idc-preview-info" id="idcPreviewInfo"></div><div class="idc-editor-panel" id="idcMediaPanel" hidden><div class="idc-detail-section-title"><i class="fas fa-pen-to-square"></i><span>Update card documents</span></div><p class="idc-editor-help">Replace the official profile photo or signature used on the ID card.</p><form id="idcMediaForm" enctype="multipart/form-data"><input type="hidden" name="student_id" id="idcMediaStudent"><label>Profile photo<input type="file" name="picture" accept="image/jpeg,image/png" /></label><label>Signature<input type="file" name="signiture" accept="image/jpeg,image/png" /></label><button class="idc-btn primary" type="submit" id="idcMediaSave"><i class="fas fa-save"></i> Save documents</button></form></div><div class="idc-editor-panel" id="idcIssuePanel" hidden><div class="idc-detail-section-title"><i class="fas fa-triangle-exclamation"></i><span>Record an ID-card issue</span></div><p class="idc-editor-help">Describe the correction needed. Generation stays blocked until the issue is resolved.</p><form id="idcIssueForm"><input type="hidden" name="student_id" id="idcIssueStudent"><input type="hidden" name="session" id="idcIssueSession"><textarea name="description" id="idcIssueDescription" rows="3" maxlength="2000" placeholder="Example: Replace the photo; it is not clear enough for printing." required></textarea><button class="idc-btn danger" type="submit" id="idcIssueSave"><i class="fas fa-flag"></i> Mark as issue</button></form><button type="button" class="idc-btn soft" id="idcIssueResolve" hidden><i class="fas fa-check"></i> Resolve current issue</button></div><footer class="idc-modal-footer"><button type="button" class="idc-btn primary" data-close-idc><i class="fas fa-check mr-1"></i> Done</button></footer></section></div>
+    <div class="idc-modal idc-details-modal"><section class="idc-modal-side"><header class="idc-modal-head"><div><span class="idc-modal-kicker">Student record</span><h3 id="idcModalTitle">Student details</h3></div><button type="button" class="idc-close" id="idcClose" aria-label="Close student details"><i class="fas fa-times"></i></button></header><div class="idc-preview-info" id="idcPreviewInfo"></div><div class="idc-editor-panel idc-upload-panel" id="idcMediaPanel" hidden><div class="idc-detail-section-title"><i class="fas fa-pen-to-square"></i><span>Update card documents</span><span class="idc-panel-badge">Required for printing</span></div><p class="idc-editor-help">Add a clear passport photo and handwritten signature. You can replace either document without changing the other.</p><form id="idcMediaForm" enctype="multipart/form-data"><input type="hidden" name="student_id" id="idcMediaStudent"><div class="idc-upload-grid"><div class="idc-upload-card" data-upload-card="picture"><div class="idc-upload-card-head"><span class="idc-upload-icon"><i class="fas fa-camera"></i></span><span><strong>Profile photo</strong><small>JPG or PNG · clear face photo</small></span></div><button type="button" class="idc-dropzone" data-upload-trigger="idcPictureInput" id="idcPictureDrop"><span class="idc-upload-preview" id="idcPicturePreview"><i class="fas fa-cloud-arrow-up"></i></span><span class="idc-drop-title">Choose a photo</span><span class="idc-drop-hint">or drag and drop here</span><span class="idc-file-name" id="idcPictureName">No file selected</span></button><input type="file" name="picture" id="idcPictureInput" accept="image/jpeg,image/png" hidden></div><div class="idc-upload-card" data-upload-card="signature"><div class="idc-upload-card-head"><span class="idc-upload-icon signature"><i class="fas fa-signature"></i></span><span><strong>Signature</strong><small>JPG or PNG · dark ink on white</small></span></div><button type="button" class="idc-dropzone" data-upload-trigger="idcSignatureInput" id="idcSignatureDrop"><span class="idc-upload-preview signature" id="idcSignaturePreview"><i class="fas fa-cloud-arrow-up"></i></span><span class="idc-drop-title">Choose a signature</span><span class="idc-drop-hint">or drag and drop here</span><span class="idc-file-name" id="idcSignatureName">No file selected</span></button><input type="file" name="signiture" id="idcSignatureInput" accept="image/jpeg,image/png" hidden></div></div><div class="idc-upload-note"><i class="fas fa-circle-info"></i><span>Use images under 5 MB. The existing document remains unchanged when its replacement is left empty.</span></div><button class="idc-btn primary idc-upload-save" type="submit" id="idcMediaSave"><i class="fas fa-cloud-arrow-up"></i> Save card documents</button></form></div><div class="idc-editor-panel" id="idcIssuePanel" hidden><div class="idc-detail-section-title"><i class="fas fa-triangle-exclamation"></i><span>Record an ID-card issue</span></div><p class="idc-editor-help">Describe the correction needed. Generation stays blocked until the issue is resolved.</p><form id="idcIssueForm"><input type="hidden" name="student_id" id="idcIssueStudent"><input type="hidden" name="session" id="idcIssueSession"><textarea name="description" id="idcIssueDescription" rows="3" maxlength="2000" placeholder="Example: Replace the photo; it is not clear enough for printing." required></textarea><button class="idc-btn danger" type="submit" id="idcIssueSave"><i class="fas fa-flag"></i> Mark as issue</button></form><button type="button" class="idc-btn soft" id="idcIssueResolve" hidden><i class="fas fa-check"></i> Resolve current issue</button></div><footer class="idc-modal-footer"><button type="button" class="idc-btn primary" data-close-idc><i class="fas fa-check mr-1"></i> Done</button></footer></section></div>
 </div>
 <div class="idc-overlay" id="idcGeneratedOverlay" role="dialog" aria-modal="true" aria-labelledby="idcGeneratedTitle">
     <div class="idc-modal idc-generated-modal">
@@ -146,6 +159,38 @@
         new MutationObserver(syncModalScrollState).observe(overlay, {attributes: true, attributeFilter: ['class']});
     });
     syncModalScrollState();
+    const setupUploadCard = (inputId, dropId, previewId, nameId) => {
+        const input = $(inputId), drop = $(dropId), preview = $(previewId), name = $(nameId);
+        if (!input || !drop || !preview || !name) return;
+        const showFile = file => {
+            if (!file) return;
+            name.textContent = file.name;
+            if (!file.type.startsWith('image/')) { preview.innerHTML = '<i class="fas fa-file"></i>'; return; }
+            const reader = new FileReader();
+            reader.onload = event => { preview.innerHTML = '<img src="' + event.target.result + '" alt="Selected document preview">'; };
+            reader.readAsDataURL(file);
+        };
+        drop.addEventListener('click', () => input.click());
+        input.addEventListener('change', () => showFile(input.files?.[0]));
+        ['dragenter', 'dragover'].forEach(type => drop.addEventListener(type, event => { event.preventDefault(); drop.classList.add('is-dragging'); }));
+        ['dragleave', 'drop'].forEach(type => drop.addEventListener(type, event => { event.preventDefault(); drop.classList.remove('is-dragging'); }));
+        drop.addEventListener('drop', event => {
+            const file = event.dataTransfer?.files?.[0];
+            if (!file) return;
+            try { input.files = event.dataTransfer.files; } catch (_) { /* Browsers may keep file assignment read-only. */ }
+            showFile(file);
+        });
+    };
+    setupUploadCard('idcPictureInput', 'idcPictureDrop', 'idcPicturePreview', 'idcPictureName');
+    setupUploadCard('idcSignatureInput', 'idcSignatureDrop', 'idcSignaturePreview', 'idcSignatureName');
+    const resetUploadCards = () => {
+        [['idcPictureInput','idcPicturePreview','idcPictureName','fa-cloud-arrow-up'],['idcSignatureInput','idcSignaturePreview','idcSignatureName','fa-cloud-arrow-up']].forEach(([inputId, previewId, nameId, icon]) => {
+            const input = $(inputId), preview = $(previewId), name = $(nameId);
+            if (input) input.value = '';
+            if (preview) preview.innerHTML = '<i class="fas ' + icon + '"></i>';
+            if (name) name.textContent = 'No file selected';
+        });
+    };
     const notice = (message, error = false) => {
         const el = $('idcToast');
         el.textContent = message;
@@ -242,7 +287,7 @@
             const response = await fetch(app.dataset.mediaUrl, {method: 'POST', headers: {'Accept': 'application/json', 'X-CSRF-TOKEN': csrf()}, body: new FormData(form)});
             const payload = await response.json();
             if (!response.ok) throw new Error(payload.message || 'The documents could not be saved.');
-            cache.delete(currentStudent); notice(payload.message || 'Documents updated.'); form.reset();
+            cache.delete(currentStudent); notice(payload.message || 'Documents updated.'); form.reset(); resetUploadCards();
             const student = await loadDetails(currentStudent); showPanels(student); refreshList();
         } catch (error) { notice(error.message, true); }
         finally { button.disabled = false; button.innerHTML = '<i class="fas fa-save"></i> Save documents'; }
