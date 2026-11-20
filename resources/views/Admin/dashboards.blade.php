@@ -28,11 +28,21 @@
     $alumni = Alumni::count();
 @endphp
 <div class="row">
-    @forelse (DB::table('rolls')->where(['username' => session('username'), 'page' => 'Dashboard'])->select('action')->limit(1)->get() as $item)
-        @php
-            $actions = explode(',', $item->action);
-        @endphp
-        @forelse ($actions as $item)
+    {{--
+        Resolve dashboard cards through the same permission service used by
+        the sidebar and route guards.  The old implementation queried only a
+        direct username row, which meant staff receiving permissions through
+        an appointment/role (VC, HOD, Dean, etc.) could open the dashboard but
+        silently lose some or all of its cards.
+    --}}
+    @php
+        $dashboardActions = collect(\App\Support\PortalPermission::actionsForLink('/dash'))
+            ->map([\App\Support\PortalPermission::class, 'normalizeAction'])
+            ->filter()
+            ->unique()
+            ->values();
+    @endphp
+    @forelse ($dashboardActions as $item)
             @if ($item == 'active_student')
                 <div class="col-sm-6 col-md-6 col-xl-3">
                     <div class="card bg-c-blue bitcoin-wallet">
@@ -185,27 +195,6 @@
                 </div>
             </div>
         @endforelse
-    @empty
-        <div class="main-body">
-            <div class="page-wrapper">
-                <!-- [ Main Content ] start -->
-                <div class="row">
-                    <!-- [ bitcoin-wallet section ] start-->
-                    <div class="col-sm-12 col-md-12 col-xl-12">
-                        <div class="card bg-c-blue bitcoin-wallet">
-                            <div class="card-block">
-                                <h5 class="text-white mb-2">DASHBOARD</h5>
-                                <h3 class="text-white mb-2 f-w-300"></h3>
-                                <i class="fas fa-home f-70 text-white"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- [ Main Content ] end -->
-                </div>
-            </div>
-        </div>
-    @endforelse
-
     @forelse (DB::table('committee_membership')->where(['username' => session('username')])->get() as $item1)
         <div class="main-body">
             <div class="page-wrapper">
