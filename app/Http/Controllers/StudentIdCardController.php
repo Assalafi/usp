@@ -80,13 +80,13 @@ class StudentIdCardController extends Controller
             $summaryRow = Cache::remember('student-id-card:summary:' . md5($filterKey), now()->addSeconds(60), function () use ($baseRecords) {
                 return (clone $baseRecords)
                     ->select([])
-                    ->selectRaw("COUNT(*) as total, SUM(eligible.source = 'id_card') as paid, SUM(eligible.source = 'school_fee') as covered, SUM(g.generated_at IS NOT NULL) as generated")
+                    ->selectRaw("COUNT(*) as total, SUM(CASE WHEN eligible.source = 'id_card' THEN 1 ELSE 0 END) as paid_count, SUM(CASE WHEN eligible.source = 'school_fee' THEN 1 ELSE 0 END) as covered_count, SUM(CASE WHEN g.generated_at IS NOT NULL THEN 1 ELSE 0 END) as generated_count")
                     ->first();
             });
             $total = (int) ($summaryRow->total ?? 0);
-            $generated = (int) ($summaryRow->generated ?? 0);
-            $paid = (int) ($summaryRow->paid ?? 0);
-            $covered = (int) ($summaryRow->covered ?? 0);
+            $generated = (int) ($summaryRow->generated_count ?? 0);
+            $paid = (int) ($summaryRow->paid_count ?? 0);
+            $covered = (int) ($summaryRow->covered_count ?? 0);
 
             $perPage = max(10, min(100, (int) $request->input('per_page', 25)));
             $page = max(1, (int) $request->input('page', 1));
