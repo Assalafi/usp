@@ -54,6 +54,11 @@ class CheckRoleAccess
         if (in_array($page, ['fees-due/school-summary', 'fees-due/school-records', 'fees-due/ug-summary'], true)) {
             $page = 'fees due';
         }
+        // Student ID-card preview and generation endpoints are asynchronous
+        // children of the same permission-controlled management page.
+        if (str_starts_with($page, 'student-id-card/')) {
+            $page = 'student id card';
+        }
         if ($page === 'admin/remita-finance-live/data') {
             $page = 'admin/remita-finance-live';
         }
