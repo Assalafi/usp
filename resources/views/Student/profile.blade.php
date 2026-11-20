@@ -358,7 +358,7 @@
                 <div class="alert alert-warning border-0 shadow-sm" role="alert"><i class="fas fa-lock me-1"></i> {{ session('warning') ?: 'Complete every required item and submit your profile to unlock the student portal.' }}</div>
             @endif
             <form class="form-group" action="update-profile" id="myform" method="POST"
-                enctype="multipart/form-data">
+                enctype="multipart/form-data" data-profile-complete="{{ $profileIsComplete ? '1' : '0' }}" data-photo-required="{{ (!$profileIsSubmitted && !$profilePhotoUpdatedForCurrentSubmission) ? '1' : '0' }}">
                 @csrf
                 <input type="hidden" name="id" value="{{ $row->id }}">
                 <input type="hidden" name="processed_photo_token" id="processed_photo_token" value="">
@@ -1274,7 +1274,8 @@
                     <div class="col-md-12">
                         <div class="sp-profile-submit-actions">
                             <button type="button" id="save-profile-btn" class="btn btn-light"><i class="fas fa-floppy-disk" aria-hidden="true"></i> Save progress</button>
-                            <button type="button" id="submit-profile-btn" class="btn btn-primary"><i class="fas fa-paper-plane" aria-hidden="true"></i> Submit profile</button>
+                            <button type="button" id="submit-profile-btn" class="btn btn-primary" @if (!$profileIsComplete) hidden @endif><i class="fas fa-paper-plane" aria-hidden="true"></i> Submit profile</button>
+                            <small id="profile-submit-hint" class="profile-submit-hint" @if ($profileIsComplete) hidden @endif><i class="fas fa-lock" aria-hidden="true"></i> Submit will appear when every required item is complete (100%).</small>
                         </div>
                     </div>
                 </div>
@@ -1326,6 +1327,18 @@
             const directEntryCard = document.getElementById('direct-entry-document');
             const directEntryFile = document.getElementById('student_doc_direct_entry_cert');
             const directEntryAlreadySaved = directEntryFile && !!directEntryCard.querySelector('a[href]');
+            const submitHint = document.getElementById('profile-submit-hint');
+            const updateSubmitButton = () => {
+                const requiredFields = [...profileForm.querySelectorAll('[required]')].filter(field => {
+                    return !field.disabled && !field.closest('[hidden]');
+                });
+                let complete = requiredFields.every(field => field.checkValidity() && (field.type !== 'file' || field.files.length > 0));
+                if (profileForm.dataset.photoRequired === '1') {
+                    complete = complete && !!document.getElementById('processed_photo_token')?.value;
+                }
+                submitButton.hidden = !complete;
+                if (submitHint) submitHint.hidden = complete;
+            };
             const updateEntryDocument = () => {
                 if (!entryMode || !directEntryCard || !directEntryFile) return;
                 const needed = entryMode.value === 'DE';
@@ -1333,10 +1346,19 @@
                 directEntryCard.style.display = needed ? '' : 'none';
                 directEntryFile.disabled = !needed;
                 directEntryFile.required = needed && !directEntryAlreadySaved;
+                updateSubmitButton();
             };
             entryMode?.addEventListener('change', updateEntryDocument);
             if (window.jQuery) window.jQuery(entryMode).on('change', updateEntryDocument);
             updateEntryDocument();
+            profileForm.addEventListener('input', updateSubmitButton);
+            profileForm.addEventListener('change', updateSubmitButton);
+            updateSubmitButton();
+            let lastPhotoToken = document.getElementById('processed_photo_token')?.value || '';
+            window.setInterval(() => {
+                const token = document.getElementById('processed_photo_token')?.value || '';
+                if (token !== lastPhotoToken) { lastPhotoToken = token; updateSubmitButton(); }
+            }, 250);
 
             // Add click event handler directly to the submit button
             submitButton.addEventListener('click', function(event) {
@@ -1953,6 +1975,7 @@
         .sp-submission-status span { font-weight:500; margin-left:.15rem; }
         .sp-submission-status-success { color:#166534; background:#ecfdf3; border:1px solid #bbf7d0; }
         .sp-submission-status-pending { color:#92400e; background:#fffbeb; border:1px solid #fde68a; }
+        .profile-submit-hint { flex:1; display:inline-flex; align-items:center; justify-content:center; gap:.4rem; min-height:48px; padding:.65rem .8rem; border:1px dashed #d7c58a; border-radius:11px; color:#82651e; background:#fffaf0; font-size:.76rem; font-weight:600; text-align:center; }
         @media (max-width: 767.98px) {
             .student-profile-page { padding:.45rem; }
             .student-profile-page .page-wrapper { padding:0; }
