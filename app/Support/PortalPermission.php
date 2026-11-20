@@ -37,6 +37,7 @@ final class PortalPermission
         'idcard' => 'ID card',
         'media' => 'Update student photo and signature',
         'issue' => 'Record an ID-card issue',
+        'resolve_issue' => 'Resolve an ID-card issue',
         'getpdf' => 'PDF download',
         'status' => 'Change status',
         'password' => 'Password reset',

@@ -310,6 +310,28 @@ class StudentIdCardController extends Controller
         return response()->json(['message' => 'The ID-card issue was recorded.']);
     }
 
+    /** Close an issue after the correction has been reviewed. */
+    public function resolveIssue(Request $request)
+    {
+        if (!session()->has('log')) {
+            return response()->json(['message' => 'Please sign in again.'], 401);
+        }
+        abort_unless($this->allowsAction('resolve_issue'), 403, 'You do not have permission to resolve ID-card issues.');
+        $validator = Validator::make($request->all(), ['issue_id' => ['required', 'integer']]);
+        if ($validator->fails()) {
+            return response()->json(['message' => $validator->errors()->first()], 422);
+        }
+        $updated = DB::table('student_id_card_issues')
+            ->where('id', (int) $request->issue_id)
+            ->where('status', 'open')
+            ->update(['status' => 'resolved', 'resolved_by' => session('id'), 'resolved_at' => now(), 'updated_at' => now()]);
+        if (!$updated) {
+            return response()->json(['message' => 'The issue is already resolved or could not be found.'], 404);
+        }
+        $this->bumpQueueVersion();
+        return response()->json(['message' => 'The ID-card issue was resolved.']);
+    }
+
     /** Return open ID-card issues for the dedicated issues tab. */
     public function issues(Request $request)
     {

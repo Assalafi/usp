@@ -23,7 +23,7 @@
     $canIssueIdCards = \App\Support\PortalPermission::allows('/student id card', 'idcard');
     $canResetIdCards = \App\Support\PortalPermission::allows('/student id card', 'update');
 @endphp
-<div class="idc-page" id="studentIdCardApp" data-csrf-token="{{ csrf_token() }}" data-can-issue="{{ $canIssueIdCards ? '1' : '0' }}" data-can-reset="{{ $canResetIdCards ? '1' : '0' }}" data-can-media="{{ \App\Support\PortalPermission::allows('/student id card', 'media') ? '1' : '0' }}" data-can-mark-issue="{{ \App\Support\PortalPermission::allows('/student id card', 'issue') ? '1' : '0' }}" data-data-url="{{ route('student-id-card.data') }}" data-options-url="{{ route('student-id-card.options') }}" data-preview-url="{{ url('/student-id-card/preview') }}" data-media-url="{{ route('student-id-card.media') }}" data-issue-url="{{ route('student-id-card.issue') }}" data-issues-url="{{ route('student-id-card.issues') }}" data-generate-url="{{ route('student-id-card.generate') }}" data-bulk-url="{{ route('student-id-card.generate-bulk') }}" data-reset-url="{{ route('student-id-card.reset') }}">
+<div class="idc-page" id="studentIdCardApp" data-csrf-token="{{ csrf_token() }}" data-can-issue="{{ $canIssueIdCards ? '1' : '0' }}" data-can-reset="{{ $canResetIdCards ? '1' : '0' }}" data-can-media="{{ \App\Support\PortalPermission::allows('/student id card', 'media') ? '1' : '0' }}" data-can-mark-issue="{{ \App\Support\PortalPermission::allows('/student id card', 'issue') ? '1' : '0' }}" data-can-resolve-issue="{{ \App\Support\PortalPermission::allows('/student id card', 'resolve_issue') ? '1' : '0' }}" data-data-url="{{ route('student-id-card.data') }}" data-options-url="{{ route('student-id-card.options') }}" data-preview-url="{{ url('/student-id-card/preview') }}" data-media-url="{{ route('student-id-card.media') }}" data-issue-url="{{ route('student-id-card.issue') }}" data-issues-url="{{ route('student-id-card.issues') }}" data-resolve-issue-url="{{ route('student-id-card.issue.resolve') }}" data-generate-url="{{ route('student-id-card.generate') }}" data-bulk-url="{{ route('student-id-card.generate-bulk') }}" data-reset-url="{{ route('student-id-card.reset') }}">
     <div class="idc-shell">
         <section class="idc-hero">
             <div class="idc-hero-main">
@@ -72,7 +72,7 @@
 </div>
 
 <div class="idc-overlay" id="idcOverlay" role="dialog" aria-modal="true" aria-labelledby="idcModalTitle">
-    <div class="idc-modal idc-details-modal"><section class="idc-modal-side"><header class="idc-modal-head"><div><span class="idc-modal-kicker">Student record</span><h3 id="idcModalTitle">Student details</h3></div><button type="button" class="idc-close" id="idcClose" aria-label="Close student details"><i class="fas fa-times"></i></button></header><div class="idc-preview-info" id="idcPreviewInfo"></div><div class="idc-editor-panel" id="idcMediaPanel" hidden><div class="idc-detail-section-title"><i class="fas fa-pen-to-square"></i><span>Update card documents</span></div><p class="idc-editor-help">Replace the official profile photo or signature used on the ID card.</p><form id="idcMediaForm" enctype="multipart/form-data"><input type="hidden" name="student_id" id="idcMediaStudent"><label>Profile photo<input type="file" name="picture" accept="image/jpeg,image/png" /></label><label>Signature<input type="file" name="signiture" accept="image/jpeg,image/png" /></label><button class="idc-btn primary" type="submit" id="idcMediaSave"><i class="fas fa-save"></i> Save documents</button></form></div><div class="idc-editor-panel" id="idcIssuePanel" hidden><div class="idc-detail-section-title"><i class="fas fa-triangle-exclamation"></i><span>Record an ID-card issue</span></div><p class="idc-editor-help">Describe the correction needed. Generation will remain blocked until the issue is resolved.</p><form id="idcIssueForm"><input type="hidden" name="student_id" id="idcIssueStudent"><input type="hidden" name="session" id="idcIssueSession"><textarea name="description" id="idcIssueDescription" rows="3" maxlength="2000" placeholder="Example: Replace the photo; it is not clear enough for printing." required></textarea><button class="idc-btn danger" type="submit" id="idcIssueSave"><i class="fas fa-flag"></i> Mark as issue</button></form></div><footer class="idc-modal-footer"><button type="button" class="idc-btn primary" data-close-idc><i class="fas fa-check mr-1"></i> Done</button></footer></section></div>
+    <div class="idc-modal idc-details-modal"><section class="idc-modal-side"><header class="idc-modal-head"><div><span class="idc-modal-kicker">Student record</span><h3 id="idcModalTitle">Student details</h3></div><button type="button" class="idc-close" id="idcClose" aria-label="Close student details"><i class="fas fa-times"></i></button></header><div class="idc-preview-info" id="idcPreviewInfo"></div><div class="idc-editor-panel" id="idcMediaPanel" hidden><div class="idc-detail-section-title"><i class="fas fa-pen-to-square"></i><span>Update card documents</span></div><p class="idc-editor-help">Replace the official profile photo or signature used on the ID card.</p><form id="idcMediaForm" enctype="multipart/form-data"><input type="hidden" name="student_id" id="idcMediaStudent"><label>Profile photo<input type="file" name="picture" accept="image/jpeg,image/png" /></label><label>Signature<input type="file" name="signiture" accept="image/jpeg,image/png" /></label><button class="idc-btn primary" type="submit" id="idcMediaSave"><i class="fas fa-save"></i> Save documents</button></form></div><div class="idc-editor-panel" id="idcIssuePanel" hidden><div class="idc-detail-section-title"><i class="fas fa-triangle-exclamation"></i><span>Record an ID-card issue</span></div><p class="idc-editor-help">Describe the correction needed. Generation stays blocked until the issue is resolved.</p><form id="idcIssueForm"><input type="hidden" name="student_id" id="idcIssueStudent"><input type="hidden" name="session" id="idcIssueSession"><textarea name="description" id="idcIssueDescription" rows="3" maxlength="2000" placeholder="Example: Replace the photo; it is not clear enough for printing." required></textarea><button class="idc-btn danger" type="submit" id="idcIssueSave"><i class="fas fa-flag"></i> Mark as issue</button></form><button type="button" class="idc-btn soft" id="idcIssueResolve" hidden><i class="fas fa-check"></i> Resolve current issue</button></div><footer class="idc-modal-footer"><button type="button" class="idc-btn primary" data-close-idc><i class="fas fa-check mr-1"></i> Done</button></footer></section></div>
 </div>
 <div class="idc-overlay" id="idcGeneratedOverlay" role="dialog" aria-modal="true" aria-labelledby="idcGeneratedTitle">
     <div class="idc-modal idc-generated-modal">
@@ -175,6 +175,9 @@
             note.innerHTML = '<strong>Open issue:</strong> ' + String(student.issue.description || '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
             issuePanel.insertBefore(note, issuePanel.querySelector('form'));
         }
+        const resolveButton = $('idcIssueResolve');
+        resolveButton.hidden = !student.issue || app.dataset.canResolveIssue !== '1';
+        resolveButton.dataset.issueId = student.issue?.id || '';
     };
     document.addEventListener('click', event => {
         const button = event.target.closest('.idc-preview');
@@ -241,6 +244,20 @@
             const student = await loadDetails(currentStudent); showPanels(student);
         } catch (error) { notice(error.message, true); }
         finally { button.disabled = false; button.innerHTML = '<i class="fas fa-flag"></i> Mark as issue'; }
+    });
+    $('idcIssueResolve')?.addEventListener('click', async event => {
+        const button = event.currentTarget;
+        if (!button.dataset.issueId) return;
+        button.disabled = true; button.innerHTML = '<span class="idc-loader">Resolving…</span>';
+        try {
+            const body = new FormData(); body.append('issue_id', button.dataset.issueId);
+            const response = await fetch(app.dataset.resolveIssueUrl, {method: 'POST', headers: {'Accept': 'application/json', 'X-CSRF-TOKEN': csrf()}, body});
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.message || 'The issue could not be resolved.');
+            cache.delete(currentStudent); notice(payload.message || 'Issue resolved.'); refreshList();
+            const student = await loadDetails(currentStudent); showPanels(student);
+        } catch (error) { notice(error.message, true); }
+        finally { button.disabled = false; button.innerHTML = '<i class="fas fa-check"></i> Resolve current issue'; }
     });
     document.querySelectorAll('.idc-tab').forEach(tab => tab.addEventListener('click', () => {
         if (tab.dataset.status === 'issues') {

@@ -604,6 +604,7 @@ Route::get('/student-id-card/options', [StudentIdCardController::class, 'options
 Route::get('/student-id-card/preview/{id}', [StudentIdCardController::class, 'preview'])->name('student-id-card.preview')->middleware('role');
 Route::post('/student-id-card/media', [StudentIdCardController::class, 'updateMedia'])->name('student-id-card.media')->middleware('role');
 Route::post('/student-id-card/issues', [StudentIdCardController::class, 'markIssue'])->name('student-id-card.issue')->middleware('role');
+Route::post('/student-id-card/issues/resolve', [StudentIdCardController::class, 'resolveIssue'])->name('student-id-card.issue.resolve')->middleware('role');
 Route::get('/student-id-card/issues', [StudentIdCardController::class, 'issues'])->name('student-id-card.issues')->middleware('role');
 Route::post('/student-id-card/generate', [StudentIdCardController::class, 'generate'])->name('student-id-card.generate')->middleware('role');
 Route::post('/student-id-card/generate-bulk', [StudentIdCardController::class, 'generateBulk'])->name('student-id-card.generate-bulk')->middleware('role');
