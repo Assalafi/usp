@@ -30,127 +30,31 @@ class ApproveResultsController extends Controller
 
     public function index(Request $req)
     {
-        if (!session()->has('log')) {
-            return redirect('/');
+        if (!session()->has('log')) return redirect('/');
+        $workspace = new \App\Support\ResultApprovalWorkspace();
+        $key = \App\Support\ResultApprovalWorkspace::stateKey();
+        if ($req->boolean('reset')) {
+            session()->forget($key);
+            return redirect('/approve results');
         }
-        // Result approval follows the dedicated Results Session setting. An
-        // explicit ?session=... filter still takes precedence below.
-        $session = \App\Http\Controllers\SystemSettingsController::getResultsSession();
-        if ($req->has('_token') || $req->filled('session')) {
-            $data = $req->all();
-            $ses = $data['session'];
-            $session = $ses;
-            unset($data['_token']);
-            unset($data['faculty']);
-            unset($data['department']);
-            $filteredData = array_filter($data);
-            $query = DB::table($this->table);
-            foreach ($filteredData as $key => $value) {
-                $query->where($key, $value);
-            }
-            if (session('appointment') != 'HOD') {
-                $data['data'] = $query->select('code', 'session', 'semester', 'approve', 'lecturer', 'updated_at')->groupBy('code', 'session', 'semester', 'approve', 'lecturer', 'updated_at')->get();
-            }
-            $data['sessions'] = $ses;
-        } else {
-            $data['data'] = DB::table($this->table)->where(['status' => '2'])->get();
-            $data['sessions'] = $session;
-
-            if (session('appointment') == 'DEAN') {
-                $data['data'] = $this->assignedResultBatches(session('username'), $session);
-            }
+        // A plain return from a review restores the user's last list, including
+        // its page. Explicit filters always take precedence.
+        if (!$req->query() && session()->has($key)) {
+            return redirect(\App\Support\ResultApprovalWorkspace::returnUrl());
         }
-        $data['faculty'] = DB::table('faculty')->where(['status' => '1'])->select('code', 'title')->orderBy('title', 'ASC')->get();
-        $data['session'] = DB::table('session')->select('title')->orderBy('title', 'ASC')->get();
-        if (session('accType') == 'Staff' && session('appointment') != 'DEAN' && session('appointment') != 'VC' && session('appointment') != 'COURSE SYSTEM') {
-            $data['sessions'] = $session;
-            if (session('appointment') == 'HOD') {
-                $departmentCodes = DB::table('course')
-                    ->where('department', session('department'))
-                    ->pluck('code')
-                    ->all();
-                $allocationCodes = $this->allocatedCourseCodes(session('username'), $session);
-                $data['data'] = $this->resultBatchesForCodes(
-                    array_merge($departmentCodes, $allocationCodes),
-                    $session
-                );
-            } else {
-                $data['data'] = $this->assignedResultBatches(session('username'), $session);
-            }
+        $filters = $workspace->filters($req);
+        $data = $workspace->data($filters);
+        if ($filters['page'] > $data['rows']->lastPage()) {
+            $filters['page'] = $data['rows']->lastPage();
+            session([$key => $filters]);
+            session()->reflash();
+            return redirect(\App\Support\ResultApprovalWorkspace::returnUrl());
         }
-
-        if (strtoupper(session('appointment')) == 'VC' || session('accType') == 'Admin') {
-            $getPrograms = DB::table('results')->select('program')->where(['approve' => 'cs'])->groupBy('program')->pluck('program');
-            $data['getDept'] = Program::whereIn('code', $getPrograms)->select('department')->groupBy('department')->get();
-        } else {
-            $getPrograms = DB::table('results')->select('program')->where(['approve' => 'cs'])->groupBy('program')->limit(1)->pluck('program');
-            $data['getDept'] = Program::whereIn('code', $getPrograms)->select('department')->groupBy('department')->limit(1)->get();
-        }
-
-        $data['page'] = $this->page;
-        $data['title'] = $this->title;
+        $data['page'] = 'approve results';
+        $data['title'] = 'Result approval';
         return view('main', $data);
     }
 
-    /**
-     * Return result batches assigned to a staff account for the selected
-     * session. Older allocations contain inconsistent casing/spacing and
-     * some have no session value, so compare normalized values and allow a
-     * legacy blank session while still preferring the selected session.
-     */
-    private function assignedResultBatches(?string $username, ?string $session = null)
-    {
-        $username = strtoupper(trim((string) $username));
-        $codes = $this->allocatedCourseCodes($username, $session);
-
-        return $this->resultBatchesForCodes($codes, $session);
-    }
-
-    private function allocatedCourseCodes(?string $username, ?string $session = null): array
-    {
-        $username = strtoupper(trim((string) $username));
-        $allocation = DB::table('course_allocation')
-            ->whereRaw('UPPER(TRIM(username)) = ?', [$username])
-            ->whereNotNull('course');
-
-        if ($session !== null && trim($session) !== '') {
-            $allocation->where(function ($query) use ($session) {
-                $query->whereNull('session')->orWhereRaw('TRIM(session) = ?', [trim($session)]);
-            });
-        }
-
-        return $allocation->pluck('course')
-            ->map(static fn ($code) => strtoupper(trim((string) $code)))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-    }
-
-    private function resultBatchesForCodes(array $codes, ?string $session = null)
-    {
-        $codes = collect($codes)
-            ->map(static fn ($code) => strtoupper(trim((string) $code)))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-        $query = DB::table($this->table);
-        if ($session !== null && trim($session) !== '') {
-            $query->where('session', trim($session));
-        }
-
-        if ($codes === []) {
-            return $query->whereRaw('1 = 0')->get();
-        }
-
-        $placeholders = implode(',', array_fill(0, count($codes), '?'));
-        return $query
-            ->whereRaw('UPPER(TRIM(code)) IN (' . $placeholders . ')', $codes)
-            ->select('code', 'session', 'semester', 'approve', 'lecturer', 'updated_at')
-            ->groupBy('code', 'session', 'semester', 'approve', 'lecturer', 'updated_at')
-            ->get();
-    }
 
     public function create(Request $req)
     {
@@ -202,7 +106,7 @@ class ApproveResultsController extends Controller
             }
             $batch->update(['approve' => $next, $actor => session('username'), 'updated_at' => now()]);
         }, 3);
-        return redirect('/approve results?' . http_build_query(['session' => $validated['session']]))
+        return redirect(\App\Support\ResultApprovalWorkspace::returnUrl(['session' => $validated['session']]))
             ->with('success', 'The course results have been submitted successfully.');
     }
 
@@ -283,10 +187,21 @@ class ApproveResultsController extends Controller
         }
 
         if ($stage === 'cs') {
-            return $appointment === 'VC';
+            return $this->isVcApprover();
         }
 
         return false;
+    }
+
+    private function isVcApprover(): bool
+    {
+        if (strtoupper(trim((string) session('accType'))) === 'ADMIN') {
+            return true;
+        }
+
+        return strtoupper(trim((string) session('accType'))) === 'STAFF'
+            && (strtoupper(trim((string) session('appointment'))) === 'VC'
+                || \App\Support\PortalPermission::hasRole('VC'));
     }
 
     public function update(Request $req)
@@ -361,7 +276,9 @@ class ApproveResultsController extends Controller
 
         // The page only exposes the rejection button to the correct reviewer,
         // but the server must enforce the same rule for forged/replayed posts.
-        if (!$isAdmin && !in_array($appointment, $action['allowed_appointments'], true)) {
+        if (!$isAdmin
+            && !in_array($appointment, $action['allowed_appointments'], true)
+            && !($currentStage === 'cs' && $this->isVcApprover())) {
             return redirect()->back()->withInput()->with('error', 'You are not authorised to reject results at this approval stage.');
         }
 
@@ -427,7 +344,7 @@ class ApproveResultsController extends Controller
                 return redirect()->back()->withInput()->with('error', 'This result has already changed approval stage. Refresh the page and review it again.');
             }
 
-            return redirect()->back()->with('success', $action['label'] . ' successfully. ' . $affected . ' result row(s) were updated.');
+            return redirect(\App\Support\ResultApprovalWorkspace::returnUrl(['session' => $session]))->with('success', $action['label'] . ' successfully. ' . $affected . ' result row(s) were updated.');
         } catch (QueryException $e) {
             Log::error('Result rejection failed', [
                 'code' => $code,
@@ -479,25 +396,44 @@ class ApproveResultsController extends Controller
 
     public function approveDeptResults(Request $req)
     {
-        abort_unless(session('accType') === 'Admin' || (session('accType') === 'Staff' && session('appointment') === 'VC'), 403,
+        abort_unless($this->isVcApprover(), 403,
             'Only the final approving office can approve or reject a department batch.');
+        abort_unless(\App\Support\ResultApprovalWorkspace::canDecideDepartment((string) $req->input('status')), 403,
+            'Your access allows viewing these results, but not making this decision.');
         if (!session()->has('log')) {
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
         try {
-            $data = $req->all();
+            $data = $req->validate([
+                'status' => ['required', 'in:Approved,Rejected'],
+                'dept' => ['required', 'string', 'max:50'],
+                'session' => ['nullable', 'string', 'max:30'],
+            ]);
             $status = $data['status'];
-            $dept = $data['dept'];
-            $session = '2023/2024';
+            $dept = trim($data['dept']);
+            $session = trim((string) ($data['session'] ?? '')) ?: 'all';
 
             $programs = DB::table('program')->where('department', $dept)->pluck('code')->toArray();
-            $totalResults = DB::table('results')
+            $pendingResults = DB::table('results')
                 ->whereIn('program', $programs)
-                ->where('approve', 'cs')
-                ->count();
+                ->where('approve', 'cs');
+            if ($session !== 'all') {
+                $pendingResults->where('session', $session);
+            }
+            $totalResults = $pendingResults->count();
 
-            session(['processed' => 0, 'total' => $totalResults]);
+            if ($totalResults === 0) {
+                session()->forget(['processed', 'total', 'approval_session']);
+                $sessionLabel = $session === 'all' ? 'any session' : 'the selected session';
+                return response()->json([
+                    'status' => 'complete',
+                    'progress' => 100,
+                    'message' => "There are no results awaiting final approval for this department in {$sessionLabel}.",
+                ]);
+            }
+
+            session(['processed' => 0, 'total' => $totalResults, 'approval_session' => $session]);
 
             // Log::info('Processing started for department: ' . $dept, [
             //     'status' => $status,
@@ -507,7 +443,7 @@ class ApproveResultsController extends Controller
             return response()->json([
                 'status' => 'processing',
                 'progress' => 0,
-                'nextBatchUrl' => route('process-next-batch', ['dept' => $dept, 'status' => $status])
+                'nextBatchUrl' => route('process-next-batch', ['dept' => $dept, 'status' => $status, 'session' => $session])
             ]);
         } catch (\Exception $e) {
             Log::error('Error in approveDeptResults: ' . $e->getMessage(), ['exception' => $e]);
@@ -517,11 +453,15 @@ class ApproveResultsController extends Controller
 
     public function processNextBatch(Request $req)
     {
-        abort_unless(session('accType') === 'Admin' || (session('accType') === 'Staff' && session('appointment') === 'VC'), 403,
+        abort_unless($this->isVcApprover(), 403,
             'Only the final approving office can process department approval batches.');
+        abort_unless(\App\Support\ResultApprovalWorkspace::canDecideDepartment((string) $req->status), 403,
+            'Your access allows viewing these results, but not making this decision.');
         $dept = $req->dept;
         $status = $req->status;
-        $session = '2023/2024';
+        $session = trim((string) ($req->query('session') ?: session('approval_session'))) ?: 'all';
+
+        abort_unless(in_array($status, ['Approved', 'Rejected'], true), 422, 'The approval decision is invalid.');
 
         try {
             $programs = DB::table('program')->where('department', $dept)->pluck('code')->toArray();
@@ -529,12 +469,22 @@ class ApproveResultsController extends Controller
             $processed = session('processed', 0);
             $total = session('total', 0);
 
-            $results = DB::table('results')
+            // The approval update removes rows from the `approve = cs` set.
+            // Always read the first page of the remaining set; using
+            // skip($processed) would skip rows after the first batch and can
+            // leave the progress loop running forever.
+            $pendingResults = DB::table('results')
                 ->whereIn('program', $programs)
-                ->where('approve', 'cs')
-                ->skip($processed)
-                ->take($batchSize)
-                ->get();
+                ->where('approve', 'cs');
+            if ($session !== 'all') {
+                $pendingResults->where('session', $session);
+            }
+            $results = $pendingResults->take($batchSize)->get();
+
+            if ($results->isEmpty()) {
+                session()->forget(['processed', 'total', 'approval_session']);
+                return response()->json(['status' => 'complete', 'progress' => 100]);
+            }
 
             foreach ($results as $result) {
                 $records = [];
@@ -571,14 +521,14 @@ class ApproveResultsController extends Controller
             // ]);
 
             if ($processed >= $total) {
-                session()->forget(['processed', 'total']);
+                session()->forget(['processed', 'total', 'approval_session']);
                 return response()->json(['status' => 'complete', 'progress' => 100]);
             }
 
             return response()->json([
                 'status' => 'processing',
                 'progress' => $progress,
-                'nextBatchUrl' => route('process-next-batch', ['dept' => $dept, 'status' => $status])
+                'nextBatchUrl' => route('process-next-batch', ['dept' => $dept, 'status' => $status, 'session' => $session])
             ]);
         } catch (\Exception $e) {
             Log::error('Error in processNextBatch: ' . $e->getMessage(), ['exception' => $e]);

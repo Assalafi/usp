@@ -24,8 +24,12 @@ class ResultApprovalAccessTest extends TestCase
             'course_allocation' => ['username', 'course', 'type', 'session'],
             'results' => ['username', 'code', 'session', 'semester', 'approve', 'lecturer', 'department', 'program', 'hod', 'dean', 'cs', 'vc', 'comment', 'ca', 'exam', 'total', 'grade', 'remark', 'unit', 'point', 'ugp'],
             'student_course_registration' => ['username', 'code', 'session', 'semester', 'comment', 'grade', 'status', 'total', 'unit', 'point', 'ugp'],
-            'course' => ['code', 'department', 'faculty'],
-            'department' => ['code', 'faculty'],
+            'course' => ['code', 'title', 'department', 'faculty'],
+            'department' => ['code', 'title', 'faculty'],
+            'program' => ['code', 'title', 'department', 'faculty'],
+            'faculty' => ['code', 'title'],
+            'session' => ['title', 'status'],
+            'system_settings' => ['key', 'value'],
             'pages' => ['link'],
             'rolls' => ['username', 'link', 'action', 'status'],
         ] as $name => $columns) {
@@ -239,9 +243,90 @@ class ResultApprovalAccessTest extends TestCase
 
     public function test_approval_templates_compile_without_blade_syntax_errors()
     {
-        foreach (['Admin/approve results.blade.php', 'Admin/pending results.blade.php'] as $path) {
+        foreach (['Admin/approve results.blade.php', 'Admin/result-approval-workspace.blade.php', 'Admin/pending results.blade.php'] as $path) {
             $compiled = app('blade.compiler')->compileString(file_get_contents(resource_path('views/' . $path)));
             $this->assertNotEmpty(token_get_all($compiled, TOKEN_PARSE));
         }
+    }
+
+    /** @dataProvider reviewerOffices */
+    public function test_workspace_filters_survive_review_and_submission($office, $stage)
+    {
+        $this->staff('SP200', $office);
+        DB::table('rolls')->insert(['username' => $office, 'link' => '/approve results', 'action' => null]);
+        DB::table('results')->update(['approve' => $stage]);
+        $workspace = new \App\Support\ResultApprovalWorkspace();
+        $filters = $workspace->filters(Request::create('/approve results', 'GET', [
+            'session' => '2025/2026', 'faculty' => 'PS', 'department' => 'CSC',
+            'program' => 'CSC', 'semester' => 'SECOND', 'stage' => $stage, 'search' => 'CSC', 'page' => 2,
+        ]));
+        $return = \App\Support\ResultApprovalWorkspace::returnUrl();
+        $this->assertStringContainsString('page=2', $return);
+        $this->get('/approve%20results')->assertRedirect($return);
+        $this->post('/create approve results', $this->context($stage))->assertRedirect($return);
+        $this->assertSame($filters, session(\App\Support\ResultApprovalWorkspace::stateKey()));
+        $this->staff('SP999', 'DEAN');
+        $this->assertNull(session(\App\Support\ResultApprovalWorkspace::stateKey()));
+    }
+
+    public static function reviewerOffices(): array
+    {
+        return [['HOD', 'lecturer'], ['DEAN', 'hod'], ['COURSE SYSTEM', 'dean'], ['VC', 'cs']];
+    }
+
+    public function test_reset_and_out_of_range_page_keep_navigation_usable()
+    {
+        $this->staff('SP300', 'VC');
+        DB::table('rolls')->insert(['username' => 'VC', 'link' => '/approve results', 'action' => null]);
+        $workspace = new \App\Support\ResultApprovalWorkspace();
+        $filters = $workspace->filters(Request::create('/approve results', 'GET', ['session' => 'all', 'page' => 9]));
+        $this->get('/approve%20results?' . http_build_query($filters))->assertRedirect();
+        $this->assertSame(1, session(\App\Support\ResultApprovalWorkspace::stateKey())['page']);
+        $this->get('/approve%20results?reset=1')->assertRedirect('/approve results');
+        $this->assertNull(session(\App\Support\ResultApprovalWorkspace::stateKey()));
+    }
+
+    public function test_workspace_groups_batches_and_renders_final_review_without_template_errors()
+    {
+        $this->staff('SP300', 'VC');
+        DB::table('rolls')->insert(['username' => 'VC', 'link' => '/approve results', 'action' => null]);
+        DB::table('faculty')->insert(['code' => 'PS', 'title' => 'Physical Sciences']);
+        DB::table('department')->insert(['code' => 'CSC', 'title' => 'Computer Science', 'faculty' => 'PS']);
+        DB::table('program')->insert(['code' => 'CSC', 'title' => 'Computer Science', 'department' => 'CSC', 'faculty' => 'PS']);
+        DB::table('course')->update(['title' => 'Software Engineering']);
+        DB::table('session')->insert([['title' => '2025/2026'], ['title' => '2024/2025']]);
+        DB::table('results')->update(['approve' => 'cs', 'program' => 'CSC']);
+        DB::table('results')->insert($this->context('cs') + ['username' => '22/01/01/0099', 'lecturer' => 'SP100', 'program' => 'CSC', 'updated_at' => '2026-11-20 12:00:00']);
+        $workspace = new \App\Support\ResultApprovalWorkspace();
+        $filters = $workspace->filters(Request::create('/approve results'));
+        $this->assertSame('all', $filters['session']);
+        $data = $workspace->data($filters);
+        $this->assertSame(1, $data['rows']->total());
+        $this->assertSame(2, (int) $data['rows']->first()->result_count);
+        $this->assertSame(1, $data['pendingDepartments']->first()->total);
+        $html = view('Admin.approve results', $data + ['errors' => new \Illuminate\Support\ViewErrorBag()])->render();
+        $this->assertStringContainsString('Computer Science', $html);
+        $this->assertStringContainsString('Software Engineering', $html);
+        $this->assertStringNotContainsString('@php', $html);
+        $this->assertStringNotContainsString('@endif', $html);
+    }
+
+    public function test_view_only_vc_cannot_make_department_decisions()
+    {
+        $this->staff('SP300', 'VC');
+        DB::table('rolls')->insert(['username' => 'VC', 'link' => '/approve results', 'action' => 'view']);
+        $this->assertFalse(\App\Support\ResultApprovalWorkspace::canDecideDepartment('Approved'));
+        $this->post('/approve-department-results', ['dept' => 'CSC', 'status' => 'Approved'])->assertForbidden();
+        $this->get('/process-next-batch/CSC/Approved')->assertForbidden();
+    }
+
+    public function test_hod_listing_cannot_include_another_department_unless_course_is_assigned()
+    {
+        $this->staff('SP200', 'HOD');
+        DB::table('course')->insert(['code' => 'MLS326', 'title' => 'Laboratory Science', 'department' => 'MLS', 'faculty' => 'AHS']);
+        DB::table('results')->insert(['username' => 'TEST2', 'code' => 'MLS326', 'session' => '2025/2026', 'semester' => 'SECOND', 'approve' => 'lecturer']);
+        $workspace = new \App\Support\ResultApprovalWorkspace();
+        $data = $workspace->data($workspace->filters(Request::create('/approve results', 'GET', ['session' => 'all'])));
+        $this->assertSame(['CSC408'], $data['rows']->pluck('code')->all());
     }
 }

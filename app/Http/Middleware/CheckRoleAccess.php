@@ -155,7 +155,11 @@ class CheckRoleAccess
                 return redirect('/')->with('error', 'You do not have access to this page.');
             }
 
-            if (!PortalPermission::allows($permission['link'], $permission['action'])) {
+            $vcApprovalAction = ($page === 'approve-department-results'
+                    || $page === 'process-next-batch'
+                    || str_starts_with($page, 'process-next-batch/'))
+                && PortalPermission::hasRole('VC');
+            if (!PortalPermission::allows($permission['link'], $permission['action']) && !$vcApprovalAction) {
                 abort(403, 'You do not have permission to perform this action.');
             }
 

@@ -8,6 +8,7 @@
 @endif
 <!-- Start Content-->
 <div class="main-body">
+    <a class="btn btn-outline-primary mb-3" href="{{ \App\Support\ResultApprovalWorkspace::returnUrl() }}"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back to result approval</a>
     <div class="page-wrapper">
         <!-- [ Main Content ] start -->
         <div class="row">
