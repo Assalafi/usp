@@ -657,7 +657,7 @@ class StudentIdCardController extends Controller
                 'oi',
                 'oi.student_id', '=', 'eligible.student_id'
             )
-            ->select('eligible.*', 'g.generated_at as generation_generated_at')
+            ->select('eligible.*', 'g.generated_at as generation_generated_at', 'oi.issue_id as issue_id')
             ->addSelect(DB::raw("(SELECT issue_latest.description FROM student_id_card_issues AS issue_latest WHERE issue_latest.student_id = eligible.student_id AND issue_latest.status = 'open' ORDER BY issue_latest.id DESC LIMIT 1) AS issue_description"));
 
         if ($selectedSession) {
