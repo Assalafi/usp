@@ -17,7 +17,11 @@ if (isset($_GET['RRR']) && isset($_GET['orderID'])) {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_ENCODING => '',
         CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT => 0,
+        // Never allow a gateway callback to occupy a PHP worker indefinitely.
+        // The callback is retriable; the portal must remain available even
+        // when Remita is slow or unreachable.
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_TIMEOUT => 15,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
         CURLOPT_CUSTOMREQUEST => 'GET',
