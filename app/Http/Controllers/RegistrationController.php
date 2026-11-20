@@ -1798,8 +1798,7 @@ class RegistrationController extends Controller
         if (session('accType') === 'Student') {
             $submitted = $student->profile_status === 'submitted'
                 && !empty($student->profile_submitted_at);
-            abort_if($submitted, 403, 'Your profile has already been submitted. Profile editing is currently closed.');
-            abort_if((int) SystemSettingsController::get('student_profile_update_enabled', '1') === 2, 403,
+            abort_if(!$submitted && (int) SystemSettingsController::get('student_profile_update_enabled', '1') === 2, 403,
                 'The student record update deadline has expired. Please contact Student Affairs.');
         }
 
@@ -2050,11 +2049,16 @@ class RegistrationController extends Controller
 
         // Mark the workflow only after document storage succeeds, so a failed
         // upload can never unlock a student accidentally.
+        // A student who has already completed the mandatory profile update
+        // may correct permitted details without being pushed back into draft
+        // status. Academic level is still read-only and is never changed here.
+        $keepSubmittedProfile = ($student->profile_status === 'submitted' && !empty($student->profile_submitted_at));
+        $profileRemainsSubmitted = $isSubmit || $keepSubmittedProfile;
         Student::where('id', $student->id)->update([
-            'profile_status' => $isSubmit ? 'submitted' : 'draft',
-            'profile_submitted_at' => $isSubmit ? now() : null,
+            'profile_status' => $profileRemainsSubmitted ? 'submitted' : 'draft',
+            'profile_submitted_at' => $profileRemainsSubmitted ? ($student->profile_submitted_at ?: now()) : null,
             'profile_last_updated_at' => now(),
-            'profile_submission_session' => $isSubmit ? $profileSession : null,
+            'profile_submission_session' => $profileRemainsSubmitted ? ($student->profile_submission_session ?: $profileSession) : null,
             // A profile submission confirms the student's existing level for
             // the session; the level itself remains unchanged here.
             'profile_level_session' => $isSubmit ? $profileSession : $student->profile_level_session,

@@ -237,9 +237,10 @@
                         </div>
                     </div>
                     <div class="sp-card-edit-action">
-                        <span class="sp-page-edit sp-page-edit-disabled" aria-disabled="true" title="Profile editing is temporarily closed">
-                            <i class="fas fa-lock"></i> Profile editing is temporarily closed
-                        </span>
+                        <a class="sp-page-edit" href="{{ url('/profile?mode=edit') }}" title="Update your profile information">
+                            <i class="fas fa-edit"></i> Edit profile
+                        </a>
+                        <small class="d-block text-muted text-center mt-2">Academic level is managed by Academic Records.</small>
                     </div>
                 </div>
                 <div class="col-md-8 sp-profile-overview">
@@ -351,7 +352,7 @@
                 </div>
             </div>
             @endif
-            <div class="sp-edit-intro"><div><span class="sp-kicker">Profile centre</span><h2>{{ $editMode ? 'Keep your details up to date' : 'Your profile information' }}</h2><p>{{ $editMode ? 'Complete each section below. Required fields are marked with *.' : 'Review your biodata and contact information. Profile editing is temporarily closed.' }}</p></div><div class="sp-edit-actions"><span class="sp-secure-pill"><i class="fas fa-shield-alt"></i> Secure &amp; private</span>@if ($editMode)<a class="sp-page-edit" href="{{ url('/profile') }}"><i class="fas fa-times"></i> Close editor</a>@endif</div></div>
+            <div class="sp-edit-intro"><div><span class="sp-kicker">Profile centre</span><h2>{{ $editMode ? 'Keep your details up to date' : 'Your profile information' }}</h2><p>{{ $editMode ? 'Complete each section below. Required fields are marked with *.' : 'Review your biodata and contact information. Academic level is managed by Academic Records.' }}</p></div><div class="sp-edit-actions"><span class="sp-secure-pill"><i class="fas fa-shield-alt"></i> Secure &amp; private</span>@if ($editMode)<a class="sp-page-edit" href="{{ url('/profile') }}"><i class="fas fa-times"></i> Close editor</a>@endif</div></div>
             @if ($editMode)
             @if (request('required') || session('warning'))
                 <div class="alert alert-warning border-0 shadow-sm" role="alert"><i class="fas fa-lock me-1"></i> {{ session('warning') ?: 'Complete every required item and submit your profile to unlock the student portal.' }}</div>

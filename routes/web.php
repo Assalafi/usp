@@ -558,17 +558,12 @@ Route::get('/profile', function () {
     $profileIsSubmitted = $student
         && $student->profile_status === 'submitted'
         && !empty($student->profile_submitted_at);
-    // Normal profile editing is currently closed, but students who have not
-    // completed the mandatory profile update must still be allowed to
-    // open the required editor. Without this exception, /profile redirects
-    // to the required editor and the editor redirects straight back here.
-    $requiredProfileEdit = request('mode') === 'edit' && request('required') === '1';
+    // Students may update their permitted biodata and documents at any time.
+    // Academic level remains read-only in the profile form and is never taken
+    // from the request when the profile is saved.
     if (session('accType') === 'Student' && !$profileIsSubmitted
         && (int) \App\Http\Controllers\SystemSettingsController::get('student_profile_update_enabled', '1') === 2) {
         return redirect('/profile-update-expired');
-    }
-    if (session('accType') === 'Student' && request('mode') === 'edit' && (!$requiredProfileEdit || $profileIsSubmitted)) {
-        return redirect('/profile')->with('info', 'Profile editing is temporarily closed. You can still view your profile.');
     }
     if (session('accType') === 'Student' && !$profileIsSubmitted && request('mode') !== 'edit') {
         return redirect('/profile?mode=edit&required=1');
