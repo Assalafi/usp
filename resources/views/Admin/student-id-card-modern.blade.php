@@ -198,10 +198,13 @@
                 const student = await loadDetails(check.dataset.student);
                 if (!student.media_ready || student.issue) {
                     check.disabled = true;
-                    generate.disabled = true;
-                    generate.classList.add('disabled-action');
-                    generate.title = student.issue ? 'Resolve the open ID-card issue first.' : 'Add both a profile photo and signature first.';
-                    generate.innerHTML = '<i class="fas fa-lock"></i> ' + (student.issue ? 'Issue recorded' : 'Documents missing');
+                    if (generate.dataset.idcLocked !== '1') {
+                        generate.disabled = true;
+                        generate.classList.add('disabled-action');
+                        generate.title = student.issue ? 'Resolve the open ID-card issue first.' : 'Add both a profile photo and signature first.';
+                        generate.innerHTML = '<i class="fas fa-lock"></i> ' + (student.issue ? 'Issue recorded' : 'Documents missing');
+                        generate.dataset.idcLocked = '1';
+                    }
                 }
                 if (student.issue) {
                     const statusCell = row.querySelector('td:nth-child(6)');
