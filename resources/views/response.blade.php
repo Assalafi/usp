@@ -29,12 +29,16 @@ if (isset($_GET['RRR']) && isset($_GET['orderID'])) {
     curl_close($curl);
 
     $obj = json_decode($response, true);
+    $obj = is_array($obj) ? $obj : [];
 
-    $status = $obj['status'];
-    $amount = $obj['amount'];
-    $paymentDate = $obj['paymentDate'];
-    $transactiontime = $obj['transactiontime'];
-    $paymentstatus = $obj['message'];
+    // Remita does not always return every descriptive field on a callback.
+    // The status and RRR are the only values needed to settle the invoice;
+    // missing display fields must never turn a successful return into a 500.
+    $status = (string) ($obj['status'] ?? $obj['statuscode'] ?? '');
+    $amount = $obj['amount'] ?? null;
+    $paymentDate = $obj['paymentDate'] ?? null;
+    $transactiontime = $obj['transactiontime'] ?? null;
+    $paymentstatus = (string) ($obj['message'] ?? $obj['statusMessage'] ?? '');
 
     if ($status == '021') {
         echo '<script>window.location.href="/payment";</script>';
@@ -44,16 +48,19 @@ if (isset($_GET['RRR']) && isset($_GET['orderID'])) {
         $datas['status'] = 'Paid';
         $datas['updated_at'] = NOW();
         $des = DB::table('invoices')
-            ->where(['rrr' => $rrr, 'username' => session('id'), 'status' => 'Pending'])
+            ->where('rrr', $rrr)
+            ->whereIn('status', ['Pending', 'Processing'])
             ->select('description', 'username', 'rrr', 'hostel_id')
             ->get();
-        foreach ($des as $des) {
-            if ($des->description == 'HOSTEL-MAINTENANCE/FEES') {
-                $username = DB::table('students')->where('user_id', $des->username)->select('username')->value('username');
+        $destination = '/dash';
+        foreach ($des as $invoice) {
+            if ($invoice->description == 'HOSTEL-MAINTENANCE/FEES') {
+                $destination = '/bed space reservations';
+                $username = DB::table('students')->where('user_id', $invoice->username)->select('username')->value('username');
                 if ($username) {
                     $hostelQuery = DB::table('hostel')->where('occupant', $username);
-                    if (!empty($des->hostel_id)) {
-                        $hostelQuery->where('id', $des->hostel_id);
+                    if (!empty($invoice->hostel_id)) {
+                        $hostelQuery->where('id', $invoice->hostel_id);
                     } else {
                         $hostelQuery->where(function ($query) {
                             $query->whereNull('hostel_payment')->orWhere('hostel_payment', '!=', '1');
@@ -64,15 +71,15 @@ if (isset($_GET['RRR']) && isset($_GET['orderID'])) {
                         DB::table('hostel')->where('id', $hostelToSettle->id)->update(['hostel_payment' => '1']);
                     }
                 }
-            } elseif ($des->description == 'UNIVERSITY OF MAIDUGURI-1000127 FEES') {
+            } elseif ($invoice->description == 'UNIVERSITY OF MAIDUGURI-1000127 FEES') {
                 $session = DB::table('session')->where('status', '1')->value('title');
                 $flag = 0;
-                $noo = Student::where(['user_id' => session('id'), 'session_of_entry' => $session])
+                $noo = Student::where(['user_id' => $invoice->username, 'session_of_entry' => $session])
                     ->select('id_no')
                     ->value('id_no');
                 if ($noo == 0) {
                     //while($flag == 0){
-                    $data = Student::where(['user_id' => session('id'), 'session_of_entry' => '2023/2024'])
+                    $data = Student::where(['user_id' => $invoice->username, 'session_of_entry' => '2023/2024'])
                         ->select('id_format', 'department', 'session_of_entry')
                         ->get();
                     foreach ($data as $row) {
@@ -93,7 +100,7 @@ if (isset($_GET['RRR']) && isset($_GET['orderID'])) {
                         $check = Student::where('username', $id_number)->select('id')->value('id');
                         if ($check > 0) {
                         } else {
-                            Student::where(['user_id' => session('id')])
+                            Student::where(['user_id' => $invoice->username])
                                 ->where('id_no', 0)
                                 ->update([
                                     'username' => $id_number,
@@ -107,14 +114,20 @@ if (isset($_GET['RRR']) && isset($_GET['orderID'])) {
                 }
             }
 
-            DB::table('invoices')->where('rrr', $des->rrr)->update($datas);
+            DB::table('invoices')->where('rrr', $invoice->rrr)->update($datas);
         }
-        echo '<script>window.location.href="/payment";</script>';
+        // New students enter this payment page with a temporary `payment`
+        // session. Promote it to the normal portal session after settlement;
+        // otherwise /payment sends them back to the login page.
+        session()->put('log', '1');
+        session()->forget('payment');
+        echo '<script>window.location.href=' . json_encode($destination) . ';</script>';
     } else {
-        echo '<script>window.location.href="/payment";</script>';
+        session()->put('payment', '1');
+        echo '<script>window.location.href="/school-fees";</script>';
     }
-    echo '<script>window.location.href="/payment";</script>';
 } else {
-    echo '<script>window.location.href="/payment";</script>';
+    session()->put('payment', '1');
+    echo '<script>window.location.href="/school-fees";</script>';
 }
 ?>
