@@ -129,14 +129,20 @@ class ApproveResultsController extends Controller
             return false;
         }
 
-        // Empty legacy action lists defer to the appointment and academic
-        // ownership checks below. Explicit view-only grants do not authorise writes.
+        $stage = strtolower(trim((string) ($validated['approve'] ?? '')));
+
+        // Result approval is a staged workflow. Legacy Dean/HOD/Course System
+        // grants were created as page access (their action column is empty),
+        // while the academic responsibility below is the write authorization.
+        // A view-only row must therefore not block a legitimate reviewer, but
+        // it also never bypasses the stage and ownership checks below.
         $actions = \App\Support\PortalPermission::actionsForLink('/approve results');
-        if ($actions && !array_intersect($actions, ['*', 'approve', $action])) {
+        $workflowStage = in_array($stage, ['lecturer', 'hod', 'dean', 'cs'], true);
+        if ($actions && !array_intersect($actions, ['*', 'approve', $action])
+            && !($workflowStage && in_array('view', $actions, true))) {
             return false;
         }
 
-        $stage = strtolower(trim((string) ($validated['approve'] ?? '')));
         $code = trim((string) ($validated['code'] ?? ''));
         $sessionName = trim((string) ($validated['session'] ?? ''));
         $semester = trim((string) ($validated['semester'] ?? ''));
@@ -174,24 +180,39 @@ class ApproveResultsController extends Controller
 
         $department = trim((string) ($course->department ?? $sample->department ?? ''));
         $faculty = trim((string) ($course->faculty ?? ''));
+
+        // Course data has historically stored either an academic code or its
+        // displayed title. Resolve the department first and prefer its
+        // authoritative faculty, so a Dean assigned to ENG (for example) can
+        // review a course stored with the faculty title instead of the code.
+        $departmentRecord = $this->academicEntity('department', $department);
+        if ($departmentRecord) {
+            $department = trim((string) ($departmentRecord->code ?? $department));
+            $departmentFaculty = trim((string) ($departmentRecord->faculty ?? ''));
+            if ($departmentFaculty !== '') {
+                $faculty = $departmentFaculty;
+            }
+        }
         if ($faculty === '' && $department !== '') {
-            $faculty = trim((string) DB::table('department')->where('code', $department)->value('faculty'));
+            $faculty = trim((string) DB::table('department')->whereRaw('UPPER(TRIM(code)) = ?', [strtoupper($department)])->value('faculty'));
         }
 
         if ($stage === 'lecturer') {
-            return $appointment === 'HOD'
+            return ($appointment === 'HOD' || \App\Support\PortalPermission::hasRole('HOD'))
                 && $department !== ''
-                && strtoupper($department) === strtoupper(trim((string) session('department')));
+                && $this->academicEntityMatches('department', $department, session('department'));
         }
 
         if ($stage === 'hod') {
-            return $appointment === 'DEAN'
+            return ($appointment === 'DEAN' || \App\Support\PortalPermission::hasRole('DEAN'))
                 && $faculty !== ''
-                && strtoupper($faculty) === strtoupper(trim((string) session('faculty')));
+                && $this->academicEntityMatches('faculty', $faculty, session('faculty'));
         }
 
         if ($stage === 'dean') {
-            return $appointment === 'COURSE SYSTEM';
+            return $appointment === 'COURSE SYSTEM'
+                || strtoupper(trim((string) session('unit'))) === 'COURSE SYSTEM'
+                || \App\Support\PortalPermission::hasRole('COURSE SYSTEM');
         }
 
         if ($stage === 'cs') {
@@ -199,6 +220,56 @@ class ApproveResultsController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Return an academic entity by either its stored code or displayed title.
+     * Older course/department rows are not consistent about which one they
+     * store, so approval ownership must support both representations.
+     */
+    private function academicEntity(string $table, ?string $value): ?object
+    {
+        $value = trim((string) $value);
+        if ($value === '' || !in_array($table, ['faculty', 'department'], true)) {
+            return null;
+        }
+
+        $normalized = strtoupper($value);
+        $columns = ['code', 'title'];
+        if ($table === 'department') {
+            $columns[] = 'faculty';
+        }
+
+        return DB::table($table)
+            ->where(function ($query) use ($normalized) {
+                $query->whereRaw('UPPER(TRIM(code)) = ?', [$normalized])
+                    ->orWhereRaw('UPPER(TRIM(title)) = ?', [$normalized]);
+            })
+            ->select($columns)
+            ->first();
+    }
+
+    private function academicEntityMatches(string $table, ?string $recordValue, ?string $sessionValue): bool
+    {
+        $recordValue = trim((string) $recordValue);
+        $sessionValue = trim((string) $sessionValue);
+        if ($recordValue === '' || $sessionValue === '') {
+            return false;
+        }
+
+        $normalize = static fn ($value) => strtoupper(trim(preg_replace('/\\s+/u', ' ', (string) $value)));
+        if ($normalize($recordValue) === $normalize($sessionValue)) {
+            return true;
+        }
+
+        $record = $this->academicEntity($table, $recordValue);
+        $session = $this->academicEntity($table, $sessionValue);
+        if (!$record || !$session) {
+            return false;
+        }
+
+        return $normalize($record->code ?? '') === $normalize($session->code ?? '')
+            || $normalize($record->title ?? '') === $normalize($session->title ?? '');
     }
 
     private function isVcApprover(): bool
