@@ -72,24 +72,60 @@ final class ResultApprovalWorkspace
     {
         $final = self::isFinalReviewer();
         $appointment = strtoupper(trim((string) session('appointment')));
-        $reviewStage = $final ? 'cs' : (['HOD' => 'lecturer', 'DEAN' => 'hod', 'COURSE SYSTEM' => 'dean'][$appointment] ?? 'system');
+        $courseSystem = $appointment === 'COURSE SYSTEM'
+            || strtoupper(trim((string) session('unit'))) === 'COURSE SYSTEM'
+            || PortalPermission::hasRole('COURSE SYSTEM');
+        $reviewStage = $final ? 'cs' : ($courseSystem ? 'dean' : (['HOD' => 'lecturer', 'DEAN' => 'hod'][$appointment] ?? 'system'));
         $query = DB::table('results as r');
         $username = strtoupper(trim((string) session('username')));
         // Follow the same academic boundaries used by the course review page.
-        if (!$final && !in_array($appointment, ['COURSE SYSTEM'], true)) {
-            if (in_array($appointment, ['HOD', 'DEAN'], true)) {
-                $field = $appointment === 'HOD' ? 'department' : 'faculty';
-                $entity = (string) session($field);
-                $query->where(function ($scope) use ($field, $entity, $username) {
-                    $scope->whereExists(function ($course) use ($field, $entity) {
-                        $course->selectRaw('1')->from('course as owned_course')->whereColumn('owned_course.code', 'r.code')
-                            ->where('owned_course.' . $field, $entity);
-                    })->orWhereExists($this->allocation($username));
-                });
-            } else {
-                // Preserve the lecturer listing: assigned courses only.
-                $query->whereExists($this->allocation($username));
+        if (!$final && !$courseSystem) {
+            // Build indexed, uncorrelated course-code subqueries. The previous
+            // correlated EXISTS + UPPER(TRIM()) scan was repeatedly grouping
+            // the full results table and could keep MySQL busy for hours when
+            // several academic staff opened the page together.
+            $assignedCourses = DB::table('course_allocation')
+                ->whereRaw('UPPER(TRIM(username)) = ?', [$username])
+                ->whereRaw('UPPER(TRIM(type)) = ?', ['MAIN'])
+                ->select('course');
+
+            $ownedCourses = null;
+            if ($appointment === 'HOD') {
+                $entity = trim((string) session('department'));
+                $department = DB::table('department')
+                    ->where(function ($match) use ($entity) {
+                        $match->whereRaw('UPPER(TRIM(code)) = ?', [strtoupper($entity)])
+                            ->orWhereRaw('UPPER(TRIM(title)) = ?', [strtoupper($entity)]);
+                    })->select('code', 'title')->first();
+                $values = collect([$entity, $department->code ?? null, $department->title ?? null])
+                    ->filter()->unique()->values()->all();
+                $ownedCourses = DB::table('course')->whereIn('department', $values)->select('code');
+            } elseif ($appointment === 'DEAN') {
+                $entity = trim((string) session('faculty'));
+                $faculty = DB::table('faculty')
+                    ->where(function ($match) use ($entity) {
+                        $match->whereRaw('UPPER(TRIM(code)) = ?', [strtoupper($entity)])
+                            ->orWhereRaw('UPPER(TRIM(title)) = ?', [strtoupper($entity)]);
+                    })->select('code', 'title')->first();
+                $facultyValues = collect([$entity, $faculty->code ?? null, $faculty->title ?? null])
+                    ->filter()->unique()->values()->all();
+                $facultyCodes = collect([$faculty->code ?? null, $entity])->filter()->unique()->values()->all();
+                $ownedCourses = DB::table('course')->where(function ($scope) use ($facultyValues, $facultyCodes) {
+                    $scope->whereIn('faculty', $facultyValues);
+                    if ($facultyCodes) {
+                        $scope->orWhereIn('department', DB::table('department')->whereIn('faculty', $facultyCodes)->select('code'));
+                    }
+                })->select('code');
             }
+
+            $query->where(function ($scope) use ($ownedCourses, $assignedCourses) {
+                if ($ownedCourses) {
+                    $scope->whereIn('r.code', $ownedCourses);
+                }
+                if ($assignedCourses) {
+                    $ownedCourses ? $scope->orWhereIn('r.code', $assignedCourses) : $scope->whereIn('r.code', $assignedCourses);
+                }
+            });
         }
         if ($filters['session'] !== 'all') $query->where('r.session', $filters['session']);
         if ($filters['semester'] !== '') $query->where('r.semester', $filters['semester']);
