@@ -254,9 +254,10 @@ final class ResultApprovalWorkspace
                 $pendingBatches = $allBatches->where('approve', 'cs')
                     ->unique(fn ($batch) => implode('|', [$batch->program, $batch->code, $batch->session, $batch->semester]));
             } else {
-                $pendingKey = 'result_approval_pending_departments:' . sha1(json_encode([$filters['faculty'], $filters['department']]));
+                $pendingKey = 'result_approval_pending_departments:' . sha1(json_encode([$filters['session'], $filters['faculty'], $filters['department']]));
                 $pendingBatches = Cache::remember($pendingKey, now()->addSeconds(15), function () use ($filters) {
                     return DB::table('results as pending')->where('pending.approve', 'cs')
+                        ->when($filters['session'] !== 'all', fn ($pending) => $pending->where('pending.session', $filters['session']))
                         ->when($filters['faculty'] !== '' || $filters['department'] !== '', function ($pending) use ($filters) {
                             $pending->whereExists(function ($placement) use ($filters) {
                                 $placement->selectRaw('1')->from('program as pending_program')->whereColumn('pending_program.code', 'pending.program');
@@ -267,15 +268,23 @@ final class ResultApprovalWorkspace
                         ->groupBy('pending.program', 'pending.code', 'pending.session', 'pending.semester')->get();
                 });
             }
-            $totals = $pendingBatches->groupBy('program')->map(fn ($batch, $program) => (object) ['program' => $program, 'total' => $batch->count()])->values();
             $placements = $programs->keyBy('code');
-            foreach ($totals as $total) {
-                $placement = $placements->get($total->program);
+            // Some legacy results store a department/program code (for
+            // example THA) that has no matching row in `program`. Fall back
+            // to the course catalogue so those batches still appear under
+            // the correct department.
+            $coursePlacements = DB::table('course')
+                ->whereIn('code', $pendingBatches->pluck('code')->filter()->unique()->values())
+                ->select('code', 'faculty', 'department', 'program')
+                ->get()->keyBy('code');
+            foreach ($pendingBatches as $batch) {
+                $placement = $placements->get($batch->program) ?: $coursePlacements->get($batch->code);
                 if (!$placement) continue;
                 if ($filters['faculty'] !== '' && $placement->faculty !== $filters['faculty']) continue;
                 if ($filters['department'] !== '' && $placement->department !== $filters['department']) continue;
-                $code = $placement->department;
-                $pendingDepartments[$code] = ($pendingDepartments[$code] ?? 0) + (int) $total->total;
+                $code = trim((string) $placement->department);
+                if ($code === '') continue;
+                $pendingDepartments[$code] = ($pendingDepartments[$code] ?? 0) + 1;
             }
             $pendingDepartments = $departments->filter(fn ($d) => $pendingDepartments->has($d->code))
                 ->map(fn ($d) => (object) ['code' => $d->code, 'title' => $d->title, 'total' => $pendingDepartments[$d->code]])->values();
