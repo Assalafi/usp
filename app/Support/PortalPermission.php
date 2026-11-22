@@ -97,8 +97,15 @@ final class PortalPermission
         'admin/face-search' => '/students list',
         'student-id-card' => '/student id card',
         'id card' => '/student id card',
+        // Alumni management is one permission page.  Every nested action
+        // must resolve back to it so an authorised staff member does not
+        // lose access simply because a form posts to a legacy endpoint.
+        'import-alumni' => '/alumni',
+        'upload-student-to-alumni' => '/alumni',
+        'upload-student-ids-to-alumni' => '/alumni',
         'admin/move-to-alumni' => '/alumni',
         'admin/restore-alumni' => '/alumni',
+        'admin/restore-selected-alumni' => '/alumni',
         'admin/update-passwords-progress' => '/staff',
         'reset-staff-password' => '/staff',
         'staff-password' => '/staff',
@@ -463,6 +470,14 @@ final class PortalPermission
             return false;
         }
 
+        // Alumni was introduced before inner actions were stored separately.
+        // Keep the page grant fully usable for staff who are already assigned
+        // to Alumni; otherwise imports, restores and picture updates would
+        // be denied even though the page is visible and authorised.
+        if (self::normalizeLink($link) === '/alumni') {
+            return true;
+        }
+
         $requested = self::normalizeAction($action);
         if ($requested === '' || $requested === 'view') {
             // Legacy assignments pre-date the explicit view action. Any row
@@ -623,7 +638,7 @@ final class PortalPermission
             return 'export';
         }
 
-        if (str_contains($path, 'restore-alumni')) {
+        if (str_contains($path, 'restore-alumni') || str_contains($path, 'restore-selected-alumni')) {
             return 'restore';
         }
 

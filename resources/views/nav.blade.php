@@ -507,18 +507,20 @@
                     <li class="@if ($page == 'certificate') active @endif"><a href="/certificate" class="">Certificate</a></li>
                 </ul>
             </li>
-            <li class="nav-item pcoded-hasmenu">
-                <a href="#!" class="nav-link">
-                    <span class="pcoded-micon"><i class="fas fa-graduation-cap"></i></span>
-                    <span class="pcoded-mtext">Alumni</span>
-                </a>
-                <ul class="pcoded-submenu">
-                    <li class=""><a href="/alumni" class="">List of Alumni</a></li>
-                    <li class=""><a href="#" class="">Pre-Mobilization</a></li>
-                    <li class=""><a href="#" class="">Transcript</a></li>
-                    <li class=""><a href="#" class="">Certificate</a></li>
-                </ul>
-            </li>
+            @if (session('accType') === 'Admin' || \App\Support\PortalPermission::hasPageAccess('/alumni'))
+                <li class="nav-item pcoded-hasmenu @if ($page == 'alumni') pcoded-trigger active @endif">
+                    <a href="#!" class="nav-link">
+                        <span class="pcoded-micon"><i class="fas fa-graduation-cap"></i></span>
+                        <span class="pcoded-mtext">Alumni</span>
+                    </a>
+                    <ul class="pcoded-submenu">
+                        <li class="@if ($page == 'alumni') active @endif"><a href="/alumni" class="">List of Alumni</a></li>
+                        <li class=""><a href="#" class="">Pre-Mobilization</a></li>
+                        <li class=""><a href="#" class="">Transcript</a></li>
+                        <li class=""><a href="#" class="">Certificate</a></li>
+                    </ul>
+                </li>
+            @endif
             <li class="nav-item pcoded-hasmenu @if (in_array($page, ['developer tasks', 'developer task create', 'developer task show'])) pcoded-trigger active @endif">
                 <a href="#!" class="nav-link">
                     <span class="pcoded-micon"><i class="fas fa-bullhorn"></i></span>
