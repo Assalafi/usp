@@ -130,16 +130,16 @@
         $staffWorkSummary->push(['label' => 'Assigned courses', 'value' => $assignedCourseCount, 'description' => $mainCourseCount . ' coordinator / ' . $supportCourseCount . ' lecturer', 'icon' => 'fa-book-open', 'tone' => 'blue', 'url' => '/course allocation']);
     }
     if ($assignedMainCourseCodes !== []) {
-        $staffWorkSummary->push(['label' => 'Results awaiting your submission', 'value' => $lecturerResultsPending, 'description' => 'All academic sessions', 'icon' => 'fa-file-arrow-up', 'tone' => 'orange', 'url' => '/approve results?approve=system']);
+        $staffWorkSummary->push(['label' => 'Results awaiting your submission', 'value' => $lecturerResultsPending, 'description' => 'All academic sessions', 'icon' => 'fa-file-arrow-up', 'tone' => 'orange', 'url' => '/approve results?session=all&stage=system']);
     }
     if ($isHod) {
-        $staffWorkSummary->push(['label' => 'Results awaiting department review', 'value' => $hodResultsPending, 'description' => 'All academic sessions', 'icon' => 'fa-building-columns', 'tone' => 'purple', 'url' => '/approve results?approve=lecturer']);
+        $staffWorkSummary->push(['label' => 'Results awaiting department review', 'value' => $hodResultsPending, 'description' => 'All academic sessions', 'icon' => 'fa-building-columns', 'tone' => 'purple', 'url' => '/approve results?session=all&stage=lecturer']);
     }
     if ($isDean) {
-        $staffWorkSummary->push(['label' => 'Results awaiting faculty review', 'value' => $deanResultsPending, 'description' => ($facultyTitle ?: 'Your faculty') . ' · all sessions', 'icon' => 'fa-landmark', 'tone' => 'green', 'url' => '/approve results?approve=hod']);
+        $staffWorkSummary->push(['label' => 'Results awaiting faculty review', 'value' => $deanResultsPending, 'description' => ($facultyTitle ?: 'Your faculty') . ' · all sessions', 'icon' => 'fa-landmark', 'tone' => 'green', 'url' => '/approve results?session=all&stage=hod']);
     }
     if ($isCourseSystem) {
-        $staffWorkSummary->push(['label' => 'Results awaiting Course System review', 'value' => $courseSystemResultsPending, 'description' => 'All academic sessions', 'icon' => 'fa-clipboard-check', 'tone' => 'blue', 'url' => '/approve results?approve=dean']);
+        $staffWorkSummary->push(['label' => 'Results awaiting Course System review', 'value' => $courseSystemResultsPending, 'description' => 'All academic sessions', 'icon' => 'fa-clipboard-check', 'tone' => 'blue', 'url' => '/approve results?session=all&stage=dean']);
     }
     if ($isHod || $isDean) {
         $staffWorkSummary->push(['label' => 'Change-of-course requests', 'value' => $changeOfCoursePending, 'description' => $isHod ? 'Awaiting department review' : 'Awaiting faculty review', 'icon' => 'fa-shuffle', 'tone' => 'orange', 'url' => '/change-of-course/admin']);

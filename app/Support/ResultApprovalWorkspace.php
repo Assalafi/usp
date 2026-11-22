@@ -44,6 +44,12 @@ final class ResultApprovalWorkspace
 
     public function filters(Request $request): array
     {
+        // Dashboard cards historically used `approve` for the workflow stage,
+        // while this page uses `stage` for filtering. Accept both so existing
+        // links open the exact queue represented by the card.
+        if (!$request->filled('stage') && $request->filled('approve')) {
+            $request->merge(['stage' => $request->query('approve')]);
+        }
         $appointment = strtoupper(trim((string) session('appointment')));
         $defaultStage = self::isFinalReviewer()
             ? 'cs'
