@@ -1610,6 +1610,18 @@ class HostelController extends Controller
             return redirect()->back()->with('error', 'This hostel reservation has no valid occupant or permit.');
         }
 
+        // A permit is available only after this specific bed space has been
+        // paid. Older allocations may have the payment recorded on the
+        // invoice while the legacy hostel flag is still unset, so accept
+        // either trusted payment marker.
+        $hasPaidInvoice = DB::table('invoices')
+            ->where('hostel_id', $hostel->id)
+            ->whereRaw('LOWER(status) = ?', ['paid'])
+            ->exists();
+        if ((int) ($hostel->hostel_payment ?? 0) !== 1 && !$hasPaidInvoice) {
+            return redirect()->back()->with('error', 'The permit will be available after payment for this bed space is confirmed.');
+        }
+
         $data['id'] = $id;
         return view('pdf/permit-photo', $data);
     }

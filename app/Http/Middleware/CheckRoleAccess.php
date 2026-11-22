@@ -330,7 +330,6 @@ class CheckRoleAccess
             'assign bed',
             'delete bed',
             'create-hostel',
-            'print-permit',
             'change hall',
             'change bed',
             'revoke',
