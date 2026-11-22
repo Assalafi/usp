@@ -66,6 +66,13 @@ final class PortalPermission
         'nysc' => 'NYSC metric',
         'exemption' => 'Exemption metric',
         'alumni' => 'Alumni metric',
+        // Alumni management actions. These are deliberately separate so an
+        // administrator can grant only the operations a staff member needs.
+        'import' => 'Import alumni records',
+        'update_picture' => 'Update alumni picture',
+        'move' => 'Move students to alumni',
+        'bulk_restore' => 'Bulk restore alumni',
+        'template' => 'Download alumni template',
     ];
 
     private const ROUTE_ALIASES = [
@@ -444,18 +451,7 @@ final class PortalPermission
 
     public static function actionsForLink(?string $link): array
     {
-        $rows = self::rowsForLink($link);
-
-        // The Alumni page predates separate inner-action grants.  Staff who
-        // are assigned to the page have full use of its controls, so expose
-        // the complete action set to the shared view CSS as well as to the
-        // middleware.  Without this, Restore/Import buttons are hidden even
-        // though the request itself is authorised.
-        if (self::normalizeLink($link) === '/alumni' && $rows->isNotEmpty()) {
-            return self::knownActions();
-        }
-
-        return $rows
+        return self::rowsForLink($link)
             ->flatMap(function ($row) {
                 return array_map([self::class, 'normalizeAction'], explode(',', (string) $row->action));
             })
@@ -479,14 +475,6 @@ final class PortalPermission
         $rows = self::rowsForLink($link);
         if ($rows->isEmpty()) {
             return false;
-        }
-
-        // Alumni was introduced before inner actions were stored separately.
-        // Keep the page grant fully usable for staff who are already assigned
-        // to Alumni; otherwise imports, restores and picture updates would
-        // be denied even though the page is visible and authorised.
-        if (self::normalizeLink($link) === '/alumni') {
-            return true;
         }
 
         $requested = self::normalizeAction($action);
@@ -637,6 +625,32 @@ final class PortalPermission
             return 'view';
         }
 
+        // Alumni has independent permissions for each management operation.
+        if (in_array($path, ['import-alumni', 'upload-student-to-alumni', 'upload-student-ids-to-alumni'], true)) {
+            return 'import';
+        }
+        if ($path === 'update alumni') {
+            return 'update_picture';
+        }
+        if ($path === 'delete alumni') {
+            return 'delete';
+        }
+        if (str_contains($path, 'alumni/download-template')) {
+            return 'template';
+        }
+        if (str_contains($path, 'move-to-alumni')) {
+            return 'move';
+        }
+        if ($path === 'admin/restore-selected-alumni'
+            || in_array($path, [
+                'admin/restore-alumni-progress',
+                'admin/restore-alumni-stream',
+                'admin/restore-alumni-by-year-progress',
+                'admin/restore-alumni-by-year-stream',
+            ], true)) {
+            return 'bulk_restore';
+        }
+
         if (preg_match('/^(create|update|delete|upload)\s+/', $path, $match)) {
             return strtolower($match[1]);
         }
@@ -651,10 +665,6 @@ final class PortalPermission
 
         if (str_contains($path, 'restore-alumni') || str_contains($path, 'restore-selected-alumni')) {
             return 'restore';
-        }
-
-        if (str_contains($path, 'move-to-alumni')) {
-            return 'update';
         }
 
         if (str_contains($path, '/data') || str_contains($path, 'search') || str_contains($path, 'get-')) {

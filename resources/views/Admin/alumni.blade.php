@@ -25,17 +25,17 @@
                         <h5>Alumni List</h5>
                     </div>
                     <div class="card-block">
-                        <button type="button" class="btn btn-dark uploadAction" data-bs-toggle="modal"
+                        <button type="button" class="btn btn-dark importAction" data-bs-toggle="modal"
                             data-bs-target="#importStudentIds">
                             <i class="fas fa-file-import"></i> Import student IDs
                         </button>
-                        <a href="{{ route('alumni.move_to_alumni_progress') }}" class="btn btn-success uploadAction">
+                        <a href="{{ route('alumni.move_to_alumni_progress') }}" class="btn btn-success moveAction">
                             <i class="fas fa-graduation-cap"></i> Move Students to Alumni
                         </a>
-                        <button type="button" class="btn btn-warning uploadAction" id="restoreSelectedBtn" disabled>
+                        <button type="button" class="btn btn-warning bulkRestoreAction" id="restoreSelectedBtn" disabled>
                             <i class="fas fa-undo"></i> Restore Selected (<span id="selectedCount">0</span>)
                         </button>
-                        <button type="button" class="btn btn-info uploadAction" data-bs-toggle="modal"
+                        <button type="button" class="btn btn-info bulkRestoreAction" data-bs-toggle="modal"
                             data-bs-target="#restoreByYearModal">
                             <i class="fas fa-calendar-alt"></i> Restore by Year
                         </button>
@@ -102,7 +102,7 @@
                                                 </button>
                                                 {{-- Update picture --}}
                                                 <button type="button"
-                                                    class="btn btn-icon btn-primary btn-sm updatePicture deleteAction"
+                                                    class="btn btn-icon btn-primary btn-sm updatePicture updatePictureAction"
                                                     data-bs-toggle="modal"
                                                     data-bs-target="#updatePicture{{ $row->id }}">
                                                     <i class="fas fa-image"></i>
@@ -446,7 +446,7 @@
                     </div>
                 </div>
 
-                <a class="btn btn-outline-primary w-100 mb-4" href="{{ route('alumni.download_template') }}">
+                <a class="btn btn-outline-primary w-100 mb-4 templateAction" href="{{ route('alumni.download_template') }}">
                     <i class="fas fa-download me-1"></i> Download Excel template
                 </a>
 
