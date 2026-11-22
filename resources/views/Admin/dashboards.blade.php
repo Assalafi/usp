@@ -73,6 +73,7 @@
     $isHod = $appointmentCode === 'HOD';
     $isDean = $appointmentCode === 'DEAN';
     $isCourseSystem = in_array($appointmentCode, ['CS', 'COURSE SYSTEM'], true);
+    $staffResultStage = $isCourseSystem ? 'dean' : ($isDean ? 'hod' : ($isHod ? 'lecturer' : 'system'));
     $lecturerResultsPending = 0;
     if ($assignedMainCourseCodes !== []) {
         $lecturerResultsPending = $resultBatchCount(
@@ -130,7 +131,7 @@
         $staffWorkSummary->push(['label' => 'Assigned courses', 'value' => $assignedCourseCount, 'description' => $mainCourseCount . ' coordinator / ' . $supportCourseCount . ' lecturer', 'icon' => 'fa-book-open', 'tone' => 'blue', 'url' => '/course allocation']);
     }
     if ($assignedMainCourseCodes !== []) {
-        $staffWorkSummary->push(['label' => 'Results awaiting your submission', 'value' => $lecturerResultsPending, 'description' => 'All academic sessions', 'icon' => 'fa-file-arrow-up', 'tone' => 'orange', 'url' => '/approve results?session=all&stage=system']);
+        $staffWorkSummary->push(['label' => 'Results awaiting your submission', 'value' => $lecturerResultsPending, 'description' => 'All academic sessions', 'icon' => 'fa-file-arrow-up', 'tone' => 'orange', 'url' => '/approve results?session=all&stage=' . $staffResultStage]);
     }
     if ($isHod) {
         $staffWorkSummary->push(['label' => 'Results awaiting department review', 'value' => $hodResultsPending, 'description' => 'All academic sessions', 'icon' => 'fa-building-columns', 'tone' => 'purple', 'url' => '/approve results?session=all&stage=lecturer']);

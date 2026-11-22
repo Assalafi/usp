@@ -2,6 +2,7 @@
     $scopeLabel = $filters['session'] === 'all' ? 'All academic sessions' : $filters['session'];
     $totalBatches = (int) $counts->sum();
     $awaitingBatches = (int) $counts->get($reviewStage, 0);
+    $actionableBatches = $awaitingBatches + (int) ($ownSubmissionCount ?? 0);
     $approvedBatches = (int) $counts->get('vc', 0);
     $hasFilters = collect($filters)->except(['page', 'session', 'stage'])->filter()->isNotEmpty();
     $filterLink = function ($stage) use ($filters) {
@@ -24,8 +25,11 @@
     @if ($errors->any())
         <div class="ra-notice ra-notice-error" role="alert"><strong>Please check your selections.</strong><ul>@foreach ($errors->all() as $message)<li>{{ $message }}</li>@endforeach</ul></div>
     @endif
+    @if (!$final && $reviewStage !== 'system' && $filters['stage'] === $reviewStage && ($ownSubmissionCount ?? 0) > 0)
+        <div class="ra-notice" role="status"><strong>Your action queue includes your own lecturer submissions.</strong> Results still at Lecturer review can be submitted, while Department review batches can be approved here.</div>
+    @endif
     <section class="ra-metrics" aria-label="Course approval summary">
-        <a href="{{ $filterLink($reviewStage) }}" class="ra-metric ra-metric-focus"><div><span>{{ $final ? 'Awaiting final approval' : 'At your review stage' }}</span><strong>{{ number_format($awaitingBatches) }}</strong><small>{{ $stageLabels[$reviewStage] }} · course batches</small></div><i class="fas fa-file-signature" aria-hidden="true"></i></a>
+        <a href="{{ $filterLink($reviewStage) }}" class="ra-metric ra-metric-focus"><div><span>{{ $final ? 'Awaiting final approval' : 'At your review stage' }}</span><strong>{{ number_format($final ? $awaitingBatches : $actionableBatches) }}</strong><small>{{ $final ? $stageLabels[$reviewStage] : 'Ready for your review or submission' }} · course batches</small></div><i class="fas fa-file-signature" aria-hidden="true"></i></a>
         <a href="{{ $filterLink('vc') }}" class="ra-metric"><div><span>Approved</span><strong>{{ number_format($approvedBatches) }}</strong><small>Course batches completed</small></div><i class="far fa-check-circle" aria-hidden="true"></i></a>
         <a href="{{ $filterLink('') }}" class="ra-metric"><div><span>All course batches in this view</span><strong>{{ number_format($totalBatches) }}</strong><small>Across all approval stages</small></div><i class="far fa-copy" aria-hidden="true"></i></a>
     </section>
@@ -64,7 +68,7 @@
             </details>
             <div class="ra-list-heading"><div><h2>Course results <span class="ra-count">{{ number_format($rows->total()) }}</span></h2><p>{{ $scopeLabel }}@if ($filters['search']) · “{{ $filters['search'] }}”@endif</p></div><span class="ra-list-hint">25 per page</span></div>
             <nav class="ra-tabs" aria-label="Result review stages">
-                <a class="{{ $filters['stage'] === $reviewStage ? 'is-active' : '' }}" href="{{ $filterLink($reviewStage) }}" @if ($filters['stage'] === $reviewStage) aria-current="page" @endif>{{ $final ? 'Awaiting approval' : 'At my stage' }} <span>{{ number_format($awaitingBatches) }}</span></a>
+                <a class="{{ $filters['stage'] === $reviewStage ? 'is-active' : '' }}" href="{{ $filterLink($reviewStage) }}" @if ($filters['stage'] === $reviewStage) aria-current="page" @endif>{{ $final ? 'Awaiting approval' : 'At my stage' }} <span>{{ number_format($actionableBatches) }}</span></a>
                 <a class="{{ $filters['stage'] === '' ? 'is-active' : '' }}" href="{{ $filterLink('') }}" @if ($filters['stage'] === '') aria-current="page" @endif>All stages <span>{{ number_format($totalBatches) }}</span></a>
                 <a class="{{ $filters['stage'] === 'vc' ? 'is-active' : '' }}" href="{{ $filterLink('vc') }}" @if ($filters['stage'] === 'vc') aria-current="page" @endif>Approved <span>{{ number_format($approvedBatches) }}</span></a>
             </nav>

@@ -151,13 +151,30 @@ final class ResultApprovalWorkspace
                 });
             });
         }
+        // HODs, Deans and Course System reviewers may also have lecturer
+        // submissions of their own. Those submissions are actionable by the
+        // same person and belong in the same "At my stage" view, even though
+        // they are still marked as `system` in the workflow.
+        $includeOwnSubmissions = !$final && $reviewStage !== 'system';
         $listingQuery = clone $query;
-        if ($filters['stage'] !== '') $listingQuery->where('r.approve', $filters['stage']);
+        if ($filters['stage'] !== '') {
+            $listingQuery->where(function ($stage) use ($filters, $reviewStage, $includeOwnSubmissions, $username) {
+                $stage->where('r.approve', $filters['stage']);
+                if ($includeOwnSubmissions && $filters['stage'] === $reviewStage) {
+                    $stage->orWhere(function ($own) use ($username) {
+                        $own->where('r.approve', 'system')
+                            ->whereRaw('UPPER(TRIM(r.lecturer)) = ?', [$username]);
+                    });
+                }
+            });
+        }
         // Approval is managed per course batch. Do not aggregate result rows
         // or students here: a student count is both expensive and irrelevant
         // to the approval decision. The grouped keys below are the complete
         // batch identity used by the page and its counters.
         $groups = $listingQuery->select('r.code', 'r.session', 'r.semester', 'r.approve', 'r.lecturer', 'r.program')
+            ->groupBy('r.code', 'r.session', 'r.semester', 'r.approve', 'r.lecturer', 'r.program');
+        $allGroups = (clone $query)->select('r.code', 'r.session', 'r.semester', 'r.approve', 'r.lecturer', 'r.program')
             ->groupBy('r.code', 'r.session', 'r.semester', 'r.approve', 'r.lecturer', 'r.program');
 
         // The default VC view used to execute this million-row grouping three
@@ -172,10 +189,19 @@ final class ResultApprovalWorkspace
             session('username'), session('appointment'), session('department'), session('faculty'), $final, $filters,
         ]));
         $allBatches = $canSnapshot
-            ? Cache::remember($cacheKey, now()->addSeconds(15), fn () => DB::query()->fromSub($groups, 'batches')->get())
+            ? Cache::remember($cacheKey, now()->addSeconds(15), fn () => DB::query()->fromSub($allGroups, 'batches')->get())
             : null;
         if ($allBatches) {
             $visible = $allBatches;
+            if ($filters['stage'] !== '') {
+                $visible = $visible->filter(function ($row) use ($filters, $reviewStage, $includeOwnSubmissions, $username) {
+                    if ($row->approve === $filters['stage']) return true;
+                    return $includeOwnSubmissions
+                        && $filters['stage'] === $reviewStage
+                        && $row->approve === 'system'
+                        && strtoupper(trim((string) $row->lecturer)) === $username;
+                })->values();
+            }
             $visible = $visible->sort(function ($left, $right) use ($reviewStage) {
                 $rank = static fn ($row) => $row->approve === $reviewStage ? 0 : ($row->approve === 'vc' ? 2 : 1);
                 return [$rank($left), -strtotime((string) $left->session), $left->code, $left->semester, $left->approve, $left->lecturer]
@@ -189,7 +215,6 @@ final class ResultApprovalWorkspace
         } else {
             $visible = null;
             $listing = DB::query()->fromSub($groups, 'batches');
-            if ($filters['stage'] !== '') $listing->where('approve', $filters['stage']);
             $listing->orderByRaw('CASE WHEN approve = ? THEN 0 WHEN approve = ? THEN 2 ELSE 1 END', [$reviewStage, 'vc'])
                 ->orderByDesc('session')->orderBy('code')->orderBy('semester')->orderBy('approve')->orderBy('lecturer');
             $rows = $listing->paginate(25, ['*'], 'page', $filters['page'])->appends(array_diff_key($filters, ['page' => true]));
@@ -200,13 +225,22 @@ final class ResultApprovalWorkspace
         ]));
         $counts = $allBatches
             ? $allBatches->groupBy('approve')->map->count()
-            : Cache::remember($countKey, now()->addSeconds(15), function () use ($groups) {
+            : Cache::remember($countKey, now()->addSeconds(15), function () use ($allGroups) {
                 // Count already-grouped course batches instead of scanning
                 // the full results table with a concatenated DISTINCT key.
-                return DB::query()->fromSub($groups, 'batches')
+                return DB::query()->fromSub($allGroups, 'batches')
                     ->select('approve')->selectRaw('COUNT(*) AS total')
                     ->groupBy('approve')->pluck('total', 'approve');
             });
+        $ownSubmissionCount = 0;
+        if ($includeOwnSubmissions) {
+            $ownSubmissionCount = $allBatches
+                ? $allBatches->filter(fn ($row) => $row->approve === 'system' && strtoupper(trim((string) $row->lecturer)) === $username)->count()
+                : (int) DB::query()->fromSub(
+                    (clone $allGroups)->where('r.approve', 'system')->whereRaw('UPPER(TRIM(r.lecturer)) = ?', [$username]),
+                    'own_batches'
+                )->count();
+        }
         $this->attachBatchMetadata($rows);
         $titles = DB::table('course')->whereIn('code', $rows->getCollection()->pluck('code'))->pluck('title', 'code');
 
@@ -246,7 +280,7 @@ final class ResultApprovalWorkspace
             $pendingDepartments = $departments->filter(fn ($d) => $pendingDepartments->has($d->code))
                 ->map(fn ($d) => (object) ['code' => $d->code, 'title' => $d->title, 'total' => $pendingDepartments[$d->code]])->values();
         }
-        return compact('filters', 'rows', 'counts', 'titles', 'departments', 'programs', 'pendingDepartments', 'final', 'reviewStage') + [
+        return compact('filters', 'rows', 'counts', 'titles', 'departments', 'programs', 'pendingDepartments', 'final', 'reviewStage', 'ownSubmissionCount') + [
             'faculties' => Cache::remember('result_approval_faculties', now()->addMinutes(10), fn () => DB::table('faculty')->select('code', 'title')->orderBy('title')->get()),
             'academicSessions' => Cache::remember('result_approval_sessions', now()->addMinutes(10), fn () => DB::table('session')->orderByDesc('title')->pluck('title')),
             'stageLabels' => self::STAGES,
