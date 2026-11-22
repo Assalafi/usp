@@ -218,7 +218,28 @@ class CheckRoleAccess
             'manage hostel', 'pins', 'bed space reservations', 'developer-tasks', 'developer tasks',
         ];
 
-        if (in_array($page, $protectedPages) || in_array($encodedPage, $protectedPages)) {
+        // Alumni operations are all protected by the single Alumni page
+        // grant, including nested imports, downloads and progress streams.
+        // Keep them protected even if an older installation has not yet
+        // synchronised the page catalogue.
+        $alumniEndpoint = $page === 'alumni'
+            || str_starts_with($page, 'alumni/')
+            || str_starts_with($page, 'admin/move-to-alumni-')
+            || str_starts_with($page, 'admin/restore-alumni')
+            || in_array($page, [
+                'import-alumni',
+                'upload-student-to-alumni',
+                'upload-student-ids-to-alumni',
+                'admin/move-to-alumni-progress',
+                'admin/move-to-alumni-stream',
+                'admin/restore-alumni-progress',
+                'admin/restore-alumni-stream',
+                'admin/restore-alumni-by-year-progress',
+                'admin/restore-alumni-by-year-stream',
+                'admin/restore-selected-alumni',
+            ], true);
+
+        if ($alumniEndpoint || in_array($page, $protectedPages) || in_array($encodedPage, $protectedPages)) {
             return redirect('/')->with('error', 'You do not have access to this page.');
         }
 
