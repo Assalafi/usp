@@ -444,7 +444,18 @@ final class PortalPermission
 
     public static function actionsForLink(?string $link): array
     {
-        return self::rowsForLink($link)
+        $rows = self::rowsForLink($link);
+
+        // The Alumni page predates separate inner-action grants.  Staff who
+        // are assigned to the page have full use of its controls, so expose
+        // the complete action set to the shared view CSS as well as to the
+        // middleware.  Without this, Restore/Import buttons are hidden even
+        // though the request itself is authorised.
+        if (self::normalizeLink($link) === '/alumni' && $rows->isNotEmpty()) {
+            return self::knownActions();
+        }
+
+        return $rows
             ->flatMap(function ($row) {
                 return array_map([self::class, 'normalizeAction'], explode(',', (string) $row->action));
             })
