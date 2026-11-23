@@ -198,7 +198,20 @@
         $('idcMediaStudent').value = student.id;
         $('idcIssueStudent').value = student.id;
         $('idcIssueSession').value = currentSession === 'all' ? '' : currentSession;
-        $('idcMediaPanel').hidden = app.dataset.canMedia !== '1';
+        const mediaPanel = $('idcMediaPanel');
+        if (app.dataset.canMedia === '1' && !$('idcMediaToggle')) {
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.id = 'idcMediaToggle';
+            toggle.className = 'idc-btn soft';
+            toggle.innerHTML = '<i class="fas fa-pen-to-square"></i> Update documents';
+            toggle.addEventListener('click', () => {
+                mediaPanel.hidden = !mediaPanel.hidden;
+                if (!mediaPanel.hidden) mediaPanel.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+            });
+            $('idcClose')?.before(toggle);
+        }
+        mediaPanel.hidden = app.dataset.canMedia !== '1';
         $('idcIssuePanel').hidden = app.dataset.canMarkIssue !== '1';
         const missing = Array.isArray(student.missing_media) ? student.missing_media : [];
         const status = $('idcPreviewInfo').querySelector('.idc-profile-status');
