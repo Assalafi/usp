@@ -280,7 +280,7 @@ class StudentIdCardController extends Controller
                 return response()->json(['preview' => $preview, 'message' => 'Photo prepared successfully.']);
             } catch (ValidationException $e) {
                 return response()->json(['message' => $e->validator->errors()->first() ?: 'The photo could not be prepared.'], 422);
-            } catch (\\Throwable $e) {
+            } catch (\Throwable $e) {
                 Log::error('ID-card photo preview failed', ['student_id' => $student->id, 'error' => $e->getMessage()]);
                 return response()->json(['message' => 'The photo could not be prepared. Please choose a clear, front-facing photo and try again.'], 422);
             }
