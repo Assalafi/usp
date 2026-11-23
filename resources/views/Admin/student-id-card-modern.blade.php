@@ -24,6 +24,8 @@
     .idc-upload-save{display:none!important}
     .idc-camera-overlay{position:fixed;inset:0;z-index:1300;display:none;align-items:center;justify-content:center;padding:14px;background:rgba(8,24,42,.72)}.idc-camera-overlay.open{display:flex}.idc-camera-dialog{width:min(520px,100%);overflow:hidden;border-radius:18px;background:#fff;box-shadow:0 24px 70px rgba(0,0,0,.35)}.idc-camera-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid #e2ebf3}.idc-camera-head strong{color:#1c3b59;font-size:.88rem}.idc-camera-head small{display:block;margin-top:3px;color:#7c8ea0;font-size:.68rem}.idc-camera-stage{padding:12px;background:#0d2033}.idc-camera-video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:11px;background:#061421}.idc-camera-actions{display:flex;gap:8px;padding:12px 14px}.idc-camera-actions .idc-btn{flex:1;justify-content:center}
     .idc-camera-actions .idc-btn.primary{background:#1769aa!important;color:#fff!important;border-color:#1769aa!important;text-shadow:none}.idc-camera-actions .idc-btn.primary:hover{background:#125887!important;border-color:#125887!important;color:#fff!important}
+    .idc-camera-actions .idc-btn{min-width:0}
+    @media(max-width:680px){.idc-camera-actions{flex-wrap:wrap}.idc-camera-actions .idc-btn.primary{flex-basis:100%}}
     @media(max-width:680px){
         .idc-page{overflow-x:hidden}.idc-shell{padding:0 9px}.idc-hero{padding:17px 15px}.idc-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.idc-filter-grid{grid-template-columns:1fr}.idc-filter-grid .wide{grid-column:auto}.idc-filter-actions{display:grid;grid-template-columns:1fr 1fr}.idc-filter-actions .idc-btn{width:100%;justify-content:center}.idc-tabs{padding:4px}.idc-tab{flex:1;justify-content:center;padding:10px 8px;font-size:.7rem}.idc-modal{width:100%;max-height:calc(100dvh - 16px);border-radius:14px}.idc-details-modal .idc-modal-side{max-height:calc(100dvh - 16px);overflow-y:auto}.idc-modal-head{padding:12px 13px;position:sticky;top:0;z-index:2;background:#fff}.idc-modal-head h3{font-size:.92rem}.idc-preview-info{padding:12px}.idc-editor-panel{margin:0 8px 10px;border-radius:12px}.idc-upload-panel .idc-detail-section-title{padding:12px;align-items:flex-start;flex-wrap:wrap}.idc-upload-panel .idc-panel-badge{width:100%;margin:2px 0 0 35px;text-align:left}.idc-upload-panel .idc-editor-help{margin:11px 12px}.idc-upload-panel form{padding:0 10px 12px}.idc-upload-grid{grid-template-columns:1fr}.idc-upload-card{padding:10px}.idc-dropzone{min-height:128px}.idc-signature-canvas{min-height:150px}.idc-media-status{margin:0 10px 10px;font-size:.68rem}.idc-media-toggle-bottom{width:calc(100% - 16px);margin:0 8px 12px;min-height:44px}.idc-modal-footer{padding:10px 12px}.idc-modal-footer .idc-btn{width:100%;justify-content:center}.idc-frame-wrap{min-height:360px}.idc-frame-wrap iframe{height:58dvh;min-height:330px}.idc-table-wrap{-webkit-overflow-scrolling:touch}.idc-table{min-width:760px}}
     @media(max-width:680px){.idc-table-wrap{overflow:visible}.idc-table{display:block;min-width:0}.idc-table thead{display:none}.idc-table tbody{display:grid;gap:10px}.idc-table tbody tr{display:grid;grid-template-columns:1fr;background:#fff;border:1px solid #dce8f1;border-radius:13px;overflow:hidden;box-shadow:0 5px 15px rgba(28,75,115,.06)}.idc-table tbody td{display:grid;grid-template-columns:88px minmax(0,1fr);gap:8px;align-items:start;padding:10px 12px;border-bottom:1px solid #edf2f6}.idc-table tbody td::before{color:#8292a5;font-size:.61rem;font-weight:850;text-transform:uppercase;letter-spacing:.04em}.idc-table tbody td:nth-child(2)::before{content:'Student'}.idc-table tbody td:nth-child(3)::before{content:'Academic'}.idc-table tbody td:nth-child(4)::before{content:'Session'}.idc-table tbody td:nth-child(5)::before{content:'Eligibility'}.idc-table tbody td:nth-child(6)::before{content:'Status'}.idc-table tbody td:first-child{display:none}.idc-table tbody td:last-child{display:block;border-bottom:0}.idc-table tbody td:last-child::before{content:'Actions';display:block;margin-bottom:7px}.idc-table tbody td[colspan]{display:block;padding:22px 12px}.idc-action-group{display:grid;grid-template-columns:1fr 1fr}.idc-action-group .idc-btn{width:100%;justify-content:center}.idc-camera-dialog{border-radius:14px}.idc-camera-actions{padding:10px}.idc-camera-actions .idc-btn{min-height:44px}}
@@ -216,21 +218,34 @@
         document.body.appendChild(cameraOverlay);
         const video = cameraOverlay.querySelector('.idc-camera-video');
         const captureButton = cameraOverlay.querySelector('[data-camera-capture]');
+        const cameraActions = cameraOverlay.querySelector('.idc-camera-actions');
+        const switchButton = document.createElement('button');
+        switchButton.type = 'button';
+        switchButton.className = 'idc-btn soft';
+        switchButton.innerHTML = '<i class="fas fa-camera-rotate"></i> Switch camera';
+        cameraActions?.insertBefore(switchButton, captureButton);
         let cameraStream = null;
+        let facingMode = 'user';
         const closeCamera = () => { cameraStream?.getTracks().forEach(track => track.stop()); cameraStream = null; video.srcObject = null; cameraOverlay.classList.remove('open'); };
+        const startCamera = async () => {
+            cameraStream?.getTracks().forEach(track => track.stop());
+            cameraStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facingMode}}, audio:false});
+            video.srcObject = cameraStream;
+            cameraOverlay.classList.add('open');
+        };
         drop.insertAdjacentElement('afterend', cameraButton);
         cameraButton.insertAdjacentElement('afterend', cameraInput);
         cameraOverlay.querySelectorAll('[data-camera-close]').forEach(button => button.addEventListener('click', closeCamera));
         cameraButton.addEventListener('click', async () => {
             if (!navigator.mediaDevices?.getUserMedia) { cameraInput.click(); return; }
-            try {
-                cameraStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}, audio:false});
-                video.srcObject = cameraStream;
-                cameraOverlay.classList.add('open');
-            } catch (_) {
+            try { await startCamera(); } catch (_) {
                 notice('Camera access was not available. You can choose a photo from the device instead.', true);
                 cameraInput.click();
             }
+        });
+        switchButton.addEventListener('click', async () => {
+            facingMode = facingMode === 'user' ? 'environment' : 'user';
+            try { await startCamera(); } catch (_) { facingMode = facingMode === 'user' ? 'environment' : 'user'; notice('That camera is not available. Try switching back or choose a photo from the device.', true); }
         });
         captureButton.addEventListener('click', () => {
             if (!video.videoWidth || !video.videoHeight) { notice('The camera is still starting. Please try again in a moment.', true); return; }
