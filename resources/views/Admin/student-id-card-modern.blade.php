@@ -324,6 +324,8 @@
         if (!form.picture.files.length && !form.signiture.files.length) { notice('Choose a photo or signature before saving.', true); return; }
         if (form.picture.files.length && !picturePreviewReady) { notice('Prepare the selected photo first and wait for the preview to finish.', true); return; }
         if (form.signiture.pendingImage) await form.signiture.pendingImage;
+        const updateButton = $('idcMediaToggle');
+        if (updateButton) { updateButton.disabled = true; updateButton.innerHTML = '<span class="idc-loader">Updating…</span>'; }
         setMediaStatus('Step 3 of 3: Saving the updated documents…', 'working');
         button.disabled = true; button.innerHTML = '<span class="idc-loader">Saving…</span>';
         try {
@@ -333,7 +335,10 @@
             cache.delete(currentStudent); notice(payload.message || 'Documents updated.'); form.reset(); resetUploadCards();
             const student = await loadDetails(currentStudent); showPanels(student); setMediaStatus('Completed. The student photo and signature were updated successfully.', 'success'); refreshList();
         } catch (error) { setMediaStatus(error.message || 'The documents could not be saved. Please try again.', 'error'); notice(error.message, true); }
-        finally { button.disabled = false; button.innerHTML = '<i class="fas fa-save"></i> Save documents'; }
+        finally {
+            button.disabled = false; button.innerHTML = '<i class="fas fa-save"></i> Save documents';
+            if (updateButton) { updateButton.disabled = false; updateButton.innerHTML = '<i class="fas fa-pen-to-square"></i> Update card documents'; }
+        }
     });
     $('idcIssueForm')?.addEventListener('submit', async event => {
         event.preventDefault();
