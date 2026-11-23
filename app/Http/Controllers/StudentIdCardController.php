@@ -251,12 +251,40 @@ class StudentIdCardController extends Controller
     }
 
     /** Update the official photo and/or signature from the details view. */
-    public function updateMedia(Request $request)
+    public function updateMedia(Request $request, ProfilePhotoProcessor $photoProcessor)
     {
         if (!session()->has('log')) {
             return response()->json(['message' => 'Please sign in again.'], 401);
         }
         abort_unless($this->allowsAction('media'), 403, 'You do not have permission to update student ID-card documents.');
+
+        // The media route also serves the live photo preview so the ID-card page
+        // uses exactly the same preparation as profile editing without saving a draft.
+        if ($request->boolean('preview')) {
+            $previewValidator = Validator::make($request->all(), [
+                'student_id' => ['required', 'integer'],
+                'picture' => ['required', 'file', 'image', 'mimes:jpeg,jpg,png', 'max:5120'],
+            ]);
+            if ($previewValidator->fails()) {
+                return response()->json(['message' => $previewValidator->errors()->first()], 422);
+            }
+            $student = Student::query()->find((int) $request->student_id);
+            if (!$student) {
+                return response()->json(['message' => 'Student record was not found.'], 404);
+            }
+            try {
+                $disk = Storage::disk('public');
+                $path = $photoProcessor->process($request->file('picture'), 'picture/previews');
+                $preview = 'data:image/jpeg;base64,' . base64_encode($disk->get($path));
+                $disk->delete($path);
+                return response()->json(['preview' => $preview, 'message' => 'Photo prepared successfully.']);
+            } catch (ValidationException $e) {
+                return response()->json(['message' => $e->validator->errors()->first() ?: 'The photo could not be prepared.'], 422);
+            } catch (\\Throwable $e) {
+                Log::error('ID-card photo preview failed', ['student_id' => $student->id, 'error' => $e->getMessage()]);
+                return response()->json(['message' => 'The photo could not be prepared. Please choose a clear, front-facing photo and try again.'], 422);
+            }
+        }
 
         $validator = Validator::make($request->all(), [
             'student_id' => ['required', 'integer'],
