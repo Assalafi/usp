@@ -19,6 +19,7 @@
     .idc-upload-panel form{padding:0 16px 16px}
     .idc-upload-panel .idc-upload-note{background:#fff;border-color:#d8e7f1}
     .idc-media-toggle-bottom{width:calc(100% - 36px);justify-content:center;margin:0 18px 16px;box-shadow:0 5px 12px rgba(23,105,170,.1)}
+    .idc-media-status{display:flex;align-items:flex-start;gap:8px;margin:0 16px 12px;padding:10px 12px;border:1px solid #d8e7f1;border-radius:10px;background:#fff;color:#58708a;font-size:.7rem;line-height:1.4}.idc-media-status i{margin-top:2px;color:#2478ad}.idc-media-status.working{background:#eef7ff;color:#21658f}.idc-media-status.success{background:#edf9f3;border-color:#cdebdc;color:#167153}.idc-media-status.error{background:#fff2f2;border-color:#f0d2d5;color:#a33e47}
     .idc-busy-spinner{width:28px;height:28px;border:3px solid #d5e5f3;border-top-color:var(--idc-blue);border-radius:50%;animation:idcSpin .7s linear infinite}
     .idc-tabs.is-loading{pointer-events:none;opacity:.72}.idc-tab.is-loading{color:var(--idc-blue)}.idc-tab.is-loading:after{content:"";width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:idcSpin .7s linear infinite}
     .idc-modal-kicker{display:block;color:#71869a;font-size:.62rem;font-weight:850;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}.idc-modal-footer{display:flex;justify-content:flex-end;padding:0 18px 17px}.idc-details-modal{width:min(620px,100%);display:block}.idc-details-modal .idc-modal-side{border:0}.idc-details-modal .idc-preview-info{padding-top:5px}.idc-details-modal .idc-info-row{padding:12px 0}
@@ -159,6 +160,12 @@
     const $ = id => document.getElementById(id);
     const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content || app.dataset.csrfToken || '';
     const cache = new Map();
+    const setMediaStatus = (message, state = '') => {
+        const element = $('idcMediaStatus');
+        if (!element) return;
+        element.className = 'idc-media-status' + (state ? ' ' + state : '');
+        element.innerHTML = '<i class="fas ' + (state === 'error' ? 'fa-circle-exclamation' : state === 'success' ? 'fa-circle-check' : state === 'working' ? 'fa-spinner fa-spin' : 'fa-circle-info') + '"></i><span>' + message + '</span>';
+    };
     let currentStudent = null;
     let currentSession = '';
     const syncModalScrollState = () => {
@@ -182,6 +189,20 @@
     const setupPictureUpload = () => { const input=$('idcPictureInput'), drop=$('idcPictureDrop'); if(!input||!drop)return; drop.addEventListener('click',()=>input.click()); input.addEventListener('change',()=>{if(input.files?.[0])showPictureFile(input.files[0]);}); ['dragenter','dragover'].forEach(type=>drop.addEventListener(type,event=>{event.preventDefault();drop.classList.add('is-dragging');})); ['dragleave','drop'].forEach(type=>drop.addEventListener(type,event=>{event.preventDefault();drop.classList.remove('is-dragging');})); drop.addEventListener('drop',event=>{const file=event.dataTransfer?.files?.[0];if(!file)return;try{input.files=event.dataTransfer.files;}catch(_){}showPictureFile(file);}); };
     const setupSignatureCanvas = () => { const canvas=$('idcSignatureCanvas'), input=$('idcSignatureInput'), clear=$('idcSignatureClear'); if(!canvas||!input)return; const context=canvas.getContext('2d'); context.lineWidth=4;context.lineCap='round';context.lineJoin='round';context.strokeStyle='#152d42';let drawing=false,hasInk=false; const point=event=>{const rect=canvas.getBoundingClientRect();const source=event.touches?.[0]||event;return{x:(source.clientX-rect.left)*(canvas.width/rect.width),y:(source.clientY-rect.top)*(canvas.height/rect.height)}}; const start=event=>{event.preventDefault();drawing=true;const p=point(event);context.beginPath();context.moveTo(p.x,p.y)}; const move=event=>{if(!drawing)return;event.preventDefault();const p=point(event);context.lineTo(p.x,p.y);context.stroke();hasInk=true}; const finish=()=>{if(!drawing)return;drawing=false;if(!hasInk)return;input.pendingImage=new Promise(resolve=>canvas.toBlob(blob=>{if(blob){const transfer=new DataTransfer();transfer.items.add(new File([blob],'signature.png',{type:'image/png'}));input.files=transfer.files;$('idcSignatureName').textContent='Drawn signature ready'}resolve()},'image/png'))}; canvas.addEventListener('pointerdown',start);canvas.addEventListener('pointermove',move);canvas.addEventListener('pointerup',finish);canvas.addEventListener('pointerleave',finish);clear?.addEventListener('click',()=>{context.clearRect(0,0,canvas.width,canvas.height);hasInk=false;input.value='';input.pendingImage=null;$('idcSignatureName').textContent='Draw a signature or choose an image'}); input.addEventListener('change',()=>{const file=input.files?.[0];if(!file)return;const image=new Image();image.onload=()=>{context.clearRect(0,0,canvas.width,canvas.height);const scale=Math.min(canvas.width/image.width,canvas.height/image.height),width=image.width*scale,height=image.height*scale;context.drawImage(image,(canvas.width-width)/2,(canvas.height-height)/2,width,height);hasInk=true;$('idcSignatureName').textContent=file.name};image.src=URL.createObjectURL(file)}); };
     setupPictureUpload(); setupSignatureCanvas();
+    const mediaProgressObserver = new MutationObserver(() => {
+        const photo = $('idcPictureStatus');
+        const signature = $('idcSignatureName')?.textContent || '';
+        if (photo?.classList.contains('error')) {
+            setMediaStatus('The photo could not be prepared. Please choose a clear, front-facing image.', 'error');
+        } else if (photo?.classList.contains('success') && /ready/i.test(signature)) {
+            setMediaStatus('Step 2 of 3 complete. Photo and signature are ready; click Update card documents to save.', 'success');
+        } else if (photo?.classList.contains('success')) {
+            setMediaStatus('Step 1 of 3 complete. Photo ready; now add or draw the student signature.', 'success');
+        } else if (/ready/i.test(signature)) {
+            setMediaStatus('Step 2 of 3 complete. Signature ready; click Update card documents to save.', 'success');
+        }
+    });
+    [$('idcPictureStatus'), $('idcSignatureName')].forEach(element => element && mediaProgressObserver.observe(element, {childList: true, subtree: true, attributes: true, characterData: true}));
     const resetUploadCards=()=>{const input=$('idcPictureInput'),preview=$('idcPicturePreview'),name=$('idcPictureName'),status=$('idcPictureStatus');if(input)input.value='';if(preview)preview.innerHTML='<i class="fas fa-cloud-arrow-up"></i>';if(name)name.textContent='No file selected';if(status){status.className='idc-photo-processing';status.textContent=''}picturePreviewReady=false;pictureProcessing=Promise.resolve();const signature=$('idcSignatureInput'),canvas=$('idcSignatureCanvas'),signatureName=$('idcSignatureName');if(signature)signature.value='';if(canvas)canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);if(signatureName)signatureName.textContent='Draw a signature or choose an image';};
     const notice = (message, error = false) => {
         const el = $('idcToast');
@@ -207,6 +228,14 @@
         $('idcIssueStudent').value = student.id;
         $('idcIssueSession').value = currentSession === 'all' ? '' : currentSession;
         const mediaPanel = $('idcMediaPanel');
+        if (!$('idcMediaStatus')) {
+            const status = document.createElement('div');
+            status.id = 'idcMediaStatus';
+            status.setAttribute('role', 'status');
+            status.setAttribute('aria-live', 'polite');
+            mediaPanel.querySelector('form')?.before(status);
+        }
+        setMediaStatus('Ready. Choose a photo and add a signature, then save the update.');
         if (app.dataset.canMedia === '1' && !$('idcMediaToggle')) {
             const toggle = document.createElement('button');
             toggle.type = 'button';
@@ -295,14 +324,15 @@
         if (!form.picture.files.length && !form.signiture.files.length) { notice('Choose a photo or signature before saving.', true); return; }
         if (form.picture.files.length && !picturePreviewReady) { notice('Prepare the selected photo first and wait for the preview to finish.', true); return; }
         if (form.signiture.pendingImage) await form.signiture.pendingImage;
+        setMediaStatus('Step 3 of 3: Saving the updated documents…', 'working');
         button.disabled = true; button.innerHTML = '<span class="idc-loader">Saving…</span>';
         try {
             const response = await fetch(app.dataset.mediaUrl, {method: 'POST', headers: {'Accept': 'application/json', 'X-CSRF-TOKEN': csrf()}, body: new FormData(form)});
             const payload = await response.json();
             if (!response.ok) throw new Error(payload.message || 'The documents could not be saved.');
             cache.delete(currentStudent); notice(payload.message || 'Documents updated.'); form.reset(); resetUploadCards();
-            const student = await loadDetails(currentStudent); showPanels(student); refreshList();
-        } catch (error) { notice(error.message, true); }
+            const student = await loadDetails(currentStudent); showPanels(student); setMediaStatus('Completed. The student photo and signature were updated successfully.', 'success'); refreshList();
+        } catch (error) { setMediaStatus(error.message || 'The documents could not be saved. Please try again.', 'error'); notice(error.message, true); }
         finally { button.disabled = false; button.innerHTML = '<i class="fas fa-save"></i> Save documents'; }
     });
     $('idcIssueForm')?.addEventListener('submit', async event => {
