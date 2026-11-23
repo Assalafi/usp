@@ -333,7 +333,23 @@
             const payload = await response.json();
             if (!response.ok) throw new Error(payload.message || 'The documents could not be saved.');
             cache.delete(currentStudent); notice(payload.message || 'Documents updated.'); form.reset(); resetUploadCards();
-            const student = await loadDetails(currentStudent); showPanels(student); setMediaStatus('Completed. The student photo and signature were updated successfully.', 'success'); refreshList();
+            const student = await loadDetails(currentStudent);
+            const avatar = $('idcPreviewInfo')?.querySelector('.idc-profile-avatar');
+            if (avatar && student.picture_url) avatar.src = student.picture_url + (student.picture_url.includes('?') ? '&' : '?') + 'updated=' + Date.now();
+            const signatureBox = $('idcPreviewInfo')?.querySelector('.idc-signature-box');
+            if (signatureBox && student.signature_url) {
+                signatureBox.querySelector('.idc-signature-missing')?.remove();
+                let signature = signatureBox.querySelector('[data-signature]');
+                if (!signature) {
+                    signature = document.createElement('img');
+                    signature.className = 'idc-signature-image';
+                    signature.dataset.signature = '1';
+                    signature.alt = 'Student signature';
+                    signatureBox.appendChild(signature);
+                }
+                signature.src = student.signature_url + (student.signature_url.includes('?') ? '&' : '?') + 'updated=' + Date.now();
+            }
+            showPanels(student); setMediaStatus('Completed. The student photo and signature were updated successfully.', 'success'); refreshList();
         } catch (error) { setMediaStatus(error.message || 'The documents could not be saved. Please try again.', 'error'); notice(error.message, true); }
         finally {
             button.disabled = false; button.innerHTML = '<i class="fas fa-save"></i> Save documents';
