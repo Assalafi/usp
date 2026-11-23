@@ -11,6 +11,14 @@
     .idc-table-busy{position:absolute;inset:0;z-index:3;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;background:rgba(255,255,255,.78);backdrop-filter:blur(2px);color:#2a5276;text-align:center}
     .idc-table-busy[hidden]{display:none}
     .idc-table-busy strong{font-size:.8rem}.idc-table-busy small{font-size:.68rem;color:#8292a5}
+    .idc-upload-panel{padding:0;overflow:hidden;background:#f8fbfe;border-color:#cfe0ee;box-shadow:0 10px 24px rgba(28,75,115,.08)}
+    .idc-upload-panel .idc-detail-section-title{display:flex;align-items:center;gap:8px;padding:13px 16px;margin:0;background:linear-gradient(110deg,#123b67,#1769aa);color:#fff;font-size:.78rem}
+    .idc-upload-panel .idc-detail-section-title i{display:grid;place-items:center;width:27px;height:27px;border-radius:8px;background:rgba(255,255,255,.16);color:#dff4ff}
+    .idc-upload-panel .idc-panel-badge{margin-left:auto;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.12);color:#fff}
+    .idc-upload-panel .idc-editor-help{margin:13px 16px 11px;color:#607991}
+    .idc-upload-panel form{padding:0 16px 16px}
+    .idc-upload-panel .idc-upload-note{background:#fff;border-color:#d8e7f1}
+    .idc-media-toggle-bottom{width:calc(100% - 36px);justify-content:center;margin:0 18px 16px;box-shadow:0 5px 12px rgba(23,105,170,.1)}
     .idc-busy-spinner{width:28px;height:28px;border:3px solid #d5e5f3;border-top-color:var(--idc-blue);border-radius:50%;animation:idcSpin .7s linear infinite}
     .idc-tabs.is-loading{pointer-events:none;opacity:.72}.idc-tab.is-loading{color:var(--idc-blue)}.idc-tab.is-loading:after{content:"";width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:idcSpin .7s linear infinite}
     .idc-modal-kicker{display:block;color:#71869a;font-size:.62rem;font-weight:850;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}.idc-modal-footer{display:flex;justify-content:flex-end;padding:0 18px 17px}.idc-details-modal{width:min(620px,100%);display:block}.idc-details-modal .idc-modal-side{border:0}.idc-details-modal .idc-preview-info{padding-top:5px}.idc-details-modal .idc-info-row{padding:12px 0}
