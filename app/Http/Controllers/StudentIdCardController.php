@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Student;
 use App\Support\PortalPermission;
+use App\Services\ProfilePhotoProcessor;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\Log;
@@ -223,6 +224,32 @@ class StudentIdCardController extends Controller
         ]);
     }
 
+    /** Process an ID-card photo with the same preparation used by student profile editing. */
+    public function previewMediaPhoto(Request $request, ProfilePhotoProcessor $photoProcessor)
+    {
+        if (!session()->has('log')) return response()->json(['message' => 'Please sign in again.'], 401);
+        abort_unless($this->allowsAction('media'), 403, 'You do not have permission to update student ID-card documents.');
+        $validator = Validator::make($request->all(), [
+            'student_id' => ['required', 'integer'],
+            'picture' => ['required', 'file', 'image', 'mimes:jpeg,jpg,png', 'max:5120'],
+        ]);
+        if ($validator->fails()) return response()->json(['message' => $validator->errors()->first()], 422);
+        $student = Student::query()->find((int) $request->student_id);
+        if (!$student) return response()->json(['message' => 'Student record was not found.'], 404);
+        try {
+            $disk = Storage::disk('public');
+            $path = $photoProcessor->process($request->file('picture'), 'picture/previews');
+            $preview = 'data:image/jpeg;base64,' . base64_encode($disk->get($path));
+            $disk->delete($path);
+            return response()->json(['preview' => $preview, 'message' => 'Photo prepared successfully.']);
+        } catch (ValidationException $e) {
+            return response()->json(['message' => $e->validator->errors()->first() ?: 'The photo could not be prepared.'], 422);
+        } catch (\Throwable $e) {
+            Log::error('ID-card photo preview failed', ['student_id' => $student->id, 'error' => $e->getMessage()]);
+            return response()->json(['message' => 'The photo could not be prepared. Please choose a clear, front-facing photo and try again.'], 422);
+        }
+    }
+
     /** Update the official photo and/or signature from the details view. */
     public function updateMedia(Request $request)
     {
@@ -252,12 +279,9 @@ class StudentIdCardController extends Controller
             DB::transaction(function () use ($request, $student): void {
                 $updates = [];
                 if ($request->hasFile('picture')) {
-                    $name = 'processed/' . $student->id . '_' . Str::uuid() . '.' . strtolower($request->file('picture')->getClientOriginalExtension());
-                    Storage::disk('public')->makeDirectory('picture/processed');
-                    if (!$request->file('picture')->storeAs('picture', $name, 'public')) {
-                        throw new \RuntimeException('The student photo could not be saved.');
-                    }
-                    $updates['picture'] = $name;
+                    // Use the same face/background preparation as student profile editing.
+                    $processedPath = app(ProfilePhotoProcessor::class)->process($request->file('picture'), 'picture/processed');
+                    $updates['picture'] = preg_replace('/^picture\\//', '', $processedPath);
                     $updates['profile_photo_updated_at'] = now();
                 }
                 if ($request->hasFile('signiture')) {
@@ -271,6 +295,8 @@ class StudentIdCardController extends Controller
             });
             $this->bumpQueueVersion();
             return response()->json(['message' => 'Student document(s) updated successfully.']);
+        } catch (ValidationException $e) {
+            return response()->json(['message' => $e->validator->errors()->first() ?: 'The document update could not be saved.'], 422);
         } catch (\Throwable $e) {
             Log::error('Student ID-card media update failed', ['student_id' => $student->id, 'error' => $e->getMessage()]);
             return response()->json(['message' => 'The document update could not be saved. Please try again.'], 422);
