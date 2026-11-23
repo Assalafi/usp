@@ -214,8 +214,14 @@
             toggle.className = 'idc-btn soft idc-media-toggle-bottom';
             toggle.innerHTML = '<i class="fas fa-pen-to-square"></i> Update card documents';
             toggle.addEventListener('click', () => {
-                mediaPanel.hidden = !mediaPanel.hidden;
-                if (!mediaPanel.hidden) mediaPanel.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+                if (mediaPanel.hidden) {
+                    mediaPanel.hidden = false;
+                    mediaPanel.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+                    return;
+                }
+                const mediaForm = $('idcMediaForm');
+                if (mediaForm?.requestSubmit) mediaForm.requestSubmit();
+                else mediaForm?.querySelector('button[type="submit"]')?.click();
             });
             mediaPanel.insertAdjacentElement('afterend', toggle);
         }
