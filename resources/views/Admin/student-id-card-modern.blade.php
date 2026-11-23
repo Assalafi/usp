@@ -20,6 +20,7 @@
     .idc-upload-panel .idc-upload-note{background:#fff;border-color:#d8e7f1}
     .idc-media-toggle-bottom{width:calc(100% - 36px);justify-content:center;margin:0 18px 16px;box-shadow:0 5px 12px rgba(23,105,170,.1)}
     .idc-media-status{display:flex;align-items:flex-start;gap:8px;margin:0 16px 12px;padding:10px 12px;border:1px solid #d8e7f1;border-radius:10px;background:#fff;color:#58708a;font-size:.7rem;line-height:1.4}.idc-media-status i{margin-top:2px;color:#2478ad}.idc-media-status.working{background:#eef7ff;color:#21658f}.idc-media-status.success{background:#edf9f3;border-color:#cdebdc;color:#167153}.idc-media-status.error{background:#fff2f2;border-color:#f0d2d5;color:#a33e47}
+    .idc-camera-action{width:100%;justify-content:center;margin-top:8px;min-height:40px}.idc-camera-action i{color:#1769aa}
     .idc-busy-spinner{width:28px;height:28px;border:3px solid #d5e5f3;border-top-color:var(--idc-blue);border-radius:50%;animation:idcSpin .7s linear infinite}
     .idc-tabs.is-loading{pointer-events:none;opacity:.72}.idc-tab.is-loading{color:var(--idc-blue)}.idc-tab.is-loading:after{content:"";width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:idcSpin .7s linear infinite}
     .idc-modal-kicker{display:block;color:#71869a;font-size:.62rem;font-weight:850;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}.idc-modal-footer{display:flex;justify-content:flex-end;padding:0 18px 17px}.idc-details-modal{width:min(620px,100%);display:block}.idc-details-modal .idc-modal-side{border:0}.idc-details-modal .idc-preview-info{padding-top:5px}.idc-details-modal .idc-info-row{padding:12px 0}
@@ -189,6 +190,32 @@
     const setupPictureUpload = () => { const input=$('idcPictureInput'), drop=$('idcPictureDrop'); if(!input||!drop)return; drop.addEventListener('click',()=>input.click()); input.addEventListener('change',()=>{if(input.files?.[0])showPictureFile(input.files[0]);}); ['dragenter','dragover'].forEach(type=>drop.addEventListener(type,event=>{event.preventDefault();drop.classList.add('is-dragging');})); ['dragleave','drop'].forEach(type=>drop.addEventListener(type,event=>{event.preventDefault();drop.classList.remove('is-dragging');})); drop.addEventListener('drop',event=>{const file=event.dataTransfer?.files?.[0];if(!file)return;try{input.files=event.dataTransfer.files;}catch(_){}showPictureFile(file);}); };
     const setupSignatureCanvas = () => { const canvas=$('idcSignatureCanvas'), input=$('idcSignatureInput'), clear=$('idcSignatureClear'); if(!canvas||!input)return; const context=canvas.getContext('2d'); context.lineWidth=4;context.lineCap='round';context.lineJoin='round';context.strokeStyle='#152d42';let drawing=false,hasInk=false; const point=event=>{const rect=canvas.getBoundingClientRect();const source=event.touches?.[0]||event;return{x:(source.clientX-rect.left)*(canvas.width/rect.width),y:(source.clientY-rect.top)*(canvas.height/rect.height)}}; const start=event=>{event.preventDefault();drawing=true;const p=point(event);context.beginPath();context.moveTo(p.x,p.y)}; const move=event=>{if(!drawing)return;event.preventDefault();const p=point(event);context.lineTo(p.x,p.y);context.stroke();hasInk=true}; const finish=()=>{if(!drawing)return;drawing=false;if(!hasInk)return;input.pendingImage=new Promise(resolve=>canvas.toBlob(blob=>{if(blob){const transfer=new DataTransfer();transfer.items.add(new File([blob],'signature.png',{type:'image/png'}));input.files=transfer.files;$('idcSignatureName').textContent='Drawn signature ready'}resolve()},'image/png'))}; canvas.addEventListener('pointerdown',start);canvas.addEventListener('pointermove',move);canvas.addEventListener('pointerup',finish);canvas.addEventListener('pointerleave',finish);clear?.addEventListener('click',()=>{context.clearRect(0,0,canvas.width,canvas.height);hasInk=false;input.value='';input.pendingImage=null;$('idcSignatureName').textContent='Draw a signature or choose an image'}); input.addEventListener('change',()=>{const file=input.files?.[0];if(!file)return;const image=new Image();image.onload=()=>{context.clearRect(0,0,canvas.width,canvas.height);const scale=Math.min(canvas.width/image.width,canvas.height/image.height),width=image.width*scale,height=image.height*scale;context.drawImage(image,(canvas.width-width)/2,(canvas.height-height)/2,width,height);hasInk=true;$('idcSignatureName').textContent=file.name};image.src=URL.createObjectURL(file)}); };
     setupPictureUpload(); setupSignatureCanvas();
+    const setupCameraCapture = () => {
+        const pictureInput = $('idcPictureInput'), drop = $('idcPictureDrop');
+        if (!pictureInput || !drop || $('idcPictureCameraInput')) return;
+        const cameraInput = document.createElement('input');
+        cameraInput.type = 'file';
+        cameraInput.id = 'idcPictureCameraInput';
+        cameraInput.accept = 'image/jpeg,image/png';
+        cameraInput.setAttribute('capture', 'user');
+        cameraInput.hidden = true;
+        const cameraButton = document.createElement('button');
+        cameraButton.type = 'button';
+        cameraButton.className = 'idc-btn soft idc-camera-action';
+        cameraButton.innerHTML = '<i class="fas fa-camera"></i> Take photo with camera';
+        drop.insertAdjacentElement('afterend', cameraButton);
+        cameraButton.insertAdjacentElement('afterend', cameraInput);
+        cameraButton.addEventListener('click', () => cameraInput.click());
+        cameraInput.addEventListener('change', () => {
+            const file = cameraInput.files?.[0];
+            if (!file) return;
+            const transfer = new DataTransfer();
+            transfer.items.add(file);
+            pictureInput.files = transfer.files;
+            showPictureFile(file);
+        });
+    };
+    setupCameraCapture();
     const mediaProgressObserver = new MutationObserver(() => {
         const photo = $('idcPictureStatus');
         const signature = $('idcSignatureName')?.textContent || '';
