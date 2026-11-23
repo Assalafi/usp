@@ -35,7 +35,7 @@
     .idc-dropzone{width:100%;min-height:134px;padding:11px 8px;border:1.5px dashed #b9d2e5;border-radius:11px;background:#f8fbfe;color:#52708a;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;cursor:pointer;transition:border-color .18s,background .18s,transform .18s;appearance:none}.idc-dropzone:hover,.idc-dropzone:focus-visible,.idc-dropzone.is-dragging{border-color:#2589c7;background:#eef8ff;outline:0;transform:translateY(-1px)}
     .idc-upload-preview{width:54px;height:54px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#e8f3fa;color:#3986b3;font-size:1.15rem;overflow:hidden;margin-bottom:2px}.idc-upload-preview.signature{background:#f1edfc;color:#806bc1}.idc-upload-preview img{width:100%;height:100%;object-fit:cover}.idc-drop-title{font-size:.7rem;font-weight:850;color:#2c5a78}.idc-drop-hint{font-size:.62rem;color:#8a9baa}.idc-file-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6f8598;font-size:.59rem;margin-top:3px}
     .idc-upload-note{display:flex;align-items:flex-start;gap:7px;margin:11px 0 12px;padding:9px 10px;border:1px solid #dbe8f2;border-radius:9px;background:#edf7fd;color:#5c7890;font-size:.64rem;line-height:1.4}.idc-upload-note i{color:#3988b4;margin-top:1px}.idc-upload-save{display:inline-flex;align-items:center;gap:7px}
-    .idc-signature-canvas-wrap{position:relative;border:1.5px dashed #b9d2e5;border-radius:11px;background:linear-gradient(180deg,#fff,#f8fbfe);overflow:hidden}.idc-signature-canvas{display:block;width:100%;height:auto;min-height:126px;touch-action:none;cursor:crosshair}.idc-signature-toolbar{display:flex;justify-content:flex-end;gap:6px;padding:7px 8px;border-top:1px solid #e1ebf3;background:#f8fbfe}.idc-photo-processing{margin-top:7px;display:flex;align-items:center;gap:6px;color:#2478ad;font-size:.62rem}.idc-photo-processing.error{color:#b5424e}.idc-photo-processing.success{color:#167b5d}.idc-media-preview-image{width:100%;height:100%;object-fit:cover}
+    .idc-signature-canvas-wrap{position:relative;border:1.5px dashed #b9d2e5;border-radius:11px;background:linear-gradient(180deg,#fff,#f8fbfe);overflow:hidden}.idc-signature-canvas{display:block;width:100%;height:auto;min-height:126px;touch-action:none;cursor:crosshair}.idc-signature-toolbar{display:flex;justify-content:flex-end;gap:6px;padding:7px 8px;border-top:1px solid #e1ebf3;background:#f8fbfe}.idc-photo-processing{margin-top:7px;display:flex;align-items:center;gap:6px;color:#2478ad;font-size:.62rem}.idc-photo-processing.error{color:#b5424e}.idc-photo-processing.success{color:#167b5d}.idc-media-preview-image{width:100%;height:100%;object-fit:cover}.idc-media-toggle-bottom{display:flex;margin:0 18px 16px}
     @media(max-width:680px){.idc-upload-grid{grid-template-columns:1fr}.idc-panel-badge{font-size:.55rem}.idc-upload-card{padding:10px}.idc-dropzone{min-height:116px}}
 </style>
 
@@ -203,13 +203,13 @@
             const toggle = document.createElement('button');
             toggle.type = 'button';
             toggle.id = 'idcMediaToggle';
-            toggle.className = 'idc-btn soft';
-            toggle.innerHTML = '<i class="fas fa-pen-to-square"></i> Update documents';
+            toggle.className = 'idc-btn soft idc-media-toggle-bottom';
+            toggle.innerHTML = '<i class="fas fa-pen-to-square"></i> Update card documents';
             toggle.addEventListener('click', () => {
                 mediaPanel.hidden = !mediaPanel.hidden;
                 if (!mediaPanel.hidden) mediaPanel.scrollIntoView({behavior: 'smooth', block: 'nearest'});
             });
-            $('idcClose')?.before(toggle);
+            mediaPanel.insertAdjacentElement('afterend', toggle);
         }
         mediaPanel.hidden = app.dataset.canMedia !== '1';
         $('idcIssuePanel').hidden = app.dataset.canMarkIssue !== '1';
